@@ -65,11 +65,11 @@
                 <span class="material-symbols-outlined text-[22px]">menu_book</span>
                 <span>Lessons</span>
             </a>
-            <a href="#" class="flex items-center space-x-4 px-6 py-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
+            <a href="/analytics" class="flex items-center space-x-4 px-6 py-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
                 <span class="material-symbols-outlined icon-outline text-[22px]">bar_chart</span>
                 <span>Analytics</span>
             </a>
-            <a href="#" class="flex items-center space-x-4 px-6 py-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
+            <a href="/reports" class="flex items-center space-x-4 px-6 py-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
                 <span class="material-symbols-outlined icon-outline text-[22px]">description</span>
                 <span>Reports</span>
             </a>

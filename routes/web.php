@@ -24,3 +24,11 @@ Route::get('/students', function () {
 Route::get('/lessons', function () {
     return view('lessons');
 });
+
+Route::get('/analytics', function () {
+    return view('analytics');
+});
+
+Route::get('/reports', function () {
+    return view('reports');
+});
