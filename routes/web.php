@@ -32,3 +32,7 @@ Route::get('/analytics', function () {
 Route::get('/reports', function () {
     return view('reports');
 });
+
+Route::get('/settings', function () {
+    return view('settings');
+});

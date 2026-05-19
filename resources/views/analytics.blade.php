@@ -68,7 +68,7 @@
                 <span class="material-symbols-outlined icon-outline text-[22px]">description</span>
                 <span>Reports</span>
             </a>
-            <a href="#" class="flex items-center space-x-4 px-6 py-4 mt-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
+            <a href="/settings" class="flex items-center space-x-4 px-6 py-4 mt-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
                 <span class="material-symbols-outlined icon-outline text-[22px]">settings</span>
                 <span>Settings</span>
             </a>
