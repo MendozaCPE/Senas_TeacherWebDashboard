@@ -62,11 +62,11 @@
 
         <!-- Navigation -->
         <nav class="flex-1 flex flex-col space-y-2">
-            <a href="#" class="flex items-center space-x-4 px-6 py-4 bg-white text-[#0d326b] font-bold text-[15px] border-l-[6px] border-[#facc15] shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+            <a href="/" class="flex items-center space-x-4 px-6 py-4 bg-white text-[#0d326b] font-bold text-[15px] border-l-[6px] border-[#facc15] shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
                 <span class="material-symbols-outlined text-[22px]">grid_view</span>
                 <span>Dashboard</span>
             </a>
-            <a href="#" class="flex items-center space-x-4 px-6 py-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
+            <a href="/students" class="flex items-center space-x-4 px-6 py-4 text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent">
                 <span class="material-symbols-outlined icon-outline text-[22px]">group</span>
                 <span>Students</span>
             </a>
