@@ -16,3 +16,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Database dump (kept locally for Docker init, not committed)
+database/senas_db.sql
