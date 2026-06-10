@@ -9,7 +9,7 @@
                     <!-- Welcome & Stats -->
                     <div>
                         <div class="mb-8 pl-2">
-                            <h2 class="text-[32px] font-bold text-[#0d326b] mb-1">Welcome back, Ms. Mila</h2>
+                            <h2 class="text-[32px] font-bold text-[#0d326b] mb-1">Welcome back, {{ $displayName }}</h2>
                             <p class="text-[15px] text-slate-500 font-medium tracking-wide">Class Summary</p>
                         </div>
                         

@@ -1,38 +1,32 @@
 <?php
 
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
-
-Route::get('/', function () {
-    return view('dashboard');
+// ── Auth Routes (guests only) ────────────────────────────────────────────────
+Route::middleware('guest')->group(function () {
+    Route::get('/login',    [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login',   [AuthController::class, 'login']);
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register',[AuthController::class, 'register']);
 });
 
-Route::get('/students', function () {
-    return view('students');
-});
+// Terms & Conditions (accessible to everyone)
+Route::get('/terms', [AuthController::class, 'showTerms'])->name('terms');
 
-Route::get('/lessons', function () {
-    return view('lessons');
-});
+// ── Logout ───────────────────────────────────────────────────────────────────
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::get('/analytics', function () {
-    return view('analytics');
-});
+// ── Protected Routes (must be logged in) ─────────────────────────────────────
+Route::middleware('auth')->group(function () {
+    // Redirect / to /dashboard
+    Route::get('/', fn() => redirect()->route('dashboard'));
 
-Route::get('/reports', function () {
-    return view('reports');
-});
-
-Route::get('/settings', function () {
-    return view('settings');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/students',  fn() => view('students'));
+    Route::get('/lessons',   fn() => view('lessons'));
+    Route::get('/analytics', fn() => view('analytics'));
+    Route::get('/reports',   fn() => view('reports'));
+    Route::get('/settings',  fn() => view('settings'));
 });
