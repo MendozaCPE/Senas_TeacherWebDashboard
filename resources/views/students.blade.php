@@ -11,11 +11,11 @@
                 <!-- Quick Stats Pill -->
                 <div class="bg-white rounded-full py-4 px-8 shadow-sm flex items-center divide-x divide-slate-200 border border-slate-100">
                     <div class="flex flex-col items-center px-8">
-                        <span class="text-[28px] font-medium text-[#0d326b] leading-none mb-1">10</span>
+                        <span class="text-[28px] font-medium text-[#0d326b] leading-none mb-1">{{ $totalStudents }}</span>
                         <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Total Students</span>
                     </div>
                     <div class="flex flex-col items-center px-8">
-                        <span class="text-[28px] font-medium text-[#857a26] leading-none mb-1">0</span>
+                        <span class="text-[28px] font-medium text-[#857a26] leading-none mb-1">{{ $newThisWeek }}</span>
                         <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">New This Week</span>
                     </div>
                 </div>
@@ -67,34 +67,35 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
-                        <!-- Student Row 1 -->
+                        @forelse($students as $student)
+                        <!-- Student Row -->
                         <tr class="hover:bg-slate-50/50 transition-colors group">
                             <td class="py-5 px-8">
                                 <div class="flex items-center space-x-4">
-                                    <img src="https://ui-avatars.com/api/?name=Danah+Paris&background=random&color=fff&rounded=true" class="w-[42px] h-[42px] rounded-full shadow-sm"/>
+                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name . ' ' . $student->last_name) }}&background=random&color=fff&rounded=true" class="w-[42px] h-[42px] rounded-full shadow-sm"/>
                                     <div>
-                                        <p class="text-[15px] font-bold text-[#0d326b]">Danah Paris</p>
-                                        <p class="text-[11px] text-slate-400 mt-0.5 font-medium">LRN: 107512</p>
+                                        <p class="text-[15px] font-bold text-[#0d326b]">{{ $student->first_name }} {{ $student->last_name }}</p>
+                                        <p class="text-[11px] text-slate-400 mt-0.5 font-medium">LRN: {{ $student->lrn ?? 'N/A' }}</p>
                                     </div>
                                 </div>
                             </td>
                             <td class="py-5 px-8">
-                                <span class="px-3 py-1.5 bg-[#e0e7ff] text-[#4f46e5] text-[10px] font-bold rounded-full uppercase tracking-wider">Intermediate</span>
+                                <span class="px-3 py-1.5 bg-[#e0e7ff] text-[#4f46e5] text-[10px] font-bold rounded-full uppercase tracking-wider">{{ $student->grade_level ?? 'Beginner' }}</span>
                             </td>
                             <td class="py-5 px-8">
                                 <div class="flex items-center space-x-4">
-                                    <span class="text-[14px] font-bold text-[#1e293b]">42/60</span>
+                                    <span class="text-[14px] font-bold text-[#1e293b]">--/60</span>
                                     <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                        <div class="h-full bg-[#0d326b] rounded-full" style="width: 70%"></div>
+                                        <div class="h-full bg-[#0d326b] rounded-full" style="width: 0%"></div>
                                     </div>
                                 </div>
                             </td>
                             <td class="py-5 px-8">
-                                <span class="text-[15px] font-bold text-[#0d326b]">94.2%</span>
+                                <span class="text-[15px] font-bold text-[#0d326b]">--%</span>
                             </td>
                             <td class="py-5 px-8">
-                                <p class="text-[13px] font-medium text-[#1e293b]">2 hours ago</p>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Numbers Practice</p>
+                                <p class="text-[13px] font-medium text-[#1e293b]">{{ $student->created_at ? $student->created_at->diffForHumans() : 'Never' }}</p>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Enrolled</p>
                             </td>
                             <td class="py-5 px-8 text-right">
                                 <button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-[#0d326b] transition-colors">
@@ -102,95 +103,17 @@
                                 </button>
                             </td>
                         </tr>
-
-                        <!-- Student Row 2 -->
-                        <tr class="hover:bg-slate-50/50 transition-colors group">
-                            <td class="py-5 px-8">
-                                <div class="flex items-center space-x-4">
-                                    <img src="https://ui-avatars.com/api/?name=Yeoj+Valdez&background=random&color=fff&rounded=true" class="w-[42px] h-[42px] rounded-full shadow-sm"/>
-                                    <div>
-                                        <p class="text-[15px] font-bold text-[#0d326b]">Yeoj Valdez</p>
-                                        <p class="text-[11px] text-slate-400 mt-0.5 font-medium">LRN: 107512</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="py-5 px-8">
-                                <span class="px-3 py-1.5 bg-[#f1f5f9] text-[#64748b] text-[10px] font-bold rounded-full uppercase tracking-wider">Beginner</span>
-                            </td>
-                            <td class="py-5 px-8">
-                                <div class="flex items-center space-x-4">
-                                    <span class="text-[14px] font-bold text-[#1e293b]">12/60</span>
-                                    <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                        <div class="h-full bg-[#0d326b] rounded-full" style="width: 20%"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="py-5 px-8">
-                                <span class="text-[15px] font-bold text-[#0d326b]">81.5%</span>
-                            </td>
-                            <td class="py-5 px-8">
-                                <p class="text-[13px] font-medium text-[#1e293b]">Yesterday</p>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Alphabet Practice</p>
-                            </td>
-                            <td class="py-5 px-8 text-right">
-                                <button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-[#0d326b] transition-colors">
-                                    <span class="material-symbols-outlined icon-outline text-[20px]">chevron_right</span>
-                                </button>
-                            </td>
+                        @empty
+                        <tr>
+                            <td colspan="6" class="py-10 text-center text-slate-500">No students found.</td>
                         </tr>
-
-                        <!-- Student Row 3 -->
-                        <tr class="hover:bg-slate-50/50 transition-colors group">
-                            <td class="py-5 px-8">
-                                <div class="flex items-center space-x-4">
-                                    <img src="https://ui-avatars.com/api/?name=Jared+Abellera&background=random&color=fff&rounded=true" class="w-[42px] h-[42px] rounded-full shadow-sm"/>
-                                    <div>
-                                        <p class="text-[15px] font-bold text-[#0d326b]">Jared Abellera</p>
-                                        <p class="text-[11px] text-slate-400 mt-0.5 font-medium">LRN: 107512</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="py-5 px-8">
-                                <span class="px-3 py-1.5 bg-[#0d326b] text-white text-[10px] font-bold rounded-full uppercase tracking-wider">Advanced</span>
-                            </td>
-                            <td class="py-5 px-8">
-                                <div class="flex items-center space-x-4">
-                                    <span class="text-[14px] font-bold text-[#1e293b]">58/60</span>
-                                    <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                        <div class="h-full bg-[#0d326b] rounded-full" style="width: 96%"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="py-5 px-8">
-                                <span class="text-[15px] font-bold text-[#0d326b]">98.9%</span>
-                            </td>
-                            <td class="py-5 px-8">
-                                <p class="text-[13px] font-medium text-[#1e293b]">4 days ago</p>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Greetings Practice</p>
-                            </td>
-                            <td class="py-5 px-8 text-right">
-                                <button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-[#0d326b] transition-colors">
-                                    <span class="material-symbols-outlined icon-outline text-[20px]">chevron_right</span>
-                                </button>
-                            </td>
-                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
                 
                 <!-- Pagination Footer -->
-                <div class="px-8 py-5 border-t border-slate-100 flex items-center justify-between">
-                    <p class="text-[13px] font-medium text-slate-500">Showing 3 of 10 students</p>
-                    <div class="flex items-center space-x-2">
-                        <button class="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50 transition-colors">
-                            <span class="material-symbols-outlined icon-outline text-[18px]">chevron_left</span>
-                        </button>
-                        <button class="w-9 h-9 rounded-lg bg-[#0d326b] text-white font-bold text-[13px] flex items-center justify-center shadow-sm">1</button>
-                        <button class="w-9 h-9 rounded-lg border border-slate-200 text-slate-600 font-semibold text-[13px] flex items-center justify-center hover:bg-slate-50 transition-colors">2</button>
-                        <button class="w-9 h-9 rounded-lg border border-slate-200 text-slate-600 font-semibold text-[13px] flex items-center justify-center hover:bg-slate-50 transition-colors">3</button>
-                        <button class="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50 transition-colors">
-                            <span class="material-symbols-outlined icon-outline text-[18px]">chevron_right</span>
-                        </button>
-                    </div>
+                <div class="px-8 py-5 border-t border-slate-100">
+                    {{ $students->links('pagination::tailwind') }}
                 </div>
             </div>
 @endsection

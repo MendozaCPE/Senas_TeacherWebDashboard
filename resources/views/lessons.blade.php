@@ -57,54 +57,28 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-50">
+                                    @forelse($lessons as $lesson)
                                     <tr class="hover:bg-slate-50 transition-colors group">
                                         <td class="py-5 px-2 text-slate-300 cursor-move">
                                             <span class="material-symbols-outlined icon-outline text-lg">drag_indicator</span>
                                         </td>
-                                        <td class="py-5 px-4 font-bold text-[#0d326b] text-[14px]">Alphabets</td>
+                                        <td class="py-5 px-4 font-bold text-[#0d326b] text-[14px]">{{ $lesson->title }}</td>
                                         <td class="py-5 px-4">
-                                            <span class="px-3 py-1 bg-[#dcfce7] text-[#166534] text-[9px] font-bold rounded uppercase tracking-widest">Basic</span>
+                                            <span class="px-3 py-1 bg-[#dcfce7] text-[#166534] text-[9px] font-bold rounded uppercase tracking-widest">{{ $lesson->difficulty }}</span>
                                         </td>
                                         <td class="py-5 px-4">
-                                            <p class="text-[13px] font-medium text-slate-600">10 / 10</p>
+                                            <p class="text-[13px] font-medium text-slate-600">-- / --</p>
                                             <p class="text-[10px] text-slate-400">Students</p>
                                         </td>
                                         <td class="py-5 px-4 text-right">
-                                            <span class="text-[15px] font-bold text-[#0d326b]">92%</span>
+                                            <span class="text-[15px] font-bold text-[#0d326b]">--%</span>
                                         </td>
                                     </tr>
-                                    <tr class="hover:bg-slate-50 transition-colors group">
-                                        <td class="py-5 px-2 text-slate-300 cursor-move">
-                                            <span class="material-symbols-outlined icon-outline text-lg">drag_indicator</span>
-                                        </td>
-                                        <td class="py-5 px-4 font-bold text-[#0d326b] text-[14px]">Consonants</td>
-                                        <td class="py-5 px-4">
-                                            <span class="px-3 py-1 bg-[#dcfce7] text-[#166534] text-[9px] font-bold rounded uppercase tracking-widest">Basic</span>
-                                        </td>
-                                        <td class="py-5 px-4">
-                                            <p class="text-[13px] font-medium text-slate-600">8 / 10</p>
-                                            <p class="text-[10px] text-slate-400">Students</p>
-                                        </td>
-                                        <td class="py-5 px-4 text-right">
-                                            <span class="text-[15px] font-bold text-[#0d326b]">85%</span>
-                                        </td>
+                                    @empty
+                                    <tr>
+                                        <td colspan="5" class="py-10 text-center text-slate-500">No lessons created yet.</td>
                                     </tr>
-                                    <tr class="hover:bg-slate-50 transition-colors group">
-                                        <td class="py-5 px-2 text-slate-300 cursor-move">
-                                            <span class="material-symbols-outlined icon-outline text-lg">drag_indicator</span>
-                                        </td>
-                                        <td class="py-5 px-4 font-bold text-[#0d326b] text-[14px]">Dynamic Letters</td>
-                                        <td class="py-5 px-4">
-                                            <span class="px-3 py-1 bg-[#fef08a] text-[#854d0e] text-[9px] font-bold rounded uppercase tracking-widest">Medium</span>
-                                        </td>
-                                        <td class="py-5 px-4">
-                                            <p class="text-[13px] font-medium text-slate-600">8 / 10</p>
-                                            <p class="text-[10px] text-slate-400">Students</p>
-                                        </td>
-                                        <td class="py-5 px-4 text-right">
-                                            <span class="text-[15px] font-bold text-[#0d326b]">78%</span>
-                                        </td>
-                                    </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
 

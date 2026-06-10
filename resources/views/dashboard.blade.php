@@ -18,7 +18,7 @@
                             <div class="bg-white rounded-[24px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[160px]">
                                 <h3 class="text-[11px] font-bold text-slate-500 tracking-[0.1em] uppercase mb-4 leading-relaxed">Total<br>Students</h3>
                                 <div>
-                                    <p class="text-[40px] font-normal text-[#0d326b] leading-none mb-4">10</p>
+                                    <p class="text-[40px] font-normal text-[#0d326b] leading-none mb-4">{{ $totalStudents }}</p>
                                     <div class="w-[90%] h-2 bg-[#0d326b] rounded-full"></div>
                                 </div>
                             </div>
@@ -26,19 +26,16 @@
                             <div class="bg-white rounded-[24px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[160px]">
                                 <h3 class="text-[11px] font-bold text-slate-500 tracking-[0.1em] uppercase mb-4 leading-relaxed">Students Active<br>Today</h3>
                                 <div>
-                                    <p class="text-[40px] font-normal text-[#6366f1] leading-none mb-4">8</p>
+                                    <p class="text-[40px] font-normal text-[#6366f1] leading-none mb-4">{{ $activeToday }}</p>
                                     <div class="w-[90%] h-2 bg-[#6366f1] rounded-full"></div>
                                 </div>
                             </div>
                             <!-- Card 3 -->
                             <div class="bg-white rounded-[24px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[160px]">
-                                <h3 class="text-[11px] font-bold text-slate-500 tracking-[0.1em] uppercase mb-4 leading-relaxed">Average<br>Performance</h3>
+                                <h3 class="text-[11px] font-bold text-slate-500 tracking-[0.1em] uppercase mb-4 leading-relaxed">Lessons<br>Completed</h3>
                                 <div>
-                                    <div class="flex items-baseline space-x-3 mb-4">
-                                        <p class="text-[40px] font-normal text-[#857a26] leading-none">84%</p>
-                                        <p class="text-[13px] font-bold text-emerald-500 flex items-center"><span class="material-symbols-outlined icon-outline text-[16px] mr-0.5">arrow_upward</span>3%</p>
-                                    </div>
-                                    <div class="w-[90%] h-2 bg-[#a39423] rounded-full"></div>
+                                    <p class="text-[40px] font-normal text-[#10b981] leading-none mb-4">{{ $lessonsCompleted }}</p>
+                                    <div class="w-[90%] h-2 bg-[#10b981] rounded-full"></div>
                                 </div>
                             </div>
                         </div>
@@ -219,56 +216,29 @@
                         </div>
                         
                         <div class="space-y-6">
-                            <!-- Student 1 -->
+                            @forelse($students as $student)
+                            <!-- Student -->
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-4 w-1/3">
-                                    <img src="https://ui-avatars.com/api/?name=Christian+Mendoza&background=random&color=fff&rounded=true" class="w-10 h-10 rounded-full"/>
-                                    <span class="text-sm font-bold text-slate-700">Christian Paul Mendoza</span>
+                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name . ' ' . $student->last_name) }}&background=random&color=fff&rounded=true" class="w-10 h-10 rounded-full"/>
+                                    <span class="text-sm font-bold text-slate-700">{{ $student->first_name }} {{ $student->last_name }}</span>
                                 </div>
                                 <div class="flex-1 px-8">
                                     <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-emerald-500 rounded-full" style="width: 96%"></div>
+                                        {{-- In a real app, calculate actual performance --}}
+                                        <div class="h-full bg-brand-blue rounded-full" style="width: 50%"></div>
                                     </div>
                                 </div>
                                 <div class="w-24 text-right flex items-center justify-end space-x-4">
-                                    <span class="text-sm font-bold text-emerald-600">96%</span>
-                                    <span class="px-2 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded uppercase tracking-wider">High</span>
+                                    <span class="text-sm font-bold text-brand-blue">--%</span>
+                                    <span class="px-2 py-1 bg-blue-50 text-brand-blue text-[9px] font-bold rounded uppercase tracking-wider">New</span>
                                 </div>
                             </div>
-
-                            <!-- Student 2 -->
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-4 w-1/3">
-                                    <img src="https://ui-avatars.com/api/?name=Jared+Abellera&background=random&color=fff&rounded=true" class="w-10 h-10 rounded-full"/>
-                                    <span class="text-sm font-bold text-slate-700">Jared Abellera</span>
-                                </div>
-                                <div class="flex-1 px-8">
-                                    <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-brand-yellow rounded-full" style="width: 72%"></div>
-                                    </div>
-                                </div>
-                                <div class="w-24 text-right flex items-center justify-end space-x-4">
-                                    <span class="text-sm font-bold text-yellow-600">72%</span>
-                                    <span class="px-2 py-1 bg-yellow-50 text-yellow-600 text-[9px] font-bold rounded uppercase tracking-wider">Average</span>
-                                </div>
+                            @empty
+                            <div class="text-center text-sm text-gray-400 py-4">
+                                No students added yet.
                             </div>
-
-                            <!-- Student 3 -->
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-4 w-1/3">
-                                    <img src="https://ui-avatars.com/api/?name=Danah+Paris&background=random&color=fff&rounded=true" class="w-10 h-10 rounded-full"/>
-                                    <span class="text-sm font-bold text-slate-700">Danah Paris</span>
-                                </div>
-                                <div class="flex-1 px-8">
-                                    <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-red-500 rounded-full" style="width: 42%"></div>
-                                    </div>
-                                </div>
-                                <div class="w-24 text-right flex items-center justify-end space-x-4">
-                                    <span class="text-sm font-bold text-red-600">42%</span>
-                                    <span class="px-2 py-1 bg-red-50 text-red-600 text-[9px] font-bold rounded uppercase tracking-wider">Low</span>
-                                </div>
-                            </div>
+                            @endforelse
                         </div>
                     </div>
                 </div>

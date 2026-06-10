@@ -35,19 +35,22 @@
             <span class="material-symbols-outlined {{ request()->is('settings') ? '' : 'icon-outline' }} text-[22px]">settings</span>
             <span>Settings</span>
         </a>
-        <a href="#" class="flex items-center space-x-4 px-6 py-4 {{ $inactiveClass }}">
-            <span class="material-symbols-outlined icon-outline text-[22px]">logout</span>
-            <span>Logout</span>
-        </a>
+        <form method="POST" action="{{ route('logout') }}" class="w-full">
+            @csrf
+            <button type="submit" class="w-full flex items-center space-x-4 px-6 py-4 {{ $inactiveClass }}">
+                <span class="material-symbols-outlined icon-outline text-[22px]">logout</span>
+                <span>Logout</span>
+            </button>
+        </form>
     </nav>
 
     <!-- User Profile -->
     <div class="px-6 mb-8 mt-4">
         <div class="flex items-center space-x-4 bg-[#f1f5f9] px-4 py-3.5 rounded-[24px] shadow-sm">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Mila&backgroundColor=e2e8f0" alt="Ms. Mila" class="w-10 h-10 rounded-full border-2 border-white shadow-sm"/>
-            <div class="flex-1">
-                <p class="text-[13px] font-bold text-[#0d326b]">Ms. Mila Quintana</p>
-                <p class="text-[11px] font-medium text-slate-500">SNED TEacher</p>
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ Auth::user()->name }}&backgroundColor=e2e8f0" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white shadow-sm"/>
+            <div class="flex-1 overflow-hidden">
+                <p class="text-[13px] font-bold text-[#0d326b] truncate">{{ Auth::user()->name }}</p>
+                <p class="text-[11px] font-medium text-slate-500 truncate">{{ Auth::user()->teacher->specialization ?? 'Teacher' }}</p>
             </div>
         </div>
     </div>

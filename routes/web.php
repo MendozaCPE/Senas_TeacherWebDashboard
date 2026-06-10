@@ -24,8 +24,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/', fn() => redirect()->route('dashboard'));
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/students',  fn() => view('students'));
-    Route::get('/lessons',   fn() => view('lessons'));
+    Route::get('/students',  [App\Http\Controllers\StudentsController::class, 'index'])->name('students');
+    Route::get('/lessons',   [App\Http\Controllers\LessonsController::class, 'index'])->name('lessons');
     Route::get('/analytics', fn() => view('analytics'));
     Route::get('/reports',   fn() => view('reports'));
     Route::get('/settings',  fn() => view('settings'));
