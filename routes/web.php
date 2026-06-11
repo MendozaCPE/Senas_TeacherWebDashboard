@@ -25,6 +25,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/students',  [App\Http\Controllers\StudentsController::class, 'index'])->name('students');
+    Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
+    Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
     Route::get('/lessons',   [App\Http\Controllers\LessonsController::class, 'index'])->name('lessons');
     Route::get('/analytics', fn() => view('analytics'));
     Route::get('/reports',   fn() => view('reports'));

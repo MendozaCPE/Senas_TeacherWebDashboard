@@ -23,6 +23,7 @@ class Student extends Model
         'grade_level',
         'section',
         'program_type',
+        'fsl_mastery_level',
     ];
 
     public function teacher()

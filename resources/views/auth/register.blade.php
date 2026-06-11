@@ -11,14 +11,14 @@
         <h1 class="text-white font-black text-5xl tracking-[0.25em] mb-8 drop-shadow-lg select-none">SEÑAS</h1>
 
         {{-- Mascot overlapping the white card --}}
-        <div class="relative" style="width: 220px; height: 310px;">
+        <div class="relative" style="width: 350px; height: 500px;">
             {{-- White phone-shaped card --}}
-            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white rounded-[2.5rem] shadow-2xl"
-                 style="width: 195px; height: 265px;"></div>
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white rounded-[3.5rem] shadow-2xl"
+                 style="width: 310px; height: 420px;"></div>
             {{-- Senya overflows above the card --}}
             <img src="{{ asset('images/wavingSenya.png') }}" alt="Senya mascot"
                  class="absolute bottom-0 left-1/2 -translate-x-1/2 z-10 w-full object-contain object-bottom select-none"
-                 style="height: 310px;" draggable="false">
+                 style="height: 500px;" draggable="false">
         </div>
     </div>
 
