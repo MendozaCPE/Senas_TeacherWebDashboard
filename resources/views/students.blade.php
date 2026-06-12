@@ -236,7 +236,7 @@
                     <div id="container-bulk" class="hidden">
                         <!-- Drop Zone -->
                         <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-[#0d326b] rounded-[24px] p-10 flex flex-col items-center justify-center space-y-4 mb-6 transition-all cursor-pointer relative bg-slate-50/50">
-                            <input type="file" id="excel-file" accept=".xlsx, .xls" class="absolute inset-0 opacity-0 cursor-pointer" />
+                            <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" class="absolute inset-0 opacity-0 cursor-pointer" />
                             <div class="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm" id="upload-icon-container">
                                 <span class="material-symbols-outlined text-[28px]" id="upload-icon">article</span>
                             </div>
@@ -416,8 +416,8 @@
                 // Parse Excel using SheetJS
                 function handleExcelFile(file) {
                     hideAlert();
-                    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-                        showAlert('Invalid file format. Please upload an Excel file (.xlsx or .xls).');
+                    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls') && !file.name.endsWith('.csv')) {
+                        showAlert('Invalid file format. Please upload an Excel or CSV file (.xlsx, .xls, or .csv).');
                         resetUploadArea();
                         return;
                     }
@@ -466,7 +466,7 @@
                     uploadIcon.innerText = "article";
                     uploadIconContainer.className = "w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm";
                     uploadPrimaryText.innerText = "Drag and drop your student roster file here";
-                    uploadSecondaryText.innerText = ".xlsx only, max 5MB";
+                    uploadSecondaryText.innerText = ".xlsx or .csv only, max 5MB";
                     
                     // Disable confirm import button
                     btnImportSubmit.setAttribute('disabled', 'true');

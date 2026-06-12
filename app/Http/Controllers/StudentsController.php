@@ -88,8 +88,8 @@ class StudentsController extends Controller
             $user = User::create([
                 'name' => trim($firstName . ' ' . $lastName),
                 'username' => $username,
-                'email' => null,
-                'password' => null, // Students log in with LRN and PIN
+                'email' => $lrn,
+                'password' => Hash::make($lrn), // Temporary password using LRN
                 'role' => 'student',
                 'status' => 'active',
             ]);
@@ -195,8 +195,8 @@ class StudentsController extends Controller
                 $user = User::create([
                     'name' => trim($firstName . ' ' . $lastName),
                     'username' => $username,
-                    'email' => null,
-                    'password' => null,
+                    'email' => $lrn,
+                    'password' => Hash::make($lrn), // Temporary password using LRN
                     'role' => 'student',
                     'status' => 'active',
                 ]);
