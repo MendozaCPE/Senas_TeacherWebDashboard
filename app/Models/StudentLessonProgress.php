@@ -26,4 +26,9 @@ class StudentLessonProgress extends Model
     {
         return $this->belongsTo(Student::class, 'student_id', 'student_id');
     }
+
+    public function lesson()
+    {
+        return $this->belongsTo(Lesson::class, 'lesson_id', 'lesson_id');
+    }
 }

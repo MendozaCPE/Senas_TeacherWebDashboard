@@ -48,7 +48,7 @@
         @include('partials.header')
 
         <!-- Scrollable Content -->
-        <main class="flex-1 overflow-y-auto px-12 pb-12 relative">
+        <main class="flex-1 overflow-y-auto px-8 pt-8 pb-10 relative">
             @yield('content')
         </main>
     </div>
