@@ -60,6 +60,11 @@ php artisan serve
 - [Quick Setup Checklist](#-quick-setup-checklist-for-groupmate)
 
 ---
+## 🏗️ System Architecture
+
+The SEÑAS platform consists of two main applications:
+- **Web Dashboard** (Laravel PHP) - Teacher/admin interface for managing students and lessons
+- **Mobile App** (React Native Expo) - Student learning application
 
 # 🗄️ Database Access
 
@@ -328,7 +333,11 @@ Laravel default authentication table with additional project-specific fields.
 | `lesson_id` | BIGINT | Foreign Key → `lessons.lesson_id` | ❌ |
 | `gesture_id` | BIGINT | Foreign Key → `gestures.gesture_id` | ❌ |
 
+### Learning Paths
 
+| id | student_id | fsl_level | learning_goal | practice_time | is_completed | completed_at |
+|----|------------|-----------|---------------|---------------|--------------|--------------|
+| 1 | 2 | Beginner | Alphabet_Numbers | 5_10_min | 1 | 2026-06-21 00:34:05 |
 
 # 📝 ENUM Values
 
@@ -552,6 +561,8 @@ the database will be populated with sample records for development and testing.
                      │ grade_level │
                      │ section     │
                      │ program_type│
+                     │ fsl_mastery_│
+                     │   level     │
                      └──────┬──────┘
                             │
         ┌───────────────────┼───────────────────┐
@@ -613,6 +624,7 @@ the database will be populated with sample records for development and testing.
 │ option_text   │
 │ is_correct    │
 └───────────────┘
+
 ```
 
 ### Relationship Summary
@@ -850,107 +862,6 @@ If migrations are displayed, the connection is working correctly.
 
 ---
 
-# 🔧 Common XAMPP Issues
-
-## MySQL Won't Start
-
-Usually caused by another application using port 3306.
-
-Common causes:
-
-- Existing MySQL installation
-- MariaDB
-- WAMP
-- Docker MySQL container
-
-### Check Port Usage
-
-Windows Command Prompt:
-
-```bash
-netstat -ano | findstr :3306
-```
-
-If another service is using port 3306:
-
-- Stop the conflicting service, OR
-- Change MySQL's port in XAMPP.
-
----
-
-## Access Denied for User 'root'
-
-Verify `.env`:
-
-```env
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-If you created a password in XAMPP, update:
-
-```env
-DB_PASSWORD=your_password
-```
-
-Then clear Laravel cache:
-
-```bash
-php artisan config:clear
-```
-
----
-
-## phpMyAdmin Not Loading
-
-Ensure Apache is running.
-
-Visit:
-
-```text
-http://localhost
-```
-
-If localhost doesn't open, Apache is not running.
-
----
-
-## SQLSTATE[HY000] [2002] Connection Refused
-
-Verify:
-
-```env
-DB_HOST=127.0.0.1
-DB_PORT=3306
-```
-
-and ensure MySQL is running in XAMPP.
-
----
-
-# 📋 XAMPP Quick Start
-
-```bash
-# Start Apache and MySQL from XAMPP
-
-# Create database: senyas
-
-# Configure .env
-
-php artisan config:clear
-php artisan cache:clear
-
-# Run migrations
-
-php artisan migrate
-
-# Check status
-
-php artisan migrate:status
-```
-
-✅ If `php artisan migrate:status` shows the migration list, the database setup is complete.
-
 ## 🗄️ Database Schema
 
 | Table Name                | Primary Key Column |
@@ -967,3 +878,21 @@ php artisan migrate:status
 | student_answers          | answer_id          |
 | student_lesson_progress  | progress_id        |
 | gestures                 | gesture_id         |
+
+API Endpoints
+Method	Endpoint	Description
+POST	/api/student/login	Student login
+GET	/api/student/profile	Get student profile
+GET	/api/student/learning-path	Get learning path
+POST	/api/student/save-learning-path	Save learning path
+POST	/api/student/update-level	Update mastery level
+POST	/api/student/logout	Student logout
+
+## 🎉 What's Next?
+
+1. **Lessons Module** - Display lessons based on student level
+2. **Quiz Module** - Multiple choice and drag & drop quizzes
+3. **Gesture Recognition** - Camera-based sign language detection
+4. **Achievements** - Badges and progress tracking
+5. **Push Notifications** - Daily reminders to practice
+

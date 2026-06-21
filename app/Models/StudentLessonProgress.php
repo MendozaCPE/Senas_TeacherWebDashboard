@@ -31,4 +31,8 @@ class StudentLessonProgress extends Model
     {
         return $this->belongsTo(Lesson::class, 'lesson_id', 'lesson_id');
     }
+    public function learningPath()
+{
+    return $this->hasOne(LearningPath::class);
+}
 }
