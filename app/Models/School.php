@@ -11,8 +11,8 @@ class School extends Model
 
     protected $fillable = ['name', 'address', 'region', 'division'];
 
-    public function teachers()
+     public function teachers()
     {
-        return $this->hasMany(Teacher::class);
+        return $this->hasMany(Teacher::class, 'school_id', 'school_id');
     }
 }

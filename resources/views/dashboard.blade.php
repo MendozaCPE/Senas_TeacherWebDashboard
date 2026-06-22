@@ -51,7 +51,7 @@
                     <div class="mt-10">
                         <div class="flex justify-between items-end mb-6 pl-2">
                             <h3 class="text-[22px] font-bold text-[#0d326b]">Your Lessons</h3>
-                            <a href="{{ route('lessons') }}" class="text-[14px] font-bold text-[#0d326b] hover:underline pr-2">Manage Lessons</a>
+                            <a href="{{ route('lessons.index') }}" class="text-[14px] font-bold text-[#0d326b] hover:underline pr-2">Manage Lessons</a>
                         </div>
 
                         @if($lessons->isEmpty())

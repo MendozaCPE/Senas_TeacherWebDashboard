@@ -23,6 +23,19 @@ class Lesson extends Model
 
     public function teacher()
     {
-        return $this->belongsTo(Teacher::class);
+        return $this->belongsTo(Teacher::class, 'teacher_id', 'teacher_id');
+    }
+
+    // Add this relationship for lesson contents
+    public function contents()
+    {
+        return $this->hasMany(LessonContent::class, 'lesson_id', 'lesson_id')
+            ->orderBy('step_number');
+    }
+
+    // Add this relationship for quiz
+    public function quiz()
+    {
+        return $this->hasOne(Quiz::class, 'lesson_id', 'lesson_id');
     }
 }

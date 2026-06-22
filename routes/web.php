@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\LessonsController; 
 use Illuminate\Support\Facades\Route;
 
 // ── Auth Routes (guests only) ────────────────────────────────────────────────
@@ -34,9 +35,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/students',        [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
     Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
 
-    // Lessons
-    Route::get('/lessons', [App\Http\Controllers\LessonsController::class, 'index'])->name('lessons');
+    // Lessons - ALL using LessonsController (plural)
+    Route::get('/lessons', [LessonsController::class, 'index'])->name('lessons.index');
+    
+    Route::get('/lessons/create', [LessonsController::class, 'create'])->name('lessons.create');
+    Route::post('/lessons', [LessonsController::class, 'store'])->name('lessons.store');
+    Route::post('/lessons/preview', [LessonsController::class, 'preview'])->name('lessons.preview');
 
+    // Add these new routes:
+Route::get('/lessons/{lesson}/view', [LessonsController::class, 'view'])->name('lessons.view');
+Route::get('/lessons/{lesson}/edit', [LessonsController::class, 'edit'])->name('lessons.edit');
+Route::put('/lessons/{lesson}', [LessonsController::class, 'update'])->name('lessons.update');
     // Analytics
     Route::get('/analytics',            [AnalyticsController::class, 'index'])->name('analytics');
     Route::get('/analytics/export-pdf', [ReportsController::class, 'exportAnalyticsPdf'])->name('analytics.export-pdf');
