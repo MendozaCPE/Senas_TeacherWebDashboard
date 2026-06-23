@@ -319,7 +319,7 @@ body {
                             
                             @if(isset($current['content_type']))
                                 @if($current['content_type'] == 'image' && isset($current['media']) && $current['media'])
-                                    <img src="{{ $current['media'] }}" alt="Slide image" class="slide-image">
+                                    <img src="{{ asset('storage/' . $current['media']) }}" alt="Slide image" class="slide-image">
                                 @elseif($current['content_type'] == 'video' && isset($current['media']) && $current['media'])
                                     <video controls class="slide-video">
                                         <source src="{{ $current['media'] }}" type="video/mp4">

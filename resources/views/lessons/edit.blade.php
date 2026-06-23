@@ -4,6 +4,61 @@
 @section('content')
 <style>
     .hidden { display: none !important; }
+    
+    #previewOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 9999;
+        overflow-y: auto;
+        display: none;
+        padding: 20px;
+    }
+    #previewOverlay.active { display: block; }
+    #previewOverlay .preview-container {
+        max-width: 500px;
+        margin: 0 auto;
+        background: #eaf5fd;
+        border-radius: 40px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        border: 8px solid #1a1a1a;
+        position: relative;
+        min-height: 780px;
+    }
+    #previewOverlay .preview-close {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+    }
+    #previewOverlay .preview-close:hover {
+        transform: scale(1.1);
+        background: #f0f0f0;
+    }
+    #previewOverlay .preview-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        color: white;
+        font-size: 18px;
+    }
 </style>
 
 <div class="max-w-4xl mx-auto">
@@ -293,11 +348,10 @@
 </div>
 
 <!-- Preview Overlay -->
-<div id="previewOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center">
-    <div class="preview-container max-w-[500px] w-full mx-4">
-        <div id="previewContent" class="bg-[#eaf5fd] rounded-3xl overflow-hidden shadow-2xl border-8 border-[#1a1a1a] min-h-[780px] relative">
-            <div class="preview-loading flex items-center justify-center h-[780px] text-white">Loading preview...</div>
-        </div>
+<div id="previewOverlay">
+    <button class="preview-close" onclick="closePreview()">✕</button>
+    <div class="preview-container" id="previewContent">
+        <div class="preview-loading">Loading preview...</div>
     </div>
 </div>
 
@@ -306,13 +360,18 @@ let contentIndex = {{ isset($lessonData['contents']) ? count($lessonData['conten
 let quizIndex = {{ isset($lessonData['quiz']) ? count($lessonData['quiz']) : 0 }};
 
 function openPreview() {
+    const overlay = document.getElementById('previewOverlay');
+    const content = document.getElementById('previewContent');
+    overlay.classList.add('active');
+    content.innerHTML = '<div class="preview-loading">Loading preview...</div>';
+    
     const form = document.getElementById('lessonForm');
     const formData = new FormData(form);
     
-    // Show overlay
-    const overlay = document.getElementById('previewOverlay');
-    overlay.classList.remove('hidden');
-    document.getElementById('previewContent').innerHTML = '<div class="preview-loading flex items-center justify-center h-[780px]">Loading preview...</div>';
+    // Remove the _method field if it exists (PUT method override)
+    if (formData.has('_method')) {
+        formData.delete('_method');
+    }
     
     fetch('{{ route('lessons.preview') }}', {
         method: 'POST',
@@ -323,9 +382,9 @@ function openPreview() {
     })
     .then(response => response.text())
     .then(html => {
-        document.getElementById('previewContent').innerHTML = html;
+        content.innerHTML = html;
         // Re-inject scripts
-        document.querySelectorAll('#previewContent script').forEach(oldScript => {
+        content.querySelectorAll('script').forEach(oldScript => {
             const newScript = document.createElement('script');
             for (const attr of oldScript.attributes) {
                 newScript.setAttribute(attr.name, attr.value);
@@ -342,8 +401,10 @@ function openPreview() {
 }
 
 function closePreview() {
-    document.getElementById('previewOverlay').classList.add('hidden');
+    document.getElementById('previewOverlay').classList.remove('active');
 }
+
+
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') closePreview();
 });

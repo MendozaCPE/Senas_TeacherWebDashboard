@@ -288,7 +288,7 @@
                             {{ $totalSlides }} slides · ~2 min read
                         </p>
                     </div>
-                    <img src="{{ asset('images/senya_blue.png') }}" alt="Senya" class="hero-image">
+                    <img src="{{ asset('images/wavingSenya.png') }}" alt="Senya" class="hero-image">
                 </div>
             </div>
 
@@ -313,15 +313,21 @@
                             </h3>
                             
                             @if(isset($current['content_type']))
-                                @if($current['content_type'] == 'image' && isset($current['media']) && $current['media'])
-                                    <img src="{{ $current['media'] }}" alt="Slide image" class="slide-image">
-                                @elseif($current['content_type'] == 'video' && isset($current['media']) && $current['media'])
-                                    <video controls class="slide-video">
-                                        <source src="{{ $current['media'] }}" type="video/mp4">
-                                        Your browser does not support the video tag.
-                                    </video>
-                                @endif
-                            @endif
+    @if($current['content_type'] == 'image' && isset($current['media']) && $current['media'])
+        @if(isset($current['is_temp']) && $current['is_temp'])
+            {{-- Temporary file from preview --}}
+            <img src="{{ asset('storage/' . $current['media']) }}" alt="Slide image" class="slide-image">
+        @else
+            {{-- Permanent file from database --}}
+            <img src="{{ asset('storage/' . $current['media']) }}" alt="Slide image" class="slide-image">
+        @endif
+    @elseif($current['content_type'] == 'video' && isset($current['media']) && $current['media'])
+        <video controls class="slide-video">
+            <source src="{{ asset('storage/' . $current['media']) }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    @endif
+@endif
                             
                             <p style="font-size: 14px; color: #334155; line-height: 1.6;">
                                 {{ $current['content_text'] ?? 'Content goes here...' }}
@@ -380,8 +386,14 @@
 
             <div class="glass-card" style="text-align: center; padding: 24px;">
                 @if(isset($q['media']) && $q['media'])
-                    <img src="{{ $q['media'] }}" alt="Quiz image" class="quiz-media">
-                @endif
+    {{-- Debug: Show the path being used --}}
+    <!-- Quiz media path: {{ $q['media'] }} -->
+    @if(isset($q['is_temp']) && $q['is_temp'])
+        <img src="{{ asset('storage/' . $q['media']) }}" alt="Quiz image" class="quiz-media">
+    @else
+        <img src="{{ asset('storage/' . $q['media']) }}" alt="Quiz image" class="quiz-media">
+    @endif
+@endif
                 <p style="font-size: 16px; font-weight: 800; color: #0f3172; margin-top: 10px;">
                     {{ $q['question'] ?? 'Sample Question' }}
                 </p>

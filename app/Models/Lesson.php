@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+// Add these at the top
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Lesson extends Model
 {
@@ -19,6 +21,7 @@ class Lesson extends Model
         'difficulty',
         'module_order',
         'status',
+        'published_at', // Add this if not already there
     ];
 
     public function teacher()
@@ -38,4 +41,41 @@ class Lesson extends Model
     {
         return $this->hasOne(Quiz::class, 'lesson_id', 'lesson_id');
     }
+
+     public function assignments(): HasMany
+     {
+         return $this->hasMany(LessonAssignment::class, 'lesson_id', 'lesson_id');
+     }
+
+    /**
+     * Get the students assigned to this lesson
+     */
+    public function students()
+    {
+        return $this->belongsToMany(Student::class, 'lesson_assignments', 'lesson_id', 'student_id')
+                    ->withPivot('status', 'notified', 'assigned_at', 'completed_at', 'score')
+                    ->withTimestamps();
+    }
+
+/**
+ * Check if a student is assigned to this lesson
+ */
+public function isAssignedToStudent($studentId): bool
+{
+    return $this->assignments()
+                ->where('student_id', $studentId)
+                ->exists();
+}
+
+/**
+ * Get the assignment status for a specific student
+ */
+public function getStudentStatus($studentId): ?string
+{
+    $assignment = $this->assignments()
+                       ->where('student_id', $studentId)
+                       ->first();
+
+    return $assignment ? $assignment->status : null;
+}
 }
