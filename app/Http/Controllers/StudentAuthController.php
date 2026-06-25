@@ -7,6 +7,7 @@ use App\Models\Lesson;
 use App\Models\LessonAssignment;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\XPService;  
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -188,89 +189,96 @@ class StudentAuthController extends Controller
         }
     }
 
-    /**
-     * Get all published lessons for the authenticated student
-     */
     public function getLessons(Request $request)
-    {
-        try {
-            $user = Auth::user();
+{
+    try {
+        $user = Auth::user();
 
-            if (! $user) {
-                return response()->json(['error' => 'Unauthorized'], 401);
-            }
-
-            $student = Student::where('user_id', $user->id)->first();
-
-            if (! $student) {
-                return response()->json(['error' => 'Student not found'], 404);
-            }
-
-            // Get all lesson assignments for this student
-            $assignments = LessonAssignment::where('student_id', $student->student_id)
-                ->with(['lesson' => function ($query) {
-                    $query->where('status', 'published')
-                          ->with(['contents', 'quiz']);
-                }])
-                ->orderBy('assigned_at', 'desc')
-                ->get();
-
-            $lessons = $assignments->map(function ($assignment) {
-                $lesson = $assignment->lesson;
-
-                if (! $lesson) {
-                    return null;
-                }
-
-                $progress = DB::table('student_lesson_progress')
-                    ->where('student_id', $assignment->student_id)
-                    ->where('lesson_id', $lesson->lesson_id)
-                    ->first();
-
-                // Map status to display values
-                $statusMap = [
-                    'in_progress' => 'in_progress',
-                    'completed' => 'completed',
-                    'failed' => 'failed',
-                ];
-                $status = $statusMap[$assignment->status] ?? 'pending';
-
-                return [
-                    'assignment_id' => $assignment->id,
-                    'lesson_id' => $lesson->lesson_id,
-                    'title' => $lesson->title,
-                    'description' => $lesson->description,
-                    'lesson_type' => $lesson->lesson_type,
-                    'difficulty' => $lesson->difficulty,
-                    'status' => $status, // Use the mapped status
-                    'assigned_at' => $assignment->assigned_at,
-                    'progress' => $progress ? [
-                        'current_step' => $progress->current_step ?? 0,
-                        'lesson_completed' => $progress->lesson_completed ?? false,
-                        'quiz_completed' => $progress->quiz_completed ?? false,
-                        'quiz_score' => $progress->quiz_score ?? null,
-                    ] : null,
-                    'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
-                    'has_quiz' => $lesson->quiz ? true : false,
-                ];
-            })->filter()->values();
-
-            return response()->json([
-                'success' => true,
-                'lessons' => $lessons,
-                'student' => [
-                    'first_name' => $student->first_name,
-                    'last_name' => $student->last_name,
-                    'fsl_mastery_level' => $student->fsl_mastery_level,
-                ],
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
+
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        // Get all lesson assignments for this student
+        $assignments = LessonAssignment::where('student_id', $student->student_id)
+            ->with(['lesson' => function ($query) {
+                $query->where('status', 'published')
+                      ->with(['contents', 'quiz']);
+            }])
+            ->orderBy('assigned_at', 'desc')
+            ->get();
+
+        $lessons = $assignments->map(function ($assignment) {
+            $lesson = $assignment->lesson;
+
+            if (!$lesson) {
+                return null;
+            }
+
+            $progress = DB::table('student_lesson_progress')
+                ->where('student_id', $assignment->student_id)
+                ->where('lesson_id', $lesson->lesson_id)
+                ->first();
+
+            $statusMap = [
+                'in_progress' => 'in_progress',
+                'completed' => 'completed',
+                'failed' => 'failed',
+            ];
+            $status = $statusMap[$assignment->status] ?? 'pending';
+
+            return [
+                'assignment_id' => $assignment->id,
+                'lesson_id' => $lesson->lesson_id,
+                'title' => $lesson->title,
+                'description' => $lesson->description,
+                'lesson_type' => $lesson->lesson_type,
+                'difficulty' => $lesson->difficulty,
+                'status' => $status,
+                'assigned_at' => $assignment->assigned_at,
+                'progress' => $progress ? [
+                    'current_step' => $progress->current_step ?? 0,
+                    'lesson_completed' => $progress->lesson_completed ?? false,
+                    'quiz_completed' => $progress->quiz_completed ?? false,
+                    'quiz_score' => $progress->quiz_score ?? null,
+                ] : null,
+                'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
+                'has_quiz' => $lesson->quiz ? true : false,
+            ];
+        })->filter()->values();
+
+        // ════════════════════════════════════════════════════════════
+        // 🎯 Include XP data in the response
+        // ════════════════════════════════════════════════════════════
+        $xpService = new XPService();
+
+        return response()->json([
+            'success' => true,
+            'lessons' => $lessons,
+            'student' => [
+                'first_name' => $student->first_name,
+                'last_name' => $student->last_name,
+                'fsl_mastery_level' => $student->fsl_mastery_level,
+                'total_xp' => $student->total_xp ?? 0,
+                'level' => $student->level ?? 1,
+                'streak_days' => $student->streak_days ?? 0,
+                'next_level_xp' => $xpService->getNextLevelXp($student),
+                'level_progress' => $xpService->getLevelProgress($student),
+                'level_name' => $xpService->getLevelName($student->level ?? 1),
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
 
 /**
  * Get a specific lesson with all content and quiz
@@ -466,15 +474,15 @@ public function updateLessonProgress(Request $request, $lessonId)
 }
 
 /**
- * Submit quiz attempt
- */
-public function submitQuizAttempt(Request $request, $lessonId)
+     * Submit quiz attempt
+     */
+    public function submitQuizAttempt(Request $request, $lessonId)
 {
     try {
         $user = Auth::user();
         $student = Student::where('user_id', $user->id)->first();
 
-        if (! $student) {
+        if (!$student) {
             return response()->json(['error' => 'Student not found'], 404);
         }
 
@@ -490,8 +498,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
             return response()->json(['message' => 'Invalid data', 'errors' => $validator->errors()], 422);
         }
 
-        // Calculate if passed (60% or higher)
-        // Use 'completed' for passed, 'failed' for failed
+        // Calculate status
         $status = $request->percentage >= 60 ? 'completed' : 'failed';
 
         // Create quiz attempt
@@ -501,14 +508,14 @@ public function submitQuizAttempt(Request $request, $lessonId)
             'score' => $request->score,
             'total_points' => $request->total_points,
             'percentage' => $request->percentage,
-            'status' => $status, // Now using 'completed' or 'failed'
+            'status' => $status,
             'started_at' => now(),
             'completed_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        // Save answers to student_answers table
+        // Save answers
         foreach ($request->answers as $answer) {
             DB::table('student_answers')->insert([
                 'attempt_id' => $attemptId,
@@ -521,6 +528,62 @@ public function submitQuizAttempt(Request $request, $lessonId)
                 'updated_at' => now(),
             ]);
         }
+
+        // 🎯 XP LOGIC - Only award XP if:
+        // 1. Student passed (>= 60%)
+        // 2. It's their first completion OR they improved their score
+        $xpEarned = 0;
+        $isFirstCompletion = false;
+        $isImproved = false;
+
+        if ($request->percentage >= 60) {
+            // Get previous best attempt
+            $previousBest = DB::table('quiz_attempts')
+                ->where('student_id', $student->student_id)
+                ->where('quiz_id', $request->quiz_id)
+                ->where('status', 'completed')
+                ->where('attempt_id', '!=', $attemptId) // Exclude current attempt
+                ->orderBy('percentage', 'desc')
+                ->first();
+
+            // Check if this is the first completion
+            $isFirstCompletion = $previousBest === null;
+
+            // Check if score improved
+            $isImproved = $previousBest && $request->percentage > $previousBest->percentage;
+
+            // Only award XP if first completion OR improved score
+            if ($isFirstCompletion || $isImproved) {
+                $xpService = new XPService();
+                $xpEarned = $xpService->calculateQuizXp($request->percentage);
+
+                // Add bonus for first completion
+                if ($isFirstCompletion && $xpEarned > 0) {
+                    $xpEarned += XPService::QUIZ_XP['bonus'];
+                }
+
+                // Award XP
+                $xpService->awardXp(
+                    $student,
+                    $xpEarned,
+                    'quiz_completed',
+                    $attemptId,
+                    $lessonId
+                );
+            }
+
+            // Update streak (only if they passed)
+            $xpService = $xpService ?? new XPService();
+            $xpService->updateStreak($student);
+        }
+
+        // Update quiz attempt with XP info
+        DB::table('quiz_attempts')
+            ->where('attempt_id', $attemptId)
+            ->update([
+                'xp_earned' => $xpEarned,
+                'is_first_completion' => $isFirstCompletion,
+            ]);
 
         // Update progress
         DB::table('student_lesson_progress')
@@ -537,7 +600,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
                 ]
             );
 
-        // Update assignment - use enum values: 'in_progress', 'completed', 'failed'
+        // Update assignment
         $assignment = LessonAssignment::where('student_id', $student->student_id)
             ->where('lesson_id', $lessonId)
             ->first();
@@ -549,6 +612,8 @@ public function submitQuizAttempt(Request $request, $lessonId)
             $assignment->save();
         }
 
+        $student->refresh();
+
         return response()->json([
             'success' => true,
             'message' => 'Quiz submitted successfully',
@@ -557,11 +622,118 @@ public function submitQuizAttempt(Request $request, $lessonId)
             'total_points' => $request->total_points,
             'percentage' => $request->percentage,
             'status' => $status,
+            'xp_earned' => $xpEarned,
+            'is_first_completion' => $isFirstCompletion,
+            'is_improved' => $isImproved,
+            'total_xp' => $student->total_xp,
+            'level' => $student->level,
+            'streak_days' => $student->streak_days,
         ]);
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Award XP for completing a slide
+ */
+public function awardSlideXp(Request $request, $lessonId)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'slide_index' => 'required|integer|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Invalid data', 'errors' => $validator->errors()], 422);
+        }
+
+        $slideIndex = $request->slide_index;
+
+        // Check if XP was already awarded for this slide
+        $alreadyAwarded = DB::table('xp_log')
+            ->where('student_id', $student->student_id)
+            ->where('lesson_id', $lessonId)
+            ->where('action', 'slide_completed')
+            ->where('reason', 'LIKE', "Slide {$slideIndex}%")
+            ->exists();
+
+        if ($alreadyAwarded) {
+            return response()->json([
+                'success' => true,
+                'message' => 'XP already awarded for this slide',
+                'xp_earned' => 0,
+            ]);
+        }
+
+        // Award 2 XP per slide
+        $xpEarned = 2;
+
+        $xpService = new XPService();
+        $xpService->awardXp(
+            $student,
+            $xpEarned,
+            'slide_completed',
+            null,
+            $lessonId,
+            "Slide {$slideIndex} completed"
+        );
+
+        $student->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Slide XP awarded',
+            'xp_earned' => $xpEarned,
+            'total_xp' => $student->total_xp,
+            'level' => $student->level,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function getAttempts(Request $request, $lessonId)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $attempts = DB::table('quiz_attempts')
+            ->where('student_id', $student->student_id)
+            ->where('quiz_id', function($query) use ($lessonId) {
+                $query->select('quiz_id')
+                    ->from('quizzes')
+                    ->where('lesson_id', $lessonId);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'attempts' => $attempts
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
         ], 500);
     }
 }

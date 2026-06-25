@@ -15,20 +15,24 @@ class Student extends Model
     protected $primaryKey = 'student_id';
 
     protected $fillable = [
-        'user_id',
-        'teacher_id',
-        'school_id',
-        'lrn',
-        'pin',
-        'first_name',
-        'last_name',
-        'age',
-        'grade_level',
-        'section',
-        'program_type',
-        'fsl_mastery_level',
-    ];
-
+    'user_id',
+    'teacher_id',
+    'school_id',
+    'lrn',
+    'pin',
+    'first_name',
+    'last_name',
+    'age',
+    'grade_level',
+    'section',
+    'program_type',
+    'fsl_mastery_level',
+    'status',
+    'total_xp',
+    'level',
+    'streak_days',
+    'last_activity_date',
+];
     public function teacher()
     {
         return $this->belongsTo(Teacher::class);

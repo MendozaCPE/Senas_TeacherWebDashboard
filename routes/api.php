@@ -32,4 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/lesson/{lessonId}', [StudentAuthController::class, 'getLessonById']);
     Route::post('/student/lesson/{lessonId}/progress', [StudentAuthController::class, 'updateLessonProgress']);
     Route::post('/student/lesson/{lessonId}/quiz/submit', [StudentAuthController::class, 'submitQuizAttempt']);
+    Route::post('/student/lesson/{lessonId}/slide-xp', [StudentAuthController::class, 'awardSlideXp']);
+    Route::get('/student/lesson/{lessonId}/attempts', [StudentAuthController::class, 'getAttempts']);
 });
+
