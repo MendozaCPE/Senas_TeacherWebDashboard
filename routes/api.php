@@ -17,7 +17,12 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Student Auth Routes
 Route::post('/student/login', [StudentAuthController::class, 'login']);
 
-// Protected Routes
+// ✅ MOVE THE GESTURE ROUTE HERE - OUTSIDE the auth middleware!
+Route::get('/gesture', function () {
+    return view('gesture');
+});
+
+// Protected Routes (requires authentication)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/profile', [StudentAuthController::class, 'profile']);
     Route::post('/student/logout', [StudentAuthController::class, 'logout']);
@@ -35,4 +40,3 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/lesson/{lessonId}/slide-xp', [StudentAuthController::class, 'awardSlideXp']);
     Route::get('/student/lesson/{lessonId}/attempts', [StudentAuthController::class, 'getAttempts']);
 });
-
