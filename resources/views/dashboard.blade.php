@@ -120,73 +120,83 @@
                     No record — no lessons created yet.
                 </div>
             @else
-            <div class="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide">
+            <div class="flex space-x-4 overflow-x-auto pb-3 scrollbar-hide pt-1">
                 @foreach($lessons as $index => $lesson)
                 @php
-                    $colors = [
-                        ['border' => '#facc15', 'bg' => '#1e40af', 'bar_bg' => '#fef08a', 'bar_fill' => '#facc15'],
-                        ['border' => 'transparent', 'bg' => '#3b82f6', 'bar_bg' => '#e2e8f0', 'bar_fill' => '#474e9c'],
-                        ['border' => 'transparent', 'bg' => '#60a5fa', 'bar_bg' => '#e2e8f0', 'bar_fill' => '#474e9c'],
-                        ['border' => 'transparent', 'bg' => '#10b981', 'bar_bg' => '#d1fae5', 'bar_fill' => '#10b981'],
+                    $palettes = [
+                        ['bg' => '#e8eef8', 'tab_bg' => '#d0ddf2', 'title' => '#0d326b', 'sub' => '#4a6fa5', 'bar_fill' => '#0d326b', 'bar_bg' => '#c0cfe8'],
+                        ['bg' => '#fef9e7', 'tab_bg' => '#fdefc0', 'title' => '#6b5000', 'sub' => '#9a7a00', 'bar_fill' => '#facc15', 'bar_bg' => '#fde68a'],
+                        ['bg' => '#dbeafe', 'tab_bg' => '#bfd7f9', 'title' => '#1e3a8a', 'sub' => '#3b5fc0', 'bar_fill' => '#007fff', 'bar_bg' => '#bcd4f8'],
+                        ['bg' => '#e0e9ff', 'tab_bg' => '#c7d5ff', 'title' => '#1e2f8a', 'sub' => '#3b4fc0', 'bar_fill' => '#0047ab', 'bar_bg' => '#bcc7f8'],
                     ];
-                    $c = $colors[$index % 4];
-                    $icons = ['A', '#', '✋', '✏️'];
-                    $icon  = $icons[$index % 4];
+                    $p = $palettes[$index % 4];
                 @endphp
-                <div class="bg-white rounded-[32px] p-6 w-[230px] flex-shrink-0 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-slate-100 relative overflow-hidden min-h-[250px] {{ $c['border'] !== 'transparent' ? 'border-[3px]' : '' }}"
-                     style="{{ $c['border'] !== 'transparent' ? 'border-color:' . $c['border'] . ';' : '' }}">
-                    <div class="absolute top-0 right-0 w-32 h-32 opacity-5 rounded-bl-full" style="background:{{ $c['border'] !== 'transparent' ? $c['border'] : $c['bg'] }}"></div>
-                    
-                    <div class="flex justify-between items-start relative z-10 mb-8 mt-2">
-                        <div class="w-[42px] h-[36px] text-white rounded-lg rounded-tr-xl rounded-bl-sm flex items-center justify-center font-bold shadow-sm"
-                             style="background:{{ $c['bg'] }}">
-                            <div class="absolute -top-[8px] left-0 w-8 h-[10px] rounded-t-md" style="background:{{ $c['bg'] }}"></div>
-                            <span class="text-sm">{{ $icon }}</span>
-                        </div>
-                        
-                        <div class="flex -space-x-2">
-                            @forelse($lesson->topStudents->take(2) as $s)
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($s->first_name . ' ' . $s->last_name) }}&background=random&color=fff&rounded=true"
-                                 class="w-7 h-7 rounded-full border-2 border-white shadow-sm" title="{{ $s->first_name }} {{ $s->last_name }}"/>
-                            @empty
-                            @endforelse
-                            @if($lesson->extraStudents > 0)
-                            <div class="w-7 h-7 rounded-full border-2 border-white bg-[#f1f5f9] flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm">+{{ $lesson->extraStudents }}</div>
-                            @endif
-                        </div>
-                    </div>
-                    
-                    <div class="relative z-10 mt-auto">
-                        <h4 class="font-bold text-[#0d326b] text-[18px] mb-1">{{ $lesson->title }}</h4>
-                        <p class="text-slate-500 text-[13px] mb-5">{{ $lesson->enrolled }} Students Enrolled</p>
-                        
-                        <div class="w-full h-2 rounded-full overflow-hidden mb-3" style="background:{{ $c['bar_bg'] }}">
-                            <div class="h-full rounded-full" style="width: {{ $lesson->completion }}%; background:{{ $c['bar_fill'] }}"></div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-[11px] font-bold text-[#0d326b] uppercase tracking-wider">{{ $lesson->completion }}% COMPLETE</span>
-                        </div>
-                    </div>
-                </div>
+
+                <!-- CSS Folder Card -->
+                <!-- CSS Folder Card -->
+<div class="flex-shrink-0 w-[280px] group cursor-pointer transition-transform duration-300 hover:-translate-y-1.5">
+    <!-- Folder Tab (top-left raised nub) -->
+    <div class="w-[90px] h-[24px] rounded-t-[16px] ml-4"
+         style="background: {{ $p['tab_bg'] }}"></div>
+
+    <!-- Folder Body -->
+    <div class="rounded-b-[24px] rounded-tr-[24px] p-6 shadow-sm transition-shadow duration-300 group-hover:shadow-md"
+         style="background: {{ $p['bg'] }}; min-height: 200px; display: flex; flex-direction: column; justify-content: space-between;">
+
+        <!-- Top: Title + 3-dot -->
+        <div class="flex items-start justify-between mb-3">
+            <h4 class="font-bold text-[17px] leading-snug pr-2"
+                style="color: {{ $p['title'] }}">{{ $lesson->title }}</h4>
+            <button class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors"
+                    style="color: {{ $p['sub'] }}">
+                <span class="material-symbols-outlined text-[20px]">more_vert</span>
+            </button>
+        </div>
+
+        <!-- Bottom: Avatars + count -->
+        <div class="flex items-center justify-between mt-auto pt-3"
+             style="border-top: 1px solid {{ $p['tab_bg'] }}">
+            <div class="flex -space-x-1.5">
+                @forelse($lesson->topStudents->take(3) as $s)
+                <img src="https://ui-avatars.com/api/?name={{ urlencode($s->first_name . '+' . $s->last_name) }}&background={{ ltrim($p['bar_fill'], '#') }}&color=fff&rounded=true&size=60"
+                     class="w-8 h-8 rounded-full border-2 border-white shadow-sm"
+                     title="{{ $s->first_name }} {{ $s->last_name }}"/>
+                @empty
+                    <div class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold"
+                         style="background: {{ $p['tab_bg'] }}; color: {{ $p['sub'] }}">—</div>
+                @endforelse
+                @if($lesson->extraStudents > 0)
+                <div class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-black shadow-sm"
+                     style="background: {{ $p['tab_bg'] }}; color: {{ $p['title'] }}">+{{ $lesson->extraStudents }}</div>
+                @endif
+            </div>
+            <span class="text-[12px] font-semibold" style="color: {{ $p['sub'] }}">{{ $lesson->enrolled }} students</span>
+        </div>
+    </div>
+</div>
                 @endforeach
 
-                <!-- Practice Sessions Yellow Card -->
-                <div class="bg-[#facc15] rounded-[32px] p-6 w-[230px] flex-shrink-0 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden min-h-[250px]">
-                    <div class="absolute top-0 right-0 w-32 h-32 opacity-10 rounded-bl-full bg-white"></div>
-                    <div class="flex justify-between items-start relative z-10 mb-8 mt-2">
-                         <span class="material-symbols-outlined text-[#0d326b] text-[32px]">assignment_ind</span>
-                    </div>
-                    <div class="relative z-10 mt-auto">
-                        <h4 class="font-bold text-[#0d326b] text-[18px] mb-1">Practice<br>Sessions</h4>
-                        <p class="text-[#0d326b]/70 text-[13px] mb-5">Active Monitoring</p>
-                        <div class="w-full h-2 rounded-full bg-black/10 mb-3">
-                            <div class="h-full rounded-full bg-[#0d326b]" style="width: 75%;"></div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-[11px] font-bold text-[#0d326b] uppercase tracking-wider">75% ACTIVITY</span>
-                        </div>
-                    </div>
-                </div>
+                <!-- Practice Sessions Yellow Card - Now matches folder size -->
+<div class="bg-[#facc15] rounded-[20px] p-6 w-[280px] flex-shrink-0 flex flex-col justify-between shadow-sm relative overflow-hidden" style="min-height: 200px;">
+    <div class="absolute top-0 right-0 w-24 h-24 opacity-10 rounded-bl-full bg-white"></div>
+    <div class="flex justify-between items-start relative z-10">
+        <span class="material-symbols-outlined text-[#0d326b] text-[28px]">assignment_ind</span>
+        <!-- Added 3-dot menu to match folder cards -->
+        <button class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors text-[#0d326b]">
+            <span class="material-symbols-outlined text-[20px]">more_vert</span>
+        </button>
+    </div>
+    <div class="relative z-10">
+        <h4 class="font-bold text-[#0d326b] text-[17px] mb-0.5">Practice Sessions</h4>
+        <p class="text-[#0d326b]/60 text-[12px] mb-3">Active Monitoring</p>
+        <div class="w-full h-2 rounded-full bg-black/10 mb-1.5">
+            <div class="h-full rounded-full bg-[#0d326b]" style="width: 75%;"></div>
+        </div>
+        <div class="text-right">
+            <span class="text-[10px] font-bold text-[#0d326b] uppercase tracking-wider">75% Activity</span>
+        </div>
+    </div>
+</div>
             </div>
             @endif
         </div>
