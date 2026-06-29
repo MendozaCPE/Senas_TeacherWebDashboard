@@ -17,7 +17,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Student Auth Routes
 Route::post('/student/login', [StudentAuthController::class, 'login']);
 
-// ✅ MOVE THE GESTURE ROUTE HERE - OUTSIDE the auth middleware!
+// Gesture route
 Route::get('/gesture', function () {
     return view('gesture');
 });
@@ -30,7 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/save-learning-path', [StudentAuthController::class, 'saveLearningPath']);
     Route::get('/student/learning-path', [StudentAuthController::class, 'getLearningPath']);
 
-    // Student Lessons - using the same controller
+    // Student Lessons
     Route::get('/student/lessons', [StudentAuthController::class, 'getLessons']);
 
     // Lesson viewing routes
@@ -39,4 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/lesson/{lessonId}/quiz/submit', [StudentAuthController::class, 'submitQuizAttempt']);
     Route::post('/student/lesson/{lessonId}/slide-xp', [StudentAuthController::class, 'awardSlideXp']);
     Route::get('/student/lesson/{lessonId}/attempts', [StudentAuthController::class, 'getAttempts']);
+    
+    // ✅ FIXED: Match the frontend URL pattern
+    Route::get('/student/lesson/{lessonId}/leaderboard', [StudentAuthController::class, 'getLessonLeaderboard']);
 });

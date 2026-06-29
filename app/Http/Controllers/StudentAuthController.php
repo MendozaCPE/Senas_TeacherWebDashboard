@@ -473,10 +473,10 @@ public function updateLessonProgress(Request $request, $lessonId)
     }
 }
 
-/**
-     * Submit quiz attempt
-     */
-    public function submitQuizAttempt(Request $request, $lessonId)
+
+//   Submit quiz attempt
+
+public function submitQuizAttempt(Request $request, $lessonId)
 {
     try {
         $user = Auth::user();
@@ -529,37 +529,75 @@ public function updateLessonProgress(Request $request, $lessonId)
             ]);
         }
 
-        // 🎯 XP LOGIC - Only award XP if:
-        // 1. Student passed (>= 60%)
-        // 2. It's their first completion OR they improved their score
+        // ============================================================
+        // 🎯 FIXED XP LOGIC
+        // ============================================================
         $xpEarned = 0;
         $isFirstCompletion = false;
         $isImproved = false;
+        $isPerfect = $request->percentage == 100;
+        $hasMaxXpBeenEarned = false;
 
-        if ($request->percentage >= 60) {
-            // Get previous best attempt
-            $previousBest = DB::table('quiz_attempts')
-                ->where('student_id', $student->student_id)
-                ->where('quiz_id', $request->quiz_id)
-                ->where('status', 'completed')
-                ->where('attempt_id', '!=', $attemptId) // Exclude current attempt
-                ->orderBy('percentage', 'desc')
-                ->first();
+        // Get all previous completed attempts (excluding current)
+        $previousAttempts = DB::table('quiz_attempts')
+            ->where('student_id', $student->student_id)
+            ->where('quiz_id', $request->quiz_id)
+            ->where('status', 'completed')
+            ->where('attempt_id', '!=', $attemptId)
+            ->orderBy('percentage', 'desc')
+            ->get();
 
-            // Check if this is the first completion
-            $isFirstCompletion = $previousBest === null;
+        $previousCount = $previousAttempts->count();
+        $isFirstCompletion = $previousCount == 0;
 
-            // Check if score improved
-            $isImproved = $previousBest && $request->percentage > $previousBest->percentage;
+        // Get the best previous score
+        $previousBest = $previousAttempts->first();
+        $previousBestPercentage = $previousBest ? $previousBest->percentage : 0;
 
-            // Only award XP if first completion OR improved score
+        // Check if this attempt improved the score
+        $isImproved = $request->percentage > $previousBestPercentage;
+
+        // Check if student already earned max XP for this quiz
+        // Max XP = perfect score XP + first completion bonus + perfect bonus
+        $maxXpForQuiz = (XPService::QUIZ_XP['perfect'] ?? 15) + (XPService::QUIZ_XP['bonus'] ?? 5) + (XPService::QUIZ_XP['bonus'] ?? 5);
+
+        // Check if student already earned XP from a previous perfect score
+        $hasPerfectScore = DB::table('quiz_attempts')
+            ->where('student_id', $student->student_id)
+            ->where('quiz_id', $request->quiz_id)
+            ->where('status', 'completed')
+            ->where('percentage', 100)
+            ->where('attempt_id', '!=', $attemptId)
+            ->exists();
+
+        // If student already has a perfect score, they cannot earn more XP
+        if ($hasPerfectScore) {
+            $hasMaxXpBeenEarned = true;
+        }
+
+        // ONLY award XP if:
+        // 1. Student passed (>= 60%)
+        // 2. AND (it's their first completion OR they improved their score)
+        // 3. AND they haven't already earned max XP (perfect score already achieved)
+        if ($request->percentage >= 60 && !$hasMaxXpBeenEarned) {
             if ($isFirstCompletion || $isImproved) {
                 $xpService = new XPService();
-                $xpEarned = $xpService->calculateQuizXp($request->percentage);
 
-                // Add bonus for first completion
+                // Base XP based on percentage
+                if ($request->percentage == 100) {
+                    $xpEarned = XPService::QUIZ_XP['perfect'] ?? 15;
+                } elseif ($request->percentage >= 60) {
+                    $xpEarned = XPService::QUIZ_XP['passed'] ?? 10;
+                }
+
+                // 🎁 BONUS: +5 XP for first attempt completion (only if first time)
                 if ($isFirstCompletion && $xpEarned > 0) {
-                    $xpEarned += XPService::QUIZ_XP['bonus'];
+                    $xpEarned += XPService::QUIZ_XP['bonus'] ?? 5;
+                }
+
+                // 🎁 BONUS: +5 XP for perfect score (only if not first attempt bonus)
+                if ($isPerfect && $xpEarned > 0 && !$isFirstCompletion) {
+                    $xpEarned += XPService::QUIZ_XP['bonus'] ?? 5;
                 }
 
                 // Award XP
@@ -570,11 +608,10 @@ public function updateLessonProgress(Request $request, $lessonId)
                     $attemptId,
                     $lessonId
                 );
-            }
 
-            // Update streak (only if they passed)
-            $xpService = $xpService ?? new XPService();
-            $xpService->updateStreak($student);
+                // Update streak
+                $xpService->updateStreak($student);
+            }
         }
 
         // Update quiz attempt with XP info
@@ -625,6 +662,7 @@ public function updateLessonProgress(Request $request, $lessonId)
             'xp_earned' => $xpEarned,
             'is_first_completion' => $isFirstCompletion,
             'is_improved' => $isImproved,
+            'has_max_xp_earned' => $hasMaxXpBeenEarned,
             'total_xp' => $student->total_xp,
             'level' => $student->level,
             'streak_days' => $student->streak_days,
@@ -734,6 +772,122 @@ public function getAttempts(Request $request, $lessonId)
         return response()->json([
             'success' => false,
             'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Get leaderboard for a specific lesson
+ */
+public function getLessonLeaderboard(Request $request, $lessonId)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        // First, verify the lesson exists
+        $lesson = Lesson::find($lessonId);
+        if (!$lesson) {
+            return response()->json(['error' => 'Lesson not found'], 404);
+        }
+
+        // Get the quiz for this lesson
+        $quiz = DB::table('quizzes')->where('lesson_id', $lessonId)->first();
+        if (!$quiz) {
+            return response()->json(['error' => 'No quiz found for this lesson'], 404);
+        }
+
+        // Get all quiz attempts for this lesson across all students
+        // We need to find the attempt number for each student's best score
+        $rankings = DB::table('quiz_attempts as qa')
+            ->join('students as s', 'qa.student_id', '=', 's.student_id')
+            ->join('users as u', 's.user_id', '=', 'u.id')
+            ->where('qa.quiz_id', $quiz->quiz_id)
+            ->where('qa.status', 'completed')
+            ->select(
+                's.student_id',
+                's.first_name',
+                's.last_name',
+                'u.username',
+                DB::raw('MAX(qa.percentage) as best_score'),
+                DB::raw('COUNT(qa.attempt_id) as total_attempts'),
+                DB::raw('MAX(qa.xp_earned) as xp_earned')
+            )
+            ->groupBy('s.student_id', 's.first_name', 's.last_name', 'u.username')
+            ->get();
+
+        // Now for each student, find the attempt number where they achieved their best score
+        $rankedList = $rankings->map(function($item) use ($quiz, $student) {
+            // Find the first attempt (lowest attempt count) that achieved the best score
+            $bestAttempt = DB::table('quiz_attempts')
+                ->where('student_id', $item->student_id)
+                ->where('quiz_id', $quiz->quiz_id)
+                ->where('percentage', $item->best_score)
+                ->where('status', 'completed')
+                ->orderBy('created_at', 'asc')  // Get the earliest attempt with this score
+                ->first();
+
+            // Count how many attempts the student made BEFORE this best attempt
+            $attemptsBeforeBest = DB::table('quiz_attempts')
+                ->where('student_id', $item->student_id)
+                ->where('quiz_id', $quiz->quiz_id)
+                ->where('status', 'completed')
+                ->where('created_at', '<', $bestAttempt->created_at)
+                ->count();
+
+            // The attempt number that achieved the best score (1-indexed)
+            $attemptsToAchieve = $attemptsBeforeBest + 1;
+
+            return [
+                'student_id' => $item->student_id,
+                'name' => $item->first_name . ' ' . $item->last_name,
+                'username' => $item->username,
+                'best_score' => (int) $item->best_score,
+                'total_attempts' => (int) $item->total_attempts,
+                'attempts_to_achieve' => $attemptsToAchieve,
+                'is_me' => $item->student_id === $student->student_id,
+                'initials' => strtoupper(substr($item->first_name, 0, 1) . substr($item->last_name, 0, 1)),
+                'xp_earned' => (int) $item->xp_earned,
+            ];
+        })
+        ->sort(function($a, $b) {
+            // Sort by: best_score DESC, then attempts_to_achieve ASC
+            if ($a['best_score'] !== $b['best_score']) {
+                return $b['best_score'] - $a['best_score']; // Higher score first
+            }
+            return $a['attempts_to_achieve'] - $b['attempts_to_achieve']; // Fewer attempts first
+        })
+        ->values();
+
+        // Add rank numbers
+        $rankedList = $rankedList->map(function($item, $index) {
+            $item['rank'] = $index + 1;
+            return $item;
+        });
+
+        // Find current user's rank
+        $userRank = null;
+        foreach ($rankedList as $r) {
+            if ($r['is_me']) {
+                $userRank = $r['rank'];
+                break;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'rankings' => $rankedList,
+            'user_rank' => $userRank,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
         ], 500);
     }
 }

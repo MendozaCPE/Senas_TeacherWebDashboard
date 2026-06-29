@@ -14,7 +14,7 @@
         body {
             background: #0a1628;
             overflow: hidden;
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
         }
 
         #container {
@@ -41,65 +41,83 @@
 
         #overlay {
             position: absolute;
-            bottom: 80px;
+            bottom: 60px;
             left: 0;
             right: 0;
             text-align: center;
             pointer-events: none;
+            z-index: 10;
         }
 
         #letter-display {
             display: inline-block;
-            background: rgba(15, 49, 114, 0.9);
-            padding: 20px 40px;
+            background: rgba(15, 49, 114, 0.85);
+            padding: 16px 32px;
             border-radius: 20px;
-            border: 3px solid #FFD700;
-            backdrop-filter: blur(10px);
-            min-width: 200px;
+            border: 2px solid rgba(255, 215, 0, 0.4);
+            backdrop-filter: blur(12px);
+            min-width: 180px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         #letter {
             color: #FFD700;
-            font-size: 72px;
+            font-size: 64px;
             font-weight: bold;
-            font-family: Arial;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
         }
 
         #confidence {
             color: #4ECDC4;
-            font-size: 16px;
-            margin-top: 4px;
+            font-size: 14px;
+            margin-top: 2px;
             font-weight: 600;
+            letter-spacing: 0.5px;
         }
 
         #status {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
-            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            margin-top: 6px;
+            font-weight: 500;
         }
 
         .dot {
             display: inline-block;
-            width: 14px;
-            height: 14px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin-right: 10px;
+            margin-right: 8px;
             vertical-align: middle;
         }
 
         .dot.active {
             background: #10B981;
-            box-shadow: 0 0 20px #10B981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+            animation: pulse-dot 1.5s ease-in-out infinite;
         }
 
         .dot.waiting {
             background: #F59E0B;
-            box-shadow: 0 0 20px #F59E0B;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
         }
 
         .dot.error {
             background: #EF4444;
-            box-shadow: 0 0 20px #EF4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.3);
+            }
         }
 
         #loading {
@@ -109,13 +127,14 @@
             transform: translate(-50%, -50%);
             color: white;
             text-align: center;
+            z-index: 20;
         }
 
         .spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top: 4px solid #FFD700;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #FFD700;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
@@ -132,15 +151,63 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
+            height: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            z-index: 5;
         }
 
         .progress-fill {
             height: 100%;
-            background: #FFD700;
+            background: linear-gradient(90deg, #FFD700, #FF6B6B);
             transition: width 0.3s ease;
             width: 0%;
+            border-radius: 0 2px 2px 0;
+        }
+
+        /* Status bar at top */
+        #status-bar {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 15;
+            pointer-events: none;
+        }
+
+        #status-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 14px 6px 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        #status-bar-left .dot {
+            width: 8px;
+            height: 8px;
+            margin-right: 0;
+        }
+
+        #status-bar-left .label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        #fps-display {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
     </style>
 </head>
@@ -150,17 +217,25 @@
         <video id="video" autoplay playsinline></video>
         <canvas id="canvas"></canvas>
 
+        <div id="status-bar">
+            <div id="status-bar-left">
+                <span class="dot waiting" id="statusDot"></span>
+                <span class="label" id="statusText">Initializing...</span>
+            </div>
+            <div id="fps-display">⚡ 0 FPS</div>
+        </div>
+
         <div id="loading">
             <div class="spinner"></div>
-            <div style="font-size:18px;font-weight:600;">Loading SENAS...</div>
-            <div style="font-size:14px;color:#6B7280;margin-top:8px;">Initializing camera and models</div>
+            <div style="font-size:18px;font-weight:600;color:white;">Loading SENAS...</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:8px;">Initializing camera and models</div>
         </div>
 
         <div id="overlay">
             <div id="letter-display">
-                <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:4px;">
-                    <span class="dot waiting" id="statusDot"></span>
-                    <span style="color:white;font-size:14px;font-weight:600;" id="statusText">Initializing...</span>
+                <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px;">
+                    <span
+                        style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:600;letter-spacing:1px;">DETECTED</span>
                 </div>
                 <div id="letter">✋</div>
                 <div id="confidence">Confidence: 0%</div>
@@ -180,11 +255,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
-    <!-- Load TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
 
     @verbatim
     <script>
@@ -429,7 +499,7 @@
         }
 
         // ============================================================
-        // MEDIAPIPE SETUP - FIXED (no duplicate declarations)
+        // MEDIAPIPE SETUP
         // ============================================================
         const videoElement = document.getElementById('video');
         const canvasElement = document.getElementById('canvas');
@@ -439,27 +509,27 @@
         const confidenceBar = document.getElementById('confidenceBar');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
+        const fpsDisplay = document.getElementById('fps-display');
         const loadingElement = document.getElementById('loading');
 
         let lastLetter = '';
         let lastConfidence = 0;
         let detectionCount = 0;
-        let handsInstance = null; // Use a different name
+        let handsInstance = null;
+        let frameCount = 0;
+        let lastFpsUpdate = performance.now();
 
         // Check if getUserMedia is available
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             loadingElement.innerHTML = `
                 <div style="font-size:48px;">⚠️</div>
-                <div style="font-size:18px;font-weight:600;margin-top:12px;">Camera Not Supported</div>
-                <div style="font-size:14px;color:#6B7280;margin-top:8px;">Your browser doesn't support camera access</div>
+                <div style="font-size:18px;font-weight:600;margin-top:12px;color:white;">Camera Not Supported</div>
+                <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-top:8px;">Your browser doesn't support camera access</div>
             `;
             statusDot.className = 'dot error';
             statusText.textContent = 'Not Supported';
         }
 
-        // ============================================================
-        // FIXED: Single function to initialize MediaPipe
-        // ============================================================
         function initMediaPipe() {
             try {
                 handsInstance = new Hands({
@@ -476,7 +546,7 @@
                 });
 
                 handsInstance.onResults(onResults);
-                statusText.textContent = 'MediaPipe ready';
+                statusText.textContent = 'Ready';
 
             } catch (err) {
                 console.error('MediaPipe init error:', err);
@@ -485,26 +555,51 @@
         }
 
         // ============================================================
-        // FIXED: Single onResults function
+        // IMPROVED: Drawing with beautiful hand mesh
         // ============================================================
         function onResults(results) {
             loadingElement.style.display = 'none';
 
+            // Update FPS
+            frameCount++;
+            const now = performance.now();
+            if (now - lastFpsUpdate > 1000) {
+                fpsDisplay.textContent = `⚡ ${frameCount} FPS`;
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+
             statusDot.className = 'dot active';
             statusText.textContent = 'Detecting';
 
-            if (canvasElement.width === 0) {
-                canvasElement.width = videoElement.videoWidth || 640;
-                canvasElement.height = videoElement.videoHeight || 480;
+            // Dynamically resize canvas to match the screen container's display pixels with high DPI support
+            const container = document.getElementById('container');
+            const displayWidth = container.clientWidth;
+            const displayHeight = container.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+            const targetWidth = displayWidth * dpr;
+            const targetHeight = displayHeight * dpr;
+
+            if (canvasElement.width !== targetWidth || canvasElement.height !== targetHeight) {
+                canvasElement.width = targetWidth;
+                canvasElement.height = targetHeight;
             }
 
+            // Clear in absolute coordinates
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
+                const videoWidth = videoElement.videoWidth || 640;
+                const videoHeight = videoElement.videoHeight || 480;
 
-                drawConnectors(canvasCtx, landmarks);
-                drawLandmarks(canvasCtx, landmarks);
+                canvasCtx.save();
+                canvasCtx.scale(dpr, dpr);
+
+                // Draw beautiful high-definition hand mesh aligned with object-fit: cover video
+                drawHandMesh(canvasCtx, landmarks, displayWidth, displayHeight, videoWidth, videoHeight);
+
+                canvasCtx.restore();
 
                 const result = detectLetter(landmarks);
 
@@ -536,60 +631,198 @@
         }
 
         // ============================================================
-        // FIXED: Drawing functions
+        // IMPROVED: Beautiful high-definition cybernetic hand mesh
         // ============================================================
-        function drawConnectors(ctx, landmarks) {
+        function drawHandMesh(ctx, landmarks, cWidth, cHeight, vWidth, vHeight) {
+            // Hand connections - standard MediaPipe skeleton connections
             const connections = [
+                // Thumb
                 [0, 1], [1, 2], [2, 3], [3, 4],
+                // Index
                 [0, 5], [5, 6], [6, 7], [7, 8],
+                // Middle
                 [5, 9], [9, 10], [10, 11], [11, 12],
+                // Ring
                 [9, 13], [13, 14], [14, 15], [15, 16],
+                // Pinky
                 [13, 17], [17, 18], [18, 19], [19, 20],
-                [0, 17]
+                // Palm base
+                [0, 17], [5, 9], [9, 13], [13, 17]
             ];
 
-            const w = canvasElement.width;
-            const h = canvasElement.height;
+            // 1. Calculate object-fit: cover scale and cropping offset
+            const s = Math.max(cWidth / vWidth, cHeight / vHeight);
+            const scaledWidth = vWidth * s;
+            const scaledHeight = vHeight * s;
+            const offsetX = (cWidth - scaledWidth) / 2;
+            const offsetY = (cHeight - scaledHeight) / 2;
 
-            ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
-            ctx.lineWidth = 2;
+            // 2. Convert landmarks to canvas viewport coordinates (with X-axis mirrored for selfie camera view)
+            const pts = landmarks.map(lm => ({
+                x: (1 - lm.x) * vWidth * s + offsetX,
+                y: lm.y * vHeight * s + offsetY,
+                z: lm.z
+            }));
 
-            connections.forEach(([i, j]) => {
-                const p1 = landmarks[i];
-                const p2 = landmarks[j];
-                ctx.beginPath();
-                ctx.moveTo(p1.x * w, p1.y * h);
-                ctx.lineTo(p2.x * w, p2.y * h);
-                ctx.stroke();
-            });
-        }
+            // 3. Dynamically scale lines/glows relative to hand palm size (distance from wrist 0 to middle MCP 9)
+            const palmSize = Math.sqrt(
+                Math.pow(pts[0].x - pts[9].x, 2) +
+                Math.pow(pts[0].y - pts[9].y, 2)
+            ) || 80;
 
-        function drawLandmarks(ctx, landmarks) {
-            const w = canvasElement.width;
-            const h = canvasElement.height;
-            const fingertips = [4, 8, 12, 16, 20];
+            // ---- Draw Translucent Glowing Palm Mesh ----
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            ctx.lineTo(pts[1].x, pts[1].y);
+            ctx.lineTo(pts[2].x, pts[2].y);
+            ctx.lineTo(pts[5].x, pts[5].y);
+            ctx.lineTo(pts[9].x, pts[9].y);
+            ctx.lineTo(pts[13].x, pts[13].y);
+            ctx.lineTo(pts[17].x, pts[17].y);
+            ctx.closePath();
 
-            landmarks.forEach((lm, i) => {
-                const x = lm.x * w;
-                const y = lm.y * h;
-                const isFingertip = fingertips.includes(i);
-                const radius = isFingertip ? 6 : 3;
+            const palmGrad = ctx.createRadialGradient(
+                pts[9].x, pts[9].y, palmSize * 0.2,
+                pts[9].x, pts[9].y, palmSize * 1.5
+            );
+            palmGrad.addColorStop(0, 'rgba(255, 215, 0, 0.12)'); // Gold center glow
+            palmGrad.addColorStop(0.5, 'rgba(78, 205, 196, 0.06)'); // Cyan middle glow
+            palmGrad.addColorStop(1, 'rgba(15, 49, 114, 0)'); // Outward fade
+            ctx.fillStyle = palmGrad;
+            ctx.fill();
 
-                ctx.beginPath();
-                ctx.arc(x, y, radius, 0, 2 * Math.PI);
-                ctx.fillStyle = isFingertip ? '#FFD700' : '#0f3172';
-                ctx.fill();
+            // Palm outline
+            ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
 
-                if (isFingertip) {
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 1.5;
+            // ---- Draw Horizontal Webbing / Grid Mesh Lines ----
+            const meshLines = [
+                // PIP joints
+                [6, 10], [10, 14], [14, 18],
+                // DIP joints
+                [7, 11], [11, 15], [15, 19],
+                // Fingertips
+                [8, 12], [12, 16], [16, 20]
+            ];
+
+            ctx.strokeStyle = 'rgba(78, 205, 196, 0.25)';
+            ctx.lineWidth = 0.75;
+            ctx.setLineDash([2, 4]); // Dashed scanlines
+            meshLines.forEach(([i, j]) => {
+                if (i < pts.length && j < pts.length) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i].x, pts[i].y);
+                    ctx.lineTo(pts[j].x, pts[j].y);
                     ctx.stroke();
                 }
             });
+            ctx.setLineDash([]); // Reset
+
+            // ---- Draw Standard Skeletal Connections ----
+            // Base layer: thicker neon glow
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.18)';
+            ctx.lineWidth = Math.max(2.5, palmSize * 0.035);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            connections.forEach(([i, j]) => {
+                if (i < pts.length && j < pts.length) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i].x, pts[i].y);
+                    ctx.lineTo(pts[j].x, pts[j].y);
+                    ctx.stroke();
+                }
+            });
+
+            // Top layer: bright thin core
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = Math.max(1, palmSize * 0.012);
+            connections.forEach(([i, j]) => {
+                if (i < pts.length && j < pts.length) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i].x, pts[i].y);
+                    ctx.lineTo(pts[j].x, pts[j].y);
+                    ctx.stroke();
+                }
+            });
+
+            // ---- Draw Holographic Joints ----
+            const fingertips = [4, 8, 12, 16, 20];
+            const fingerBases = [2, 6, 10, 14, 18];
+
+            pts.forEach((pt, i) => {
+                const isFingertip = fingertips.includes(i);
+                const isBase = fingerBases.includes(i);
+                const isPalm = i === 0 || i === 5 || i === 9 || i === 13 || i === 17;
+
+                let radius = Math.max(2, palmSize * 0.025);
+                let innerColor = 'rgba(78, 205, 196, 0.9)'; // Cyan core
+                let outerColor = 'rgba(78, 205, 196, 0.25)';
+
+                if (isFingertip) {
+                    radius = Math.max(4.5, palmSize * 0.045);
+                    innerColor = 'rgba(255, 215, 0, 1)'; // Gold core
+                    outerColor = 'rgba(255, 215, 0, 0.35)';
+                } else if (isBase) {
+                    radius = Math.max(2.5, palmSize * 0.03);
+                    innerColor = 'rgba(78, 205, 196, 0.8)';
+                    outerColor = 'rgba(78, 205, 196, 0.18)';
+                } else if (isPalm) {
+                    radius = Math.max(3, palmSize * 0.035);
+                    innerColor = 'rgba(255, 215, 0, 0.8)';
+                    outerColor = 'rgba(255, 215, 0, 0.18)';
+                }
+
+                // Outer halo
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, radius * 1.8, 0, 2 * Math.PI);
+                ctx.fillStyle = outerColor;
+                ctx.fill();
+
+                // Inner core with radial reflection gradient
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, radius, 0, 2 * Math.PI);
+                const grad = ctx.createRadialGradient(
+                    pt.x - radius * 0.2, pt.y - radius * 0.2, 0,
+                    pt.x, pt.y, radius
+                );
+                grad.addColorStop(0, '#ffffff'); // Center reflection
+                grad.addColorStop(0.3, innerColor);
+                grad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                // Border
+                ctx.strokeStyle = isFingertip ? 'rgba(255, 215, 0, 0.7)' : 'rgba(78, 205, 196, 0.5)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            });
+
+            // ---- Draw Finger Tracking Guide Lines (Subtle) ----
+            const fingerIndices = [
+                [0, 4],  // Thumb
+                [5, 8],  // Index
+                [9, 12], // Middle
+                [13, 16],// Ring
+                [17, 20] // Pinky
+            ];
+
+            ctx.strokeStyle = 'rgba(78, 205, 196, 0.15)';
+            ctx.lineWidth = 0.75;
+            ctx.setLineDash([3, 6]);
+            fingerIndices.forEach(([start, end]) => {
+                if (start < pts.length && end < pts.length) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[start].x, pts[start].y);
+                    ctx.lineTo(pts[end].x, pts[end].y);
+                    ctx.stroke();
+                }
+            });
+            ctx.setLineDash([]);
         }
 
         // ============================================================
-        // FIXED: Camera and processing loop
+        // Camera and processing loop
         // ============================================================
         async function startCamera() {
             try {
@@ -609,19 +842,16 @@
                 statusText.textContent = 'Camera ready';
                 loadingElement.style.display = 'none';
 
-                // Initialize MediaPipe after camera is ready
                 initMediaPipe();
-
-                // Start processing frames
                 processFrame();
 
             } catch (err) {
                 console.error('Camera error:', err);
                 loadingElement.innerHTML = `
                     <div style="font-size:48px;">📷</div>
-                    <div style="font-size:18px;font-weight:600;margin-top:12px;">Camera Access Denied</div>
+                    <div style="font-size:18px;font-weight:600;margin-top:12px;color:white;">Camera Access Denied</div>
                     <div style="font-size:14px;color:#EF4444;margin-top:8px;">${err.message}</div>
-                    <div style="font-size:14px;color:#6B7280;margin-top:12px;">Please allow camera access in your browser settings</div>
+                    <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-top:12px;">Please allow camera access in your browser settings</div>
                     <button onclick="location.reload()" style="margin-top:16px;padding:10px 30px;background:#FFD700;color:#0f3172;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;">
                         🔄 Retry
                     </button>
@@ -640,18 +870,17 @@
             try {
                 await handsInstance.send({ image: videoElement });
             } catch (err) {
-                // Silent fail - MediaPipe sometimes errors on empty frames
+                // Silent fail
             }
 
             requestAnimationFrame(processFrame);
         }
 
         // ============================================================
-        // START EVERYTHING
+        // START
         // ============================================================
         startCamera();
 
-        // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (videoElement.srcObject) {
                 videoElement.srcObject.getTracks().forEach(track => track.stop());
