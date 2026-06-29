@@ -338,7 +338,7 @@
     <div class="w-[340px] flex-shrink-0 flex flex-col space-y-8 pl-4">
         
         <!-- Senya Tip Widget -->
-        <div class="bg-[#facc15] rounded-[32px] p-8 relative overflow-hidden shadow-sm">
+        <div class="rounded-[32px] p-8 relative overflow-hidden shadow-sm" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%)">
             <!-- Decorative background element -->
             <div class="absolute -bottom-16 -right-16 text-[#eab308] opacity-50 transform rotate-45">
                 <svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/></svg>
@@ -392,7 +392,7 @@
         </div>
 
         <!-- Insights -->
-        <div class="bg-[#052b61] text-white rounded-[32px] p-8 relative overflow-hidden shadow-sm">
+        <div class="text-white rounded-[32px] p-8 relative overflow-hidden shadow-sm" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%)">
             <!-- Decorative bg -->
             <div class="absolute top-4 right-4 opacity-10">
                 <span class="material-symbols-outlined icon-outline text-[80px]">psychology</span>

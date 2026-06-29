@@ -1,5 +1,5 @@
 @php
-    $activeClass = 'bg-[#facc15] text-[#0d326b] font-bold text-[15px] rounded-r-full mr-4';
+    $activeClass = 'text-[#0d326b] font-bold text-[15px] rounded-r-full mr-4 relative bg-gradient-to-r from-[#fbbf24] to-[#facc15]';
     $inactiveClass = 'text-slate-500 hover:text-[#0d326b] hover:bg-slate-100/70 transition-colors text-[15px] font-medium rounded-r-full mr-4';
 @endphp
 <aside class="w-64 bg-white flex flex-col z-10 flex-shrink-0">

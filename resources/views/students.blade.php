@@ -9,8 +9,8 @@
     ═══════════════════════════════════════════════ --}}
     <div class="flex items-start justify-between">
         <div>
-            <p class="text-[11px] font-bold text-[#0d326b] tracking-[0.15em] uppercase mb-1">Overview</p>
-            <h2 class="text-[32px] font-semibold text-[#0d326b] leading-tight">Student Management</h2>
+            <p class="text-[11px] font-bold text-[#0d326b] tracking-[0.15em] uppercase mb-1">Management</p>
+            <h2 class="text-[32px] font-semibold text-[#0d326b] leading-tight">Student Overview</h2>
         </div>
         <button id="open-modal-btn"
             class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-5 py-3 rounded-xl text-[14px] font-bold transition-all flex items-center space-x-2 shadow-md mt-1 border border-[#0d326b]/20">
@@ -20,63 +20,63 @@
     </div>
 
     {{-- ═══════════════════════════════════════════════
-         STAT CARDS ROW
+         STAT CARDS ROW  (3 cards like the image)
     ═══════════════════════════════════════════════ --}}
-    <div class="grid grid-cols-4 gap-4">
-        {{-- Total Students (Navy Card with Yellow Accent) --}}
-        <div class="bg-[#0d326b] rounded-2xl p-5 border border-transparent shadow-sm flex items-center space-x-4 relative overflow-hidden text-white group">
-            <div class="absolute -top-10 -right-10 w-24 h-24 bg-white/5 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
-            <div class="absolute -bottom-8 -left-8 w-20 h-20 bg-white/5 rounded-full"></div>
-            <div class="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-[#facc15] text-[22px]">group</span>
-            </div>
+    <div class="grid grid-cols-3 gap-4">
+
+        {{-- Total Students — Navy --}}
+        <div class="rounded-2xl p-6 flex items-end justify-between relative overflow-hidden text-white shadow-md" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%)">
+            <div class="absolute -top-8 -right-8 w-28 h-28 bg-white/5 rounded-full"></div>
+            <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
             <div class="relative z-10">
-                <p class="text-[28px] font-black text-[#facc15] leading-none">{{ $totalStudents }}</p>
-                <p class="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-1">Total Students</p>
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="material-symbols-outlined text-white/60 text-[20px]">group</span>
+                    <p class="text-[11px] font-bold text-white/60 uppercase tracking-widest">Total Students</p>
+                </div>
+                <p class="text-[48px] font-black text-white leading-none">{{ $totalStudents }}</p>
+                <p class="text-[12px] font-semibold text-[#facc15] mt-2">+{{ $newThisWeek }} this month</p>
             </div>
         </div>
 
-        {{-- New This Week --}}
-        <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center space-x-4 relative overflow-hidden group">
-            <div class="absolute -top-10 -right-10 w-24 h-24 bg-yellow-50/50 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
-            <div class="w-11 h-11 rounded-xl bg-[#fef9e7] flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-[#857a26] text-[22px]">person_add</span>
-            </div>
+        {{-- Avg. Progress — White --}}
+        <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm relative overflow-hidden">
+            <div class="absolute -top-8 -right-8 w-28 h-28 bg-slate-50 rounded-full"></div>
             <div class="relative z-10">
-                <p class="text-[28px] font-black text-[#0d326b] leading-none">{{ $newThisWeek }}</p>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">New This Week</p>
-            </div>
-        </div>
-
-        {{-- Active Students --}}
-        <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center space-x-4 relative overflow-hidden group">
-            <div class="absolute -top-10 -right-10 w-24 h-24 bg-emerald-50/50 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
-            <div class="w-11 h-11 rounded-xl bg-[#ecfdf5] flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-emerald-600 text-[22px]">how_to_reg</span>
-            </div>
-            <div class="relative z-10">
-                <p class="text-[28px] font-black text-[#0d326b] leading-none">
-                    {{ $students->where('status', 'active')->count() }}
-                </p>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Active</p>
-            </div>
-        </div>
-
-        {{-- Top Mastery (Prominent Yellow Card with Navy Text) --}}
-        <div class="bg-[#facc15] rounded-2xl p-5 border border-transparent shadow-sm flex items-center space-x-4 relative overflow-hidden text-[#0d326b] group">
-            <div class="absolute -top-10 -right-10 w-24 h-24 bg-[#0d326b]/5 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
-            <div class="absolute -bottom-8 -left-8 w-20 h-20 bg-[#0d326b]/5 rounded-full"></div>
-            <div class="w-11 h-11 rounded-xl bg-[#0d326b]/10 flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-[#0d326b] text-[22px]">workspace_premium</span>
-            </div>
-            <div class="relative z-10">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="material-symbols-outlined text-slate-400 text-[20px]">trending_up</span>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Avg. Progress</p>
+                </div>
                 @php
-                    $advancedCount = $students->where('fsl_mastery_level', 'Advanced')->count();
-                    $intermediateCount = $students->where('fsl_mastery_level', 'Intermediate')->count();
-                    $topLabel = $advancedCount > 0 ? $advancedCount . ' Advanced' : ($intermediateCount > 0 ? $intermediateCount . ' Inter.' : 'Beginner');
+                    $avgXp = $students->count() ? round($students->avg('total_xp')) : 0;
+                    $maxXp = 10000;
+                    $progressPct = min(100, round($avgXp / $maxXp * 100));
                 @endphp
-                <p class="text-[24px] font-black text-[#0d326b] leading-none whitespace-nowrap">{{ $topLabel }}</p>
-                <p class="text-[10px] font-bold text-[#0d326b]/70 uppercase tracking-widest mt-1">Top Mastery</p>
+                <p class="text-[48px] font-black text-[#0d326b] leading-none">{{ $progressPct }}%</p>
+                <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden w-full">
+                    <div class="h-full bg-[#0d326b] rounded-full" style="width: {{ $progressPct }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Top Mastery — Yellow --}}
+        <div class="bg-[#facc15] rounded-2xl p-6 relative overflow-hidden shadow-md">
+            <div class="absolute -top-8 -right-8 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
+            <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-[#0d326b]/5 rounded-full"></div>
+            <div class="relative z-10">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="material-symbols-outlined text-[#0d326b]/60 text-[20px]">workspace_premium</span>
+                    <p class="text-[11px] font-bold text-[#0d326b]/60 uppercase tracking-widest">Top Mastery</p>
+                </div>
+                @php
+                    $advancedCount    = $students->where('fsl_mastery_level','Advanced')->count();
+                    $intermediateCount = $students->where('fsl_mastery_level','Intermediate')->count();
+                    $topLabel = $advancedCount > 0
+                        ? 'Advanced'
+                        : ($intermediateCount > 0 ? 'Intermediate' : 'Beginner');
+                    $topCount = $advancedCount > 0 ? $advancedCount : ($intermediateCount > 0 ? $intermediateCount : $students->where('fsl_mastery_level','Beginner')->count());
+                @endphp
+                <p class="text-[32px] font-black text-[#0d326b] leading-none">{{ $topLabel }}</p>
+                <p class="text-[13px] font-semibold text-[#0d326b]/70 mt-1">{{ $topCount }} student{{ $topCount !== 1 ? 's' : '' }}</p>
             </div>
         </div>
     </div>
@@ -90,35 +90,27 @@
         <div class="flex-1 min-w-0">
 
             {{-- Filter Toolbar --}}
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center justify-between gap-4">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center gap-3 flex-wrap">
+
                 {{-- Segmented Control --}}
                 <div class="bg-[#f1f5f9] p-1 rounded-full flex items-center shadow-inner shrink-0">
                     <button data-filter="all"
                         class="filter-tab px-5 py-2 bg-white text-[#0d326b] text-[12px] font-bold rounded-full shadow-sm transition-all">
-                        All
+                        All Students
                     </button>
                     <button data-filter="active"
                         class="filter-tab px-5 py-2 text-slate-500 hover:text-[#0d326b] text-[12px] font-medium rounded-full transition-all">
-                        Active
-                    </button>
-                    <button data-filter="inactive"
-                        class="filter-tab px-5 py-2 text-slate-500 hover:text-[#0d326b] text-[12px] font-medium rounded-full transition-all">
-                        Inactive
+                        Active Only
                     </button>
                 </div>
 
-                {{-- Search --}}
-                <div class="relative flex-1 max-w-[260px]">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                    <input id="student-search" type="text" placeholder="Search students…"
-                        class="w-full bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
-                </div>
+                <div class="flex-1"></div>
 
                 {{-- Level Filter --}}
                 <div class="relative shrink-0">
                     <select id="filter-level"
                         class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
-                        <option value="">All Levels</option>
+                        <option value="">Filter: Level</option>
                         <option value="Beginner">Beginner</option>
                         <option value="Intermediate">Intermediate</option>
                         <option value="Advanced">Advanced</option>
@@ -130,7 +122,7 @@
                 <div class="relative shrink-0">
                     <select id="filter-grade"
                         class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
-                        <option value="">All Grades</option>
+                        <option value="">Filter: Grade</option>
                         <option value="Grade 1">Grade 1</option>
                         <option value="Grade 2">Grade 2</option>
                         <option value="Grade 3">Grade 3</option>
@@ -143,6 +135,13 @@
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
                 </div>
 
+                {{-- Search --}}
+                <div class="relative shrink-0">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
+                    <input id="student-search" type="text" placeholder="Search…"
+                        class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[160px]" />
+                </div>
+
                 {{-- Results count --}}
                 <span id="results-count" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0"></span>
             </div>
@@ -152,28 +151,28 @@
                 <table class="w-full text-left border-collapse" id="students-table">
                     <thead>
                         <tr class="border-b border-slate-100 bg-slate-50/60">
-                            <th class="py-4 px-6 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student</th>
-                            <th class="py-4 px-6 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Grade</th>
-                            <th class="py-4 px-6 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">FSL Level</th>
-                            <th class="py-4 px-6 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">XP</th>
-                            <th class="py-4 px-6 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Status</th>
-                            <th class="py-4 px-6 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Enrolled</th>
-                            <th class="py-4 px-6"></th>
+                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student Profile</th>
+                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Status & Level</th>
+                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">XP Progression</th>
+                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Enrolled</th>
+                            <th class="py-4 px-5"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50" id="student-tbody">
                         @forelse($students as $student)
                         @php
                             $masteryColor = match($student->fsl_mastery_level) {
-                                'Advanced'     => ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-700'],
-                                'Intermediate' => ['bg' => 'bg-amber-100',   'text' => 'text-amber-700'],
-                                default        => ['bg' => 'bg-blue-100',    'text' => 'text-blue-700'],
+                                'Advanced'     => ['bg' => 'bg-[#0d326b]',   'text' => 'text-white'],
+                                'Intermediate' => ['bg' => 'bg-[#e0e7ff]',   'text' => 'text-[#4f46e5]'],
+                                default        => ['bg' => 'bg-slate-100',   'text' => 'text-slate-600'],
                             };
                             $statusColor = match($student->status) {
                                 'active'   => ['dot' => 'bg-emerald-400', 'text' => 'text-emerald-600'],
                                 'inactive' => ['dot' => 'bg-slate-300',   'text' => 'text-slate-400'],
                                 default    => ['dot' => 'bg-red-300',     'text' => 'text-red-400'],
                             };
+                            $xpMax = 10000;
+                            $xpPct = min(100, round(($student->total_xp / $xpMax) * 100));
                         @endphp
                         <tr class="hover:bg-slate-50/60 transition-colors group student-row"
                             data-status="{{ $student->status }}"
@@ -181,57 +180,58 @@
                             data-mastery="{{ $student->fsl_mastery_level }}"
                             data-name="{{ strtolower($student->first_name . ' ' . $student->last_name) }}">
 
-                            {{-- Name + Avatar --}}
-                            <td class="py-4 px-6">
+                            {{-- Student Profile --}}
+                            <td class="py-4 px-5">
                                 <div class="flex items-center space-x-3">
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name . '+' . $student->last_name) }}&background=random&color=fff&rounded=true&size=80"
-                                         class="w-10 h-10 rounded-full shadow-sm shrink-0" />
+                                    <div class="w-10 h-10 rounded-full shadow-sm shrink-0 overflow-hidden bg-[#e0e7ff] flex items-center justify-center">
+                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name . '+' . $student->last_name) }}&background=random&color=fff&rounded=true&size=80"
+                                             class="w-10 h-10 rounded-full" />
+                                    </div>
                                     <div>
-                                        <p class="text-[14px] font-bold text-[#0d326b]">{{ $student->first_name }} {{ $student->last_name }}</p>
-                                        <p class="text-[10px] text-slate-400 font-medium mt-0.5">LRN: {{ $student->lrn ?? 'N/A' }}</p>
+                                        <p class="text-[13px] font-bold text-[#0d326b]">{{ $student->first_name }} {{ $student->last_name }}</p>
+                                        <p class="text-[10px] text-slate-400 font-medium mt-0.5">
+                                            LRN: {{ $student->lrn ?? 'N/A' }}
+                                            @if($student->grade_level)
+                                            · {{ $student->grade_level }}
+                                            @endif
+                                        </p>
                                     </div>
                                 </div>
                             </td>
 
-                            {{-- Grade --}}
-                            <td class="py-4 px-6">
-                                <span class="px-3 py-1 bg-[#e0e7ff] text-[#4f46e5] text-[10px] font-bold rounded-full uppercase tracking-wider">
-                                    {{ $student->grade_level ?? '—' }}
-                                </span>
-                            </td>
-
-                            {{-- FSL Mastery --}}
-                            <td class="py-4 px-6">
-                                <span class="px-3 py-1 {{ $masteryColor['bg'] }} {{ $masteryColor['text'] }} text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            {{-- Status & FSL Level --}}
+                            <td class="py-4 px-5">
+                                <div class="flex items-center space-x-1.5 mb-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusColor['dot'] }} shrink-0"></span>
+                                    <span class="text-[11px] font-bold {{ $statusColor['text'] }} uppercase tracking-wide">{{ $student->status }}</span>
+                                </div>
+                                <span class="px-2.5 py-1 {{ $masteryColor['bg'] }} {{ $masteryColor['text'] }} text-[10px] font-bold rounded-full uppercase tracking-wider">
                                     {{ $student->fsl_mastery_level }}
                                 </span>
                             </td>
 
-                            {{-- XP --}}
-                            <td class="py-4 px-6">
-                                <div class="flex items-center space-x-2">
-                                    <span class="text-[13px] font-bold text-[#0d326b]">{{ number_format($student->total_xp) }}</span>
-                                    <span class="text-[10px] text-slate-400 font-medium">XP · Lv.{{ $student->level }}</span>
-                                </div>
-                            </td>
-
-                            {{-- Status --}}
-                            <td class="py-4 px-6">
-                                <div class="flex items-center space-x-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusColor['dot'] }} shrink-0"></span>
-                                    <span class="text-[12px] font-semibold {{ $statusColor['text'] }} capitalize">{{ $student->status }}</span>
+                            {{-- XP Progression --}}
+                            <td class="py-4 px-5">
+                                <div class="w-[160px]">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] text-slate-400 font-medium">Lv.{{ $student->level }}</span>
+                                        <span class="text-[10px] font-bold text-[#0d326b]">{{ number_format($student->total_xp) }} XP</span>
+                                    </div>
+                                    <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-[#0d326b] rounded-full transition-all duration-500" style="width: {{ $xpPct }}%"></div>
+                                    </div>
                                 </div>
                             </td>
 
                             {{-- Enrolled --}}
-                            <td class="py-4 px-6">
+                            <td class="py-4 px-5">
                                 <p class="text-[12px] font-medium text-[#1e293b]">
                                     {{ $student->created_at ? $student->created_at->diffForHumans() : 'N/A' }}
                                 </p>
                             </td>
 
                             {{-- Action --}}
-                            <td class="py-4 px-6 text-right">
+                            <td class="py-4 px-5 text-right">
                                 <button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:bg-slate-100 hover:text-[#0d326b] transition-colors ml-auto">
                                     <span class="material-symbols-outlined icon-outline text-[20px]">chevron_right</span>
                                 </button>
@@ -239,7 +239,7 @@
                         </tr>
                         @empty
                         <tr id="empty-state-row">
-                            <td colspan="7">
+                            <td colspan="5">
                                 <div class="flex flex-col items-center justify-center py-16 text-center">
                                     <div class="w-16 h-16 rounded-2xl bg-[#e8eef8] flex items-center justify-center mb-4">
                                         <span class="material-symbols-outlined text-[#0d326b] text-[32px]">group_off</span>
@@ -275,46 +275,83 @@
         {{-- RIGHT SIDEBAR --}}
         <div class="w-[260px] shrink-0 space-y-4">
 
-            {{-- FSL Mastery Breakdown --}}
+            {{-- FSL Mastery Donut --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">FSL Mastery Breakdown</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">FSL Mastery</p>
                 @php
-                    $total = $students->count() ?: 1;
-                    $beginnerPct   = round($students->where('fsl_mastery_level','Beginner')->count()     / $total * 100);
-                    $intermPct     = round($students->where('fsl_mastery_level','Intermediate')->count() / $total * 100);
-                    $advancedPct   = round($students->where('fsl_mastery_level','Advanced')->count()     / $total * 100);
+                    $total         = $students->count() ?: 1;
+                    $beginnerCount = $students->where('fsl_mastery_level','Beginner')->count();
+                    $intermCount   = $students->where('fsl_mastery_level','Intermediate')->count();
+                    $advCount      = $students->where('fsl_mastery_level','Advanced')->count();
+                    $beginnerPct   = round($beginnerCount / $total * 100);
+                    $intermPct     = round($intermCount   / $total * 100);
+                    $advancedPct   = round($advCount      / $total * 100);
+
+                    // SVG donut: radius 40, circumference ≈ 251.3
+                    $circ = 251.3;
+                    $begDash  = round($beginnerPct / 100 * $circ, 1);
+                    $intDash  = round($intermPct   / 100 * $circ, 1);
+                    $advDash  = round($advancedPct / 100 * $circ, 1);
+                    $begOffset  = 0;
+                    $intOffset  = -$begDash;
+                    $advOffset  = -($begDash + $intDash);
                 @endphp
 
-                <div class="space-y-3">
-                    {{-- Beginner --}}
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[12px] font-semibold text-blue-600">Beginner</span>
-                            <span class="text-[11px] font-bold text-slate-400">{{ $beginnerPct }}%</span>
-                        </div>
-                        <div class="h-2 bg-blue-100 rounded-full overflow-hidden">
-                            <div class="h-full bg-blue-500 rounded-full transition-all duration-700" style="width: {{ $beginnerPct }}%"></div>
+                {{-- Donut chart --}}
+                <div class="flex items-center justify-center mb-4">
+                    <div class="relative w-[120px] h-[120px]">
+                        <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+                            {{-- Background ring --}}
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
+                            {{-- Beginner (yellow) --}}
+                            @if($begDash > 0)
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#facc15" stroke-width="14"
+                                stroke-dasharray="{{ $begDash }} {{ $circ - $begDash }}"
+                                stroke-dashoffset="{{ $begOffset }}" stroke-linecap="butt"/>
+                            @endif
+                            {{-- Intermediate (navy) --}}
+                            @if($intDash > 0)
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#0d326b" stroke-width="14"
+                                stroke-dasharray="{{ $intDash }} {{ $circ - $intDash }}"
+                                stroke-dashoffset="{{ $intOffset }}" stroke-linecap="butt"/>
+                            @endif
+                            {{-- Advanced (slate) --}}
+                            @if($advDash > 0)
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#94a3b8" stroke-width="14"
+                                stroke-dasharray="{{ $advDash }} {{ $circ - $advDash }}"
+                                stroke-dashoffset="{{ $advOffset }}" stroke-linecap="butt"/>
+                            @endif
+                        </svg>
+                        {{-- Center label --}}
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-[22px] font-black text-[#0d326b]">{{ $students->count() }}</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Students</span>
                         </div>
                     </div>
-                    {{-- Intermediate --}}
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[12px] font-semibold text-amber-600">Intermediate</span>
-                            <span class="text-[11px] font-bold text-slate-400">{{ $intermPct }}%</span>
+                </div>
+
+                {{-- Legend --}}
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#facc15] shrink-0"></span>
+                            <span class="text-[12px] font-medium text-slate-600">Beginner</span>
                         </div>
-                        <div class="h-2 bg-amber-100 rounded-full overflow-hidden">
-                            <div class="h-full bg-amber-500 rounded-full transition-all duration-700" style="width: {{ $intermPct }}%"></div>
-                        </div>
+                        <span class="text-[12px] font-bold text-slate-500">{{ $beginnerPct }}%</span>
                     </div>
-                    {{-- Advanced --}}
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[12px] font-semibold text-emerald-600">Advanced</span>
-                            <span class="text-[11px] font-bold text-slate-400">{{ $advancedPct }}%</span>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#0d326b] shrink-0"></span>
+                            <span class="text-[12px] font-medium text-slate-600">Intermediate</span>
                         </div>
-                        <div class="h-2 bg-emerald-100 rounded-full overflow-hidden">
-                            <div class="h-full bg-emerald-500 rounded-full transition-all duration-700" style="width: {{ $advancedPct }}%"></div>
+                        <span class="text-[12px] font-bold text-slate-500">{{ $intermPct }}%</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+                            <span class="text-[12px] font-medium text-slate-600">Advanced</span>
                         </div>
+                        <span class="text-[12px] font-bold text-slate-500">{{ $advancedPct }}%</span>
                     </div>
                 </div>
             </div>
@@ -327,17 +364,26 @@
                 <div class="space-y-3">
                     @foreach($topStudents as $idx => $ts)
                     @php
-                        $medals = ['🥇','🥈','🥉'];
-                        $medal  = $medals[$idx] ?? '•';
+                        $rankColors = [
+                            ['ring' => 'ring-[#facc15]', 'bg' => 'bg-[#facc15]/10', 'badge' => 'bg-[#facc15] text-[#0d326b]'],
+                            ['ring' => 'ring-slate-200',  'bg' => 'bg-slate-50',     'badge' => 'bg-slate-200 text-slate-600'],
+                            ['ring' => 'ring-amber-200',  'bg' => 'bg-amber-50/50',  'badge' => 'bg-amber-100 text-amber-700'],
+                        ];
+                        $rc = $rankColors[$idx] ?? $rankColors[2];
                     @endphp
-                    <div class="flex items-center space-x-3">
-                        <span class="text-[18px] leading-none">{{ $medal }}</span>
-                        <img src="https://ui-avatars.com/api/?name={{ urlencode($ts->first_name . '+' . $ts->last_name) }}&background=random&color=fff&rounded=true&size=60"
-                             class="w-8 h-8 rounded-full shadow-sm shrink-0" />
+                    <div class="flex items-center space-x-3 p-2.5 rounded-xl {{ $rc['bg'] }}">
+                        <div class="relative shrink-0">
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode($ts->first_name . '+' . $ts->last_name) }}&background=random&color=fff&rounded=true&size=60"
+                                 class="w-9 h-9 rounded-full ring-2 {{ $rc['ring'] }}" />
+                            <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full {{ $rc['badge'] }} text-[8px] font-black flex items-center justify-center">{{ $idx + 1 }}</span>
+                        </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-[12px] font-bold text-[#0d326b] truncate">{{ $ts->first_name }} {{ $ts->last_name }}</p>
                             <p class="text-[10px] text-slate-400 font-medium">{{ number_format($ts->total_xp) }} XP</p>
                         </div>
+                        @if($idx === 0)
+                        <span class="material-symbols-outlined text-[#facc15] text-[18px] shrink-0">star</span>
+                        @endif
                     </div>
                     @endforeach
                 </div>
@@ -346,37 +392,12 @@
                 @endif
             </div>
 
-            {{-- Grade Distribution --}}
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Grade Distribution</p>
-                @php
-                    $gradeCounts = $students->groupBy('grade_level')->map->count()->sortKeys();
-                @endphp
-                @if($gradeCounts->count())
-                <div class="space-y-2">
-                    @foreach($gradeCounts as $grade => $cnt)
-                    <div class="flex items-center justify-between">
-                        <span class="text-[12px] font-medium text-[#1e293b]">{{ $grade ?: 'Unset' }}</span>
-                        <div class="flex items-center space-x-2">
-                            <div class="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div class="h-full bg-[#0d326b] rounded-full" style="width: {{ ($cnt / $total) * 100 }}%"></div>
-                            </div>
-                            <span class="text-[11px] font-bold text-slate-400 w-4 text-right">{{ $cnt }}</span>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-                @else
-                <p class="text-[12px] text-slate-400 text-center py-3">No grade data yet.</p>
-                @endif
-            </div>
-
         </div>{{-- /sidebar --}}
     </div>{{-- /main content --}}
 </div>
 
 {{-- ═══════════════════════════════════════════════════════════════════
-     ADD STUDENT MODAL  (unchanged functionality, improved visuals)
+     ADD STUDENT MODAL
 ═══════════════════════════════════════════════════════════════════ --}}
 <div id="add-student-modal"
      class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
@@ -677,15 +698,15 @@ function resetUploadArea() {
 
 function mapExcelData(rows) {
     if (!rows || rows.length < 2) return [];
-    const headers     = rows[0].map(h => String(h || '').trim().toLowerCase());
-    const lrnIdx      = headers.findIndex(h => h.includes('lrn') || h.includes('reference') || h.includes('learner'));
-    const nameIdx     = headers.findIndex(h => h.includes('name') || h.includes('student') || h.includes('full'));
-    const firstIdx    = headers.findIndex(h => h.includes('first'));
-    const lastIdx     = headers.findIndex(h => h.includes('last'));
-    const gradeIdx    = headers.findIndex(h => h.includes('grade') || h.includes('level') || h.includes('class'));
-    const ageIdx      = headers.findIndex(h => h.includes('age'));
-    const sectionIdx  = headers.findIndex(h => h.includes('section'));
-    const masteryIdx  = headers.findIndex(h => h.includes('fsl') || h.includes('mastery') || h.includes('skill'));
+    const headers    = rows[0].map(h => String(h || '').trim().toLowerCase());
+    const lrnIdx     = headers.findIndex(h => h.includes('lrn') || h.includes('reference') || h.includes('learner'));
+    const nameIdx    = headers.findIndex(h => h.includes('name') || h.includes('student') || h.includes('full'));
+    const firstIdx   = headers.findIndex(h => h.includes('first'));
+    const lastIdx    = headers.findIndex(h => h.includes('last'));
+    const gradeIdx   = headers.findIndex(h => h.includes('grade') || h.includes('level') || h.includes('class'));
+    const ageIdx     = headers.findIndex(h => h.includes('age'));
+    const sectionIdx = headers.findIndex(h => h.includes('section'));
+    const masteryIdx = headers.findIndex(h => h.includes('fsl') || h.includes('mastery') || h.includes('skill'));
 
     if (lrnIdx === -1) throw new Error("Missing LRN column.");
     if (nameIdx === -1 && (firstIdx === -1 || lastIdx === -1)) throw new Error("Missing Name column.");
@@ -704,7 +725,7 @@ function mapExcelData(rows) {
 
         if (!lrn || lrn.length !== 12 || isNaN(Number(lrn))) throw new Error(`Row ${i+2}: LRN "${lrn}" must be exactly 12 digits.`);
         if (!fullName) throw new Error(`Row ${i+2}: Name is required.`);
-        if (isNaN(age) || age < 1)   throw new Error(`Row ${i+2}: Valid age is required.`);
+        if (isNaN(age) || age < 1) throw new Error(`Row ${i+2}: Valid age is required.`);
 
         return {
             lrn, full_name: fullName,
@@ -779,12 +800,12 @@ btnImport.addEventListener('click', async () => {
 });
 
 // ─── Client-side Filtering ───────────────────────────────────────────────────
-const searchInput   = document.getElementById('student-search');
-const filterLevel   = document.getElementById('filter-level');
-const filterGrade   = document.getElementById('filter-grade');
-const filterTabs    = document.querySelectorAll('.filter-tab');
-const noResults     = document.getElementById('no-filter-results');
-const resultsCount  = document.getElementById('results-count');
+const searchInput  = document.getElementById('student-search');
+const filterLevel  = document.getElementById('filter-level');
+const filterGrade  = document.getElementById('filter-grade');
+const filterTabs   = document.querySelectorAll('.filter-tab');
+const noResults    = document.getElementById('no-filter-results');
+const resultsCount = document.getElementById('results-count');
 
 let activeStatus = 'all';
 
@@ -804,17 +825,17 @@ filterLevel.addEventListener('change', applyFilters);
 filterGrade.addEventListener('change', applyFilters);
 
 function applyFilters() {
-    const search  = searchInput.value.toLowerCase().trim();
-    const level   = filterLevel.value;
-    const grade   = filterGrade.value;
-    const rows    = document.querySelectorAll('.student-row');
-    let visible   = 0;
+    const search = searchInput.value.toLowerCase().trim();
+    const level  = filterLevel.value;
+    const grade  = filterGrade.value;
+    const rows   = document.querySelectorAll('.student-row');
+    let visible  = 0;
 
     rows.forEach(row => {
-        const matchStatus  = activeStatus === 'all' || row.dataset.status === activeStatus;
-        const matchSearch  = !search || row.dataset.name.includes(search);
-        const matchLevel   = !level  || row.dataset.mastery === level;
-        const matchGrade   = !grade  || row.dataset.grade === grade;
+        const matchStatus = activeStatus === 'all' || row.dataset.status === activeStatus;
+        const matchSearch = !search || row.dataset.name.includes(search);
+        const matchLevel  = !level  || row.dataset.mastery === level;
+        const matchGrade  = !grade  || row.dataset.grade === grade;
         const show = matchStatus && matchSearch && matchLevel && matchGrade;
         row.classList.toggle('hidden', !show);
         if (show) visible++;
@@ -824,7 +845,6 @@ function applyFilters() {
     resultsCount.textContent = rows.length ? `${visible} student${visible !== 1 ? 's' : ''}` : '';
 }
 
-// Run on load to initialise count
 applyFilters();
 </script>
 
