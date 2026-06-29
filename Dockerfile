@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql gd bcmath opcache
 
+# Get latest Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
 # Enable Apache mod_rewrite (required for Laravel routing)
 RUN a2enmod rewrite
 
@@ -30,8 +33,15 @@ RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 
 WORKDIR /var/www/html
 
+# Copy composer files first to leverage Docker cache
+COPY composer.json composer.lock ./
+RUN composer install --no-scripts --no-autoloader
+
 # Copy application files
 COPY . .
+
+# Finish composer setup
+RUN composer dump-autoload --optimize
 
 # Fix storage & cache permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \

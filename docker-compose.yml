@@ -9,6 +9,8 @@ services:
       - "8080:80"
     volumes:
       - .:/var/www/html
+      # Prevent Windows from syncing the vendor folder for performance
+      - /var/www/html/vendor
     environment:
       DB_CONNECTION: mysql
       DB_HOST: db
