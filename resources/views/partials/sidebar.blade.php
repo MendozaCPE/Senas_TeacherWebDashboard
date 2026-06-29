@@ -1,8 +1,8 @@
 @php
-    $activeClass = 'bg-white text-[#0d326b] font-bold text-[15px] border-l-[6px] border-[#facc15] shadow-[0_2px_10px_rgba(0,0,0,0.02)]';
-    $inactiveClass = 'text-slate-500 hover:text-[#0d326b] hover:bg-white/50 transition-colors text-[15px] font-medium border-l-[6px] border-transparent';
+    $activeClass = 'bg-[#facc15] text-[#0d326b] font-bold text-[15px] rounded-r-full mr-4';
+    $inactiveClass = 'text-slate-500 hover:text-[#0d326b] hover:bg-slate-100/70 transition-colors text-[15px] font-medium rounded-r-full mr-4';
 @endphp
-<aside class="w-64 bg-[#f8f9fa] flex flex-col shadow-[2px_0_15px_rgba(0,0,0,0.03)] z-10 flex-shrink-0">
+<aside class="w-64 bg-white flex flex-col z-10 flex-shrink-0">
     <!-- Logo -->
     <div class="px-8 pt-10 pb-12">
         <h1 class="text-[40px] font-black text-[#0d326b] tracking-tight drop-shadow-md mb-1 leading-none">SEÑAS</h1>
@@ -11,8 +11,8 @@
 
     <!-- Navigation -->
     <nav class="flex-1 flex flex-col space-y-2">
-        <a href="/" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('/') ? $activeClass : $inactiveClass }}">
-            <span class="material-symbols-outlined {{ request()->is('/') ? '' : 'icon-outline' }} text-[22px]">grid_view</span>
+        <a href="/dashboard" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('/') || request()->is('dashboard') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('/') || request()->is('dashboard') ? '' : 'icon-outline' }} text-[22px]">grid_view</span>
             <span>Dashboard</span>
         </a>
         <a href="/students" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('students') ? $activeClass : $inactiveClass }}">

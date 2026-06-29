@@ -16,17 +16,28 @@ class DashboardController extends Controller
         $user    = Auth::user();
         $teacher = $user->teacher;
 
-        // Build a display name
-        if ($teacher && $teacher->first_name) {
-            $displayName = $teacher->first_name . ($teacher->last_name ? ' ' . $teacher->last_name : '');
+        // Build time-based greeting
+        $hour = Carbon::now()->format('H');
+        if ($hour < 12) {
+            $greeting = 'Good morning';
+        } elseif ($hour < 18) {
+            $greeting = 'Good afternoon';
         } else {
-            $displayName = $user->name ?? 'Teacher';
+            $greeting = 'Good evening';
+        }
+
+        // Get first name for display
+        if ($teacher && $teacher->first_name) {
+            $firstName = $teacher->first_name;
+        } else {
+            $firstName = $user->name ?? 'Teacher';
         }
 
         // Default stats (fallback if no teacher record)
         $totalStudents    = 0;
         $activeToday      = 0;
         $lessonsCompleted = 0;
+        $avgAccuracy      = 0;
         $students         = collect();
         $lessons          = collect();
         $lessonMastery    = collect();
@@ -53,7 +64,6 @@ class DashboardController extends Controller
             // ── Your Lessons (with enrolled count + completion %) ────────────────
             $lessons = Lesson::where('teacher_id', $teacherId)
                 ->orderBy('module_order')
-                ->take(3)
                 ->get()
                 ->map(function ($lesson) use ($studentIds) {
                     // Count students who have at least one progress entry for this lesson
@@ -110,6 +120,12 @@ class DashboardController extends Controller
                 ->count();
             $classRate = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
 
+            // ── Average Accuracy ──────────────────────────────────────────────────
+            $avgScore = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereNotNull('quiz_score')
+                ->avg('quiz_score');
+            $avgAccuracy = $avgScore ? round($avgScore) : 0;
+
             // ── Student Performance (5 most recent, with avg quiz score as proxy) ─
             $students = Student::where('teacher_id', $teacherId)
                 ->orderBy('created_at', 'desc')
@@ -157,11 +173,13 @@ class DashboardController extends Controller
             : $circleCircumference;
 
         return view('dashboard', compact(
-            'displayName',
+            'greeting',
+            'firstName',
             'user',
             'teacher',
             'totalStudents',
             'activeToday',
+            'avgAccuracy',
             'lessonsCompleted',
             'students',
             'lessons',

@@ -20,7 +20,16 @@ class LessonsController extends Controller
      */
     public function index()
     {
-        $lessons = Lesson::orderBy('module_order')->get();
+        $user = Auth::user();
+        $teacher = $user ? $user->teacher : null;
+        
+        if ($teacher) {
+            $lessons = Lesson::where('teacher_id', $teacher->id)
+                ->orderBy('module_order')
+                ->get();
+        } else {
+            $lessons = collect();
+        }
 
         return view('lessons', compact('lessons'));
     }
