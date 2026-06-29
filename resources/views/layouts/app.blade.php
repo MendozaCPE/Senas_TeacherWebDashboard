@@ -78,6 +78,39 @@
         html.dark .bg-emerald-50 { background-color: rgba(16,185,129,0.1) !important; }
         html.dark .bg-red-50 { background-color: rgba(220,38,38,0.1) !important; }
 
+        /* Dark mode inputs, select fields & textareas */
+        html.dark input, html.dark select, html.dark textarea {
+            background-color: #112240 !important;
+            color: #ffffff !important;
+            border-color: #1E3A5F !important;
+        }
+        html.dark input::placeholder, html.dark textarea::placeholder {
+            color: rgba(255,255,255,0.4) !important;
+        }
+        html.dark select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+        }
+
+        /* Dark mode badge color fixes */
+        html.dark .bg-emerald-100 { background-color: rgba(16,185,129,0.15) !important; }
+        html.dark .text-emerald-700 { color: #34d399 !important; }
+        html.dark .bg-amber-100 { background-color: rgba(245,158,11,0.15) !important; }
+        html.dark .text-amber-700 { color: #fbbf24 !important; }
+        html.dark .bg-blue-100 { background-color: rgba(59,130,246,0.15) !important; }
+        html.dark .text-blue-700 { color: #60a5fa !important; }
+        html.dark .bg-\[\#e0e7ff\] { background-color: rgba(99,102,241,0.15) !important; }
+        html.dark .text-\[\#4f46e5\] { color: #818cf8 !important; }
+        html.dark .bg-\[\#f1f5f9\] { background-color: #0d1b2e !important; }
+        html.dark .bg-\[\#e8eef8\] { background-color: rgba(59,130,246,0.1) !important; }
+        html.dark .bg-\[\#fef9e7\] { background-color: rgba(245,158,11,0.08) !important; }
+        html.dark .bg-\[\#ecfdf5\] { background-color: rgba(16,185,129,0.08) !important; }
+        html.dark .bg-\[\#f3f0ff\] { background-color: rgba(99,102,241,0.08) !important; }
+
+        /* Prevent text inside yellow elements from turning white in dark mode */
+        html.dark .bg-\[\#facc15\], html.dark .bg-\[\#facc15\] * {
+            color: #0d326b !important;
+        }
+
         /* Smooth transitions */
         body, aside, header, main, .bg-white, .bg-slate-100 { transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
 
