@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lesson;
 use App\Models\LessonAssignment;
+use App\Models\Module;
 use App\Models\LessonContent;  // <-- ADD THIS LINE
 use App\Models\Quiz;
 use App\Models\QuizOption;
@@ -19,28 +20,53 @@ class LessonsController extends Controller
      * Show the list of lessons.
      */
     public function index()
-    {
-        $user = Auth::user();
-        $teacher = $user ? $user->teacher : null;
+{
+    $user = Auth::user();
+    $teacher = $user ? $user->teacher : null;
+    
+    if ($teacher) {
+        // Get all lessons (works with existing view)
+        $lessons = Lesson::where('teacher_id', $teacher->id)
+            ->orderBy('module_order')
+            ->get();
         
-        if ($teacher) {
-            $lessons = Lesson::where('teacher_id', $teacher->id)
-                ->orderBy('module_order')
-                ->get();
-        } else {
-            $lessons = collect();
-        }
-
-        return view('lessons', compact('lessons'));
+        // Get modules with their lessons (for future use)
+        $modules = Module::where('teacher_id', $teacher->id)
+            ->with(['lessons' => function($query) {
+                $query->orderBy('module_order');
+            }])
+            ->orderBy('module_order')
+            ->get();
+        
+        // Get orphaned lessons (lessons without a module)
+        $orphanedLessons = Lesson::where('teacher_id', $teacher->id)
+            ->whereNull('module_id')
+            ->orderBy('module_order')
+            ->get();
+    } else {
+        $lessons = collect();
+        $modules = collect();
+        $orphanedLessons = collect();
     }
+
+    return view('lessons', compact('lessons', 'modules', 'orphanedLessons'));
+}
 
     /**
      * Show the create form.
      */
     public function create()
-    {
-        return view('lessons.create');
-    }
+{
+    $user = Auth::user();
+    $teacher = $user ? $user->teacher : null;
+    
+    // Get modules for the dropdown
+    $modules = Module::where('teacher_id', $teacher?->id ?? 0)
+        ->orderBy('module_order')
+        ->get();
+    
+    return view('lessons.create', compact('modules'));
+}
 
 /**
  * Persist a new lesson + contents + quiz.
@@ -51,13 +77,14 @@ class LessonsController extends Controller
 public function store(Request $request)
 {
     $validated = $request->validate([
-        'title' => 'required|string|max:255',
-        'description' => 'nullable|string',
-        'lesson_type' => 'required|in:text,video,interactive,gesture',
-        'difficulty' => 'required|in:beginner,intermediate,advanced',
-        'contents' => 'nullable|array',
-        'quiz' => 'nullable|array',
-    ]);
+    'title' => 'required|string|max:255',
+    'description' => 'nullable|string',
+    'lesson_type' => 'required|in:text,video,interactive,gesture',
+    'difficulty' => 'required|in:beginner,intermediate,advanced',
+    'module_id' => 'nullable|exists:modules,module_id', // ADD THIS
+    'contents' => 'nullable|array',
+    'quiz' => 'nullable|array',
+]);
 
     // Get the button that was clicked
     $buttonAction = $request->input('status', 'draft');
@@ -124,14 +151,15 @@ public function store(Request $request)
 
     $lesson = DB::transaction(function () use ($request, $validated, $status, $teacherId, $nextOrder) {
         $lesson = Lesson::create([
-            'teacher_id' => $teacherId,
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'lesson_type' => $validated['lesson_type'],
-            'difficulty' => $validated['difficulty'],
-            'module_order' => $nextOrder,
-            'status' => $status,
-        ]);
+    'teacher_id' => $teacherId,
+    'module_id' => $validated['module_id'] ?? null, // ADD THIS
+    'title' => $validated['title'],
+    'description' => $validated['description'] ?? null,
+    'lesson_type' => $validated['lesson_type'],
+    'difficulty' => $validated['difficulty'],
+    'module_order' => $nextOrder,
+    'status' => $status,
+]);
 
         // 2) Lesson contents - FIXED for file uploads
         $contents = $request->input('contents', []);
@@ -388,6 +416,13 @@ public function view($id)
 public function edit($id)
 {
     $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($id);
+    
+    // Get modules for the dropdown
+    $user = Auth::user();
+    $teacher = $user ? $user->teacher : null;
+    $modules = Module::where('teacher_id', $teacher?->id ?? 0)
+        ->orderBy('module_order')
+        ->get();
 
     // Format data for the edit form
     $lessonData = [
@@ -396,6 +431,7 @@ public function edit($id)
         'description' => $lesson->description,
         'lesson_type' => $lesson->lesson_type,
         'difficulty' => $lesson->difficulty,
+        'module_id' => $lesson->module_id, // ADD THIS
         'status' => $lesson->status,
         'contents' => $lesson->contents->map(function ($content) {
             return [
@@ -424,7 +460,7 @@ public function edit($id)
         }
     }
 
-    return view('lessons.edit', compact('lessonData'));
+   return view('lessons.edit', compact('lessonData', 'modules'));
 }
 
 /**
@@ -433,13 +469,14 @@ public function edit($id)
 public function update(Request $request, $id)
 {
     $validated = $request->validate([
-        'title' => 'required|string|max:255',
-        'description' => 'nullable|string',
-        'lesson_type' => 'required|in:text,video,interactive,gesture',
-        'difficulty' => 'required|in:beginner,intermediate,advanced',
-        'contents' => 'nullable|array',
-        'quiz' => 'nullable|array',
-    ]);
+    'title' => 'required|string|max:255',
+    'description' => 'nullable|string',
+    'lesson_type' => 'required|in:text,video,interactive,gesture',
+    'difficulty' => 'required|in:beginner,intermediate,advanced',
+    'module_id' => 'nullable|exists:modules,module_id', // ADD THIS
+    'contents' => 'nullable|array',
+    'quiz' => 'nullable|array',
+]);
 
     $status = $request->input('status', 'draft');
     if (! in_array($status, ['draft', 'published', 'archived'])) {
@@ -451,12 +488,13 @@ public function update(Request $request, $id)
     DB::transaction(function () use ($request, $validated, $status, $lesson) {
         // Update lesson
         $lesson->update([
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'lesson_type' => $validated['lesson_type'],
-            'difficulty' => $validated['difficulty'],
-            'status' => $status,
-        ]);
+    'title' => $validated['title'],
+    'description' => $validated['description'] ?? null,
+    'lesson_type' => $validated['lesson_type'],
+    'difficulty' => $validated['difficulty'],
+    'module_id' => $validated['module_id'] ?? null, // ADD THIS
+    'status' => $status,
+]);
 
         // Delete existing contents and recreate
         $lesson->contents()->delete();

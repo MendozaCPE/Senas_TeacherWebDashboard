@@ -15,6 +15,7 @@ class Lesson extends Model
 
     protected $fillable = [
         'teacher_id',
+         'module_id',
         'title',
         'description',
         'lesson_type',
@@ -25,9 +26,10 @@ class Lesson extends Model
     ];
 
     public function teacher()
-    {
-        return $this->belongsTo(Teacher::class, 'teacher_id', 'teacher_id');
-    }
+{
+    // Make sure this is using 'id' from teachers table
+    return $this->belongsTo(Teacher::class, 'teacher_id', 'id');
+}
 
     // Add this relationship for lesson contents
     public function contents()
@@ -46,6 +48,10 @@ class Lesson extends Model
      {
          return $this->hasMany(LessonAssignment::class, 'lesson_id', 'lesson_id');
      }
+     public function module()
+    {
+        return $this->belongsTo(Module::class, 'module_id', 'module_id');
+    }
 
     /**
      * Get the students assigned to this lesson

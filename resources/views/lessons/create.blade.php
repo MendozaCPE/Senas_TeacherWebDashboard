@@ -101,6 +101,19 @@
                             <option value="interactive">Interactive Lesson</option>
                         </select>
                     </div>
+<div>
+    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Module (Optional)</label>
+    <select name="module_id" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
+        <option value="">-- No Module (Standalone) --</option>
+        @foreach($modules as $module)
+            <option value="{{ $module->module_id }}" {{ old('module_id') == $module->module_id ? 'selected' : '' }}>
+                {{ $module->title }}
+            </option>
+        @endforeach
+    </select>
+    <p class="text-xs text-slate-500 mt-1">Organize your lesson under a module.</p>
+</div>
+
                 </div>
             </div>
         </div>
