@@ -197,7 +197,6 @@
                 @endphp
 
                 <!-- CSS Folder Card -->
-                <!-- CSS Folder Card -->
 <div class="flex-shrink-0 w-[280px] group cursor-pointer transition-transform duration-300 hover:-translate-y-1.5">
     <!-- Folder Tab (top-left raised nub) -->
     <div class="w-[90px] h-[24px] rounded-t-[16px] ml-4"
@@ -240,12 +239,11 @@
 </div>
                 @endforeach
 
-                <!-- Practice Sessions Yellow Card - Now matches folder size -->
+                <!-- Practice Sessions Yellow Card -->
 <div class="bg-[#facc15] rounded-[20px] p-6 w-[280px] flex-shrink-0 flex flex-col justify-between shadow-sm relative overflow-hidden" style="min-height: 200px;">
     <div class="absolute top-0 right-0 w-24 h-24 opacity-10 rounded-bl-full bg-white"></div>
     <div class="flex justify-between items-start relative z-10">
         <span class="material-symbols-outlined text-[#0d326b] text-[28px]">assignment_ind</span>
-        <!-- Added 3-dot menu to match folder cards -->
         <button class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors text-[#0d326b]">
             <span class="material-symbols-outlined text-[20px]">more_vert</span>
         </button>
@@ -265,82 +263,186 @@
             @endif
         </div>
 
+        @php
+            /* ---------------------------------------------------------
+             | Data prep for the redesigned Mastery + Lesson Progress
+             | widgets below. Reuses existing controller variables;
+             | swap in real series data when available.
+             ---------------------------------------------------------- */
+
+            // 7-day trend line — reuse the accuracy sparkline series as the
+            // "mastery over time" trend, with date labels for the last 7 days.
+            $masterySeries = $sparklineAccuracy ?: array_fill(0, 7, 0);
+            if (count($masterySeries) < 7) {
+                $masterySeries = array_pad($masterySeries, 7, end($masterySeries) ?: 0);
+            }
+            $masterySeries = array_slice($masterySeries, -7);
+
+            $masteryDayLabels = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $masteryDayLabels[] = $today->copy()->subDays($i)->format('M j');
+            }
+
+            $masteryCurrentValue = (int) round(end($masterySeries));
+
+            // Lesson Progress donut — derive Completed / In Progress / Not Started
+            // counts from the lesson mastery collection.
+            $lpTotal = $lessons->count();
+            $lpCompleted = $lessonMastery->where('masteryPct', '>=', 100)->count();
+            $lpInProgress = $lessonMastery->filter(fn ($lm) => $lm->masteryPct > 0 && $lm->masteryPct < 100)->count();
+            $lpNotStarted = max(0, $lpTotal - $lpCompleted - $lpInProgress);
+
+            $donutCircumference = round(2 * pi() * 60, 4);
+
+            // Segment order: Completed, In Progress, Not Started
+            $donutSegments = $lpTotal > 0 ? [
+                ['count' => $lpCompleted, 'color' => '#10b981'],   // emerald — matches existing "Good" badge
+                ['count' => $lpInProgress, 'color' => '#1a6fd4'],  // brand blue
+                ['count' => $lpNotStarted, 'color' => '#e2e8f0'],  // slate-200
+            ] : [];
+
+            $donutOffset = 0;
+        @endphp
+
         <!-- Middle Widgets -->
         <div class="grid grid-cols-2 gap-6">
-            <!-- Student Mastery -->
-            <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden">
-                <!-- Decorative corner blob -->
-                <div class="absolute -top-8 -right-8 w-32 h-32 bg-indigo-50 rounded-full opacity-60"></div>
-                <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-yellow-50 rounded-full opacity-80"></div>
 
-                <div class="flex items-center justify-between mb-7 relative z-10">
-                    <h3 class="text-lg font-bold text-[#0d326b]">Student Mastery</h3>
-                    <div class="flex items-center space-x-3 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                        <div class="flex items-center space-x-1.5">
-                            <div class="w-2.5 h-2.5 rounded-full bg-[#0d326b]"></div><span>Completed</span>
-                        </div>
-                        <div class="flex items-center space-x-1.5">
-                            <div class="w-2.5 h-2.5 rounded-full bg-slate-200"></div><span>Remaining</span>
-                        </div>
-                    </div>
+            <!-- Student Mastery Overview (line/area chart) -->
+            <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden">
+                <div class="absolute -top-8 -right-8 w-32 h-32 bg-indigo-50 rounded-full opacity-60"></div>
+
+                <div class="flex items-center justify-between mb-6 relative z-10">
+                    <h3 class="text-lg font-bold text-[#0d326b]">Student Mastery Overview</h3>
                 </div>
 
-                @if($lessonMastery->isEmpty())
-                    <div class="text-center text-sm text-slate-400 py-8 italic relative z-10">No record</div>
+                @if(array_sum($masterySeries) === 0 && $lessonMastery->isEmpty())
+                    <div class="text-center text-sm text-slate-400 py-12 italic relative z-10">No record</div>
                 @else
-                <div class="space-y-5 relative z-10">
-                    @foreach($lessonMastery as $lm)
-                    @php $pct = $lm->masteryPct; @endphp
-                    <div>
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider truncate max-w-[60%]">{{ $lm->title }}</span>
-                            <span class="text-[11px] font-black text-[#0d326b]">{{ $pct }}%</span>
-                        </div>
-                        <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                            <div class="h-full rounded-full transition-all duration-700"
-                                 style="width: {{ $pct }}%; background: linear-gradient(90deg, #1e40af, #6366f1)"></div>
-                        </div>
+                @php
+                    $chartW = 560; $chartH = 200;
+                    $padL = 36; $padR = 16; $padT = 36; $padB = 28;
+                    $plotW = $chartW - $padL - $padR;
+                    $plotH = $chartH - $padT - $padB;
+                    $maxVal = 100; $minVal = 0;
+                    $n = count($masterySeries);
+                    $pts = [];
+                    foreach ($masterySeries as $i => $v) {
+                        $x = $padL + ($n > 1 ? ($i / ($n - 1)) * $plotW : $plotW / 2);
+                        $y = $padT + $plotH - (($v - $minVal) / max($maxVal - $minVal, 1)) * $plotH;
+                        $pts[] = [round($x, 1), round($y, 1)];
+                    }
+                    $polyPoints = implode(' ', array_map(fn($p) => $p[0] . ',' . $p[1], $pts));
+                    $areaPoints = $polyPoints . ' ' . ($padL + $plotW) . ',' . ($padT + $plotH) . ' ' . $padL . ',' . ($padT + $plotH);
+                    $lastPt = end($pts);
+                @endphp
+                <div class="relative z-10">
+                    <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" class="w-full h-[200px]" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="masteryAreaFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#1a6fd4" stop-opacity="0.25"/>
+                                <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+
+                        <!-- Gridlines + Y labels -->
+                        @foreach([0, 25, 50, 75, 100] as $gv)
+                        @php $gy = round($padT + $plotH - ($gv / 100) * $plotH, 1); @endphp
+                        <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $padL + $plotW }}" y2="{{ $gy }}" stroke="#f1f5f9" stroke-width="1"/>
+                        <text x="0" y="{{ $gy + 4 }}" font-size="11" fill="#94a3b8" font-weight="600">{{ $gv }}%</text>
+                        @endforeach
+
+                        <!-- Area fill -->
+                        <polygon points="{{ $areaPoints }}" fill="url(#masteryAreaFill)"/>
+
+                        <!-- Line -->
+                        <polyline fill="none" stroke="#0d326b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="{{ $polyPoints }}"/>
+
+                        <!-- Points -->
+                        @foreach($pts as $i => $p)
+                        <circle cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="{{ $i === count($pts) - 1 ? 5 : 3.5 }}" fill="{{ $i === count($pts) - 1 ? '#1a6fd4' : '#0d326b' }}" stroke="white" stroke-width="2"/>
+                        @endforeach
+
+                        <!-- X labels -->
+                        @foreach($masteryDayLabels as $i => $label)
+                        <text x="{{ $pts[$i][0] }}" y="{{ $chartH - 4 }}" font-size="10" fill="#94a3b8" font-weight="600" text-anchor="middle">{{ $label }}</text>
+                        @endforeach
+                    </svg>
+
+                    <!-- Callout bubble for current value -->
+                    <div class="absolute top-0 right-0 bg-white border border-slate-100 shadow-sm rounded-full px-3 py-1">
+                        <span class="text-[13px] font-black text-[#0d326b]">{{ $masteryCurrentValue }}%</span>
                     </div>
-                    @endforeach
                 </div>
                 @endif
             </div>
 
-            <!-- Class Rate Circle -->
-            <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <!-- Lesson Progress (donut chart) -->
+            <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden flex flex-col">
                 <div class="absolute -top-10 -right-10 w-36 h-36 bg-yellow-50 rounded-full opacity-60"></div>
 
-                <div class="relative w-40 h-40 mb-5 z-10">
-                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 144 144">
-                        <circle cx="72" cy="72" r="60" fill="transparent" stroke="#f1f5f9" stroke-width="10"></circle>
-                        @if($classRate > 0)
-                        <circle cx="72" cy="72" r="60" fill="transparent"
-                                stroke="url(#rateGrad)"
-                                stroke-dasharray="{{ round(2 * pi() * 60, 2) }}"
-                                stroke-dashoffset="{{ round(2 * pi() * 60 * (1 - $classRate / 100), 2) }}"
-                                stroke-width="10" stroke-linecap="round"></circle>
-                        @endif
-                        <defs>
-                            <linearGradient id="rateGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stop-color="#facc15"/>
-                                <stop offset="100%" stop-color="#f59e0b"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        @if($classRate > 0)
-                        <span class="text-4xl font-black text-[#0d326b] leading-none">{{ $classRate }}%</span>
-                        <span class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-1.5">Class Rate</span>
-                        @else
-                        <span class="text-base font-bold text-slate-400">No record</span>
-                        @endif
+                <h3 class="text-lg font-bold text-[#0d326b] mb-6 relative z-10">Lesson Progress</h3>
+
+                @if($lpTotal === 0)
+                    <div class="flex-1 flex items-center justify-center text-sm text-slate-400 italic relative z-10">No record</div>
+                @else
+                <div class="flex items-center gap-8 relative z-10">
+                    <!-- Donut -->
+                    <div class="relative w-36 h-36 flex-shrink-0">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 144 144">
+                            <circle cx="72" cy="72" r="60" fill="transparent" stroke="#f1f5f9" stroke-width="14"></circle>
+                            @php $cumulative = 0; @endphp
+                            @foreach($donutSegments as $seg)
+                                @if($seg['count'] > 0)
+                                @php
+                                    $segLen = round(($seg['count'] / $lpTotal) * $donutCircumference, 2);
+                                    $gap = round($donutCircumference - $segLen, 2);
+                                    $offset = round(-1 * ($cumulative / $lpTotal) * $donutCircumference, 2);
+                                @endphp
+                                <circle cx="72" cy="72" r="60" fill="transparent"
+                                        stroke="{{ $seg['color'] }}"
+                                        stroke-width="14"
+                                        stroke-dasharray="{{ $segLen }} {{ $gap }}"
+                                        stroke-dashoffset="{{ $offset }}"
+                                        stroke-linecap="round"></circle>
+                                @php $cumulative += $seg['count']; @endphp
+                                @endif
+                            @endforeach
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-3xl font-black text-[#0d326b] leading-none">{{ $lpTotal }}</span>
+                            <span class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-1">Total</span>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="space-y-3 flex-1">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full" style="background:#10b981"></div>
+                                <span class="text-[12px] font-semibold text-slate-600">Completed</span>
+                            </div>
+                            <span class="text-[12px] font-black text-[#0d326b]">{{ $lpCompleted }} ({{ round(($lpCompleted / $lpTotal) * 100) }}%)</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full" style="background:#1a6fd4"></div>
+                                <span class="text-[12px] font-semibold text-slate-600">In Progress</span>
+                            </div>
+                            <span class="text-[12px] font-black text-[#0d326b]">{{ $lpInProgress }} ({{ round(($lpInProgress / $lpTotal) * 100) }}%)</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+                                <span class="text-[12px] font-semibold text-slate-600">Not Started</span>
+                            </div>
+                            <span class="text-[12px] font-black text-[#0d326b]">{{ $lpNotStarted }} ({{ round(($lpNotStarted / $lpTotal) * 100) }}%)</span>
+                        </div>
                     </div>
                 </div>
 
-                @if($classRate > 0)
-                <p class="text-sm font-semibold text-slate-500 px-4 relative z-10 leading-relaxed">Overall lesson completion<br>rate across all students.</p>
-                @else
-                <p class="text-sm font-medium text-slate-400 px-6 relative z-10">No lesson progress data yet.</p>
+                <a href="{{ route('lessons.index') }}" class="mt-6 block w-full bg-[#eef2ff] text-[#0d326b] text-[13px] font-bold py-3 rounded-xl hover:bg-[#e0e7ff] transition-colors text-center relative z-10">
+                    View All Lessons
+                </a>
                 @endif
             </div>
         </div>
