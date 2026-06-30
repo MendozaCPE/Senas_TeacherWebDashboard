@@ -26,8 +26,66 @@
 
         <!-- Publish Form -->
         <div class="bg-white rounded-lg shadow-md p-6">
+            @if ($errors->any())
+                <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                    <p class="text-sm font-semibold text-red-700 mb-2">Please fix the following:</p>
+                    <ul class="text-sm text-red-600 list-disc pl-5 space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <form action="{{ route('lessons.publish', $lesson->lesson_id) }}" method="POST" id="publishForm">
                 @csrf
+
+                <div class="mb-6 pb-6 border-b">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        Which module should this lesson belong to? <span class="text-red-500">*</span>
+                    </label>
+
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="radio" name="module_action" value="existing" id="moduleExisting"
+                                   {{ old('module_action', ($lesson->module_id || $modules->isNotEmpty()) ? 'existing' : 'new') === 'existing' ? 'checked' : '' }}
+                                   class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ $modules->isEmpty() ? 'disabled' : '' }}>
+                            Use an existing module
+                        </label>
+                        <div id="existingModuleBlock" class="ml-6">
+                            <select name="module_id" id="module_id"
+                                    class="w-full max-w-md rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-sm">
+                                <option value="">Select a module</option>
+                                @foreach($modules as $module)
+                                    <option value="{{ $module->module_id }}" {{ (string) old('module_id', $lesson->module_id) === (string) $module->module_id ? 'selected' : '' }}>
+                                        {{ $module->title }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="radio" name="module_action" value="new" id="moduleNew"
+                                   {{ old('module_action', ($lesson->module_id || $modules->isNotEmpty()) ? 'existing' : 'new') === 'new' ? 'checked' : '' }}
+                                   class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            Create a new module
+                        </label>
+                        <div id="newModuleBlock" class="ml-6 hidden space-y-3 max-w-md">
+                            <input type="text" name="new_module[title]" value="{{ old('new_module.title') }}"
+                                   placeholder="Module title"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-sm">
+                            <textarea name="new_module[description]" rows="2" placeholder="Optional description"
+                                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-sm">{{ old('new_module.description') }}</textarea>
+                        </div>
+                    </div>
+
+                    @if($modules->isEmpty())
+                        <p class="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+                            You have no modules yet. Choose “Create a new module” above.
+                        </p>
+                    @endif
+                    <p class="mt-2 text-xs text-gray-500">The lesson is assigned to this module when you publish.</p>
+                </div>
                 
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-3">
@@ -169,7 +227,8 @@
                         Cancel
                     </a>
                     <button type="submit" 
-                            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md text-sm transition duration-150 ease-in-out">
+                            id="publishSubmitBtn"
+                            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md text-sm transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
                         Publish Lesson
                     </button>
                 </div>
@@ -180,11 +239,29 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Radio button toggle for student selection
     const publishOptions = document.querySelectorAll('input[name="publish_option"]');
     const studentSelection = document.getElementById('studentSelection');
     const programSelect = document.getElementById('programSelect');
     const masterySelect = document.getElementById('masterySelect');
+    const moduleExisting = document.getElementById('moduleExisting');
+    const moduleNew = document.getElementById('moduleNew');
+    const existingModuleBlock = document.getElementById('existingModuleBlock');
+    const newModuleBlock = document.getElementById('newModuleBlock');
+    const moduleSelect = document.getElementById('module_id');
+
+    function toggleModuleBlocks() {
+        const useNew = moduleNew && moduleNew.checked;
+        if (existingModuleBlock) existingModuleBlock.style.display = useNew ? 'none' : 'block';
+        if (newModuleBlock) newModuleBlock.classList.toggle('hidden', !useNew);
+        if (moduleSelect) {
+            moduleSelect.required = !useNew;
+            if (useNew) moduleSelect.value = '';
+        }
+    }
+
+    if (moduleExisting) moduleExisting.addEventListener('change', toggleModuleBlocks);
+    if (moduleNew) moduleNew.addEventListener('change', toggleModuleBlocks);
+    toggleModuleBlocks();
     
     publishOptions.forEach(radio => {
         radio.addEventListener('change', function() {
@@ -251,5 +328,34 @@ function deselectAllStudents() {
     document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = false);
     document.getElementById('selectedCount').textContent = 0;
 }
+
+document.getElementById('publishForm').addEventListener('submit', function(e) {
+    const useNew = document.getElementById('moduleNew')?.checked;
+    const moduleSelect = document.getElementById('module_id');
+    const newTitle = document.querySelector('input[name="new_module[title]"]');
+
+    if (useNew) {
+        if (!newTitle || !newTitle.value.trim()) {
+            e.preventDefault();
+            alert('Please enter a title for the new module.');
+            newTitle?.focus();
+            return;
+        }
+    } else if (moduleSelect && !moduleSelect.value) {
+        e.preventDefault();
+        alert('Please select a module before publishing this lesson.');
+        moduleSelect.focus();
+        return;
+    }
+
+    const selectedOption = document.querySelector('input[name="publish_option"]:checked');
+    if (selectedOption && selectedOption.value === 'selected') {
+        const checked = document.querySelectorAll('.student-checkbox:checked').length;
+        if (checked === 0) {
+            e.preventDefault();
+            alert('Please select at least one student.');
+        }
+    }
+});
 </script>
 @endsection

@@ -3,13 +3,12 @@
 
 @section('content')
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=block">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 <style>
     body, .max-w-4xl * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 
-    /* --- Material icon font fix --- */
     .material-symbols-outlined {
-        font-family: 'Material Symbols Outlined' !important;
+        font-family: 'Material Symbols Outlined';
         font-weight: normal;
         font-style: normal;
         font-size: 20px;
@@ -22,10 +21,9 @@
         direction: ltr;
         -webkit-font-feature-settings: 'liga';
         -webkit-font-smoothing: antialiased;
-        vertical-align: middle;
         font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        vertical-align: middle;
     }
-    .material-symbols-outlined.text-sm { font-size: 18px; }
 
     .section-card {
         background: white;
@@ -188,6 +186,11 @@
         align-items: center;
         gap: 10px;
     }
+    .option-image-input {
+        font-size: 12px;
+        flex: 1;
+        color: #6B7280;
+    }
     .option-image-preview {
         width: 44px;
         height: 44px;
@@ -272,76 +275,27 @@
     }
     .btn-outline-blue:hover { background: rgba(24,72,200,0.06); }
 
-    /* --- Preview button: mobile only --- */
-    #previewTrigger { display: none; }
-    @media (max-width: 768px) {
-        #previewTrigger { display: flex; }
-    }
-
+    /* ---- Mobile-only preview overlay ---- */
     #previewOverlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(15,23,42,0.7); z-index: 9999; overflow-y: auto; display: none; padding: 20px;
     }
-    #previewOverlay.active { display: block; }
+    #previewOverlay.active { display: flex; align-items: flex-start; justify-content: center; }
     #previewOverlay .preview-container {
-        max-width: 500px; margin: 0 auto; background: #eaf5fd; border-radius: 40px; overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 8px solid #1a1a1a; position: relative; min-height: 780px;
-    }
+    width: auto;
+    max-width: 900px;
+    margin: 20px auto;
+    background: transparent;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
+    border: none;
+    position: relative;
+    min-height: auto;
+}
     #previewOverlay .preview-loading {
-        display: flex; align-items: center; justify-content: center; height: 100vh; color: white; font-size: 16px; font-weight: 600;
-    }
-
-    /* --- Custom "Choose File" buttons (replace generic native input) --- */
-    .file-upload-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .file-upload-wrap input[type="file"] {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-        z-index: 2;
-    }
-    .file-upload-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 11px 18px;
-        border-radius: 12px;
-        border: 1.5px solid #1848c8;
-        background: rgba(24,72,200,0.06);
-        color: #1848c8;
-        font-weight: 700;
-        font-size: 13px;
-        white-space: nowrap;
-        transition: all 0.2s;
-        pointer-events: none;
-    }
-    .file-upload-wrap:hover .file-upload-btn {
-        background: rgba(24,72,200,0.12);
-    }
-    .file-upload-name {
-        font-size: 12.5px;
-        color: #6B7280;
-        font-weight: 500;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        flex: 1;
-    }
-    .file-upload-name.has-file { color: #0f3172; font-weight: 600; }
-
-    /* compact variant for option image rows */
-    .file-upload-wrap.compact .file-upload-btn {
-        padding: 8px 12px;
-        font-size: 12px;
-        border-radius: 10px;
-    }
+    display: flex; align-items: center; justify-content: center; height: 400px; color: white; font-size: 16px; font-weight: 600;
+}
 </style>
 
 <div class="max-w-4xl mx-auto pb-10">
@@ -357,6 +311,17 @@
 
     <form action="{{ route('lessons.store') }}" method="POST" enctype="multipart/form-data" id="lessonForm">
         @csrf
+
+        @if ($errors->any())
+            <div class="section-card" style="border-color:#FCA5A5; background:#FEF2F2;">
+                <p class="text-sm font-bold text-red-700 mb-2">Please fix the following:</p>
+                <ul class="text-sm text-red-600 list-disc pl-5 space-y-1">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <!-- ============ LESSON DETAILS ============ -->
         <div class="section-card">
@@ -375,7 +340,7 @@
                     <label class="field-label">Description</label>
                     <textarea name="description" rows="3" class="field-textarea"></textarea>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Difficulty</label>
                         <select name="difficulty" class="field-select">
@@ -391,19 +356,52 @@
                             <option value="interactive">Interactive Lesson</option>
                         </select>
                     </div>
+                </div>
+                <p class="text-xs text-slate-400">Choose a module now or leave unassigned until publish.</p>
+            </div>
+        </div>
+
+        <!-- ============ MODULE ============ -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title">
+                    <div class="section-icon" style="background: rgba(99,102,241,0.12); color:#6366F1;">📁</div>
+                    Module
+                </div>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="field-label">Module assignment</label>
+                    <select name="module_action" id="moduleAction" class="field-select" onchange="toggleModuleFields()">
+                        <option value="none" {{ old('module_action', 'none') === 'none' ? 'selected' : '' }}>No module (assign when publishing)</option>
+                        <option value="existing" {{ old('module_action') === 'existing' ? 'selected' : '' }}>Use existing module</option>
+                        <option value="new" {{ old('module_action') === 'new' ? 'selected' : '' }}>Create new module</option>
+                    </select>
+                </div>
+                <div id="existingModuleFields" class="hidden">
+                    <label class="field-label">Select module</label>
+                    <select name="module_id" id="moduleIdSelect" class="field-select">
+                        <option value="">Choose a module</option>
+                        @foreach($modules as $module)
+                            <option value="{{ $module->module_id }}" {{ (string) old('module_id') === (string) $module->module_id ? 'selected' : '' }}>
+                                {{ $module->title }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @if($modules->isEmpty())
+                        <p class="text-xs text-amber-600 mt-2">No modules yet — choose “Create new module” above.</p>
+                    @endif
+                </div>
+                <div id="newModuleFields" class="hidden space-y-3">
                     <div>
-                        <label class="field-label">Module (Optional)</label>
-                        <select name="module_id" class="field-select">
-                            <option value="">-- No Module --</option>
-                            @foreach($modules as $module)
-                                <option value="{{ $module->module_id }}" {{ old('module_id') == $module->module_id ? 'selected' : '' }}>
-                                    {{ $module->title }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <label class="field-label">New module title *</label>
+                        <input type="text" name="new_module[title]" id="newModuleTitle" value="{{ old('new_module.title') }}" class="field-input" placeholder="e.g., FSL Alphabet Basics">
+                    </div>
+                    <div>
+                        <label class="field-label">New module description</label>
+                        <textarea name="new_module[description]" rows="2" class="field-textarea" placeholder="Optional description">{{ old('new_module.description') }}</textarea>
                     </div>
                 </div>
-                <p class="text-xs text-slate-400">Organize your lesson under a module, or leave standalone.</p>
             </div>
         </div>
 
@@ -453,11 +451,7 @@
                         </div>
                         <div class="media-field hidden">
                             <label class="field-label">Upload Media</label>
-                            <div class="file-upload-wrap">
-                                <input type="file" name="contents[0][media]" onchange="updateFileLabel(this)">
-                                <span class="file-upload-btn"><span class="material-symbols-outlined text-sm">upload</span> Choose File</span>
-                                <span class="file-upload-name">No file chosen</span>
-                            </div>
+                            <input type="file" name="contents[0][media]" class="field-input">
                         </div>
                     </div>
                 </div>
@@ -504,11 +498,7 @@
                             </div>
                             <div>
                                 <label class="field-label">Question Media (Optional)</label>
-                                <div class="file-upload-wrap">
-                                    <input type="file" name="quiz[0][media]" onchange="updateFileLabel(this)">
-                                    <span class="file-upload-btn"><span class="material-symbols-outlined text-sm">upload</span> Choose File</span>
-                                    <span class="file-upload-name">No file chosen</span>
-                                </div>
+                                <input type="file" name="quiz[0][media]" accept="image/*" class="field-input">
                             </div>
                         </div>
 
@@ -521,11 +511,7 @@
                                     <div class="option-body">
                                         <input type="text" name="quiz[0][options][0][text]" class="option-text-input" placeholder="Option A text">
                                         <div class="option-image-row">
-                                            <div class="file-upload-wrap compact">
-                                                <input type="file" name="quiz[0][options][0][image]" accept="image/*" onchange="previewOptionImage(this)">
-                                                <span class="file-upload-btn"><span class="material-symbols-outlined text-sm">image</span> Add Image</span>
-                                                <span class="file-upload-name">No file chosen</span>
-                                            </div>
+                                            <input type="file" name="quiz[0][options][0][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
                                             <img class="option-image-preview" src="" alt="">
                                         </div>
                                     </div>
@@ -542,11 +528,7 @@
                                     <div class="option-body">
                                         <input type="text" name="quiz[0][options][1][text]" class="option-text-input" placeholder="Option B text">
                                         <div class="option-image-row">
-                                            <div class="file-upload-wrap compact">
-                                                <input type="file" name="quiz[0][options][1][image]" accept="image/*" onchange="previewOptionImage(this)">
-                                                <span class="file-upload-btn"><span class="material-symbols-outlined text-sm">image</span> Add Image</span>
-                                                <span class="file-upload-name">No file chosen</span>
-                                            </div>
+                                            <input type="file" name="quiz[0][options][1][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
                                             <img class="option-image-preview" src="" alt="">
                                         </div>
                                     </div>
@@ -572,10 +554,10 @@
         </div>
 
         <div class="form-footer">
-            <button type="button" id="previewTrigger" onclick="openPreview()" class="btn-outline-blue items-center gap-2">
+            <button type="button" onclick="openPreview()" class="btn-outline-blue flex items-center gap-2">
                 <span class="material-symbols-outlined text-sm">visibility</span> Preview
             </button>
-            <div class="flex gap-3" style="margin-left:auto;">
+            <div class="flex gap-3">
                 <button type="submit" name="status" value="draft" class="btn-ghost">💾 Save Draft</button>
                 <button type="submit" name="status" value="published" class="btn-primary">🚀 Publish Lesson</button>
             </div>
@@ -583,6 +565,7 @@
     </form>
 </div>
 
+<!-- Mobile-only preview overlay (phone frame). No web/desktop preview mode. -->
 <div id="previewOverlay">
     <button class="preview-close" onclick="closePreview()" style="position:fixed; top:20px; right:20px; background:white; border:none; border-radius:50%; width:50px; height:50px; font-size:24px; cursor:pointer; box-shadow:0 4px 20px rgba(0,0,0,0.2); z-index:10000; display:flex; align-items:center; justify-content:center;">✕</button>
     <div class="preview-container" id="previewContent">
@@ -602,13 +585,25 @@ function openPreview() {
 
     const form = document.getElementById('lessonForm');
     const formData = new FormData(form);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+        || document.querySelector('input[name="_token"]')?.value;
 
     fetch('{{ route('lessons.preview') }}', {
         method: 'POST',
         body: formData,
-        headers: { 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value }
+        credentials: 'same-origin',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'text/html',
+        }
     })
-    .then(response => response.text())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Preview request failed (HTTP ' + response.status + ')');
+        }
+        return response.text();
+    })
     .then(html => {
         content.innerHTML = html;
         content.querySelectorAll('script').forEach(oldScript => {
@@ -619,11 +614,56 @@ function openPreview() {
         });
     })
     .catch(error => {
-        alert('Error previewing lesson. Please try again.');
+        content.innerHTML = '<div class="preview-loading" style="color:#FCA5A5;">Preview failed. Please try again.</div>';
         console.error('Preview error:', error);
-        closePreview();
     });
 }
+
+function toggleModuleFields() {
+    const action = document.getElementById('moduleAction')?.value || 'none';
+    const existing = document.getElementById('existingModuleFields');
+    const fresh = document.getElementById('newModuleFields');
+    const moduleSelect = document.getElementById('moduleIdSelect');
+    const newTitle = document.getElementById('newModuleTitle');
+
+    if (existing) existing.classList.toggle('hidden', action !== 'existing');
+    if (fresh) fresh.classList.toggle('hidden', action !== 'new');
+
+    if (moduleSelect) {
+        moduleSelect.disabled = action !== 'existing';
+        moduleSelect.required = action === 'existing';
+        if (action !== 'existing') moduleSelect.value = '';
+    }
+    if (newTitle) {
+        newTitle.required = action === 'new';
+        if (action !== 'new') newTitle.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.content-type').forEach(toggleFields);
+    toggleModuleFields();
+
+    document.getElementById('lessonForm')?.addEventListener('submit', function(e) {
+        const action = document.getElementById('moduleAction')?.value;
+        if (action === 'existing') {
+            const moduleSelect = document.getElementById('moduleIdSelect');
+            if (!moduleSelect?.value) {
+                e.preventDefault();
+                alert('Please select a module or choose a different module option.');
+                moduleSelect?.focus();
+            }
+        }
+        if (action === 'new') {
+            const newTitle = document.getElementById('newModuleTitle');
+            if (!newTitle?.value.trim()) {
+                e.preventDefault();
+                alert('Please enter a title for the new module.');
+                newTitle?.focus();
+            }
+        }
+    });
+});
 
 function closePreview() {
     document.getElementById('previewOverlay').classList.remove('active');
@@ -649,22 +689,6 @@ function toggleFields(select) {
         if (gestureField) gestureField.classList.remove('hidden');
     } else if (select.value === 'image' || select.value === 'video') {
         if (mediaField) mediaField.classList.remove('hidden');
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.content-type').forEach(toggleFields);
-});
-
-function updateFileLabel(input) {
-    const wrap = input.closest('.file-upload-wrap');
-    const label = wrap.querySelector('.file-upload-name');
-    if (input.files && input.files[0]) {
-        label.textContent = input.files[0].name;
-        label.classList.add('has-file');
-    } else {
-        label.textContent = 'No file chosen';
-        label.classList.remove('has-file');
     }
 }
 
@@ -706,11 +730,7 @@ function addContentCard() {
             </div>
             <div class="media-field hidden">
                 <label class="field-label">Upload Media</label>
-                <div class="file-upload-wrap">
-                    <input type="file" name="contents[${contentIndex}][media]" onchange="updateFileLabel(this)">
-                    <span class="file-upload-btn"><span class="material-symbols-outlined text-sm">upload</span> Choose File</span>
-                    <span class="file-upload-name">No file chosen</span>
-                </div>
+                <input type="file" name="contents[${contentIndex}][media]" class="field-input">
             </div>
         </div>
     `;
@@ -733,12 +753,19 @@ function updateStepNumbers() {
     });
 }
 
+function getQuizQuestionIndex(questionDiv) {
+    const questionInput = questionDiv.querySelector('input[name*="[question]"]');
+    if (!questionInput) return 0;
+    const match = questionInput.name.match(/^quiz\[(\d+)\]/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
 function handleQuestionTypeChange(select) {
     const questionDiv = select.closest('.quiz-question');
     if (!questionDiv) return;
     const optionsList = questionDiv.querySelector('.options-list');
     const addOptionBtn = questionDiv.querySelector('.options-container > button');
-    const qIndex = [...document.querySelectorAll('.quiz-question')].indexOf(questionDiv);
+    const qIndex = getQuizQuestionIndex(questionDiv);
 
     if (select.value === 'true_false') {
         const rows = optionsList.querySelectorAll('.option-row');
@@ -758,7 +785,6 @@ function handleQuestionTypeChange(select) {
 }
 
 function previewOptionImage(input) {
-    updateFileLabel(input);
     const row = input.closest('.option-body');
     const img = row.querySelector('.option-image-preview');
     if (input.files && input.files[0]) {
@@ -778,11 +804,7 @@ function buildOptionRow(qIndex, optIndex) {
         <div class="option-body">
             <input type="text" name="quiz[${qIndex}][options][${optIndex}][text]" class="option-text-input" placeholder="Option ${letter} text">
             <div class="option-image-row">
-                <div class="file-upload-wrap compact">
-                    <input type="file" name="quiz[${qIndex}][options][${optIndex}][image]" accept="image/*" onchange="previewOptionImage(this)">
-                    <span class="file-upload-btn"><span class="material-symbols-outlined text-sm">image</span> Add Image</span>
-                    <span class="file-upload-name">No file chosen</span>
-                </div>
+                <input type="file" name="quiz[${qIndex}][options][${optIndex}][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
                 <img class="option-image-preview" src="" alt="">
             </div>
         </div>
@@ -804,7 +826,7 @@ function relabelOptions(optionsList, qIndex) {
         const textInput = row.querySelector('.option-text-input');
         textInput.name = `quiz[${qIndex}][options][${i}][text]`;
         textInput.placeholder = `Option ${letter} text`;
-        row.querySelector('.file-upload-wrap input[type="file"]').name = `quiz[${qIndex}][options][${i}][image]`;
+        row.querySelector('.option-image-input').name = `quiz[${qIndex}][options][${i}][image]`;
         row.querySelector('input[type="radio"]').name = `quiz[${qIndex}][correct]`;
         row.querySelector('input[type="radio"]').value = i;
     });
@@ -812,7 +834,7 @@ function relabelOptions(optionsList, qIndex) {
 
 function addOption(btn) {
     const questionDiv = btn.closest('.quiz-question');
-    const qIndex = [...document.querySelectorAll('.quiz-question')].indexOf(questionDiv);
+    const qIndex = getQuizQuestionIndex(questionDiv);
     const optionsList = questionDiv.querySelector('.options-list');
     const optIndex = optionsList.querySelectorAll('.option-row').length;
     optionsList.appendChild(buildOptionRow(qIndex, optIndex));
@@ -821,7 +843,7 @@ function addOption(btn) {
 function removeOption(btn) {
     const questionDiv = btn.closest('.quiz-question');
     const optionsList = questionDiv.querySelector('.options-list');
-    const qIndex = [...document.querySelectorAll('.quiz-question')].indexOf(questionDiv);
+    const qIndex = getQuizQuestionIndex(questionDiv);
     if (optionsList.querySelectorAll('.option-row').length > 2) {
         btn.closest('.option-row').remove();
         relabelOptions(optionsList, qIndex);
@@ -858,11 +880,7 @@ function addQuizQuestion() {
                 </div>
                 <div>
                     <label class="field-label">Question Media (Optional)</label>
-                    <div class="file-upload-wrap">
-                        <input type="file" name="quiz[${qIndex}][media]" onchange="updateFileLabel(this)">
-                        <span class="file-upload-btn"><span class="material-symbols-outlined text-sm">upload</span> Choose File</span>
-                        <span class="file-upload-name">No file chosen</span>
-                    </div>
+                    <input type="file" name="quiz[${qIndex}][media]" accept="image/*" class="field-input">
                 </div>
             </div>
             <div class="options-container">
@@ -882,14 +900,33 @@ function addQuizQuestion() {
     quizIndex++;
 }
 
+function reindexQuizQuestions() {
+    document.querySelectorAll('.quiz-question').forEach((questionDiv, qIndex) => {
+        const stepCircle = questionDiv.querySelector('.step-circle');
+        const questionLabel = questionDiv.querySelector('.question-label');
+        if (stepCircle) stepCircle.textContent = qIndex + 1;
+        if (questionLabel) questionLabel.textContent = `Question ${qIndex + 1}`;
+
+        const questionInput = questionDiv.querySelector('input[name*="[question]"]');
+        if (questionInput) questionInput.name = `quiz[${qIndex}][question]`;
+
+        const typeSelect = questionDiv.querySelector('.question-type');
+        if (typeSelect) typeSelect.name = `quiz[${qIndex}][type]`;
+
+        const mediaInput = questionDiv.querySelector('input[type="file"][name*="[media]"]');
+        if (mediaInput) mediaInput.name = `quiz[${qIndex}][media]`;
+
+        const optionsList = questionDiv.querySelector('.options-list');
+        if (optionsList) relabelOptions(optionsList, qIndex);
+    });
+    quizIndex = document.querySelectorAll('.quiz-question').length;
+}
+
 function removeQuizQuestion(btn) {
     const question = btn.closest('.quiz-question');
     if (document.querySelectorAll('.quiz-question').length > 1) {
         question.remove();
-        document.querySelectorAll('.quiz-question').forEach((q, i) => {
-            q.querySelector('.step-circle').textContent = i + 1;
-            q.querySelector('.question-label').textContent = `Question ${i + 1}`;
-        });
+        reindexQuizQuestions();
     }
 }
 </script>

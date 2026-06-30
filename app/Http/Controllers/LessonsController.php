@@ -11,6 +11,7 @@ use App\Models\QuizOption;
 use App\Models\QuizQuestion;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -57,14 +58,11 @@ class LessonsController extends Controller
      */
     public function create()
 {
-    $user = Auth::user();
-    $teacher = $user ? $user->teacher : null;
-    
-    // Get modules for the dropdown
-    $modules = Module::where('teacher_id', $teacher?->id ?? 0)
+    $teacherId = $this->resolveTeacherId();
+    $modules = Module::where('teacher_id', $teacherId)
         ->orderBy('module_order')
         ->get();
-    
+
     return view('lessons.create', compact('modules'));
 }
 
@@ -81,9 +79,15 @@ public function store(Request $request)
     'description' => 'nullable|string',
     'lesson_type' => 'required|in:text,video,interactive,gesture',
     'difficulty' => 'required|in:beginner,intermediate,advanced',
-    'module_id' => 'nullable|exists:modules,module_id', // ADD THIS
+    'module_action' => 'nullable|in:none,existing,new',
+    'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
+    'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
+    'new_module.description' => 'nullable|string|max:1000',
     'contents' => 'nullable|array',
+    'contents.*.media' => 'nullable|file|max:51200',
     'quiz' => 'nullable|array',
+    'quiz.*.media' => 'nullable|image|max:10240',
+    'quiz.*.options.*.image' => 'nullable|image|max:10240',
 ]);
 
     // Get the button that was clicked
@@ -95,64 +99,15 @@ public function store(Request $request)
         $status = 'draft';
     }
 
-    // Get the teacher_id
-    $teacherId = null;
-
-    if (Auth::check()) {
-        $user = Auth::user();
-        if (isset($user->teacher) && $user->teacher) {
-            $teacherId = $user->teacher->teacher_id;
-        } else {
-            $teacher = Teacher::where('user_id', $user->id)->first();
-            if ($teacher) {
-                $teacherId = $teacher->teacher_id;
-            } else {
-                try {
-                    $teacher = Teacher::create([
-                        'user_id' => $user->id,
-                        'first_name' => $user->name ?? 'Teacher',
-                        'last_name' => '',
-                        'school_id' => 1,
-                        'specialization' => 'General',
-                    ]);
-                    $teacherId = $teacher->teacher_id;
-                } catch (\Exception $e) {
-                    \Log::error('Failed to create teacher: '.$e->getMessage());
-                }
-            }
-        }
-    }
-
-    if (empty($teacherId)) {
-        $firstTeacher = Teacher::first();
-        if ($firstTeacher) {
-            $teacherId = $firstTeacher->teacher_id;
-        } else {
-            try {
-                $teacher = Teacher::create([
-                    'user_id' => 1,
-                    'first_name' => 'Default',
-                    'last_name' => 'Teacher',
-                    'school_id' => 1,
-                    'specialization' => 'General',
-                ]);
-                $teacherId = $teacher->teacher_id;
-            } catch (\Exception $e) {
-                $teacherId = 1;
-            }
-        }
-    }
-
-    if (empty($teacherId)) {
-        $teacherId = 1;
-    }
+    $teacherId = $this->resolveTeacherId();
+    $moduleId = $this->resolveModuleId($request, $teacherId);
 
     $nextOrder = (int) Lesson::max('module_order') + 1;
 
-    $lesson = DB::transaction(function () use ($request, $validated, $status, $teacherId, $nextOrder) {
+    $lesson = DB::transaction(function () use ($request, $validated, $status, $teacherId, $moduleId, $nextOrder) {
         $lesson = Lesson::create([
     'teacher_id' => $teacherId,
-    'module_id' => $validated['module_id'] ?? null, // ADD THIS
+    'module_id' => $moduleId,
     'title' => $validated['title'],
     'description' => $validated['description'] ?? null,
     'lesson_type' => $validated['lesson_type'],
@@ -161,112 +116,11 @@ public function store(Request $request)
     'status' => $status,
 ]);
 
-        // 2) Lesson contents - FIXED for file uploads
-        $contents = $request->input('contents', []);
-        $step = 1;
-        foreach ($contents as $i => $c) {
-            if (empty($c['title']) && empty($c['content_text']) && empty($c['gesture_name'])) {
-                continue;
-            }
+        $this->persistLessonContents($request, $lesson, $request->input('contents', []));
 
-            $mediaUrl = null;
-
-            // Check if a file was uploaded for this content
-            if ($request->hasFile("contents.$i.media")) {
-                $file = $request->file("contents.$i.media");
-
-                // Generate a unique filename
-                $filename = time().'_'.$file->getClientOriginalName();
-
-                // Store the file and get the path
-                $path = $file->storeAs('lesson_media', $filename, 'public');
-
-                // The path returned from storeAs is relative to storage/app/public
-                // So we store it as is - it will be 'lesson_media/filename.jpg'
-                $mediaUrl = $path;
-
-                \Log::info('File uploaded for content '.$i.': '.$mediaUrl);
-            }
-
-            LessonContent::create([
-                'lesson_id' => $lesson->lesson_id,
-                'step_number' => $step++,
-                'content_type' => $c['content_type'] ?? 'text',
-                'title' => $c['title'] ?? null,
-                'content_text' => $c['content_text'] ?? null,
-                'media_url' => $mediaUrl,
-                'gesture_name' => $c['gesture_name'] ?? null,
-            ]);
-        }
-
-        // 3) Quiz - FIXED for file uploads
+        // 3) Quiz
         $quizInput = $request->input('quiz', []);
-        $validQuestions = array_filter($quizInput, fn ($q) => ! empty($q['question']));
-
-        if (! empty($validQuestions)) {
-            $totalPoints = count($validQuestions);
-
-            // Calculate passing score (e.g., 60% of total points, minimum 1)
-            $passingScore = max(1, round($totalPoints * 0.6));
-
-            $quiz = Quiz::create([
-                'lesson_id' => $lesson->lesson_id,
-                'title' => 'Quiz: '.$lesson->title,
-                'description' => 'Auto-generated quiz for '.$lesson->title,
-                'total_points' => $totalPoints,
-                'passing_score' => $passingScore,
-            ]);
-
-            $qNum = 1;
-            foreach ($quizInput as $qi => $q) {
-                if (empty($q['question'])) {
-                    continue;
-                }
-
-                $qMedia = null;
-                if ($request->hasFile("quiz.$qi.media")) {
-                    $file = $request->file("quiz.$qi.media");
-                    $filename = time().'_'.$file->getClientOriginalName();
-                    $qMedia = $file->storeAs('quiz_media', $filename, 'public');
-                    \Log::info('Quiz media uploaded: '.$qMedia);
-                }
-
-                $question = QuizQuestion::create([
-                    'quiz_id' => $quiz->quiz_id,
-                    'question_number' => $qNum++,
-                    'question_type' => $q['type'] ?? 'multiple_choice',
-                    'question_text' => $q['question'],
-                    'media_url' => $qMedia,
-                    'gesture_required' => $q['gesture_required'] ?? null,
-                    'points' => 1,
-                ]);
-
-                $correctIndex = isset($q['correct']) ? (int) $q['correct'] : -1;
-
-                if (($q['type'] ?? 'multiple_choice') === 'true_false') {
-                    $tfOptions = ['True', 'False'];
-                    foreach ($tfOptions as $idx => $text) {
-                        QuizOption::create([
-                            'question_id' => $question->question_id,
-                            'option_text' => $text,
-                            'is_correct' => $idx === $correctIndex,
-                        ]);
-                    }
-                } else {
-                    $options = $q['options'] ?? [];
-                    foreach ($options as $idx => $text) {
-                        if (trim((string) $text) === '') {
-                            continue;
-                        }
-                        QuizOption::create([
-                            'question_id' => $question->question_id,
-                            'option_text' => $text,
-                            'is_correct' => $idx === $correctIndex,
-                        ]);
-                    }
-                }
-            }
-        }
+        $this->persistQuizForLesson($request, $lesson, $quizInput);
 
         return $lesson;
     });
@@ -275,7 +129,7 @@ public function store(Request $request)
     if ($buttonAction === 'published') {
         // "Publish Lesson" was clicked - redirect to publish config
         return redirect()->route('lessons.publish.config', $lesson->lesson_id)
-            ->with('success', 'Lesson saved as draft. Now configure who should receive this lesson.');
+            ->with('success', 'Lesson saved as draft. Select a module, then choose who should receive this lesson.');
     }
 
     // "Save Draft" was clicked
@@ -288,6 +142,7 @@ public function store(Request $request)
      */
     public function preview(Request $request)
     {
+        try {
         $lessonData = [
             'title' => $request->input('title', 'Untitled Lesson'),
             'description' => $request->input('description', ''),
@@ -307,17 +162,12 @@ public function store(Request $request)
             $mediaUrl = null;
             $isTemp = false;
 
-            // Check if a new file was uploaded
-            if ($request->hasFile("contents.$index.media")) {
-                $file = $request->file("contents.$index.media");
-                $tempPath = $file->store('temp_preview', 'public');
-                $mediaUrl = $tempPath;
+            $contentFile = $this->getContentUploadedFile($request, $index);
+            if ($contentFile) {
+                $mediaUrl = $this->uploadPublicFile($contentFile, 'temp_preview');
                 $isTemp = true;
-            }
-            // Check if there's existing media from the database
-            elseif (isset($c['existing_media']) && $c['existing_media']) {
+            } elseif (! empty($c['existing_media'])) {
                 $mediaUrl = $c['existing_media'];
-                $isTemp = false;
             }
 
             $lessonData['contents'][] = [
@@ -332,6 +182,7 @@ public function store(Request $request)
 
         // Process quiz with file handling (both new and existing)
         $quizInput = $request->input('quiz', []);
+        $quizFiles = $request->file('quiz') ?? [];
         foreach ($quizInput as $index => $q) {
             if (empty($q['question'])) {
                 continue;
@@ -340,24 +191,58 @@ public function store(Request $request)
             $qMedia = null;
             $isTemp = false;
 
-            // Check if a new file was uploaded
-            if ($request->hasFile("quiz.$index.media")) {
-                $file = $request->file("quiz.$index.media");
-                $tempPath = $file->store('temp_preview', 'public');
-                $qMedia = $tempPath;
+            $questionFile = $this->getQuizUploadedFile($request, $index, 'media');
+            if ($questionFile) {
+                $qMedia = $this->uploadPublicFile($questionFile, 'temp_preview');
                 $isTemp = true;
-            }
-            // Check if there's existing media from the database
-            elseif (isset($q['existing_media']) && $q['existing_media']) {
+            } elseif (! empty($q['existing_media'])) {
                 $qMedia = $q['existing_media'];
-                $isTemp = false;
+            }
+
+            $rawOptions = is_array($q['options'] ?? null) ? $q['options'] : [];
+            $optionFiles = [];
+            if (isset($quizFiles[$index]['options']) && is_array($quizFiles[$index]['options'])) {
+                $optionFiles = $quizFiles[$index]['options'];
+            }
+
+            $processedOptions = [];
+            foreach ($this->collectOptionIndices($rawOptions, $optionFiles) as $optIndex) {
+                $optData = $rawOptions[$optIndex] ?? [];
+                $optText = is_array($optData) ? ($optData['text'] ?? '') : (string) $optData;
+                $optImage = null;
+
+                $optionFile = null;
+                if (isset($optionFiles[$optIndex]['image']) && $optionFiles[$optIndex]['image'] instanceof UploadedFile) {
+                    $optionFile = $optionFiles[$optIndex]['image'];
+                } else {
+                    $optionFile = $this->getQuizUploadedFile($request, $index, "options.{$optIndex}.image");
+                }
+
+                if ($optionFile) {
+                    $optImage = $this->uploadPublicFile($optionFile, 'temp_preview');
+                } elseif (is_array($optData) && ! empty($optData['existing_image'])) {
+                    $optImage = $optData['existing_image'];
+                }
+
+                if (trim((string) $optText) === '' && empty($optImage)) {
+                    continue;
+                }
+
+                if (trim((string) $optText) === '') {
+                    $optText = 'Option '.chr(65 + (int) $optIndex);
+                }
+
+                $processedOptions[] = [
+                    'text' => $optText,
+                    'image' => $optImage,
+                ];
             }
 
             $lessonData['quiz'][] = [
                 'question' => $q['question'],
                 'type' => $q['type'] ?? 'multiple_choice',
                 'media' => $qMedia,
-                'options' => $q['options'] ?? ['Option A', 'Option B'],
+                'options' => $processedOptions,
                 'correct' => $q['correct'] ?? 0,
                 'is_temp' => $isTemp,
             ];
@@ -367,6 +252,14 @@ public function store(Request $request)
         $totalSlides = count($lessonData['contents']) + count($lessonData['quiz']);
 
         return view('lessons.preview', compact('lessonData', 'totalSlides'));
+        } catch (\Throwable $e) {
+            \Log::error('Lesson preview failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            return response(
+                '<div style="padding:40px;text-align:center;color:#fff;"><h3 style="margin-bottom:8px;">Preview unavailable</h3><p style="opacity:.85;">Something went wrong while building the preview. Please try again.</p></div>',
+                500
+            );
+        }
     }
 
 public function view($id)
@@ -384,7 +277,7 @@ public function view($id)
                 'content_type' => $content->content_type,
                 'title' => $content->title,
                 'content_text' => $content->content_text,
-                'media' => $content->media_url,
+                'media' => $content->media_url, // Keep as stored path
                 'gesture_name' => $content->gesture_name,
             ];
         })->toArray(),
@@ -397,14 +290,18 @@ public function view($id)
             $lessonData['quiz'][] = [
                 'question' => $question->question_text,
                 'type' => $question->question_type,
-                'media' => $question->media_url,
-                'options' => $question->options->pluck('option_text')->toArray(),
+                'media' => $question->media_url, // Keep as stored path
+                'options' => $question->options->map(function ($opt) {
+                    return [
+                        'text' => $opt->option_text,
+                        'image' => $opt->option_media_url, // Keep as stored path
+                    ];
+                })->toArray(),
                 'correct' => $question->options->search(fn ($opt) => $opt->is_correct),
             ];
         }
     }
 
-    // FIX: Include both contents AND quiz in total slides
     $totalSlides = count($lessonData['contents']) + count($lessonData['quiz']);
 
     return response()->view('lessons.preview', compact('lessonData', 'totalSlides'));
@@ -454,7 +351,12 @@ public function edit($id)
                 'question' => $question->question_text,
                 'type' => $question->question_type,
                 'media' => $question->media_url,
-                'options' => $question->options->pluck('option_text')->toArray(),
+                'options' => $question->options->map(function ($opt) {
+                    return [
+                        'text' => $opt->option_text,
+                        'image' => $opt->option_media_url,
+                    ];
+                })->toArray(),
                 'correct' => $question->options->search(fn ($opt) => $opt->is_correct),
             ];
         }
@@ -473,9 +375,15 @@ public function update(Request $request, $id)
     'description' => 'nullable|string',
     'lesson_type' => 'required|in:text,video,interactive,gesture',
     'difficulty' => 'required|in:beginner,intermediate,advanced',
-    'module_id' => 'nullable|exists:modules,module_id', // ADD THIS
+    'module_action' => 'nullable|in:none,existing,new',
+    'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
+    'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
+    'new_module.description' => 'nullable|string|max:1000',
     'contents' => 'nullable|array',
+    'contents.*.media' => 'nullable|file|max:51200',
     'quiz' => 'nullable|array',
+    'quiz.*.media' => 'nullable|image|max:10240',
+    'quiz.*.options.*.image' => 'nullable|image|max:10240',
 ]);
 
     $status = $request->input('status', 'draft');
@@ -484,44 +392,23 @@ public function update(Request $request, $id)
     }
 
     $lesson = Lesson::findOrFail($id);
+    $teacherId = $this->resolveTeacherId();
+    $moduleId = $this->resolveModuleId($request, $teacherId) ?? $lesson->module_id;
 
-    DB::transaction(function () use ($request, $validated, $status, $lesson) {
+    DB::transaction(function () use ($request, $validated, $status, $lesson, $moduleId) {
         // Update lesson
         $lesson->update([
     'title' => $validated['title'],
     'description' => $validated['description'] ?? null,
     'lesson_type' => $validated['lesson_type'],
     'difficulty' => $validated['difficulty'],
-    'module_id' => $validated['module_id'] ?? null, // ADD THIS
+    'module_id' => $moduleId,
     'status' => $status,
 ]);
 
         // Delete existing contents and recreate
         $lesson->contents()->delete();
-        $contents = $request->input('contents', []);
-        $step = 1;
-        foreach ($contents as $i => $c) {
-            if (empty($c['title']) && empty($c['content_text']) && empty($c['gesture_name'])) {
-                continue;
-            }
-
-            $mediaUrl = null;
-            if ($request->hasFile("contents.$i.media")) {
-                $mediaUrl = $request->file("contents.$i.media")->store('lesson_media', 'public');
-            } elseif (isset($c['existing_media'])) {
-                $mediaUrl = $c['existing_media'];
-            }
-
-            LessonContent::create([
-                'lesson_id' => $lesson->lesson_id,
-                'step_number' => $step++,
-                'content_type' => $c['content_type'] ?? 'text',
-                'title' => $c['title'] ?? null,
-                'content_text' => $c['content_text'] ?? null,
-                'media_url' => $mediaUrl,
-                'gesture_name' => $c['gesture_name'] ?? null,
-            ]);
-        }
+        $this->persistLessonContents($request, $lesson, $request->input('contents', []));
 
         // Handle quiz updates
         // Delete existing quiz if exists
@@ -534,71 +421,7 @@ public function update(Request $request, $id)
         }
 
         $quizInput = $request->input('quiz', []);
-        $validQuestions = array_filter($quizInput, fn ($q) => ! empty($q['question']));
-
-        if (! empty($validQuestions)) {
-            $totalPoints = count($validQuestions);
-
-            // Calculate passing score (e.g., 60% of total points, minimum 1)
-            $passingScore = max(1, round($totalPoints * 0.6));
-
-            $quiz = Quiz::create([
-                'lesson_id' => $lesson->lesson_id,
-                'title' => 'Quiz: '.$lesson->title,
-                'description' => 'Auto-generated quiz for '.$lesson->title,
-                'total_points' => $totalPoints,
-                'passing_score' => $passingScore,
-            ]);
-
-            $qNum = 1;
-            foreach ($quizInput as $qi => $q) {
-                if (empty($q['question'])) {
-                    continue;
-                }
-
-                $qMedia = null;
-                if ($request->hasFile("quiz.$qi.media")) {
-                    $qMedia = $request->file("quiz.$qi.media")->store('quiz_media', 'public');
-                } elseif (isset($q['existing_media'])) {
-                    $qMedia = $q['existing_media'];
-                }
-
-                $question = QuizQuestion::create([
-                    'quiz_id' => $quiz->quiz_id,
-                    'question_number' => $qNum++,
-                    'question_type' => $q['type'] ?? 'multiple_choice',
-                    'question_text' => $q['question'],
-                    'media_url' => $qMedia,
-                    'gesture_required' => $q['gesture_required'] ?? null,
-                    'points' => 1,
-                ]);
-
-                $correctIndex = isset($q['correct']) ? (int) $q['correct'] : -1;
-
-                if (($q['type'] ?? 'multiple_choice') === 'true_false') {
-                    $tfOptions = ['True', 'False'];
-                    foreach ($tfOptions as $idx => $text) {
-                        QuizOption::create([
-                            'question_id' => $question->question_id,
-                            'option_text' => $text,
-                            'is_correct' => $idx === $correctIndex,
-                        ]);
-                    }
-                } else {
-                    $options = $q['options'] ?? [];
-                    foreach ($options as $idx => $text) {
-                        if (trim((string) $text) === '') {
-                            continue;
-                        }
-                        QuizOption::create([
-                            'question_id' => $question->question_id,
-                            'option_text' => $text,
-                            'is_correct' => $idx === $correctIndex,
-                        ]);
-                    }
-                }
-            }
-        }
+        $this->persistQuizForLesson($request, $lesson, $quizInput);
     });
 
     $msg = $status === 'published'
@@ -618,8 +441,11 @@ public function showPublishConfig($id)
 {
     $lesson = Lesson::findOrFail($id);
 
-    // Get all students with their important information
-    // Remove 'email' since it doesn't exist in your students table
+    $teacherId = $this->resolveTeacherId();
+    $modules = Module::where('teacher_id', $teacherId)
+        ->orderBy('module_order')
+        ->get();
+
     $students = DB::table('students')
         ->select('student_id', 'first_name', 'last_name',
             'lrn',  // Add LRN for identification
@@ -634,7 +460,7 @@ public function showPublishConfig($id)
     $programs = $students->pluck('program')->unique()->filter()->values();
     $masteryLevels = $students->pluck('mastery_level')->unique()->filter()->values();
 
-    return view('lessons.publish-config', compact('lesson', 'students', 'programs', 'masteryLevels'));
+    return view('lessons.publish-config', compact('lesson', 'students', 'programs', 'masteryLevels', 'modules'));
 }
 
 /**
@@ -646,16 +472,26 @@ public function showPublishConfig($id)
 public function publishLesson(Request $request, $id)
 {
     $validated = $request->validate([
+        'module_action' => 'required|in:existing,new',
+        'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
+        'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
+        'new_module.description' => 'nullable|string|max:1000',
         'publish_option' => 'required|in:all,program,mastery,selected',
         'program' => 'required_if:publish_option,program|nullable|string',
         'mastery_level' => 'required_if:publish_option,mastery|nullable|string',
-        'students' => 'required_if:publish_option,selected|nullable|array',
+        'students' => 'required_if:publish_option,selected|nullable|array|min:1',
         'students.*' => 'exists:students,student_id',
         'notify_students' => 'boolean',
         'send_reminder' => 'boolean',
     ]);
 
     $lesson = Lesson::findOrFail($id);
+
+    $teacherId = $this->resolveTeacherId();
+    $moduleId = $this->resolveModuleId($request, $teacherId);
+    if (! $moduleId) {
+        return back()->withErrors(['module_action' => 'Please select or create a module before publishing.'])->withInput();
+    }
 
     // Determine which students to publish to
     $studentIds = [];
@@ -689,8 +525,13 @@ public function publishLesson(Request $request, $id)
             break;
     }
 
-    // Update the lesson status to published
+    if (empty($studentIds)) {
+        return back()->withErrors(['publish_option' => 'No students matched the selected publish option.'])->withInput();
+    }
+
+    // Assign module and publish the lesson
     $lesson->update([
+        'module_id' => $moduleId,
         'status' => 'published',
         'published_at' => now(),
     ]);
@@ -722,4 +563,238 @@ public function publishLesson(Request $request, $id)
 
     return redirect()->route('lessons.index')->with('success', $message);
 }
+
+    private function resolveTeacherId(): int
+    {
+        if (Auth::check()) {
+            $user = Auth::user();
+            if ($user->teacher) {
+                return (int) $user->teacher->id;
+            }
+
+            $teacher = Teacher::where('user_id', $user->id)->first();
+            if ($teacher) {
+                return (int) $teacher->id;
+            }
+        }
+
+        $firstTeacher = Teacher::first();
+
+        return $firstTeacher ? (int) $firstTeacher->id : 1;
+    }
+
+    private function resolveModuleId(Request $request, int $teacherId): ?int
+    {
+        $action = $request->input('module_action', 'none');
+
+        if ($action === 'new') {
+            $request->validate([
+                'new_module.title' => 'required|string|max:255',
+                'new_module.description' => 'nullable|string|max:1000',
+            ]);
+
+            $nextOrder = (int) Module::where('teacher_id', $teacherId)->max('module_order') + 1;
+
+            return Module::create([
+                'teacher_id' => $teacherId,
+                'title' => $request->input('new_module.title'),
+                'description' => $request->input('new_module.description'),
+                'module_order' => $nextOrder,
+                'status' => 'draft',
+            ])->module_id;
+        }
+
+        if ($action === 'existing' && $request->filled('module_id')) {
+            $moduleId = (int) $request->input('module_id');
+            Module::where('module_id', $moduleId)
+                ->where('teacher_id', $teacherId)
+                ->firstOrFail();
+
+            return $moduleId;
+        }
+
+        return null;
+    }
+
+    private function getContentUploadedFile(Request $request, int|string $index): ?UploadedFile
+    {
+        $file = $request->file("contents.{$index}.media");
+        if ($file instanceof UploadedFile && $file->isValid()) {
+            return $file;
+        }
+
+        $contentFiles = $request->file('contents');
+        if (! is_array($contentFiles) || ! isset($contentFiles[$index]['media'])) {
+            return null;
+        }
+
+        $file = $contentFiles[$index]['media'];
+
+        return ($file instanceof UploadedFile && $file->isValid()) ? $file : null;
+    }
+
+    private function persistLessonContents(Request $request, Lesson $lesson, array $contents): void
+    {
+        $step = 1;
+        foreach ($contents as $i => $c) {
+            if (empty($c['title']) && empty($c['content_text']) && empty($c['gesture_name'])) {
+                continue;
+            }
+
+            $mediaUrl = $this->uploadPublicFile($this->getContentUploadedFile($request, $i), 'lesson_media');
+            if (! $mediaUrl && ! empty($c['existing_media'])) {
+                $mediaUrl = $c['existing_media'];
+            }
+
+            LessonContent::create([
+                'lesson_id' => $lesson->lesson_id,
+                'step_number' => $step++,
+                'content_type' => $c['content_type'] ?? 'text',
+                'title' => $c['title'] ?? null,
+                'content_text' => $c['content_text'] ?? null,
+                'media_url' => $mediaUrl,
+                'gesture_name' => $c['gesture_name'] ?? null,
+            ]);
+        }
+    }
+
+    private function uploadPublicFile(?UploadedFile $file, string $directory): ?string
+    {
+        if (! $file || ! $file->isValid()) {
+            return null;
+        }
+
+        $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+        $filename = time().'_'.uniqid().'_'.$safeName;
+
+        return $file->storeAs($directory, $filename, 'public');
+    }
+
+    private function getQuizUploadedFile(Request $request, int|string $questionIndex, string $relativePath): ?UploadedFile
+    {
+        $file = $request->file("quiz.{$questionIndex}.{$relativePath}");
+        if ($file instanceof UploadedFile && $file->isValid()) {
+            return $file;
+        }
+
+        $quizFiles = $request->file('quiz');
+        if (! is_array($quizFiles) || ! isset($quizFiles[$questionIndex])) {
+            return null;
+        }
+
+        $node = $quizFiles[$questionIndex];
+        foreach (explode('.', $relativePath) as $segment) {
+            if (! is_array($node) || ! array_key_exists($segment, $node)) {
+                return null;
+            }
+            $node = $node[$segment];
+        }
+
+        return ($node instanceof UploadedFile && $node->isValid()) ? $node : null;
+    }
+
+    private function collectOptionIndices(array $optionInput, array $optionFiles): array
+    {
+        $indices = array_unique(array_merge(array_keys($optionInput), array_keys($optionFiles)));
+        usort($indices, fn ($a, $b) => (int) $a <=> (int) $b);
+
+        return $indices;
+    }
+
+    private function persistQuizForLesson(Request $request, Lesson $lesson, array $quizInput): void
+    {
+        $validQuestions = array_filter($quizInput, fn ($q) => ! empty($q['question']));
+        if (empty($validQuestions)) {
+            return;
+        }
+
+        $totalPoints = count($validQuestions);
+        $passingScore = max(1, round($totalPoints * 0.6));
+
+        $quiz = Quiz::create([
+            'lesson_id' => $lesson->lesson_id,
+            'title' => 'Quiz: '.$lesson->title,
+            'description' => 'Auto-generated quiz for '.$lesson->title,
+            'total_points' => $totalPoints,
+            'passing_score' => $passingScore,
+        ]);
+
+        $quizFiles = $request->file('quiz') ?? [];
+        $qNum = 1;
+
+        foreach ($quizInput as $qi => $q) {
+            if (empty($q['question'])) {
+                continue;
+            }
+
+            $questionFile = $this->getQuizUploadedFile($request, $qi, 'media');
+            $qMedia = $this->uploadPublicFile($questionFile, 'quiz_media');
+            if (! $qMedia && ! empty($q['existing_media'])) {
+                $qMedia = $q['existing_media'];
+            }
+
+            $question = QuizQuestion::create([
+                'quiz_id' => $quiz->quiz_id,
+                'question_number' => $qNum++,
+                'question_type' => $q['type'] ?? 'multiple_choice',
+                'question_text' => $q['question'],
+                'media_url' => $qMedia,
+                'gesture_required' => $q['gesture_required'] ?? null,
+                'points' => 1,
+            ]);
+
+            $correctIndex = isset($q['correct']) ? (int) $q['correct'] : -1;
+
+            if (($q['type'] ?? 'multiple_choice') === 'true_false') {
+                foreach (['True', 'False'] as $idx => $text) {
+                    QuizOption::create([
+                        'question_id' => $question->question_id,
+                        'option_text' => $text,
+                        'option_media_url' => null,
+                        'is_correct' => $idx === $correctIndex,
+                    ]);
+                }
+
+                continue;
+            }
+
+            $optionInput = is_array($q['options'] ?? null) ? $q['options'] : [];
+            $optionFiles = [];
+            if (isset($quizFiles[$qi]['options']) && is_array($quizFiles[$qi]['options'])) {
+                $optionFiles = $quizFiles[$qi]['options'];
+            }
+
+            foreach ($this->collectOptionIndices($optionInput, $optionFiles) as $idx) {
+                $optData = $optionInput[$idx] ?? [];
+                $optText = is_array($optData) ? ($optData['text'] ?? '') : (string) $optData;
+
+                $optionFile = null;
+                if (isset($optionFiles[$idx]['image']) && $optionFiles[$idx]['image'] instanceof UploadedFile) {
+                    $optionFile = $optionFiles[$idx]['image'];
+                } else {
+                    $optionFile = $this->getQuizUploadedFile($request, $qi, "options.{$idx}.image");
+                }
+
+                $optImagePath = $this->uploadPublicFile($optionFile, 'quiz_option_media');
+                if (! $optImagePath && is_array($optData) && ! empty($optData['existing_image'])) {
+                    $optImagePath = $optData['existing_image'];
+                }
+
+                if (trim((string) $optText) === '' && empty($optImagePath)) {
+                    continue;
+                }
+
+                if (trim((string) $optText) === '') {
+                    $optText = 'Option '.chr(65 + (int) $idx);
+                }
+
+                QuizOption::create([
+                    'question_id' => $question->question_id,
+                    'option_text' => $optText,
+                    'option_media_url' => $optImagePath,
+                    'is_correct' => (int) $idx === $correctIndex,
+                ]);
+            }
+        }
+    }
 }

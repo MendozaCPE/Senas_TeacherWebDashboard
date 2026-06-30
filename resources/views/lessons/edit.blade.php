@@ -258,16 +258,33 @@
                             </div>
                             <div class="options-container">
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Options</label>
-                                <div class="space-y-2">
+                                <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image.</p>
+                                <div class="space-y-2 options-list">
                                     @php
-                                        $options = $q['options'] ?? ['', ''];
+                                        $options = $q['options'] ?? [['text' => ''], ['text' => '']];
                                         $correct = $q['correct'] ?? 0;
                                     @endphp
                                     @foreach($options as $optIndex => $option)
-                                    <div class="flex items-center gap-2">
-                                        <input type="text" name="quiz[{{ $index }}][options][]" value="{{ $option }}" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option {{ chr(65 + $optIndex) }}">
-                                        <input type="radio" name="quiz[{{ $index }}][correct]" value="{{ $optIndex }}" {{ $correct == $optIndex ? 'checked' : '' }} class="w-5 h-5 accent-[#0d326b]">
-                                        <label class="text-sm text-slate-500">Correct</label>
+                                    @php
+                                        $optText = is_array($option) ? ($option['text'] ?? '') : $option;
+                                        $optImage = is_array($option) ? ($option['image'] ?? null) : null;
+                                    @endphp
+                                    <div class="flex items-start gap-2 bg-white border border-slate-200 rounded-xl p-3 option-row">
+                                        <span class="text-xs font-bold text-[#0d326b] mt-2">{{ chr(65 + $optIndex) }}</span>
+                                        <div class="flex-1 space-y-2">
+                                            <input type="text" name="quiz[{{ $index }}][options][{{ $optIndex }}][text]" value="{{ $optText }}" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option {{ chr(65 + $optIndex) }}">
+                                            @if($optImage)
+                                                <div class="flex items-center gap-2">
+                                                    <img src="{{ asset('storage/' . $optImage) }}" alt="" class="w-11 h-11 rounded-lg object-cover border border-slate-200">
+                                                    <input type="hidden" name="quiz[{{ $index }}][options][{{ $optIndex }}][existing_image]" value="{{ $optImage }}">
+                                                </div>
+                                            @endif
+                                            <input type="file" name="quiz[{{ $index }}][options][{{ $optIndex }}][image]" accept="image/*" class="w-full text-sm text-slate-500">
+                                        </div>
+                                        <div class="flex items-center gap-1 mt-2">
+                                            <input type="radio" name="quiz[{{ $index }}][correct]" value="{{ $optIndex }}" {{ $correct == $optIndex ? 'checked' : '' }} class="w-5 h-5 accent-[#0d326b]">
+                                            <label class="text-sm text-slate-500">Correct</label>
+                                        </div>
                                     </div>
                                     @endforeach
                                     <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline">
@@ -376,11 +393,17 @@ function openPreview() {
     fetch('{{ route('lessons.preview') }}', {
         method: 'POST',
         body: formData,
+        credentials: 'same-origin',
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'text/html',
         }
     })
-    .then(response => response.text())
+    .then(response => {
+        if (!response.ok) throw new Error('Preview request failed (HTTP ' + response.status + ')');
+        return response.text();
+    })
     .then(html => {
         content.innerHTML = html;
         // Re-inject scripts

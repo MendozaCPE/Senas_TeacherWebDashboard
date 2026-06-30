@@ -172,6 +172,9 @@
     font-weight: 800; font-size: 13px; color: #4b7bbb; transition: all 0.2s ease;
 }
 .option-card:hover .option-circle, .option-card.selected .option-circle { background: #1848c8; color: white; }
+.option-image-thumb {
+    width: 56px; height: 56px; border-radius: 10px; object-fit: cover; flex-shrink: 0;
+}
 
 .feedback-bubble {
     flex: 1; display: flex; align-items: flex-start; gap: 7px; background: rgba(255,255,255,0.75);
@@ -211,8 +214,8 @@
 .slide-image { width: 100%; display: block; max-height: 220px; object-fit: cover; }
 .slide-video { width: 100%; display: block; max-height: 220px; background: #000; }
 .hero-image { width: 80px; height: 80px; flex-shrink: 0; object-fit: contain; }
-.quiz-media-wrap { border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); margin: 0 auto 12px; }
-.quiz-media { width: 100%; display: block; max-height: 160px; object-fit: cover; }
+.quiz-media-wrap { border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); margin: 0 auto 12px; background: #f8f9fa; }
+.quiz-media { width: 100%; display: block; max-height: 160px; object-fit: contain; padding: 8px; background: #fff; }
 
 .preview-close-btn {
     position: sticky; top: 10px; float: right; background: rgba(255,255,255,0.9); border: none;
@@ -235,6 +238,55 @@
     $totalSlides = count($lessonData['contents']);
     $totalQuestions = count($lessonData['quiz'] ?? []);
     $colors = ['#2563EB', '#059669', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#14B8A6'];
+
+    // Helper function to properly format image URLs
+    function formatImageUrl($path) {
+        if (empty($path)) {
+            return null;
+        }
+        // If it's already a full URL, return as is
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+        // If it starts with 'storage/', it's already in the right format
+        if (str_starts_with($path, 'storage/')) {
+            return asset($path);
+        }
+        // If it starts with '/storage/', remove the leading slash
+        if (str_starts_with($path, '/storage/')) {
+            return asset(substr($path, 1));
+        }
+        // If it starts with 'public/', handle it
+        if (str_starts_with($path, 'public/')) {
+            return asset('storage/' . substr($path, 7));
+        }
+        // Default: assume it's in the storage directory
+        return asset('storage/' . $path);
+    }
+
+    // Normalize quiz options once so the array/string mixing from the
+    // form (text-only options vs ['text' => ..., 'image' => ...]) never
+    // hits {{ }} directly anywhere below.
+    $normalizedQuiz = collect($lessonData['quiz'] ?? [])->map(function ($q) {
+        $type = $q['type'] ?? 'multiple_choice';
+        if ($type === 'true_false') {
+            $opts = [['text' => 'True', 'image' => null], ['text' => 'False', 'image' => null]];
+        } else {
+            $rawOpts = $q['options'] ?? ['Option A', 'Option B'];
+            $opts = collect($rawOpts)->map(function ($opt) {
+                if (is_array($opt)) {
+                    return [
+                        'text' => $opt['text'] ?? '',
+                        'image' => (!empty($opt['image']) && is_string($opt['image'])) ? $opt['image'] : null,
+                    ];
+                }
+                return ['text' => $opt, 'image' => null];
+            })->all();
+        }
+        $q['_opts'] = $opts;
+        $q['_media'] = (!empty($q['media']) && is_string($q['media'])) ? $q['media'] : null;
+        return $q;
+    });
 @endphp
 
 <!-- ============ TOP CONTROLS: Mobile/Web + Lesson/Quiz ============ -->
@@ -294,11 +346,14 @@
                                 <div class="glass-card" style="flex:1;">
                                     <div class="slide-accent" style="background: {{ $slideColor }};"></div>
                                     <h3 style="font-size: 17px; font-weight: 800; color: {{ $slideColor }}; margin-bottom: 10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                    @if(isset($current['content_type']) && isset($current['media']) && $current['media'])
+                                    @if(isset($current['content_type']) && !empty($current['media']) && is_string($current['media']))
+                                        @php
+                                            $mediaUrl = formatImageUrl($current['media']);
+                                        @endphp
                                         @if($current['content_type'] == 'image')
-                                            <div class="media-wrap"><img src="{{ asset('storage/'.$current['media']) }}" alt="Slide image" class="slide-image"></div>
+                                            <div class="media-wrap"><img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" onerror="this.style.display='none'"></div>
                                         @elseif($current['content_type'] == 'video')
-                                            <div class="media-wrap"><video controls class="slide-video"><source src="{{ asset('storage/'.$current['media']) }}" type="video/mp4"></video></div>
+                                            <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}" type="video/mp4"></video></div>
                                         @endif
                                     @endif
                                     <p style="font-size: 14px; color: #334155; line-height: 1.6;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
@@ -333,26 +388,40 @@
                             <span class="badge badge-yellow">⚡ 10 XP</span>
                         </div>
                         <div class="progress-dots" id="m-quizDots">
-                            @foreach($lessonData['quiz'] as $index => $quizItem)
+                            @foreach($normalizedQuiz as $index => $quizItem)
                                 <div class="progress-dot {{ $index == 0 ? 'active' : 'pending' }}"></div>
                             @endforeach
                         </div>
                     </div>
-                    @foreach($lessonData['quiz'] as $qIndex => $q)
-                        @php
-                            $opts = ($q['type'] ?? 'multiple_choice') == 'true_false' ? ['True','False'] : ($q['options'] ?? ['Option A','Option B']);
-                        @endphp
+                    @foreach($normalizedQuiz as $qIndex => $q)
                         <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="m-q-{{ $qIndex }}">
                             <div class="glass-card" style="text-align:center; padding:24px;">
-                                @if(isset($q['media']) && $q['media'])
-                                    <div class="quiz-media-wrap"><img src="{{ asset('storage/'.$q['media']) }}" alt="Quiz image" class="quiz-media"></div>
+                                @if(!empty($q['_media']))
+                                    @php
+                                        $imageUrl = formatImageUrl($q['_media']);
+                                    @endphp
+                                    @if($imageUrl)
+                                        <div class="quiz-media-wrap">
+                                            <img src="{{ $imageUrl }}" alt="Quiz image" class="quiz-media" 
+                                                 onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
+                                        </div>
+                                    @endif
                                 @endif
                                 <p style="font-size:16px; font-weight:800; color:#0f3172; margin-top:10px;">{{ $q['question'] ?? 'Sample Question' }}</p>
                             </div>
-                            @foreach($opts as $optIndex => $option)
+                            @foreach($q['_opts'] as $optIndex => $option)
                                 <div class="option-card" onclick="selectOption('m', {{ $qIndex }}, {{ $optIndex }})" id="m-opt-{{ $qIndex }}-{{ $optIndex }}">
                                     <div class="option-circle">{{ chr(65+$optIndex) }}</div>
-                                    <span style="font-size:14px; font-weight:600; color:#1F2937;">{{ $option }}</span>
+                                    @if(!empty($option['image']))
+                                        @php
+                                            $optionImageUrl = formatImageUrl($option['image']);
+                                        @endphp
+                                        @if($optionImageUrl)
+                                            <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb"
+                                                 onerror="this.style.display='none'">
+                                        @endif
+                                    @endif
+                                    <span style="font-size:14px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
                                 </div>
                             @endforeach
                             <div class="senya-tip">
@@ -419,11 +488,14 @@
                                             <div class="glass-card">
                                                 <div class="slide-accent" style="background:{{ $slideColor }};"></div>
                                                 <h3 style="font-size:19px; font-weight:800; color:{{ $slideColor }}; margin-bottom:10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                                @if(isset($current['content_type']) && isset($current['media']) && $current['media'])
+                                                @if(isset($current['content_type']) && !empty($current['media']) && is_string($current['media']))
+                                                    @php
+                                                        $mediaUrl = formatImageUrl($current['media']);
+                                                    @endphp
                                                     @if($current['content_type'] == 'image')
-                                                        <div class="media-wrap"><img src="{{ asset('storage/'.$current['media']) }}" class="slide-image"></div>
+                                                        <div class="media-wrap"><img src="{{ $mediaUrl }}" class="slide-image" onerror="this.style.display='none'"></div>
                                                     @elseif($current['content_type'] == 'video')
-                                                        <div class="media-wrap"><video controls class="slide-video"><source src="{{ asset('storage/'.$current['media']) }}" type="video/mp4"></video></div>
+                                                        <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}" type="video/mp4"></video></div>
                                                     @endif
                                                 @endif
                                                 <p style="font-size:14.5px; color:#334155; line-height:1.7;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
@@ -466,24 +538,40 @@
                                         <span class="badge badge-yellow">⚡ 10 XP</span>
                                     </div>
                                     <div class="progress-dots" id="w-quizDots">
-                                        @foreach($lessonData['quiz'] as $index => $quizItem)
+                                        @foreach($normalizedQuiz as $index => $quizItem)
                                             <div class="progress-dot {{ $index == 0 ? 'active' : 'pending' }}"></div>
                                         @endforeach
                                     </div>
                                 </div>
-                                @foreach($lessonData['quiz'] as $qIndex => $q)
-                                    @php $opts = ($q['type'] ?? 'multiple_choice') == 'true_false' ? ['True','False'] : ($q['options'] ?? ['Option A','Option B']); @endphp
+                                @foreach($normalizedQuiz as $qIndex => $q)
                                     <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="w-q-{{ $qIndex }}">
                                         <div class="glass-card" style="text-align:center; padding:28px;">
-                                            @if(isset($q['media']) && $q['media'])
-                                                <div class="quiz-media-wrap" style="max-width:360px;"><img src="{{ asset('storage/'.$q['media']) }}" class="quiz-media"></div>
+                                            @if(!empty($q['_media']))
+                                                @php
+                                                    $imageUrl = formatImageUrl($q['_media']);
+                                                @endphp
+                                                @if($imageUrl)
+                                                    <div class="quiz-media-wrap" style="max-width:360px;">
+                                                        <img src="{{ $imageUrl }}" class="quiz-media" 
+                                                             onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
+                                                    </div>
+                                                @endif
                                             @endif
                                             <p style="font-size:18px; font-weight:800; color:#0f3172; margin-top:10px;">{{ $q['question'] ?? 'Sample Question' }}</p>
                                         </div>
-                                        @foreach($opts as $optIndex => $option)
+                                        @foreach($q['_opts'] as $optIndex => $option)
                                             <div class="option-card" onclick="selectOption('w', {{ $qIndex }}, {{ $optIndex }})" id="w-opt-{{ $qIndex }}-{{ $optIndex }}">
                                                 <div class="option-circle">{{ chr(65+$optIndex) }}</div>
-                                                <span style="font-size:14.5px; font-weight:600; color:#1F2937;">{{ $option }}</span>
+                                                @if(!empty($option['image']))
+                                                    @php
+                                                        $optionImageUrl = formatImageUrl($option['image']);
+                                                    @endphp
+                                                    @if($optionImageUrl)
+                                                        <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb"
+                                                             onerror="this.style.display='none'">
+                                                    @endif
+                                                @endif
+                                                <span style="font-size:14.5px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
                                             </div>
                                         @endforeach
                                         <div class="quiz-nav">
@@ -602,5 +690,6 @@ window.selectOption = function(prefix, qIndex, optIndex) {
 
 if (totalSlides > 0) { setSlide('m', 0); setSlide('w', 0); }
 if (totalQuestions > 0) { setQuestion('m', 0); setQuestion('w', 0); }
+if (totalSlides === 0 && totalQuestions > 0) { setContentMode('quiz'); }
 })();
 </script>

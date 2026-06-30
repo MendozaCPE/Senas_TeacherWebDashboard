@@ -351,6 +351,7 @@ public function getLessonById(Request $request, $lessonId)
                         return [
                             'option_id' => $option->option_id,
                             'option_text' => $option->option_text,
+                            'option_media_url' => $option->option_media_url ? asset('storage/'.$option->option_media_url) : null,
                             'is_correct' => $option->is_correct,
                         ];
                     }),
