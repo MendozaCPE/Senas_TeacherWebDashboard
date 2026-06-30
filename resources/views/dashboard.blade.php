@@ -86,26 +86,90 @@
             </div>
         </div>
 
+        @php
+            $kpiSparkline = function (array $data, string $color, int $width = 240, int $height = 44): string {
+                if (count($data) < 2) {
+                    $data = array_fill(0, 7, $data[0] ?? 0);
+                }
+                $max = max($data);
+                $min = min($data);
+                $range = max($max - $min, 1);
+                $count = count($data);
+                $points = [];
+                foreach ($data as $i => $value) {
+                    $x = $count > 1 ? ($i / ($count - 1)) * $width : $width / 2;
+                    $y = $height - 6 - (($value - $min) / $range) * ($height - 12);
+                    $points[] = round($x, 1) . ',' . round($y, 1);
+                }
+                return '<svg viewBox="0 0 ' . $width . ' ' . $height . '" class="w-full h-[44px]" preserveAspectRatio="none" aria-hidden="true">'
+                    . '<polyline fill="none" stroke="' . e($color) . '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="' . implode(' ', $points) . '"/>'
+                    . '</svg>';
+            };
+        @endphp
+
         <!-- Stats Row -->
-        <div class="flex gap-4">
-            <!-- Card 1 -->
-            <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm flex flex-col justify-center flex-1 border border-slate-100 min-h-[100px]">
-                <h3 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-2">Total Students</h3>
-                <p class="text-4xl font-black text-[#0d326b] leading-none">{{ $totalStudents > 0 ? $totalStudents : '0' }}</p>
-            </div>
-            <!-- Card 2 -->
-            <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm flex flex-col justify-center flex-1 border border-slate-100 min-h-[100px]">
-                <h3 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-2">Active Today</h3>
-                <p class="text-4xl font-black text-[#6366f1] leading-none">{{ $activeToday ?? 0 }}</p>
-            </div>
-            <!-- Card 3 -->
-            <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm flex flex-col justify-center flex-1 border border-slate-100 min-h-[100px]">
-                <h3 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-2">Avg Accuracy</h3>
-                <div class="flex items-end space-x-2">
-                    <p class="text-4xl font-black text-[#10b981] leading-none">{{ $avgAccuracy > 0 ? $avgAccuracy.'%' : 'N/A' }}</p>
-                    <span class="material-symbols-outlined text-[#10b981] text-[22px] mb-0.5">trending_up</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+            {{-- Total Students --}}
+            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-full bg-[#2563eb] flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-white text-[18px]">group</span>
+                    </div>
+                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Students</h3>
+                </div>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalStudents }}</p>
+                <p class="text-[12px] font-medium text-emerald-600 mt-2 mb-4">↑ {{ $newStudentsThisWeek }} this week</p>
+                <div class="mt-auto -mx-1">
+                    {!! $kpiSparkline($sparklineTotalStudents ?: array_fill(0, 7, 0), '#2563eb') !!}
                 </div>
             </div>
+
+            {{-- Active Today --}}
+            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-full bg-[#7c3aed] flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-white text-[18px]">monitor_heart</span>
+                    </div>
+                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Active Today</h3>
+                </div>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $activeToday }}</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2 mb-4">{{ $activeTodayPercent }}% of total</p>
+                <div class="mt-auto -mx-1">
+                    {!! $kpiSparkline($sparklineActive ?: array_fill(0, 7, 0), '#7c3aed') !!}
+                </div>
+            </div>
+
+            {{-- Avg. Accuracy --}}
+            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-full bg-[#10b981] flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-white text-[18px]">gps_fixed</span>
+                    </div>
+                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Avg. Accuracy</h3>
+                </div>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $avgAccuracy > 0 ? $avgAccuracy . '%' : '0%' }}</p>
+                <p class="text-[12px] font-medium text-emerald-600 mt-2 mb-4">↑ {{ max(0, $accuracyWeeklyChange) }}% this week</p>
+                <div class="mt-auto -mx-1">
+                    {!! $kpiSparkline($sparklineAccuracy ?: array_fill(0, 7, 0), '#10b981') !!}
+                </div>
+            </div>
+
+            {{-- Lessons Completed --}}
+            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-full bg-[#f59e0b] flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-white text-[18px]">menu_book</span>
+                    </div>
+                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Lessons Completed</h3>
+                </div>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $lessonsCompleted }}</p>
+                <p class="text-[12px] font-medium text-emerald-600 mt-2 mb-4">↑ {{ $lessonsCompletedThisWeek }} this week</p>
+                <div class="mt-auto -mx-1">
+                    {!! $kpiSparkline($sparklineLessons ?: array_fill(0, 7, 0), '#f59e0b') !!}
+                </div>
+            </div>
+
         </div>
 
         <!-- Your Lessons -->

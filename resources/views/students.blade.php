@@ -433,9 +433,10 @@
             <div class="grid grid-cols-2 gap-x-6 gap-y-5 mb-6">
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Learner Reference Number (LRN)</label>
-                    <input type="text" name="lrn" required placeholder="12-digit LRN" pattern="\d{12}" maxlength="12"
+                    <input type="text" name="lrn" id="input-lrn" required placeholder="12-digit LRN" pattern="\d{12}" maxlength="12"
                            title="LRN must be exactly 12 digits"
                            class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
+                    <p id="lrn-error" class="hidden text-[12px] font-medium text-red-600">LRN already exists.</p>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
@@ -443,9 +444,27 @@
                            class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                 </div>
                 <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Program Type</label>
+                    <div class="relative">
+                        <select name="program_type" id="input-program-type" required
+                                class="w-full bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 pl-4 pr-10 rounded-xl outline-none border border-transparent focus:border-slate-300 appearance-none transition-all cursor-pointer">
+                            <option value="Regular">Regular</option>
+                            <option value="Self-contained">Self-Contained</option>
+                            <option value="Transition">Transition</option>
+                            <option value="Inclusion">Inclusion</option>
+                        </select>
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[18px] text-slate-500 pointer-events-none">expand_more</span>
+                    </div>
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Age</label>
+                    <input type="number" name="age" required min="1" max="100" placeholder="Enter age"
+                           class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
+                </div>
+                <div id="field-grade-level" class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Grade Level</label>
                     <div class="relative">
-                        <select name="grade_level"
+                        <select name="grade_level" id="input-grade-level"
                                 class="w-full bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 pl-4 pr-10 rounded-xl outline-none border border-transparent focus:border-slate-300 appearance-none transition-all cursor-pointer">
                             <option value="">Select Grade</option>
                             <option value="Grade 1">Grade 1</option>
@@ -460,14 +479,9 @@
                         <span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[18px] text-slate-500 pointer-events-none">expand_more</span>
                     </div>
                 </div>
-                <div class="flex flex-col space-y-2">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Age</label>
-                    <input type="number" name="age" required min="1" max="100" placeholder="Enter age"
-                           class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
-                </div>
-                <div class="flex flex-col space-y-2">
+                <div id="field-section" class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Section</label>
-                    <input type="text" name="section" placeholder="e.g. SPED-A"
+                    <input type="text" name="section" id="input-section" placeholder="e.g. SPED-A"
                            class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                 </div>
                 <div class="flex flex-col space-y-2">
@@ -484,23 +498,18 @@
                 </div>
             </div>
 
-            {{-- Auto-PIN --}}
+            {{-- Student PIN --}}
             <div class="bg-[#f1f5f9] p-4 rounded-[20px] flex items-center justify-between mb-8 shadow-sm">
                 <div class="flex items-center space-x-4">
                     <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#0d326b] shadow-sm">
                         <span class="material-symbols-outlined text-[20px]">lock</span>
                     </div>
                     <div>
-                        <p class="text-[13px] font-bold text-[#0d326b]">Auto-generate Student PIN</p>
-                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">Default: Student LRN</p>
+                        <p class="text-[13px] font-bold text-[#0d326b]">Student PIN</p>
+                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">Last 4 digits of LRN</p>
                     </div>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" name="auto_pin" value="1" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full
-                                after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white
-                                after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0d326b]"></div>
-                </label>
+                <span id="pin-preview" class="text-[18px] font-bold text-[#0d326b] tracking-widest tabular-nums">----</span>
             </div>
 
             <div class="flex items-center justify-end space-x-4">
@@ -636,8 +645,80 @@ function resetModal() {
     parsedStudents = [];
     resetUploadArea();
     hideAlert();
+    hideLrnError();
+    updatePinPreview();
+    toggleGradeSectionFields();
     tabSingle.click();
 }
+
+// ─── Program Type & Grade/Section ─────────────────────────────────────────────
+const inputProgramType = document.getElementById('input-program-type');
+const fieldGradeLevel  = document.getElementById('field-grade-level');
+const fieldSection     = document.getElementById('field-section');
+const inputGradeLevel  = document.getElementById('input-grade-level');
+const inputSection     = document.getElementById('input-section');
+
+function toggleGradeSectionFields() {
+    const show = ['Regular', 'Inclusion'].includes(inputProgramType.value);
+    fieldGradeLevel.classList.toggle('hidden', !show);
+    fieldSection.classList.toggle('hidden', !show);
+    inputGradeLevel.disabled = !show;
+    inputSection.disabled = !show;
+    if (!show) {
+        inputGradeLevel.value = '';
+        inputSection.value = '';
+    }
+}
+
+inputProgramType.addEventListener('change', toggleGradeSectionFields);
+toggleGradeSectionFields();
+
+// ─── LRN validation & PIN preview ────────────────────────────────────────────
+const inputLrn     = document.getElementById('input-lrn');
+const lrnError     = document.getElementById('lrn-error');
+const pinPreview   = document.getElementById('pin-preview');
+let lrnExists      = false;
+let lrnCheckTimer  = null;
+
+function hideLrnError() {
+    lrnError.classList.add('hidden');
+    inputLrn.classList.remove('border-red-400', 'focus:border-red-400');
+    lrnExists = false;
+}
+
+function showLrnError() {
+    lrnError.classList.remove('hidden');
+    inputLrn.classList.add('border-red-400', 'focus:border-red-400');
+    lrnExists = true;
+}
+
+function updatePinPreview() {
+    const lrn = inputLrn.value.replace(/\D/g, '');
+    pinPreview.textContent = lrn.length >= 4 ? lrn.slice(-4) : '----';
+}
+
+async function checkLrnUnique() {
+    const lrn = inputLrn.value.replace(/\D/g, '');
+    hideLrnError();
+    if (lrn.length !== 12) return;
+
+    try {
+        const res = await axios.get("{{ route('students.check-lrn') }}", { params: { lrn } });
+        if (res.data.exists) showLrnError();
+    } catch (_) { /* ignore network errors during live check */ }
+}
+
+inputLrn.addEventListener('input', () => {
+    updatePinPreview();
+    clearTimeout(lrnCheckTimer);
+    hideLrnError();
+    if (inputLrn.value.replace(/\D/g, '').length === 12) {
+        lrnCheckTimer = setTimeout(checkLrnUnique, 400);
+    }
+});
+
+inputLrn.addEventListener('blur', checkLrnUnique);
+updatePinPreview();
 
 // ─── Drag & Drop ─────────────────────────────────────────────────────────────
 ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
@@ -746,15 +827,27 @@ async function submitSingleStudent(event) {
     if (!nameVal.includes(',')) {
         showAlert('Full Name must be "Last Name, First Name" (comma-separated).'); return;
     }
+    if (inputLrn.value.replace(/\D/g, '').length !== 12) {
+        showAlert('LRN must be exactly 12 digits.'); return;
+    }
+    await checkLrnUnique();
+    if (lrnExists) return;
+
     const orig = btn.innerText;
     btn.innerText = 'Saving…'; btn.disabled = true;
     const fd = new FormData(formSingle);
+    const showGradeSection = ['Regular', 'Inclusion'].includes(fd.get('program_type'));
     const payload = {
-        lrn: fd.get('lrn'), full_name: fd.get('full_name'),
-        grade_level: fd.get('grade_level'), age: fd.get('age'),
-        section: fd.get('section'), fsl_mastery_level: fd.get('fsl_mastery_level'),
-        auto_pin: fd.get('auto_pin') ? 1 : 0
+        lrn: fd.get('lrn'),
+        full_name: fd.get('full_name'),
+        program_type: fd.get('program_type'),
+        age: fd.get('age'),
+        fsl_mastery_level: fd.get('fsl_mastery_level'),
     };
+    if (showGradeSection) {
+        payload.grade_level = fd.get('grade_level');
+        payload.section = fd.get('section');
+    }
     const token = formSingle.querySelector('input[name="_token"]').value;
     try {
         const res = await axios.post("{{ route('students.store') }}", payload,
@@ -768,8 +861,15 @@ async function submitSingleStudent(event) {
         }
     } catch (err) {
         let msg = 'An error occurred while saving.';
-        if (err.response?.data?.errors) msg = Object.values(err.response.data.errors).flat().join('<br>');
-        else if (err.response?.data?.message) msg = err.response.data.message;
+        if (err.response?.data?.errors) {
+            const errors = err.response.data.errors;
+            if (errors.lrn) {
+                showLrnError();
+                msg = errors.lrn[0];
+            } else {
+                msg = Object.values(errors).flat().join('<br>');
+            }
+        } else if (err.response?.data?.message) msg = err.response.data.message;
         else if (err.request) msg = `Network error: ${err.message}`;
         showAlert(msg); btn.innerText = orig; btn.disabled = false;
     }

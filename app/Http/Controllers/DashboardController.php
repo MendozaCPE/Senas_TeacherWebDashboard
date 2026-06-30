@@ -38,6 +38,14 @@ class DashboardController extends Controller
         $activeToday      = 0;
         $lessonsCompleted = 0;
         $avgAccuracy      = 0;
+        $newStudentsThisWeek      = 0;
+        $activeTodayPercent       = 0;
+        $accuracyWeeklyChange     = 0;
+        $lessonsCompletedThisWeek = 0;
+        $sparklineTotalStudents   = [];
+        $sparklineActive          = [];
+        $sparklineAccuracy        = [];
+        $sparklineLessons         = [];
         $students         = collect();
         $lessons          = collect();
         $lessonMastery    = collect();
@@ -52,14 +60,52 @@ class DashboardController extends Controller
             // ── Stat Cards ───────────────────────────────────────────────────────
             $totalStudents = $studentIds->count();
 
+            $newStudentsThisWeek = Student::where('teacher_id', $teacherId)
+                ->where('created_at', '>=', Carbon::now()->subWeek())
+                ->count();
+
             $activeToday = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereDate('last_accessed_at', Carbon::today())
                 ->distinct('student_id')
                 ->count('student_id');
 
+            $activeTodayPercent = $totalStudents > 0
+                ? round(($activeToday / $totalStudents) * 100)
+                : 0;
+
             $lessonsCompleted = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->where('lesson_completed', 1)
                 ->count();
+
+            $lessonsCompletedThisWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->where('lesson_completed', 1)
+                ->where('updated_at', '>=', Carbon::now()->subWeek())
+                ->count();
+
+            // ── Sparklines (last 7 days, ending today) ───────────────────────────
+            for ($i = 6; $i >= 0; $i--) {
+                $day = Carbon::today()->subDays($i);
+
+                $sparklineTotalStudents[] = Student::where('teacher_id', $teacherId)
+                    ->whereDate('created_at', '<=', $day)
+                    ->count();
+
+                $sparklineActive[] = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->whereDate('last_accessed_at', $day)
+                    ->distinct('student_id')
+                    ->count('student_id');
+
+                $dayAccuracy = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->whereNotNull('quiz_score')
+                    ->whereDate('updated_at', $day)
+                    ->avg('quiz_score');
+                $sparklineAccuracy[] = $dayAccuracy ? (int) round($dayAccuracy) : 0;
+
+                $sparklineLessons[] = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->where('lesson_completed', 1)
+                    ->whereDate('updated_at', $day)
+                    ->count();
+            }
 
             // ── Your Lessons (with enrolled count + completion %) ────────────────
             $lessons = Lesson::where('teacher_id', $teacherId)
@@ -124,7 +170,23 @@ class DashboardController extends Controller
             $avgScore = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereNotNull('quiz_score')
                 ->avg('quiz_score');
-            $avgAccuracy = $avgScore ? round($avgScore) : 0;
+            $avgAccuracy = $avgScore ? (int) round($avgScore) : 0;
+
+            $avgThisWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereNotNull('quiz_score')
+                ->where('updated_at', '>=', Carbon::now()->subWeek())
+                ->avg('quiz_score');
+
+            $avgLastWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereNotNull('quiz_score')
+                ->whereBetween('updated_at', [Carbon::now()->subWeeks(2), Carbon::now()->subWeek()])
+                ->avg('quiz_score');
+
+            if ($avgThisWeek !== null && $avgLastWeek !== null) {
+                $accuracyWeeklyChange = (int) round($avgThisWeek - $avgLastWeek);
+            } elseif ($avgThisWeek !== null) {
+                $accuracyWeeklyChange = (int) round($avgThisWeek);
+            }
 
             // ── Student Performance (5 most recent, with avg quiz score as proxy) ─
             $students = Student::where('teacher_id', $teacherId)
@@ -178,9 +240,17 @@ class DashboardController extends Controller
             'user',
             'teacher',
             'totalStudents',
+            'newStudentsThisWeek',
             'activeToday',
+            'activeTodayPercent',
             'avgAccuracy',
+            'accuracyWeeklyChange',
             'lessonsCompleted',
+            'lessonsCompletedThisWeek',
+            'sparklineTotalStudents',
+            'sparklineActive',
+            'sparklineAccuracy',
+            'sparklineLessons',
             'students',
             'lessons',
             'lessonMastery',

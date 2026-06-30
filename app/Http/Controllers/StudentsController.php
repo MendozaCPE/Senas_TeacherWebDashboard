@@ -36,6 +36,20 @@ class StudentsController extends Controller
     }
 
     /**
+     * Check if an LRN already exists in the database.
+     */
+    public function checkLrn(Request $request)
+    {
+        $request->validate([
+            'lrn' => 'required|numeric|digits:12',
+        ]);
+
+        $exists = Student::where('lrn', $request->lrn)->exists();
+
+        return response()->json(['exists' => $exists]);
+    }
+
+    /**
      * Store a newly created student manually.
      */
     public function store(Request $request)
@@ -48,14 +62,19 @@ class StudentsController extends Controller
             ], 403);
         }
 
+        $programType = $request->input('program_type', 'Regular');
+        $showGradeSection = in_array($programType, ['Regular', 'Inclusion'], true);
+
         $request->validate([
             'lrn' => 'required|numeric|digits:12|unique:students,lrn',
             'full_name' => 'required|string|max:255',
+            'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained',
             'grade_level' => 'nullable|string|max:255',
             'age' => 'required|integer|min:1|max:120',
             'section' => 'nullable|string|max:255',
             'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
-            'auto_pin' => 'nullable|boolean',
+        ], [
+            'lrn.unique' => 'LRN already exists.',
         ]);
 
         // Split full name (expecting "Last Name, First Name" or fallback to space splitting)
@@ -75,9 +94,8 @@ class StudentsController extends Controller
             }
         }
 
-        // Generate auto-pin if requested (random 4-digit), otherwise last 4 digits of LRN
         $lrn = $request->lrn;
-        $pin = $request->auto_pin ? (string) mt_rand(1000, 9999) : substr($lrn, -4);
+        $pin = substr($lrn, -4);
 
         // Generate unique username from first name and last name
         $username = $this->generateUniqueUsername($firstName, $lastName);
@@ -104,10 +122,10 @@ class StudentsController extends Controller
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'age' => $request->age,
-                'grade_level' => $request->grade_level,
-                'section' => $request->section,
+                'grade_level' => $showGradeSection ? $request->grade_level : null,
+                'section' => $showGradeSection ? $request->section : null,
                 'fsl_mastery_level' => $request->fsl_mastery_level,
-                'program_type' => 'Regular', // Default program type
+                'program_type' => $programType,
             ]);
 
             DB::commit();

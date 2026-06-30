@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
 
     // Students
     Route::get('/students', [App\Http\Controllers\StudentsController::class, 'index'])->name('students');
+    Route::get('/students/check-lrn', [App\Http\Controllers\StudentsController::class, 'checkLrn'])->name('students.check-lrn');
     Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
     Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
 
