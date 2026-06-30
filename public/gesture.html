@@ -41,7 +41,7 @@
 
         #overlay {
             position: absolute;
-            bottom: 60px;
+            bottom: 30px;
             left: 0;
             right: 0;
             text-align: center;
@@ -52,17 +52,17 @@
         #letter-display {
             display: inline-block;
             background: rgba(15, 49, 114, 0.85);
-            padding: 16px 32px;
+            padding: 12px 28px;
             border-radius: 20px;
             border: 2px solid rgba(255, 215, 0, 0.4);
             backdrop-filter: blur(12px);
-            min-width: 180px;
+            min-width: 160px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         #letter {
             color: #FFD700;
-            font-size: 64px;
+            font-size: 56px;
             font-weight: bold;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
@@ -70,7 +70,7 @@
 
         #confidence {
             color: #4ECDC4;
-            font-size: 14px;
+            font-size: 13px;
             margin-top: 2px;
             font-weight: 600;
             letter-spacing: 0.5px;
@@ -78,8 +78,8 @@
 
         #status {
             color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
-            margin-top: 6px;
+            font-size: 11px;
+            margin-top: 4px;
             font-weight: 500;
         }
 
@@ -164,7 +164,6 @@
             border-radius: 0 2px 2px 0;
         }
 
-        /* Status bar at top */
         #status-bar {
             position: absolute;
             top: 40px;
@@ -209,6 +208,17 @@
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
+        #detection-box {
+            position: absolute;
+            border: 2px solid rgba(10, 90, 180, 0.6);
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 4;
+            display: none;
+            box-shadow: 0 0 30px rgba(10, 90, 180, 0.15);
+            transition: all 0.1s ease;
+        }
     </style>
 </head>
 
@@ -216,6 +226,8 @@
     <div id="container">
         <video id="video" autoplay playsinline></video>
         <canvas id="canvas"></canvas>
+
+        <div id="detection-box"></div>
 
         <div id="status-bar">
             <div id="status-bar-left">
@@ -248,7 +260,6 @@
         </div>
     </div>
 
-    <!-- Load MediaPipe -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
         crossorigin="anonymous"></script>
@@ -256,250 +267,323 @@
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
-    @verbatim
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.min.js"></script>
+
     <script>
         // ============================================================
-        // YOUR HEURISTIC FUNCTIONS (copied from Python)
+        // UTILITY DISTANCE CODES
+        // ============================================================
+        function getDistance2D(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        // ============================================================
+        // CALIBRATED HEURISTIC FUNCTIONS FOR PORTRAIT MOBILE WEBVIEWS
         // ============================================================
         function getFingerStates(landmarks) {
             const tips = [4, 8, 12, 16, 20];
-            const dips = [3, 6, 10, 14, 18];
+            const mcps = [2, 5, 9, 13, 17];
+            const pips = [3, 6, 10, 14, 18];
             const fingers = [];
 
-            const thumbExtended = Math.abs(landmarks[4].x - landmarks[2].x) > 0.045;
+            const handScale = getDistance2D(landmarks[0], landmarks[5]);
+
+            // Thumb calculation: Extended out laterally or up
+            const thumbExtended = Math.abs(landmarks[4].x - landmarks[2].x) > (handScale * 0.35) || (landmarks[4].y < landmarks[2].y - handScale * 0.1);
             fingers.push(thumbExtended);
 
+            // Rest of fingers logic
             for (let i = 1; i < tips.length; i++) {
-                const extended = landmarks[tips[i]].y < landmarks[dips[i]].y;
+                const extended = landmarks[tips[i]].y < (landmarks[pips[i]].y - (handScale * 0.05));
                 fingers.push(extended);
             }
             return fingers;
         }
 
-        function getDistance3D(p1, p2) {
-            return Math.sqrt(
-                Math.pow(p1.x - p2.x, 2) +
-                Math.pow(p1.y - p2.y, 2) +
-                Math.pow(p1.z - p2.z, 2)
-            );
+        function getFingerSpread(landmarks) {
+            const indexLength = getDistance2D(landmarks[5], landmarks[8]);
+            const tipSpread = getDistance2D(landmarks[8], landmarks[12]);
+            return (tipSpread / (indexLength || 1));
         }
 
-        function getDistance2D(p1, p2) {
-            return Math.sqrt(
-                Math.pow(p1.x - p2.x, 2) +
-                Math.pow(p1.y - p2.y, 2)
-            );
+        function verifyZigzagGeometry(points) {
+            if (points.length < 3) return false;
+            const xs = points.map(p => p[0]);
+            const ys = points.map(p => p[1]);
+            const width = Math.max(...xs) - Math.min(...xs);
+            const height = Math.max(...ys) - Math.min(...ys);
+            return (width > 1.5 || height > 1.5);
         }
 
-        function applyCriticalDlyOverrides(predicted, avgConf, landmarks) {
+        function verifyJScoopGeometry(points) {
+            return points.length >= 2;
+        }
+
+        // ============================================================
+        // OVERHAULED CALIBRATION ENGINE MATRIX
+        // ============================================================
+
+        function processHierarchicalOverrides(predicted, avgConf, landmarks, isActivelyDrawing) {
+            if (isActivelyDrawing && (predicted === 'Z' || predicted === 'J')) {
+                return { letter: predicted, confidence: 0.99 };
+            }
+
+            const handScale = getDistance2D(landmarks[0], landmarks[5]);
             const fingers = getFingerStates(landmarks);
+            const fingerSpread = getFingerSpread(landmarks);
+
+            // Coordinates cache
             const thumbTip = landmarks[4];
+            const thumbIP = landmarks[3];
+            const thumbMcp = landmarks[2];
+
             const indexTip = landmarks[8];
             const indexDip = landmarks[7];
-            const indexMcp = landmarks[5];
-            const middleTip = landmarks[12];
-            const middleMcp = landmarks[9];
-            const ringTip = landmarks[16];
-            const pinkyTip = landmarks[20];
-
-            const isIndexHooked = (indexTip.y > indexDip.y) || (Math.abs(indexTip.x - indexDip.x) > 0.02 && !fingers[1]);
-            const othersDown = !fingers[2] && !fingers[3] && !fingers[4];
-
-            if (isIndexHooked && othersDown && ['L', 'Y', 'X', '?'].includes(predicted)) {
-                return { letter: 'X', confidence: 0.98 };
-            }
-
-            const isBShape = fingers[1] && fingers[2] && fingers[3] && fingers[4];
-            if (isBShape) {
-                return { letter: 'B', confidence: 0.98 };
-            }
-
-            const indexUpState = fingers[1];
-            const distThumbToMiddle3D = getDistance3D(thumbTip, middleTip);
-            const distThumbToRing3D = getDistance3D(thumbTip, ringTip);
-            const distThumbToMiddle2D = getDistance2D(thumbTip, middleTip);
-            const ringMcpY = landmarks[13].y;
-            const areFingersCurledToPalm = (middleTip.y > middleMcp.y) && (ringTip.y > ringMcpY);
-            const distThumbToPalmCenter = getDistance2D(thumbTip, middleMcp);
-
-            const isFormingD = (
-                distThumbToMiddle3D < 0.10 ||
-                distThumbToRing3D < 0.10 ||
-                distThumbToMiddle2D < 0.08 ||
-                (areFingersCurledToPalm && distThumbToPalmCenter < 0.10)
-            );
-
-            if (indexUpState && !isIndexHooked) {
-                if (isFormingD) {
-                    return { letter: 'D', confidence: 0.99 };
-                }
-                const isThumbStretchedWide = Math.abs(thumbTip.x - indexMcp.x) > 0.075;
-                if (isThumbStretchedWide) {
-                    return { letter: 'L', confidence: 0.96 };
-                }
-            }
-
-            if (fingers[4] && !fingers[1] && !fingers[2] && !fingers[3]) {
-                const isThumbActiveY = Math.abs(thumbTip.x - indexMcp.x) > 0.055;
-                if (isThumbActiveY && pinkyTip.y < landmarks[19].y) {
-                    return { letter: 'Y', confidence: 0.98 };
-                }
-            }
-
-            return { letter: predicted, confidence: avgConf };
-        }
-
-        function applyUvwxyRules(predicted, avgConf, fingers, fingerSpread, landmarks) {
-            const indexTip = landmarks[8];
-            const middleTip = landmarks[12];
-            const indexMcp = landmarks[5];
-            const middleMcp = landmarks[9];
-            const thumbTip = landmarks[4];
-
-            const isCrossed = indexTip.x > middleTip.x + 0.003;
-            const indexUp = indexTip.y < landmarks[6].y;
-            const middleUp = middleTip.y < landmarks[10].y;
-            const ringDown = landmarks[16].y > landmarks[13].y;
-            const pinkyDown = landmarks[20].y > landmarks[17].y;
-
-            const indexExtendedSideways = Math.abs(indexTip.x - indexMcp.x) > 0.06;
-            const middleExtendedSideways = Math.abs(middleTip.x - middleMcp.x) > 0.06;
-
-            const isThumbCenteredK = Math.abs(thumbTip.y - middleMcp.y) < 0.06 &&
-                (Math.min(indexTip.x, indexMcp.x) <= thumbTip.x <= Math.max(middleTip.x, middleMcp.x) ||
-                    Math.abs(thumbTip.x - middleMcp.x) < 0.05);
-
-            if ((indexExtendedSideways && middleExtendedSideways && ringDown && pinkyDown) ||
-                (predicted === 'K' && ringDown && pinkyDown)) {
-                if (isThumbCenteredK) {
-                    return { letter: 'K', confidence: 0.99 };
-                }
-            }
-
-            if (indexUp && middleUp && ringDown && pinkyDown) {
-                if (isCrossed) {
-                    return { letter: 'R', confidence: 0.98 };
-                }
-                return { letter: fingerSpread > 0.055 ? 'V' : 'U', confidence: 0.98 };
-            }
-
-            if (fingers[1] && fingers[2] && fingers[3] && !fingers[4]) {
-                return { letter: 'W', confidence: 0.95 };
-            }
-
-            return { letter: predicted, confidence: avgConf };
-        }
-
-        function applyMnsRules(predicted, avgConf, fingers, landmarks) {
-            const indexTipY = landmarks[8].y;
-            const indexMcp = landmarks[5];
-            const middleMcp = landmarks[9];
-            const middleTipY = landmarks[12].y;
-            const middlePipY = landmarks[10].y;
-            const thumbTip = landmarks[4];
             const indexPip = landmarks[6];
-            const extendedCount = fingers.filter(f => f).length;
+            const indexMcp = landmarks[5];
 
-            const thumbTip2 = landmarks[4];
-            const indexTip2 = landmarks[8];
-            const middleTip2 = landmarks[12];
-            const ringTip2 = landmarks[16];
-            const pinkyTip2 = landmarks[20];
+            const middleTip = landmarks[12];
+            const middleDip = landmarks[11];
+            const middlePip = landmarks[10];
+            const middleMcp = landmarks[9];
 
-            const distThumbIndex = Math.sqrt(
-                Math.pow(thumbTip2.x - indexTip2.x, 2) +
-                Math.pow(thumbTip2.y - indexTip2.y, 2)
-            );
-            const distThumbMiddle = Math.sqrt(
-                Math.pow(thumbTip2.x - middleTip2.x, 2) +
-                Math.pow(thumbTip2.y - middleTip2.y, 2)
-            );
-            const distThumbRing = Math.sqrt(
-                Math.pow(thumbTip2.x - ringTip2.x, 2) +
-                Math.pow(thumbTip2.y - ringTip2.y, 2)
-            );
-            const distThumbPinky = Math.sqrt(
-                Math.pow(thumbTip2.x - pinkyTip2.x, 2) +
-                Math.pow(thumbTip2.y - pinkyTip2.y, 2)
-            );
+            const ringTip = landmarks[16];
+            const ringPip = landmarks[14];
+            const ringMcp = landmarks[13];
 
-            if (distThumbIndex < 0.08 && distThumbMiddle < 0.08 &&
-                distThumbRing < 0.08 && distThumbPinky < 0.08) {
-                return { letter: 'O', confidence: 0.95 };
+            const pinkyTip = landmarks[20];
+            const pinkyPip = landmarks[18];
+            const pinkyMcp = landmarks[17];
+
+            // 1. ISOLATED EXTENSION DETECTORS (I vs Y vs L vs D vs X)
+            const indexUp = fingers[1];
+            const middleUp = fingers[2];
+            const ringUp = fingers[3];
+            const pinkyUp = fingers[4];
+            const thumbUp = fingers[0];
+
+            const distThumbIndex = getDistance2D(thumbTip, indexTip);
+            const distThumbMiddle = getDistance2D(thumbTip, middleTip);
+            const distThumbRing = getDistance2D(thumbTip, ringTip);
+            const distThumbPinky = getDistance2D(thumbTip, pinkyTip);
+
+            // STABILIZED O RULE: Integrates Python prototype distance arrays
+            if (distThumbIndex < (handScale * 0.32) && distThumbMiddle < (handScale * 0.32) &&
+                distThumbRing < (handScale * 0.35) && distThumbPinky < (handScale * 0.38)) {
+                return { letter: 'O', confidence: 0.99 };
             }
 
-            if (predicted in ['A', 'O'] && avgConf > 0.75) {
-                return { letter: predicted, confidence: avgConf };
+            // DIRECTIONAL PROFILES (Horizontal Sideways vs Downwards vs Upwards)
+            const indexSideways = Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.45) && Math.abs(indexTip.y - indexMcp.y) < (handScale * 0.4);
+            const middleSideways = Math.abs(middleTip.x - middleMcp.x) > (handScale * 0.45) && Math.abs(middleTip.y - middleMcp.y) < (handScale * 0.4);
+            const indexDownwards = indexTip.y > indexMcp.y + (handScale * 0.1);
+            const middleDownwards = middleTip.y > middleMcp.y + (handScale * 0.1);
+
+            // Strict I Detector: ONLY pinky up
+            if (pinkyUp && !indexUp && !middleUp && !ringUp && Math.abs(thumbTip.x - indexMcp.x) < (handScale * 0.35)) {
+                return { letter: 'I', confidence: 0.99 };
             }
 
-            const isEShape = (indexTipY < indexMcp.y && middleTipY < indexMcp.y) && extendedCount === 0;
-            if (isEShape) {
-                if (['S', 'E', 'M', 'N'].includes(predicted)) {
-                    return { letter: 'E', confidence: 0.95 };
-                }
+            // Strict Y Detector: Thumb and Pinky wide out
+            const horizontalYSpread = Math.abs(thumbTip.x - pinkyTip.x);
+            if (pinkyUp && thumbUp && !indexUp && !middleUp && !ringUp && horizontalYSpread > (handScale * 0.65)) {
+                return { letter: 'Y', confidence: 0.99 };
             }
 
-            if (extendedCount === 0 && !isEShape) {
-                const isSThumbPose = (thumbTip.y < middlePipY + 0.01) && (thumbTip.x > indexPip.x - 0.01);
-                if (['S', 'N'].includes(predicted) && !isSThumbPose) {
-                    if (thumbTip.x <= middleMcp.x) {
-                        return { letter: 'N', confidence: 0.96 };
+            // Strict G Shape (Gun Profile): Index points strictly horizontal, middle/ring/pinky fully down, thumb pointing up
+            if (indexSideways && !middleUp && !ringUp && !pinkyUp && thumbTip.y < indexMcp.y) {
+                return { letter: 'G', confidence: 0.99 };
+            }
+
+            // K vs P vs L Isolation Engine
+            if (indexUp && middleUp && !ringUp && !pinkyUp) {
+                const isThumbTuckedBetween = thumbTip.x > indexMcp.x && thumbTip.x < middleMcp.x || Math.abs(thumbTip.y - indexPip.y) < (handScale * 0.25);
+
+                if (isThumbTuckedBetween && fingerSpread > 0.18) {
+                    // Directed horizontally sideways = K Shape
+                    if (indexSideways || middleSideways) {
+                        return { letter: 'K', confidence: 0.99 };
+                    }
+                    // Directed downwards = P Shape
+                    if (indexDownwards && middleDownwards) {
+                        return { letter: 'P', confidence: 0.99 };
                     }
                 }
-                if (isSThumbPose || predicted === 'S') {
-                    return { letter: 'S', confidence: 0.95 };
+            }
+
+            // Strict L Detector: Thumb extended far out sideways, Index pointing straight UP, rest down
+            if (indexUp && thumbUp && !middleUp && !ringUp && !pinkyUp && (indexTip.y < indexPip.y)) {
+                if (Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.40) && !indexSideways) {
+                    return { letter: 'L', confidence: 0.99 };
                 }
-                if (predicted === 'M' || (predicted === 'N' && avgConf < 0.70)) {
-                    return { letter: thumbTip.x > middleMcp.x ? 'M' : 'N', confidence: 0.95 };
+            }
+
+            // Strict D vs X vs L Fixes
+            if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+                const isIndexHooked = (indexTip.y > indexPip.y) || (indexDip.y > indexPip.y);
+                if (isIndexHooked) {
+                    return { letter: 'X', confidence: 0.99 }; // Bent/hooked finger = X
+                } else if (!thumbUp && !indexSideways) {
+                    return { letter: 'D', confidence: 0.99 }; // Straight single index up = D
+                }
+            }
+
+            // Strict Q Shape: Claw pointing downwards
+            if (indexDownwards && !middleUp && !ringUp && !pinkyUp) {
+                if (thumbTip.y > indexMcp.y || predicted === 'Q' || avgConf < 0.40) {
+                    return { letter: 'Q', confidence: 0.99 };
+                }
+            }
+
+            // Flat palm check for B
+            const allExtendedUp = indexTip.y < indexPip.y && middleTip.y < middlePip.y && ringTip.y < ringPip.y && pinkyTip.y < pinkyPip.y;
+            if (allExtendedUp) {
+                return { letter: 'B', confidence: 0.99 };
+            }
+
+            // Open crescent check for C
+            const indexCurvedC = indexTip.y > indexDip.y && indexTip.y < indexMcp.y;
+            const middleCurvedC = middleTip.y > middleDip.y && middleTip.y < middleMcp.y;
+            const isThumbOpenC = thumbTip.y > indexMcp.y && Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.38);
+            if (indexCurvedC && middleCurvedC && isThumbOpenC) {
+                return { letter: 'C', confidence: 0.98 };
+            }
+
+            // 2. FIST MATRIX SEPARATION USING EXTENDED COUNT & PROTOTYPE GEOMETRIES (A, M, N, S, T, E)
+            const extendedCount = fingers.filter(f => f).length;
+            const isFistState = !indexUp && !middleUp && !ringUp && !pinkyUp && !allExtendedUp;
+
+            if (isFistState) {
+                // Python-based E evaluation: Fingertips are curled below tips but remain above/near the MCP baseline
+                const isEShape = indexTip.y < indexMcp.y && middleTip.y < indexMcp.y && indexTip.y > indexPip.y;
+                if (isEShape || predicted === 'E') {
+                    return { letter: 'E', confidence: 0.97 };
+                }
+
+                // Swapped to return A when thumb crosses over the knuckles frame
+                const isSThumbPose = (thumbTip.x > indexMcp.x - (handScale * 0.05)) && (thumbTip.y < middlePip.y + (handScale * 0.1));
+                if (isSThumbPose || predicted === 'S') {
+                    return { letter: 'A', confidence: 0.98 };
+                }
+
+                // Swapped to return S when thumb sits laterally on the side
+                const thumbAtSideA = thumbTip.x <= indexMcp.x || Math.abs(thumbTip.x - indexMcp.x) < (handScale * 0.22);
+                if (thumbAtSideA || predicted === 'A') {
+                    return { letter: 'S', confidence: 0.99 };
+                }
+
+                // Python-inspired N & T configuration logic Rules:
+                // T Pose: Thumb tucked right under or over the index finger PIP block
+                if (thumbTip.x > indexMcp.x && thumbTip.x <= indexPip.x + (handScale * 0.05)) {
+                    return { letter: 'T', confidence: 0.98 };
+                }
+
+                // N Pose: Thumb crosses past index finger body, resting specifically between index and middle
+                if (thumbTip.x > indexPip.x && thumbTip.x <= middleMcp.x) {
+                    return { letter: 'N', confidence: 0.98 };
+                }
+
+                // M Pose: Thumb reaches deep across palm, passing the middle finger block over to the ring/pinky column
+                if (thumbTip.x > middleMcp.x) {
+                    return { letter: 'M', confidence: 0.98 };
+                }
+            }
+
+            // 3. MULTI-FINGER REGIME SEPARATION (W, V, U, R, F)
+            if (indexUp && middleUp && ringUp && !pinkyUp) {
+                return { letter: 'W', confidence: 0.99 };
+            }
+
+            if (indexUp && middleUp && !ringUp && !pinkyUp && !indexSideways) {
+                // Cross check for R vs parallel alignment for U
+                const isCrossed = (middleTip.x > indexTip.x + 0.01) || (Math.abs(indexTip.x - middleTip.x) < 0.025);
+                if (isCrossed || predicted === 'R') {
+                    return { letter: 'R', confidence: 0.99 };
+                }
+
+                // Pure U vs V differentiation
+                if (fingerSpread < 0.14) {
+                    return { letter: 'U', confidence: 0.99 }; // Closed tight straight up = U
+                } else {
+                    return { letter: 'V', confidence: 0.99 }; // Open wide = V
+                }
+            }
+
+            // F Rule: Index and Thumb touch, other 3 extended up safely
+            const isFShape = (indexTip.y > middleTip.y) && (middleTip.y < middlePip.y) && (ringTip.y < ringPip.y);
+            if (isFShape && distThumbIndex < (handScale * 0.35)) {
+                return { letter: 'F', confidence: 0.99 };
+            }
+
+            // H Shape: Index & Middle pointing sideways together horizontally
+            if (indexSideways && middleSideways && !ringUp && !pinkyUp) {
+                const closeTogether = getDistance2D(indexTip, middleTip) < (handScale * 0.32);
+                if (closeTogether) {
+                    return { letter: 'H', confidence: 0.99 };
                 }
             }
 
             return { letter: predicted, confidence: avgConf };
         }
 
-        // Main detection function
-        function detectLetter(landmarks) {
+        function detectLetter(landmarks, isActivelyDrawing) {
             if (!landmarks || landmarks.length < 21) {
+                lstmFeatureSequenceBuffer = [];
                 return { letter: '✋', confidence: 0 };
             }
 
             try {
                 const fingers = getFingerStates(landmarks);
-                const fingerSpread = Math.abs(landmarks[8].x - landmarks[12].x);
+                const flatFeatures = [];
+                landmarks.forEach(lm => {
+                    flatFeatures.push(lm.x, lm.y, lm.z);
+                });
 
-                // Heuristic detection for J and Z
-                const othersDown = !fingers[2] && !fingers[3] && !fingers[4];
-                const indexUp = fingers[1];
-                const pinkyUp = fingers[4];
-                const thumbTip = landmarks[4];
-                const indexMCP = landmarks[5];
-
-                // J: Pinky up, others down
-                if (pinkyUp && othersDown) {
-                    return { letter: 'J', confidence: 0.85 };
+                if (fingers[1] || fingers[4]) {
+                    lstmFeatureSequenceBuffer.push(flatFeatures);
+                    if (lstmFeatureSequenceBuffer.length > LSTM_SEQUENCE_LENGTH) {
+                        lstmFeatureSequenceBuffer.shift();
+                    }
                 }
 
-                // Z: Index up, others down, thumb tucked
-                const thumbTucked = Math.abs(thumbTip.x - indexMCP.x) < 0.05 && thumbTip.y > indexMCP.y - 0.02;
-                if (indexUp && othersDown && !pinkyUp && thumbTucked) {
-                    return { letter: 'Z', confidence: 0.90 };
+                let predictedLetter = 'A';
+                let modelConfidence = 0.5;
+
+                if (mobileNetModel) {
+                    try {
+                        const inputTensor = tf.tensor2d([flatFeatures], [1, 63], 'float32');
+                        const outputTensor = mobileNetModel.predict(inputTensor);
+                        const probabilities = outputTensor.dataSync();
+
+                        const maxIdx = probabilities.indexOf(Math.max(...probabilities));
+                        predictedLetter = ALPHABET[maxIdx] || 'A';
+                        modelConfidence = probabilities[maxIdx] || 0.5;
+
+                        inputTensor.dispose();
+                        outputTensor.dispose();
+                    } catch (e) {
+                        console.warn('Inference fallback triggered:', e);
+                    }
                 }
 
-                // Apply all heuristic rules
-                let result = { letter: 'A', confidence: 0.5 };
-                result = applyCriticalDlyOverrides(result.letter, result.confidence, landmarks);
-                result = applyUvwxyRules(result.letter, result.confidence, fingers, fingerSpread, landmarks);
-                result = applyMnsRules(result.letter, result.confidence, fingers, landmarks);
+                // Process cascading structural verification overrides
+                let result = processHierarchicalOverrides(predictedLetter, modelConfidence, landmarks, isActivelyDrawing);
+
+                if (result.letter === 'A' && (fingers[1] || fingers[2] || fingers[3] || fingers[4])) {
+                    return { letter: '✋', confidence: 0.1 };
+                }
 
                 return result;
+
             } catch (error) {
-                console.error('Detection error:', error);
+                console.error('Hybrid Prediction Error:', error);
                 return { letter: '✋', confidence: 0 };
             }
         }
 
         // ============================================================
-        // MEDIAPIPE SETUP
+        // MEDIAPIPE CORE INITIALIZER PIPELINES
         // ============================================================
         const videoElement = document.getElementById('video');
         const canvasElement = document.getElementById('canvas');
@@ -511,6 +595,7 @@
         const statusText = document.getElementById('statusText');
         const fpsDisplay = document.getElementById('fps-display');
         const loadingElement = document.getElementById('loading');
+        const detectionBox = document.getElementById('detection-box');
 
         let lastLetter = '';
         let lastConfidence = 0;
@@ -519,12 +604,27 @@
         let frameCount = 0;
         let lastFpsUpdate = performance.now();
 
-        // Check if getUserMedia is available
+        let trailBuffer = [];
+        let jTrackingCooldown = 0;
+        const MAX_TRAIL = 25;
+
+        let lastPinkyPos = { x: 0, y: 0 };
+        let lastIndexPos = { x: 0, y: 0 };
+
+        let mobileNetModel = null;
+        let lstmModel = null;
+        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+        let lstmFeatureSequenceBuffer = [];
+        const LSTM_SEQUENCE_LENGTH = 30;
+
+        let canvasWidth = 0;
+        let canvasHeight = 0;
+
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             loadingElement.innerHTML = `
                 <div style="font-size:48px;">⚠️</div>
                 <div style="font-size:18px;font-weight:600;margin-top:12px;color:white;">Camera Not Supported</div>
-                <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-top:8px;">Your browser doesn't support camera access</div>
             `;
             statusDot.className = 'dot error';
             statusText.textContent = 'Not Supported';
@@ -533,9 +633,7 @@
         function initMediaPipe() {
             try {
                 handsInstance = new Hands({
-                    locateFile: (file) => {
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-                    }
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
                 });
 
                 handsInstance.setOptions({
@@ -546,21 +644,39 @@
                 });
 
                 handsInstance.onResults(onResults);
-                statusText.textContent = 'Ready';
-
+                statusText.textContent = 'MediaPipe Ready';
             } catch (err) {
-                console.error('MediaPipe init error:', err);
-                statusText.textContent = 'MediaPipe error';
+                console.error('MediaPipe error:', err);
             }
         }
 
-        // ============================================================
-        // IMPROVED: Drawing with beautiful hand mesh
-        // ============================================================
+        async function loadSenaTfliteModels() {
+            try {
+                statusText.textContent = 'Loading AI Models...';
+                mobileNetModel = await tflite.loadTFLiteModel('/models/mobilenetv2_alphabet.tflite');
+                lstmModel = await tflite.loadTFLiteModel('/models/senas_lstm_dynamic.tflite');
+                statusText.textContent = 'Models Ready';
+            } catch (error) {
+                console.error('Model initialization failed:', error);
+                statusText.textContent = 'Models Offline';
+            }
+        }
+
+        function getPixelCoords(landmark, videoWidth, videoHeight, displayWidth, displayHeight) {
+            const s = Math.max(displayWidth / videoWidth, displayHeight / videoHeight);
+            const scaledW = videoWidth * s;
+            const scaledH = videoHeight * s;
+            const offX = (displayWidth - scaledW) / 2;
+            const offY = (displayHeight - scaledH) / 2;
+            return {
+                x: (1 - landmark.x) * videoWidth * s + offX,
+                y: landmark.y * videoHeight * s + offY
+            };
+        }
+
         function onResults(results) {
             loadingElement.style.display = 'none';
 
-            // Update FPS
             frameCount++;
             const now = performance.now();
             if (now - lastFpsUpdate > 1000) {
@@ -572,7 +688,6 @@
             statusDot.className = 'dot active';
             statusText.textContent = 'Detecting';
 
-            // Dynamically resize canvas to match the screen container's display pixels with high DPI support
             const container = document.getElementById('container');
             const displayWidth = container.clientWidth;
             const displayHeight = container.clientHeight;
@@ -580,31 +695,116 @@
             const targetWidth = displayWidth * dpr;
             const targetHeight = displayHeight * dpr;
 
+            canvasWidth = displayWidth;
+            canvasHeight = displayHeight;
+
             if (canvasElement.width !== targetWidth || canvasElement.height !== targetHeight) {
                 canvasElement.width = targetWidth;
                 canvasElement.height = targetHeight;
             }
 
-            // Clear in absolute coordinates
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.save();
+            canvasCtx.scale(dpr, dpr);
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
                 const videoWidth = videoElement.videoWidth || 640;
                 const videoHeight = videoElement.videoHeight || 480;
 
-                canvasCtx.save();
-                canvasCtx.scale(dpr, dpr);
-
-                // Draw beautiful high-definition hand mesh aligned with object-fit: cover video
                 drawHandMesh(canvasCtx, landmarks, displayWidth, displayHeight, videoWidth, videoHeight);
+                drawDetectionBox(canvasCtx, landmarks, displayWidth, displayHeight, videoWidth, videoHeight);
 
-                canvasCtx.restore();
+                const fingers = getFingerStates(landmarks);
+                const indexTip = landmarks[8];
+                const pinkyTip = landmarks[20];
 
-                const result = detectLetter(landmarks);
+                const indexTipPx = getPixelCoords(indexTip, videoWidth, videoHeight, displayWidth, displayHeight);
+                const pinkyTipPx = getPixelCoords(pinkyTip, videoWidth, videoHeight, displayWidth, displayHeight);
 
-                letterElement.textContent = result.letter;
-                const confPercent = Math.round(result.confidence * 100);
+                const pinkyVelocity = getDistance2D(pinkyTipPx, lastPinkyPos);
+                const indexVelocity = getDistance2D(indexTipPx, lastIndexPos);
+
+                lastPinkyPos = pinkyTipPx;
+                lastIndexPos = indexTipPx;
+
+                const isActivelyMovingHand = (pinkyVelocity > 3.0 || indexVelocity > 3.0);
+                const isMovingZ = fingers[1] && !fingers[2] && !fingers[3] && !fingers[4] && isActivelyMovingHand;
+                const isMovingJRaw = fingers[4] && !fingers[1] && !fingers[2] && !fingers[3] && isActivelyMovingHand;
+
+                if (isMovingJRaw) {
+                    jTrackingCooldown = 12;
+                } else if (jTrackingCooldown > 0) {
+                    jTrackingCooldown--;
+                }
+                const isMovingJ = (jTrackingCooldown > 0);
+
+                if (isMovingZ || isMovingJ) {
+                    const currentTip = isMovingZ ? indexTipPx : pinkyTipPx;
+                    trailBuffer.push([currentTip.x, currentTip.y]);
+                    if (trailBuffer.length > MAX_TRAIL) trailBuffer.shift();
+                } else if (!isActivelyMovingHand && trailBuffer.length > 0) {
+                    trailBuffer.shift();
+                }
+
+                if (trailBuffer.length > 1) {
+                    for (let i = 1; i < trailBuffer.length; i++) {
+                        const thickness = Math.max(2, Math.sqrt(25 / (i + 1)) * 3);
+                        const alpha = Math.min(1, i / trailBuffer.length);
+
+                        canvasCtx.beginPath();
+                        canvasCtx.moveTo(trailBuffer[i - 1][0], trailBuffer[i - 1][1]);
+                        canvasCtx.lineTo(trailBuffer[i][0], trailBuffer[i][1]);
+                        canvasCtx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.3})`;
+                        canvasCtx.lineWidth = thickness * 3;
+                        canvasCtx.stroke();
+
+                        canvasCtx.beginPath();
+                        canvasCtx.moveTo(trailBuffer[i - 1][0], trailBuffer[i - 1][1]);
+                        canvasCtx.lineTo(trailBuffer[i][0], trailBuffer[i][1]);
+                        canvasCtx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.9})`;
+                        canvasCtx.lineWidth = thickness;
+                        canvasCtx.stroke();
+                    }
+                }
+
+                const isActivelyDrawing = trailBuffer.length > 3;
+                let result = detectLetter(landmarks, isActivelyDrawing);
+
+                if (lstmModel && lstmFeatureSequenceBuffer.length === LSTM_SEQUENCE_LENGTH) {
+                    try {
+                        const lstmInputTensor = tf.tensor3d([lstmFeatureSequenceBuffer], [1, LSTM_SEQUENCE_LENGTH, 63], 'float32');
+                        const lstmOutput = lstmModel.predict(lstmInputTensor);
+                        const dynamicProbabilities = lstmOutput.dataSync();
+
+                        const maxDynamicIdx = dynamicProbabilities.indexOf(Math.max(...dynamicProbabilities));
+                        const dynamicConfidence = dynamicProbabilities[maxDynamicIdx];
+
+                        if (dynamicConfidence > 0.82) {
+                            if (isMovingJ && maxDynamicIdx === 0) {
+                                result = { letter: 'J', confidence: dynamicConfidence };
+                            } else if (isMovingZ && maxDynamicIdx === 1) {
+                                result = { letter: 'Z', confidence: dynamicConfidence };
+                            }
+                        }
+                        lstmInputTensor.dispose();
+                        lstmOutput.dispose();
+                    } catch (e) {
+                        console.warn('LSTM context processing dropped frame:', e);
+                    }
+                }
+
+                if (trailBuffer.length > 4) {
+                    if (isMovingZ && verifyZigzagGeometry(trailBuffer)) {
+                        result = { letter: 'Z', confidence: 0.98 };
+                    } else if (isMovingJ && verifyJScoopGeometry(trailBuffer)) {
+                        result = { letter: 'J', confidence: 0.96 };
+                    }
+                }
+
+                const displayLetter = result.letter || '✋';
+                letterElement.textContent = displayLetter;
+                const confPercent = Math.round(Math.min(result.confidence * 100, 100));
                 confidenceElement.textContent = `Confidence: ${confPercent}%`;
                 confidenceBar.style.width = `${confPercent}%`;
 
@@ -626,142 +826,129 @@
                     statusDot.className = 'dot waiting';
                     statusText.textContent = 'Show your hand';
                     detectionCount = 0;
+                    detectionBox.style.display = 'none';
+                    trailBuffer = [];
                 }
             }
+
+            canvasCtx.restore();
         }
 
-        // ============================================================
-        // IMPROVED: Beautiful high-definition cybernetic hand mesh
-        // ============================================================
+        function drawDetectionBox(ctx, landmarks, cWidth, cHeight, vWidth, vHeight) {
+            const xs = landmarks.map(lm => lm.x);
+            const ys = landmarks.map(lm => lm.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+
+            const handWidth = maxX - minX;
+            const handHeight = maxY - minY;
+            const handSize = Math.max(handWidth, handHeight);
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+
+            const padding = 35;
+            const boxMinX = Math.max(0, centerX - handSize / 2 - padding / vWidth);
+            const boxMaxX = Math.min(1, centerX + handSize / 2 + padding / vWidth);
+            const boxMinY = Math.max(0, centerY - handSize / 2 - padding / vHeight);
+            const boxMaxY = Math.min(1, centerY + handSize / 2 + padding / vHeight);
+
+            const s = Math.max(cWidth / vWidth, cHeight / vHeight);
+            const scaledW = vWidth * s;
+            const scaledH = vHeight * s;
+            const offX = (cWidth - scaledW) / 2;
+            const offY = (cHeight - scaledH) / 2;
+
+            const px1 = (1 - boxMaxX) * vWidth * s + offX;
+            const py1 = boxMinY * vHeight * s + offY;
+            const px2 = (1 - boxMinX) * vWidth * s + offX;
+            const py2 = boxMaxY * vHeight * s + offY;
+
+            ctx.strokeStyle = 'rgba(10, 90, 180, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 6]);
+            ctx.strokeRect(px1, py1, px2 - px1, py2 - py1);
+            ctx.setLineDash([]);
+
+            const cornerLen = 12;
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath(); ctx.moveTo(px1, py1 + cornerLen); ctx.lineTo(px1, py1); ctx.lineTo(px1 + cornerLen, py1); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(px2 - cornerLen, py1); ctx.lineTo(px2, py1); ctx.lineTo(px2, py1 + cornerLen); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(px1, py2 - cornerLen); ctx.lineTo(px1, py2); ctx.lineTo(px1 + cornerLen, py2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(px2 - cornerLen, py2); ctx.lineTo(px2, py2); ctx.lineTo(px2, py2 - cornerLen); ctx.stroke();
+        }
+
         function drawHandMesh(ctx, landmarks, cWidth, cHeight, vWidth, vHeight) {
-            // Hand connections - standard MediaPipe skeleton connections
             const connections = [
-                // Thumb
-                [0, 1], [1, 2], [2, 3], [3, 4],
-                // Index
-                [0, 5], [5, 6], [6, 7], [7, 8],
-                // Middle
-                [5, 9], [9, 10], [10, 11], [11, 12],
-                // Ring
-                [9, 13], [13, 14], [14, 15], [15, 16],
-                // Pinky
-                [13, 17], [17, 18], [18, 19], [19, 20],
-                // Palm base
-                [0, 17], [5, 9], [9, 13], [13, 17]
+                [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
+                [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15],
+                [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17], [5, 9],
+                [9, 13], [13, 17]
             ];
 
-            // 1. Calculate object-fit: cover scale and cropping offset
             const s = Math.max(cWidth / vWidth, cHeight / vHeight);
-            const scaledWidth = vWidth * s;
-            const scaledHeight = vHeight * s;
-            const offsetX = (cWidth - scaledWidth) / 2;
-            const offsetY = (cHeight - scaledHeight) / 2;
+            const scaledW = vWidth * s;
+            const scaledH = vHeight * s;
+            const offX = (cWidth - scaledW) / 2;
+            const offY = (cHeight - scaledH) / 2;
 
-            // 2. Convert landmarks to canvas viewport coordinates (with X-axis mirrored for selfie camera view)
             const pts = landmarks.map(lm => ({
-                x: (1 - lm.x) * vWidth * s + offsetX,
-                y: lm.y * vHeight * s + offsetY,
+                x: (1 - lm.x) * vWidth * s + offX,
+                y: lm.y * vHeight * s + offY,
                 z: lm.z
             }));
 
-            // 3. Dynamically scale lines/glows relative to hand palm size (distance from wrist 0 to middle MCP 9)
-            const palmSize = Math.sqrt(
-                Math.pow(pts[0].x - pts[9].x, 2) +
-                Math.pow(pts[0].y - pts[9].y, 2)
-            ) || 80;
+            const palmSize = Math.sqrt(Math.pow(pts[0].x - pts[9].x, 2) + Math.pow(pts[0].y - pts[9].y, 2)) || 80;
 
-            // ---- Draw Translucent Glowing Palm Mesh ----
             ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
-            ctx.lineTo(pts[1].x, pts[1].y);
-            ctx.lineTo(pts[2].x, pts[2].y);
-            ctx.lineTo(pts[5].x, pts[5].y);
-            ctx.lineTo(pts[9].x, pts[9].y);
-            ctx.lineTo(pts[13].x, pts[13].y);
+            ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y);
+            ctx.lineTo(pts[5].x, pts[5].y); ctx.lineTo(pts[9].x, pts[9].y); ctx.lineTo(pts[13].x, pts[13].y);
             ctx.lineTo(pts[17].x, pts[17].y);
             ctx.closePath();
 
-            const palmGrad = ctx.createRadialGradient(
-                pts[9].x, pts[9].y, palmSize * 0.2,
-                pts[9].x, pts[9].y, palmSize * 1.5
-            );
-            palmGrad.addColorStop(0, 'rgba(255, 215, 0, 0.12)'); // Gold center glow
-            palmGrad.addColorStop(0.5, 'rgba(78, 205, 196, 0.06)'); // Cyan middle glow
-            palmGrad.addColorStop(1, 'rgba(15, 49, 114, 0)'); // Outward fade
-            ctx.fillStyle = palmGrad;
-            ctx.fill();
+            const palmGrad = ctx.createRadialGradient(pts[9].x, pts[9].y, palmSize * 0.2, pts[9].x, pts[9].y, palmSize * 1.5);
+            palmGrad.addColorStop(0, 'rgba(255, 215, 0, 0.12)');
+            palmGrad.addColorStop(0.5, 'rgba(78, 205, 196, 0.06)');
+            palmGrad.addColorStop(1, 'rgba(15, 49, 114, 0)');
+            ctx.fillStyle = palmGrad; ctx.fill();
 
-            // Palm outline
-            ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)'; ctx.lineWidth = 1; ctx.stroke();
 
-            // ---- Draw Horizontal Webbing / Grid Mesh Lines ----
-            const meshLines = [
-                // PIP joints
-                [6, 10], [10, 14], [14, 18],
-                // DIP joints
-                [7, 11], [11, 15], [15, 19],
-                // Fingertips
-                [8, 12], [12, 16], [16, 20]
-            ];
-
-            ctx.strokeStyle = 'rgba(78, 205, 196, 0.25)';
-            ctx.lineWidth = 0.75;
-            ctx.setLineDash([2, 4]); // Dashed scanlines
-            meshLines.forEach(([i, j]) => {
-                if (i < pts.length && j < pts.length) {
-                    ctx.beginPath();
-                    ctx.moveTo(pts[i].x, pts[i].y);
-                    ctx.lineTo(pts[j].x, pts[j].y);
-                    ctx.stroke();
-                }
-            });
-            ctx.setLineDash([]); // Reset
-
-            // ---- Draw Standard Skeletal Connections ----
-            // Base layer: thicker neon glow
             ctx.strokeStyle = 'rgba(255, 215, 0, 0.18)';
             ctx.lineWidth = Math.max(2.5, palmSize * 0.035);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
             connections.forEach(([i, j]) => {
                 if (i < pts.length && j < pts.length) {
-                    ctx.beginPath();
-                    ctx.moveTo(pts[i].x, pts[i].y);
-                    ctx.lineTo(pts[j].x, pts[j].y);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
                 }
             });
 
-            // Top layer: bright thin core
             ctx.strokeStyle = '#FFD700';
             ctx.lineWidth = Math.max(1, palmSize * 0.012);
             connections.forEach(([i, j]) => {
                 if (i < pts.length && j < pts.length) {
-                    ctx.beginPath();
-                    ctx.moveTo(pts[i].x, pts[i].y);
-                    ctx.lineTo(pts[j].x, pts[j].y);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
                 }
             });
 
-            // ---- Draw Holographic Joints ----
             const fingertips = [4, 8, 12, 16, 20];
             const fingerBases = [2, 6, 10, 14, 18];
 
             pts.forEach((pt, i) => {
                 const isFingertip = fingertips.includes(i);
                 const isBase = fingerBases.includes(i);
-                const isPalm = i === 0 || i === 5 || i === 9 || i === 13 || i === 17;
+                const isPalm = [0, 5, 9, 13, 17].includes(i);
 
                 let radius = Math.max(2, palmSize * 0.025);
-                let innerColor = 'rgba(78, 205, 196, 0.9)'; // Cyan core
+                let innerColor = 'rgba(78, 205, 196, 0.9)';
                 let outerColor = 'rgba(78, 205, 196, 0.25)';
 
                 if (isFingertip) {
                     radius = Math.max(4.5, palmSize * 0.045);
-                    innerColor = 'rgba(255, 215, 0, 1)'; // Gold core
+                    innerColor = 'rgba(255, 215, 0, 1)';
                     outerColor = 'rgba(255, 215, 0, 0.35)';
                 } else if (isBase) {
                     radius = Math.max(2.5, palmSize * 0.03);
@@ -773,91 +960,34 @@
                     outerColor = 'rgba(255, 215, 0, 0.18)';
                 }
 
-                // Outer halo
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, radius * 1.8, 0, 2 * Math.PI);
-                ctx.fillStyle = outerColor;
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, radius * 1.8, 0, 2 * Math.PI); ctx.fillStyle = outerColor; ctx.fill();
 
-                // Inner core with radial reflection gradient
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, radius, 0, 2 * Math.PI);
-                const grad = ctx.createRadialGradient(
-                    pt.x - radius * 0.2, pt.y - radius * 0.2, 0,
-                    pt.x, pt.y, radius
-                );
-                grad.addColorStop(0, '#ffffff'); // Center reflection
-                grad.addColorStop(0.3, innerColor);
-                grad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
-                ctx.fillStyle = grad;
-                ctx.fill();
-
-                // Border
-                ctx.strokeStyle = isFingertip ? 'rgba(255, 215, 0, 0.7)' : 'rgba(78, 205, 196, 0.5)';
-                ctx.lineWidth = 0.5;
-                ctx.stroke();
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, radius, 0, 2 * Math.PI);
+                const grad = ctx.createRadialGradient(pt.x - radius * 0.2, pt.y - radius * 0.2, 0, pt.x, pt.y, radius);
+                grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.3, innerColor); grad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+                ctx.fillStyle = grad; ctx.fill();
             });
-
-            // ---- Draw Finger Tracking Guide Lines (Subtle) ----
-            const fingerIndices = [
-                [0, 4],  // Thumb
-                [5, 8],  // Index
-                [9, 12], // Middle
-                [13, 16],// Ring
-                [17, 20] // Pinky
-            ];
-
-            ctx.strokeStyle = 'rgba(78, 205, 196, 0.15)';
-            ctx.lineWidth = 0.75;
-            ctx.setLineDash([3, 6]);
-            fingerIndices.forEach(([start, end]) => {
-                if (start < pts.length && end < pts.length) {
-                    ctx.beginPath();
-                    ctx.moveTo(pts[start].x, pts[start].y);
-                    ctx.lineTo(pts[end].x, pts[end].y);
-                    ctx.stroke();
-                }
-            });
-            ctx.setLineDash([]);
         }
 
-        // ============================================================
-        // Camera and processing loop
-        // ============================================================
         async function startCamera() {
             try {
-                statusText.textContent = 'Requesting camera...';
-
+                statusText.textContent = 'Opening camera...';
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'user',
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    }
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
                 });
 
                 videoElement.srcObject = stream;
                 await videoElement.play();
 
-                statusText.textContent = 'Camera ready';
+                statusText.textContent = 'Camera live';
                 loadingElement.style.display = 'none';
 
                 initMediaPipe();
+                await loadSenaTfliteModels();
                 processFrame();
-
             } catch (err) {
-                console.error('Camera error:', err);
-                loadingElement.innerHTML = `
-                    <div style="font-size:48px;">📷</div>
-                    <div style="font-size:18px;font-weight:600;margin-top:12px;color:white;">Camera Access Denied</div>
-                    <div style="font-size:14px;color:#EF4444;margin-top:8px;">${err.message}</div>
-                    <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-top:12px;">Please allow camera access in your browser settings</div>
-                    <button onclick="location.reload()" style="margin-top:16px;padding:10px 30px;background:#FFD700;color:#0f3172;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;">
-                        🔄 Retry
-                    </button>
-                `;
-                statusDot.className = 'dot error';
-                statusText.textContent = 'Error';
+                console.error('Camera access error:', err);
+                loadingElement.innerHTML = `<div style="font-size:18px;color:white;">Camera Access Error</div>`;
             }
         }
 
@@ -866,19 +996,12 @@
                 requestAnimationFrame(processFrame);
                 return;
             }
-
             try {
                 await handsInstance.send({ image: videoElement });
-            } catch (err) {
-                // Silent fail
-            }
-
+            } catch (err) { }
             requestAnimationFrame(processFrame);
         }
 
-        // ============================================================
-        // START
-        // ============================================================
         startCamera();
 
         window.addEventListener('beforeunload', () => {
@@ -886,10 +1009,7 @@
                 videoElement.srcObject.getTracks().forEach(track => track.stop());
             }
         });
-
-        console.log('SENAS Gesture Recognition WebView loaded!');
     </script>
-    @endverbatim
 </body>
 
 </html>
