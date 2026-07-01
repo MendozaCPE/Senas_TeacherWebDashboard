@@ -334,6 +334,7 @@
             const fingerSpread = getFingerSpread(landmarks);
 
             // Coordinates cache
+            const wrist = landmarks[0];
             const thumbTip = landmarks[4];
             const thumbIP = landmarks[3];
             const thumbMcp = landmarks[2];
@@ -356,7 +357,7 @@
             const pinkyPip = landmarks[18];
             const pinkyMcp = landmarks[17];
 
-            // 1. ISOLATED EXTENSION DETECTORS (I vs Y vs L vs D vs X)
+            // Base State Separation
             const indexUp = fingers[1];
             const middleUp = fingers[2];
             const ringUp = fingers[3];
@@ -368,160 +369,271 @@
             const distThumbRing = getDistance2D(thumbTip, ringTip);
             const distThumbPinky = getDistance2D(thumbTip, pinkyTip);
 
-            // STABILIZED O RULE: Integrates Python prototype distance arrays
-            if (distThumbIndex < (handScale * 0.32) && distThumbMiddle < (handScale * 0.32) &&
-                distThumbRing < (handScale * 0.35) && distThumbPinky < (handScale * 0.38)) {
-                return { letter: 'O', confidence: 0.99 };
+            // CARTESIAN DIRECTIONAL OVERRIDES
+            const indexIsDownwards = indexTip.y > indexMcp.y + (handScale * 0.15);
+            const middleIsDownwards = middleTip.y > middleMcp.y + (handScale * 0.15);
+
+            const indexSideways = Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.25) && Math.abs(indexTip.y - indexMcp.y) < (handScale * 0.55);
+            const middleSideways = Math.abs(middleTip.x - middleMcp.x) > (handScale * 0.25) && Math.abs(middleTip.y - middleMcp.y) < (handScale * 0.55);
+            const indexUpwards = indexTip.y < indexMcp.y - (handScale * 0.15);
+
+            const isFistState = !indexUp && !middleUp && !ringUp && !pinkyUp;
+
+            // Hook states for X and C micro-checks
+            // ANGLE COMPENSATION: An index finger hooked towards the camera squashes its 2D distance completely.
+            const isIndexHooked = (indexTip.y > indexPip.y) ||
+                (getDistance2D(indexTip, indexMcp) < handScale * 0.45) ||
+                (getDistance2D(indexTip, indexDip) < handScale * 0.12);
+
+            // -------------------------------------------------------------------------
+            // PERSPECTIVE PROTECTION MATRIX FOR T AND X (Prevents K/L Hijacking at Front Angles)
+            // -------------------------------------------------------------------------
+            // Real K and L signs require the middle finger to be explicitly extended or up.
+            // If middle, ring, and pinky are completely tucked into the palm, it is physically impossible to be K or L.
+            const isThreeFingersTucked = (middleTip.y > middleMcp.y) && (ringTip.y > ringMcp.y) && (pinkyTip.y > pinkyMcp.y);
+
+            if (isThreeFingersTucked && (predicted === 'K' || predicted === 'L' || predicted === 'X' || predicted === 'T')) {
+                // If the index finger is curled forward or shortened due to perspective, force X
+                if (isIndexHooked && !isFistState) {
+                    return { letter: 'X', confidence: 0.99 };
+                }
+                // If it's a closed fist profile or the index finger is tightly closed with the thumb over it, force T
+                if (isFistState || distThumbIndex < (handScale * 0.35)) {
+                    // Ensure we don't accidentally intercept a pure 'A' fist if thumb is off to the far side
+                    if (thumbTip.x > indexMcp.x - (handScale * 0.1)) {
+                        return { letter: 'T', confidence: 0.99 };
+                    }
+                }
             }
 
-            // DIRECTIONAL PROFILES (Horizontal Sideways vs Downwards vs Upwards)
-            const indexSideways = Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.45) && Math.abs(indexTip.y - indexMcp.y) < (handScale * 0.4);
-            const middleSideways = Math.abs(middleTip.x - middleMcp.x) > (handScale * 0.45) && Math.abs(middleTip.y - middleMcp.y) < (handScale * 0.4);
-            const indexDownwards = indexTip.y > indexMcp.y + (handScale * 0.1);
-            const middleDownwards = middleTip.y > middleMcp.y + (handScale * 0.1);
+            // -------------------------------------------------------------------------
+            // GEOMETRIC PRE-CHECKS: C & O PROTECTION MATRIX (Prevents H/K Hijacking)
+            // -------------------------------------------------------------------------
+            // O Rule: Explicit circular enclosure check across all fingers matching thumb proximity
+            const isEnclosedO = distThumbIndex < (handScale * 0.35) && distThumbMiddle < (handScale * 0.35) &&
+                distThumbRing < (handScale * 0.38) && distThumbPinky < (handScale * 0.42);
 
-            // Strict I Detector: ONLY pinky up
-            if (pinkyUp && !indexUp && !middleUp && !ringUp && Math.abs(thumbTip.x - indexMcp.x) < (handScale * 0.35)) {
-                return { letter: 'I', confidence: 0.99 };
+            if (isEnclosedO || predicted === 'O') {
+                if (!indexUp && !middleUp) {
+                    return { letter: 'O', confidence: 0.99 };
+                }
             }
 
-            // Strict Y Detector: Thumb and Pinky wide out
-            const horizontalYSpread = Math.abs(thumbTip.x - pinkyTip.x);
-            if (pinkyUp && thumbUp && !indexUp && !middleUp && !ringUp && horizontalYSpread > (handScale * 0.65)) {
-                return { letter: 'Y', confidence: 0.99 };
+            // C Rule: Half-circle open crescent check
+            const indexCurvedC = indexTip.y > indexDip.y && indexTip.y < indexMcp.y + (handScale * 0.12);
+            const middleCurvedC = middleTip.y > middleDip.y && middleTip.y < middleMcp.y + (handScale * 0.12);
+            const isThumbOpenC = thumbTip.y > indexMcp.y && Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.30);
+
+            if ((indexCurvedC && middleCurvedC && isThumbOpenC && !indexUp && !middleUp) || predicted === 'C') {
+                // MICRO-FIX FOR C: If hand is a simple crescent but model falsely claims Fist/E, allow C if thumb-to-index is wide open
+                if (predicted === 'C' || (!indexUp && !middleUp && distThumbIndex > handScale * 0.26 && predicted !== 'H' && predicted !== 'K')) {
+                    return { letter: 'C', confidence: 0.99 };
+                }
             }
 
-            // Strict G Shape (Gun Profile): Index points strictly horizontal, middle/ring/pinky fully down, thumb pointing up
-            if (indexSideways && !middleUp && !ringUp && !pinkyUp && thumbTip.y < indexMcp.y) {
-                return { letter: 'G', confidence: 0.99 };
-            }
+            // -------------------------------------------------------------------------
+            // CRITICAL HIGH-PRIORITY INTERCEPT: HORIZONTAL H & K DETECTOR
+            // -------------------------------------------------------------------------
+            // HARD BYPASS: If the model clearly intends a Fist, a T, or an X, do not let H or K hijack it!
+            if (!ringUp && !pinkyUp && predicted !== 'C' && predicted !== 'O' && predicted !== 'T' && predicted !== 'X') {
+                const indexExtendedSide = (indexMcp.x - indexTip.x) > (handScale * 0.28) || indexSideways;
+                const middleExtendedSide = (middleMcp.x - middleTip.x) > (handScale * 0.22) || middleSideways;
 
-            // K vs P vs L Isolation Engine
-            if (indexUp && middleUp && !ringUp && !pinkyUp) {
-                const isThumbTuckedBetween = thumbTip.x > indexMcp.x && thumbTip.x < middleMcp.x || Math.abs(thumbTip.y - indexPip.y) < (handScale * 0.25);
+                if (indexExtendedSide && middleExtendedSide) {
+                    const distTips = getDistance2D(indexTip, middleTip);
+                    const isKSpread = distTips > (handScale * 0.22);
 
-                if (isThumbTuckedBetween && fingerSpread > 0.18) {
-                    // Directed horizontally sideways = K Shape
-                    if (indexSideways || middleSideways) {
+                    // MICRO-FIX FOR H: Two extended fingers close together pointing sideways (like a sideways U)
+                    const isHClosePair = distTips < (handScale * 0.20) && thumbTip.y > indexTip.y;
+
+                    if ((isHClosePair || !isKSpread) && (predicted === 'H' || predicted === 'G' || predicted === 'A' || isFistState)) {
+                        return { letter: 'H', confidence: 0.99 };
+                    }
+                    // K Rule: Fingers are spread wide apart sideways/diagonally
+                    if (isKSpread || predicted === 'K') {
                         return { letter: 'K', confidence: 0.99 };
                     }
-                    // Directed downwards = P Shape
-                    if (indexDownwards && middleDownwards) {
-                        return { letter: 'P', confidence: 0.99 };
-                    }
                 }
             }
 
-            // Strict L Detector: Thumb extended far out sideways, Index pointing straight UP, rest down
-            if (indexUp && thumbUp && !middleUp && !ringUp && !pinkyUp && (indexTip.y < indexPip.y)) {
-                if (Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.40) && !indexSideways) {
-                    return { letter: 'L', confidence: 0.99 };
+            // -------------------------------------------------------------------------
+            // CRITICAL: T DETECTOR - MUST COME BEFORE FIST STATE
+            // -------------------------------------------------------------------------
+            if (isFistState || predicted === 'T' || (!middleUp && !ringUp && !pinkyUp && !isIndexHooked)) {
+                const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
+                if (distThumbToIndexPip < (handScale * 0.28) ||
+                    (thumbTip.x > indexMcp.x && thumbTip.x < middleMcp.x && thumbTip.y > indexMcp.y)) {
+                    return { letter: 'T', confidence: 0.99 };
                 }
             }
 
-            // Strict D vs X vs L Fixes
-            if (indexUp && !middleUp && !ringUp && !pinkyUp) {
-                const isIndexHooked = (indexTip.y > indexPip.y) || (indexDip.y > indexPip.y);
-                if (isIndexHooked) {
-                    return { letter: 'X', confidence: 0.99 }; // Bent/hooked finger = X
-                } else if (!thumbUp && !indexSideways) {
-                    return { letter: 'D', confidence: 0.99 }; // Straight single index up = D
+            // -------------------------------------------------------------------------
+            // CRITICAL: X DETECTOR - PROTECTED TO PREVENT FIST HIJACKING
+            // -------------------------------------------------------------------------
+            if (isIndexHooked && !middleUp && !ringUp && !pinkyUp && !isFistState && predicted !== 'T') {
+                if (indexTip.y < indexMcp.y + (handScale * 0.25)) {
+                    return { letter: 'X', confidence: 0.99 };
                 }
             }
 
-            // Strict Q Shape: Claw pointing downwards
-            if (indexDownwards && !middleUp && !ringUp && !pinkyUp) {
-                if (thumbTip.y > indexMcp.y || predicted === 'Q' || avgConf < 0.40) {
-                    return { letter: 'Q', confidence: 0.99 };
+            // -------------------------------------------------------------------------
+            // CRITICAL EMERGENCY DIRECTORS FOR INVERTED HANDS (P & Q at (0, -10))
+            // -------------------------------------------------------------------------
+            if (indexIsDownwards && middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2)) {
+                return { letter: 'P', confidence: 0.99 };
+            }
+
+            if (indexIsDownwards && !middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2) && (predicted === 'Q' || predicted === 'G' || predicted === 'P')) {
+                return { letter: 'Q', confidence: 0.99 };
+            }
+
+            // -------------------------------------------------------------------------
+            // SAFE ZONE: M, N, S STABILITY MATRIX
+            // -------------------------------------------------------------------------
+            if (isFistState) {
+                const distThumbRingMcp = getDistance2D(thumbTip, ringMcp);
+                const distThumbMiddleMcp = getDistance2D(thumbTip, middleMcp);
+                const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp);
+                const ringTipY = ringTip.y;
+                const middleTipY = middleTip.y;
+
+                if (distThumbRingMcp < (handScale * 0.28) &&
+                    ringTipY > ringMcp.y &&
+                    middleTipY > middleMcp.y &&
+                    distThumbRingMcp < distThumbMiddleMcp &&
+                    distThumbRingMcp < distThumbIndexMcp) {
+                    return { letter: 'M', confidence: 0.99 };
+                }
+
+                if (distThumbMiddleMcp < (handScale * 0.24) &&
+                    middleTipY > middleMcp.y &&
+                    ringTipY > ringMcp.y &&
+                    distThumbMiddleMcp < distThumbIndexMcp) {
+                    return { letter: 'N', confidence: 0.99 };
+                }
+
+                const distThumbToMiddleKnuckle = getDistance2D(thumbTip, middleMcp);
+                const distThumbToIndexKnuckle = getDistance2D(thumbTip, indexMcp);
+                if (distThumbToMiddleKnuckle < (handScale * 0.26) || distThumbToIndexKnuckle < (handScale * 0.26) || predicted === 'S') {
+                    return { letter: 'S', confidence: 0.99 };
+                }
+
+                if (predicted === 'M' || predicted === 'N') {
+                    return { letter: predicted, confidence: 0.95 };
                 }
             }
 
-            // Flat palm check for B
+            // FLAT PALM CHECK FOR B
             const allExtendedUp = indexTip.y < indexPip.y && middleTip.y < middlePip.y && ringTip.y < ringPip.y && pinkyTip.y < pinkyPip.y;
             if (allExtendedUp) {
                 return { letter: 'B', confidence: 0.99 };
             }
 
-            // Open crescent check for C
-            const indexCurvedC = indexTip.y > indexDip.y && indexTip.y < indexMcp.y;
-            const middleCurvedC = middleTip.y > middleDip.y && middleTip.y < middleMcp.y;
-            const isThumbOpenC = thumbTip.y > indexMcp.y && Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.38);
-            if (indexCurvedC && middleCurvedC && isThumbOpenC) {
-                return { letter: 'C', confidence: 0.98 };
+            // Strict I Detector
+            if (pinkyUp && !indexUp && !middleUp && !ringUp && Math.abs(thumbTip.x - indexMcp.x) < (handScale * 0.35)) {
+                return { letter: 'I', confidence: 0.99 };
             }
 
-            // 2. FIST MATRIX SEPARATION USING EXTENDED COUNT & PROTOTYPE GEOMETRIES (A, M, N, S, T, E)
-            const extendedCount = fingers.filter(f => f).length;
-            const isFistState = !indexUp && !middleUp && !ringUp && !pinkyUp && !allExtendedUp;
+            // Strict Y Detector
+            const horizontalYSpread = Math.abs(thumbTip.x - pinkyTip.x);
+            if (pinkyUp && thumbUp && !indexUp && !middleUp && !ringUp && horizontalYSpread > (handScale * 0.62)) {
+                return { letter: 'Y', confidence: 0.99 };
+            }
 
+            // -------------------------------------------------------------------------
+            // VERTICAL/DIAGONAL K DETECTOR (FALLBACK FOR STANDARD ORIENTATIONS)
+            // -------------------------------------------------------------------------
+            // MICRO-FIX FOR K: Do not let an X hook sign pass as a vertical K
+            if (indexUp && middleUp && !ringUp && !pinkyUp && !isIndexHooked) {
+                const fingersSpread = getDistance2D(indexTip, middleTip) > (handScale * 0.22);
+                const isPointingUp = indexUpwards && middleUp &&
+                    indexTip.y < indexMcp.y - (handScale * 0.3) &&
+                    middleTip.y < middleMcp.y - (handScale * 0.3);
+
+                const isHorizontal = (indexSideways || middleSideways) && !indexIsDownwards && !middleIsDownwards;
+                const isDiagonal = Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.15) &&
+                    Math.abs(indexTip.y - indexMcp.y) > (handScale * 0.15);
+
+                if ((isHorizontal || isDiagonal || predicted === 'K') && fingersSpread && !isPointingUp) {
+                    return { letter: 'K', confidence: 0.99 };
+                }
+            }
+
+            // Strict G Shape (Gun Profile)
+            if (indexSideways && !middleUp && !ringUp && !pinkyUp && thumbTip.y < indexMcp.y && !indexUpwards) {
+                if (getDistance2D(thumbTip, indexPip) > (handScale * 0.25)) {
+                    return { letter: 'G', confidence: 0.99 };
+                }
+            }
+
+            // -------------------------------------------------------------------------
+            // ROBUST D vs L SEPARATION (SIDE PROFILE WORKAROUND FOR 'D')
+            // -------------------------------------------------------------------------
+            if (!middleUp && !ringUp && !pinkyUp && !isFistState) {
+                const indexExtended = (indexUp || indexUpwards || Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.25)) && indexTip.y < indexPip.y;
+
+                if (indexExtended) {
+                    // Proximity of the thumb to the folded knuckles/fingers is the absolute marker for D
+                    const thumbIsTuckedTight = getDistance2D(thumbTip, middleMcp) < (handScale * 0.39) ||
+                        getDistance2D(thumbTip, ringMcp) < (handScale * 0.39) ||
+                        getDistance2D(thumbTip, indexMcp) < (handScale * 0.39) ||
+                        getDistance2D(thumbTip, middleTip) < (handScale * 0.32);
+
+                    if (thumbIsTuckedTight && predicted !== 'L') {
+                        return { letter: 'D', confidence: 0.99 };
+                    }
+
+                    const thumbExtendedOut = Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.36);
+                    const thumbPointingUp = thumbTip.y < indexMcp.y - (handScale * 0.10);
+
+                    if (thumbExtendedOut || thumbPointingUp || predicted === 'L') {
+                        return { letter: 'L', confidence: 0.99 };
+                    }
+
+                    if (predicted === 'D') {
+                        return { letter: 'D', confidence: 0.99 };
+                    }
+                }
+            }
+
+            // FIXED Q DETECTOR
+            if ((indexIsDownwards || predicted === 'Q') && !middleUp && !ringUp && !pinkyUp) {
+                if (getDistance2D(indexTip, indexMcp) > (handScale * 0.25)) {
+                    return { letter: 'Q', confidence: 0.99 };
+                }
+            }
+
+            // FINAL FIST MATRIX FALLBACKS (A, E)
             if (isFistState) {
-                // Python-based E evaluation: Fingertips are curled below tips but remain above/near the MCP baseline
-                const isEShape = indexTip.y < indexMcp.y && middleTip.y < indexMcp.y && indexTip.y > indexPip.y;
+                const isEShape = indexTip.y < indexMcp.y && middleTip.y < middleMcp.y && indexTip.y > indexPip.y;
                 if (isEShape || predicted === 'E') {
                     return { letter: 'E', confidence: 0.97 };
                 }
-
-                // Swapped to return A when thumb crosses over the knuckles frame
-                const isSThumbPose = (thumbTip.x > indexMcp.x - (handScale * 0.05)) && (thumbTip.y < middlePip.y + (handScale * 0.1));
-                if (isSThumbPose || predicted === 'S') {
-                    return { letter: 'A', confidence: 0.98 };
-                }
-
-                // Swapped to return S when thumb sits laterally on the side
-                const thumbAtSideA = thumbTip.x <= indexMcp.x || Math.abs(thumbTip.x - indexMcp.x) < (handScale * 0.22);
-                if (thumbAtSideA || predicted === 'A') {
-                    return { letter: 'S', confidence: 0.99 };
-                }
-
-                // Python-inspired N & T configuration logic Rules:
-                // T Pose: Thumb tucked right under or over the index finger PIP block
-                if (thumbTip.x > indexMcp.x && thumbTip.x <= indexPip.x + (handScale * 0.05)) {
-                    return { letter: 'T', confidence: 0.98 };
-                }
-
-                // N Pose: Thumb crosses past index finger body, resting specifically between index and middle
-                if (thumbTip.x > indexPip.x && thumbTip.x <= middleMcp.x) {
-                    return { letter: 'N', confidence: 0.98 };
-                }
-
-                // M Pose: Thumb reaches deep across palm, passing the middle finger block over to the ring/pinky column
-                if (thumbTip.x > middleMcp.x) {
-                    return { letter: 'M', confidence: 0.98 };
-                }
+                return { letter: 'A', confidence: 0.99 };
             }
 
-            // 3. MULTI-FINGER REGIME SEPARATION (W, V, U, R, F)
+            // MULTI-FINGER REGIME SEPARATION (W, V, U, R, F)
             if (indexUp && middleUp && ringUp && !pinkyUp) {
                 return { letter: 'W', confidence: 0.99 };
             }
 
             if (indexUp && middleUp && !ringUp && !pinkyUp && !indexSideways) {
-                // Cross check for R vs parallel alignment for U
                 const isCrossed = (middleTip.x > indexTip.x + 0.01) || (Math.abs(indexTip.x - middleTip.x) < 0.025);
                 if (isCrossed || predicted === 'R') {
                     return { letter: 'R', confidence: 0.99 };
                 }
 
-                // Pure U vs V differentiation
-                if (fingerSpread < 0.14) {
-                    return { letter: 'U', confidence: 0.99 }; // Closed tight straight up = U
+                if (fingerSpread < 0.18 || getDistance2D(indexTip, middleTip) < (handScale * 0.32)) {
+                    return { letter: 'U', confidence: 0.99 };
                 } else {
-                    return { letter: 'V', confidence: 0.99 }; // Open wide = V
+                    return { letter: 'V', confidence: 0.99 };
                 }
             }
 
-            // F Rule: Index and Thumb touch, other 3 extended up safely
+            // F Rule
             const isFShape = (indexTip.y > middleTip.y) && (middleTip.y < middlePip.y) && (ringTip.y < ringPip.y);
             if (isFShape && distThumbIndex < (handScale * 0.35)) {
                 return { letter: 'F', confidence: 0.99 };
-            }
-
-            // H Shape: Index & Middle pointing sideways together horizontally
-            if (indexSideways && middleSideways && !ringUp && !pinkyUp) {
-                const closeTogether = getDistance2D(indexTip, middleTip) < (handScale * 0.32);
-                if (closeTogether) {
-                    return { letter: 'H', confidence: 0.99 };
-                }
             }
 
             return { letter: predicted, confidence: avgConf };
