@@ -16,7 +16,8 @@
                 <h2 class="text-[36px] font-medium text-[#0d326b] leading-tight">Class Analytics</h2>
             </div>
             <a href="{{ route('analytics.export-pdf') }}"
-               class="bg-[#facc15] hover:bg-[#eab308] text-black px-6 py-3.5 rounded-xl text-[14px] font-bold transition-colors flex items-center space-x-2 shadow-sm">
+               class="text-white px-6 py-3.5 rounded-xl text-[14px] font-bold transition-all duration-300 flex items-center space-x-2 shadow-sm"
+   style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
                 <span class="material-symbols-outlined icon-outline text-[20px]">download</span>
                 <span>Export PDF Report</span>
             </a>

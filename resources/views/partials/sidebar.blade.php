@@ -1,12 +1,13 @@
 @php
     $activeClass = 'text-[#0d326b] font-bold text-[15px] rounded-r-full mr-4 relative bg-gradient-to-r from-[#fbbf24] to-[#facc15]';
-    $inactiveClass = 'text-slate-500 hover:text-[#0d326b] hover:bg-slate-100/70 transition-colors text-[15px] font-medium rounded-r-full mr-4';
+    $inactiveClass = 'text-white/70 hover:text-white hover:bg-white/10 transition-colors text-[15px] font-medium rounded-r-full mr-4';
 @endphp
-<aside class="w-64 bg-white flex flex-col z-10 flex-shrink-0">
+<aside class="w-64 flex flex-col z-10 flex-shrink-0" 
+       style="background: linear-gradient(180deg, #0d326b 0%, #0a2a5c 100%); border-radius: 0px 10px 10px 0px;">
     <!-- Logo -->
     <div class="px-8 pt-10 pb-12">
-        <h1 class="text-[40px] font-black text-[#0d326b] tracking-tight drop-shadow-md mb-1 leading-none">SEÑAS</h1>
-        <p class="text-[11px] font-bold text-[#64748b] tracking-[0.2em] uppercase">Teacher Portal</p>
+        <h1 class="text-[40px] font-black text-white tracking-tight drop-shadow-md mb-1 leading-none">SEÑAS</h1>
+        <p class="text-[11px] font-bold text-white/50 tracking-[0.2em] uppercase">Teacher Portal</p>
     </div>
 
     <!-- Navigation -->
@@ -46,11 +47,11 @@
 
     <!-- User Profile -->
     <div class="px-6 mb-8 mt-4">
-        <div class="flex items-center space-x-4 bg-[#f1f5f9] px-4 py-3.5 rounded-[24px] shadow-sm">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ Auth::user()->name }}&backgroundColor=e2e8f0" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white shadow-sm"/>
+        <div class="flex items-center space-x-4 bg-white/10 px-4 py-3.5 rounded-[24px] shadow-sm">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ Auth::user()->name }}&backgroundColor=e2e8f0" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white/30 shadow-sm"/>
             <div class="flex-1 overflow-hidden">
-                <p class="text-[13px] font-bold text-[#0d326b] truncate">{{ Auth::user()->name }}</p>
-                <p class="text-[11px] font-medium text-slate-500 truncate">{{ Auth::user()->teacher->specialization ?? 'Teacher' }}</p>
+                <p class="text-[13px] font-bold text-white truncate">{{ Auth::user()->name }}</p>
+                <p class="text-[11px] font-medium text-white/60 truncate">{{ Auth::user()->teacher->specialization ?? 'Teacher' }}</p>
             </div>
         </div>
     </div>

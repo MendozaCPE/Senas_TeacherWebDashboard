@@ -100,7 +100,8 @@
                 </div>
                 <div class="flex justify-end mt-6 pt-6 border-t border-slate-100">
                     <button type="submit"
-                            class="px-7 py-3 rounded-xl bg-[#0d326b] hover:bg-[#154188] text-white text-[13px] font-bold shadow-sm transition-colors">
+                            class="text-white px-7 py-3 rounded-xl text-[13px] font-bold transition-all duration-300 shadow-sm hover:shadow-md"
+                            style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
                         Save Profile
                     </button>
                 </div>
@@ -154,7 +155,8 @@
                 </div>
                 <div class="flex justify-end mt-6 pt-6 border-t border-slate-100">
                     <button type="submit"
-                            class="px-7 py-3 rounded-xl bg-[#0d326b] hover:bg-[#154188] text-white text-[13px] font-bold shadow-sm transition-colors">
+                            class="px-7 py-3 rounded-xl text-white text-[13px] font-bold shadow-sm transition-all duration-300"
+                            style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
                         Save Institution
                     </button>
                 </div>
@@ -206,7 +208,8 @@
                         <p class="text-[12px] font-medium">Use a strong password with letters, numbers &amp; symbols.</p>
                     </div>
                     <button type="submit"
-                            class="px-7 py-3 rounded-xl bg-[#0d326b] hover:bg-[#154188] text-white text-[13px] font-bold shadow-sm transition-colors">
+                            class="px-7 py-3 rounded-xl text-white text-[13px] font-bold shadow-sm transition-all duration-300"
+                            style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
                         Update Password
                     </button>
                 </div>

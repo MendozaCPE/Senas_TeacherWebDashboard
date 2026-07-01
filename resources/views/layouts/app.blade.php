@@ -120,7 +120,7 @@
         html.dark ::-webkit-scrollbar-thumb:hover { background: #007FFF; }
     </style>
 </head>
-<body class="font-sans antialiased flex h-screen overflow-hidden bg-[#f4f7f9] @yield('bg-class', '')">
+<body class="font-sans antialiased flex h-screen overflow-hidden bg-[#f5f8fc] @yield('bg-class', '')">
 
     <!-- Sidebar -->
     @include('partials.sidebar')
@@ -132,7 +132,7 @@
         @include('partials.header')
 
         <!-- Scrollable Content -->
-        <main class="flex-1 overflow-y-auto px-8 pt-8 pb-10 relative border-l border-slate-100">
+        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-10 relative border-l border-slate-100">
             @yield('content')
         </main>
     </div>

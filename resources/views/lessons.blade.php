@@ -2,18 +2,6 @@
 @section('title', 'Lessons')
 @section('content')
 
-<!-- Header Section -->
-<div class="flex items-start justify-between mb-8">
-    <div>
-        <h3 class="text-[11px] font-bold text-[#0d326b] tracking-[0.15em] uppercase mb-2">LESSONS MANAGEMENT</h3>
-        <h2 class="text-[36px] font-medium text-[#0d326b] leading-tight">Lessons</h2>
-    </div>
-    <button onclick="openNewLessonModal()"
-            class="bg-[#0d326b] hover:bg-[#154188] text-white px-6 py-3 rounded-xl text-[14px] font-semibold transition-colors flex items-center space-x-2 shadow-sm">
-        <span class="material-symbols-outlined icon-outline text-[20px]">add</span>
-        <span>New Lesson</span>
-    </button>
-</div>
 
 @if(session('success'))
 <div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm font-semibold text-green-700 flex items-center gap-2">
@@ -45,7 +33,7 @@
         <div>
             <!-- Module badge tab -->
             <div class="inline-block text-white text-[10px] font-bold tracking-[0.15em] px-5 py-2.5 uppercase"
-                 style="background:{{ $modColor }}; clip-path: polygon(0 0, 100% 0, 88% 100%, 0% 100%); min-width:9rem;">
+                style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%); clip-path: polygon(0 0, 100% 0, 88% 100%, 0% 100%); min-width:9rem;">
                 MODULE {{ $padNum }}
             </div>
 
@@ -304,7 +292,7 @@
             @endif
 
             <button onclick="openNewLessonModal()"
-                    class="w-full bg-[#0d326b] hover:bg-[#154188] text-white py-3 rounded-2xl text-[13px] font-bold transition-colors flex items-center justify-center gap-2">
+                    class="w-full bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white py-3 rounded-2xl text-[13px] font-bold transition-colors flex items-center justify-center gap-2">
                 <span class="material-symbols-outlined icon-outline text-[16px]">add</span>
                 New Lesson
             </button>

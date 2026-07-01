@@ -1,10 +1,10 @@
-<header class="h-16 px-12 flex items-center justify-between flex-shrink-0 bg-white border-b border-slate-100">
+<header class="h-20 px-12 flex items-center justify-between flex-shrink-0 bg-#f4f7f9 border-b border-slate-100">
     <!-- Search -->
     <div class="relative w-[450px]">
         <span class="absolute inset-y-0 left-4 flex items-center text-slate-400">
             <span class="material-symbols-outlined icon-outline text-[22px]">search</span>
         </span>
-        <input type="text" placeholder="Search student records or lessons..." class="w-full bg-[#eef2f6] border-none rounded-full py-2 pl-12 pr-4 text-[14px] focus:ring-2 focus:ring-[#0d326b]/20 transition-all text-slate-700 outline-none placeholder:text-slate-500 font-medium"/>
+        <input type="text" placeholder="Search student records or lessons..." class="w-full bg-white border-none rounded-full py-2 pl-12 pr-4 text-[15px] focus:ring-2 focus:ring-[#0d326b]/20 transition-all text-slate-700 outline-none placeholder:text-slate-500 font-medium"/>
     </div>
 
     <!-- Right controls -->
@@ -20,7 +20,7 @@
             <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-transparent rounded-full border-2 border-slate-400"></span>
         </button>
         <div class="h-8 border-l border-slate-200"></div>
-        <div class="text-[15px] font-semibold">
+        <div class="text-[15px] font-semibold ">
             <span class="text-[#0d326b]">@yield('title')</span>
         </div>
     </div>

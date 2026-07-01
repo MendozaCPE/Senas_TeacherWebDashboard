@@ -69,7 +69,9 @@
                     <a href="{{ route('reports') }}" class="px-5 py-3 rounded-xl border border-slate-200 text-slate-600 text-[13px] font-bold hover:bg-white transition-colors">
                         Clear
                     </a>
-                    <button type="submit" class="bg-[#0d326b] hover:bg-[#154188] text-white px-8 py-3 rounded-xl text-[14px] font-bold transition-colors flex items-center space-x-2 shadow-sm">
+                    <button type="submit" 
+                            class="text-white px-8 py-3 rounded-xl text-[14px] font-bold transition-all duration-300 flex items-center space-x-2 shadow-sm hover:shadow-md"
+                            style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
                         <span class="material-symbols-outlined icon-outline text-[18px]">filter_alt</span>
                         <span>Apply Filter</span>
                     </button>
@@ -85,10 +87,11 @@
             <div class="flex items-center space-x-3">
                 {{-- Export PDF button --}}
                 <a href="{{ route('reports.export-pdf', request()->query()) }}"
-                   class="flex items-center space-x-1.5 bg-[#0d326b] text-white px-4 py-2.5 rounded-xl text-[13px] font-bold shadow-sm hover:bg-[#154188] transition-colors">
-                    <span class="material-symbols-outlined icon-outline text-[18px]">picture_as_pdf</span>
-                    <span>Export PDF</span>
-                </a>
+   class="text-white px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-300 flex items-center space-x-1.5 shadow-sm hover:shadow-md"
+   style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
+    <span class="material-symbols-outlined icon-outline text-[18px]">picture_as_pdf</span>
+    <span>Export PDF</span>
+</a>
             </div>
         </div>
 
