@@ -564,6 +564,116 @@ public function publishLesson(Request $request, $id)
     return redirect()->route('lessons.index')->with('success', $message);
 }
 
+    /**
+     * Delete a lesson and all its related data.
+     */
+    public function destroy($id)
+    {
+        $lesson = Lesson::findOrFail($id);
+
+        DB::transaction(function () use ($lesson) {
+            // Remove quiz options → questions → quiz
+            if ($lesson->quiz) {
+                $lesson->quiz->questions()->each(function ($q) {
+                    $q->options()->delete();
+                });
+                $lesson->quiz->questions()->delete();
+                $lesson->quiz()->delete();
+            }
+
+            // Remove contents, assignments, then the lesson itself
+            $lesson->contents()->delete();
+            $lesson->assignments()->delete();
+            $lesson->delete();
+        });
+
+        return redirect()->route('lessons.index')
+            ->with('success', 'Lesson deleted successfully.');
+    }
+
+    /**
+     * Return JSON list of all active students + which ones are assigned to this lesson.
+     * Used by the inline "Edit Students" modal (GET).
+     */
+    public function manageStudents($id)
+    {
+        $lesson = Lesson::findOrFail($id);
+
+        $assignedIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+            ->pluck('student_id')
+            ->map(fn ($v) => (int) $v)
+            ->toArray();
+
+        $students = DB::table('students')
+            ->select('student_id', 'first_name', 'last_name', 'lrn',
+                'fsl_mastery_level as mastery_level',
+                'program_type as program',
+                'grade_level', 'section')
+            ->where('status', 'active')
+            ->orderBy('last_name')
+            ->get()
+            ->map(function ($s) use ($assignedIds) {
+                $s->assigned = in_array((int) $s->student_id, $assignedIds, true);
+                return $s;
+            });
+
+        return response()->json([
+            'lesson_id'   => $lesson->lesson_id,
+            'lesson_title'=> $lesson->title,
+            'students'    => $students,
+        ]);
+    }
+
+    /**
+     * Replace the student assignment list for a lesson (POST).
+     * Expects JSON body: { "student_ids": [1, 2, 3] }
+     */
+    public function updateStudents(Request $request, $id)
+    {
+        $lesson = Lesson::findOrFail($id);
+
+        $validated = $request->validate([
+            'student_ids'   => 'nullable|array',
+            'student_ids.*' => 'integer|exists:students,student_id',
+        ]);
+
+        $newIds = $validated['student_ids'] ?? [];
+
+        DB::transaction(function () use ($lesson, $newIds) {
+            $existingIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+                ->pluck('student_id')
+                ->map(fn ($v) => (int) $v)
+                ->toArray();
+
+            // Add new
+            foreach (array_diff($newIds, $existingIds) as $studentId) {
+                LessonAssignment::create([
+                    'lesson_id'   => $lesson->lesson_id,
+                    'student_id'  => $studentId,
+                    'assigned_at' => now(),
+                    'status'      => 'pending',
+                    'notified'    => false,
+                ]);
+            }
+
+            // Remove revoked
+            $toRemove = array_diff($existingIds, $newIds);
+            if (!empty($toRemove)) {
+                LessonAssignment::where('lesson_id', $lesson->lesson_id)
+                    ->whereIn('student_id', $toRemove)
+                    ->delete();
+            }
+        });
+
+        $count = count($newIds);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Student access updated — {$count} student(s) assigned.",
+            'count'   => $count,
+        ]);
+    }
+
     private function resolveTeacherId(): int
     {
         if (Auth::check()) {

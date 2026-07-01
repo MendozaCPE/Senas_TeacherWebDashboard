@@ -50,6 +50,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/lessons/{id}/publish-config', [LessonsController::class, 'showPublishConfig'])->name('lessons.publish.config');
     Route::post('/lessons/{id}/publish', [LessonsController::class, 'publishLesson'])->name('lessons.publish');
+    Route::delete('/lessons/{id}', [LessonsController::class, 'destroy'])->name('lessons.destroy');
+    Route::get('/lessons/{id}/students', [LessonsController::class, 'manageStudents'])->name('lessons.students');
+    Route::post('/lessons/{id}/students', [LessonsController::class, 'updateStudents'])->name('lessons.students.update');
     // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
     Route::get('/analytics/export-pdf', [ReportsController::class, 'exportAnalyticsPdf'])->name('analytics.export-pdf');
