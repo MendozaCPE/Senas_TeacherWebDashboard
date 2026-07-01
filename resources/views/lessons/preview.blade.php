@@ -239,34 +239,31 @@
     $totalQuestions = count($lessonData['quiz'] ?? []);
     $colors = ['#2563EB', '#059669', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#14B8A6'];
 
-    // Helper function to properly format image URLs
-    function formatImageUrl($path) {
-        if (empty($path)) {
-            return null;
+    // Helper to format image URLs — uses a closure to avoid fatal "redeclare" errors
+    // when the preview blade is rendered more than once per PHP process (opcache / view cache).
+    if (!function_exists('formatImageUrl')) {
+        function formatImageUrl($path) {
+            if (empty($path)) {
+                return null;
+            }
+            if (filter_var($path, FILTER_VALIDATE_URL)) {
+                return $path;
+            }
+            $normalizedPath = ltrim($path, '/');
+            $normalizedPath = preg_replace('#^(storage/app/public/|storage/|public/)#', '', $normalizedPath);
+            if ($normalizedPath === '') {
+                return null;
+            }
+            $root = request()->root();
+            if (str_ends_with($root, '/index.php')) {
+                $root = substr($root, 0, -strlen('/index.php'));
+            }
+            return rtrim($root, '/') . '/storage/' . $normalizedPath;
         }
-        // If it's already a full URL, return as is
-        if (filter_var($path, FILTER_VALIDATE_URL)) {
-            return $path;
-        }
-        // If it starts with 'storage/', it's already in the right format
-        if (str_starts_with($path, 'storage/')) {
-            return asset($path);
-        }
-        // If it starts with '/storage/', remove the leading slash
-        if (str_starts_with($path, '/storage/')) {
-            return asset(substr($path, 1));
-        }
-        // If it starts with 'public/', handle it
-        if (str_starts_with($path, 'public/')) {
-            return asset('storage/' . substr($path, 7));
-        }
-        // Default: assume it's in the storage directory
-        return asset('storage/' . $path);
     }
+    $fmtImg = 'formatImageUrl';
 
-    // Normalize quiz options once so the array/string mixing from the
-    // form (text-only options vs ['text' => ..., 'image' => ...]) never
-    // hits {{ }} directly anywhere below.
+    // Normalize quiz options so the array/string mixing from the form never hits {{ }} directly.
     $normalizedQuiz = collect($lessonData['quiz'] ?? [])->map(function ($q) {
         $type = $q['type'] ?? 'multiple_choice';
         if ($type === 'true_false') {
@@ -280,8 +277,8 @@
                         'image' => (!empty($opt['image']) && is_string($opt['image'])) ? $opt['image'] : null,
                     ];
                 }
-                return ['text' => $opt, 'image' => null];
-            })->all();
+                return ['text' => (string) $opt, 'image' => null];
+            })->values()->all();
         }
         $q['_opts'] = $opts;
         $q['_media'] = (!empty($q['media']) && is_string($q['media'])) ? $q['media'] : null;

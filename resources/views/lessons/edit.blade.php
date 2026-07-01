@@ -11,23 +11,24 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.7);
+        background: rgba(15,23,42,0.7);
         z-index: 9999;
         overflow-y: auto;
         display: none;
         padding: 20px;
     }
-    #previewOverlay.active { display: block; }
+    #previewOverlay.active { display: flex; align-items: flex-start; justify-content: center; }
     #previewOverlay .preview-container {
-        max-width: 500px;
-        margin: 0 auto;
-        background: #eaf5fd;
-        border-radius: 40px;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        border: 8px solid #1a1a1a;
+        width: auto;
+        max-width: 900px;
+        margin: 20px auto;
+        background: transparent;
+        border-radius: 0;
+        overflow: visible;
+        box-shadow: none;
+        border: none;
         position: relative;
-        min-height: 780px;
+        min-height: auto;
     }
     #previewOverlay .preview-close {
         position: fixed;
@@ -55,9 +56,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 100vh;
+        height: 400px;
         color: white;
-        font-size: 18px;
+        font-size: 16px;
+        font-weight: 600;
     }
 </style>
 
@@ -157,9 +159,19 @@
                             <div class="media-field {{ in_array($content['content_type'], ['image', 'video']) ? '' : 'hidden' }}">
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Upload Media</label>
                                 @if(isset($content['media_url']) && $content['media_url'])
-                                    <div class="mb-2">
-                                        <span class="text-sm text-slate-500">Current file:</span>
-                                        <a href="{{ asset('storage/' . $content['media_url']) }}" target="_blank" class="text-[#0d326b] hover:underline text-sm">{{ basename($content['media_url']) }}</a>
+                                    <div class="mb-2 flex items-center gap-3">
+                                        @if(in_array($content['content_type'], ['image']))
+                                            <img src="{{ asset('storage/' . $content['media_url']) }}"
+                                                 alt="Current image"
+                                                 class="w-20 h-20 object-cover rounded-xl border border-slate-200"
+                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <div style="display:none;" class="w-20 h-20 rounded-xl border border-slate-200 bg-slate-50 items-center justify-center text-xs text-slate-400 text-center p-1">Image unavailable</div>
+                                        @endif
+                                        <div class="text-xs text-slate-500">
+                                            <p class="font-semibold text-slate-700">Current file</p>
+                                            <a href="{{ asset('storage/' . $content['media_url']) }}" target="_blank" class="text-[#0d326b] hover:underline">{{ basename($content['media_url']) }}</a>
+                                            <p class="text-slate-400 mt-1">Upload a new file below to replace it.</p>
+                                        </div>
                                         <input type="hidden" name="contents[{{ $index }}][existing_media]" value="{{ $content['media_url'] }}">
                                     </div>
                                 @endif
@@ -228,7 +240,7 @@
                     @foreach($lessonData['quiz'] as $index => $q)
                     <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-sm font-bold text-slate-500">Question {{ $index + 1 }}</span>
+                            <span class="text-sm font-bold text-slate-500 question-label">Question {{ $index + 1 }}</span>
                             <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
                                 <span class="material-symbols-outlined text-sm">close</span>
                             </button>
@@ -248,13 +260,21 @@
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Media (Optional)</label>
                                 @if(isset($q['media']) && $q['media'])
-                                    <div class="mb-2">
-                                        <span class="text-sm text-slate-500">Current file:</span>
-                                        <a href="{{ asset('storage/' . $q['media']) }}" target="_blank" class="text-[#0d326b] hover:underline text-sm">{{ basename($q['media']) }}</a>
+                                    <div class="mb-2 flex items-center gap-3">
+                                        <img src="{{ asset('storage/' . $q['media']) }}"
+                                             alt="Question image"
+                                             class="w-20 h-20 object-cover rounded-xl border border-slate-200"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <div style="display:none;" class="w-20 h-20 rounded-xl border border-slate-200 bg-slate-50 items-center justify-center text-xs text-slate-400 text-center p-1">Image unavailable</div>
+                                        <div class="text-xs text-slate-500">
+                                            <p class="font-semibold text-slate-700">Current image</p>
+                                            <p>{{ basename($q['media']) }}</p>
+                                            <p class="text-slate-400 mt-1">Upload a new file below to replace it.</p>
+                                        </div>
                                         <input type="hidden" name="quiz[{{ $index }}][existing_media]" value="{{ $q['media'] }}">
                                     </div>
                                 @endif
-                                <input type="file" name="quiz[{{ $index }}][media]" class="w-full px-4 py-3 border border-slate-200 rounded-xl">
+                                <input type="file" name="quiz[{{ $index }}][media]" accept="image/*" class="w-full px-4 py-3 border border-slate-200 rounded-xl">
                             </div>
                             <div class="options-container">
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Options</label>
@@ -269,28 +289,33 @@
                                         $optText = is_array($option) ? ($option['text'] ?? '') : $option;
                                         $optImage = is_array($option) ? ($option['image'] ?? null) : null;
                                     @endphp
-                                    <div class="flex items-start gap-2 bg-white border border-slate-200 rounded-xl p-3 option-row">
-                                        <span class="text-xs font-bold text-[#0d326b] mt-2">{{ chr(65 + $optIndex) }}</span>
-                                        <div class="flex-1 space-y-2">
-                                            <input type="text" name="quiz[{{ $index }}][options][{{ $optIndex }}][text]" value="{{ $optText }}" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option {{ chr(65 + $optIndex) }}">
-                                            @if($optImage)
-                                                <div class="flex items-center gap-2">
-                                                    <img src="{{ asset('storage/' . $optImage) }}" alt="" class="w-11 h-11 rounded-lg object-cover border border-slate-200">
+                                    <div class="option-row flex items-start gap-2 bg-white border border-slate-200 rounded-xl p-3">
+                                        <div class="option-letter w-7 h-7 rounded-lg bg-blue-50 text-[#0d326b] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-1">{{ chr(65 + $optIndex) }}</div>
+                                        <div class="option-body flex-1 space-y-2">
+                                            <input type="text" name="quiz[{{ $index }}][options][{{ $optIndex }}][text]" value="{{ $optText }}" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option {{ chr(65 + $optIndex) }} text">
+                                            <div class="option-image-row flex items-center gap-2">
+                                                @if($optImage)
+                                                    <img src="{{ asset('storage/' . $optImage) }}" alt="" class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200" style="display:block;" onerror="this.style.display='none'">
                                                     <input type="hidden" name="quiz[{{ $index }}][options][{{ $optIndex }}][existing_image]" value="{{ $optImage }}">
-                                                </div>
-                                            @endif
-                                            <input type="file" name="quiz[{{ $index }}][options][{{ $optIndex }}][image]" accept="image/*" class="w-full text-sm text-slate-500">
+                                                @else
+                                                    <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200" src="" alt="" style="display:none;">
+                                                @endif
+                                                <input type="file" name="quiz[{{ $index }}][options][{{ $optIndex }}][image]" accept="image/*" class="option-image-input text-sm text-slate-500 flex-1" onchange="previewOptionImage(this)">
+                                            </div>
                                         </div>
-                                        <div class="flex items-center gap-1 mt-2">
+                                        <div class="option-correct-row flex items-center gap-1 flex-shrink-0 mt-1">
                                             <input type="radio" name="quiz[{{ $index }}][correct]" value="{{ $optIndex }}" {{ $correct == $optIndex ? 'checked' : '' }} class="w-5 h-5 accent-[#0d326b]">
                                             <label class="text-sm text-slate-500">Correct</label>
                                         </div>
+                                        <button type="button" class="option-remove-btn text-slate-300 hover:text-red-500 flex-shrink-0 mt-1" onclick="removeOption(this)">
+                                            <span class="material-symbols-outlined text-sm">close</span>
+                                        </button>
                                     </div>
                                     @endforeach
-                                    <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline">
-                                        + Add Option
-                                    </button>
                                 </div>
+                                <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">
+                                    + Add Option
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -318,25 +343,50 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Media (Optional)</label>
-                                <input type="file" name="quiz[0][media]" class="w-full px-4 py-3 border border-slate-200 rounded-xl">
+                                <input type="file" name="quiz[0][media]" accept="image/*" class="w-full px-4 py-3 border border-slate-200 rounded-xl">
                             </div>
                             <div class="options-container">
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Options</label>
-                                <div class="space-y-2">
-                                    <div class="flex items-center gap-2">
-                                        <input type="text" name="quiz[0][options][]" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option A">
-                                        <input type="radio" name="quiz[0][correct]" value="0" class="w-5 h-5 accent-[#0d326b]">
-                                        <label class="text-sm text-slate-500">Correct</label>
+                                <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image.</p>
+                                <div class="space-y-2 options-list">
+                                    <div class="option-row flex items-start gap-2 bg-white border border-slate-200 rounded-xl p-3">
+                                        <div class="option-letter w-7 h-7 rounded-lg bg-blue-50 text-[#0d326b] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-1">A</div>
+                                        <div class="option-body flex-1 space-y-2">
+                                            <input type="text" name="quiz[0][options][0][text]" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] outline-none transition-all" placeholder="Option A text">
+                                            <div class="option-image-row flex items-center gap-2">
+                                                <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200" src="" alt="" style="display:none;">
+                                                <input type="file" name="quiz[0][options][0][image]" accept="image/*" class="option-image-input text-sm text-slate-500 flex-1" onchange="previewOptionImage(this)">
+                                            </div>
+                                        </div>
+                                        <div class="option-correct-row flex items-center gap-1 flex-shrink-0 mt-1">
+                                            <input type="radio" name="quiz[0][correct]" value="0" class="w-5 h-5 accent-[#0d326b]">
+                                            <label class="text-sm text-slate-500">Correct</label>
+                                        </div>
+                                        <button type="button" class="option-remove-btn text-slate-300 hover:text-red-500 flex-shrink-0 mt-1" onclick="removeOption(this)">
+                                            <span class="material-symbols-outlined text-sm">close</span>
+                                        </button>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="text" name="quiz[0][options][]" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option B">
-                                        <input type="radio" name="quiz[0][correct]" value="1" class="w-5 h-5 accent-[#0d326b]">
-                                        <label class="text-sm text-slate-500">Correct</label>
+                                    <div class="option-row flex items-start gap-2 bg-white border border-slate-200 rounded-xl p-3">
+                                        <div class="option-letter w-7 h-7 rounded-lg bg-blue-50 text-[#0d326b] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-1">B</div>
+                                        <div class="option-body flex-1 space-y-2">
+                                            <input type="text" name="quiz[0][options][1][text]" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] outline-none transition-all" placeholder="Option B text">
+                                            <div class="option-image-row flex items-center gap-2">
+                                                <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200" src="" alt="" style="display:none;">
+                                                <input type="file" name="quiz[0][options][1][image]" accept="image/*" class="option-image-input text-sm text-slate-500 flex-1" onchange="previewOptionImage(this)">
+                                            </div>
+                                        </div>
+                                        <div class="option-correct-row flex items-center gap-1 flex-shrink-0 mt-1">
+                                            <input type="radio" name="quiz[0][correct]" value="1" class="w-5 h-5 accent-[#0d326b]">
+                                            <label class="text-sm text-slate-500">Correct</label>
+                                        </div>
+                                        <button type="button" class="option-remove-btn text-slate-300 hover:text-red-500 flex-shrink-0 mt-1" onclick="removeOption(this)">
+                                            <span class="material-symbols-outlined text-sm">close</span>
+                                        </button>
                                     </div>
-                                    <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline">
-                                        + Add Option
-                                    </button>
                                 </div>
+                                <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">
+                                    + Add Option
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -455,6 +505,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.content-type').forEach(function(select) {
         toggleFields(select);
     });
+    // Re-init question type states on load
+    document.querySelectorAll('.quiz-question select[name*="[type]"]').forEach(function(select) {
+        handleQuestionTypeChange(select);
+    });
 });
 
 function addContentCard() {
@@ -522,34 +576,103 @@ function updateStepNumbers() {
 function handleQuestionTypeChange(select) {
     const questionDiv = select.closest('.quiz-question');
     if (!questionDiv) return;
-    const optionsWrapper = questionDiv.querySelector('.options-container .space-y-2');
-    if (!optionsWrapper) return;
-    const optionRows = optionsWrapper.querySelectorAll('.flex.items-center.gap-2');
-    const addOptionBtn = questionDiv.querySelector('.options-container button');
+    const optionsList = questionDiv.querySelector('.options-list');
+    if (!optionsList) return;
+    const addOptionBtn = questionDiv.querySelector('.options-container > button');
+    const qIndex = getQuizQuestionIndex(questionDiv);
+
     if (select.value === 'true_false') {
-        while (optionRows.length > 2) {
-            const lastRow = optionRows[optionRows.length - 1];
-            if (lastRow) lastRow.remove();
+        // Keep only 2 rows
+        const rows = Array.from(optionsList.querySelectorAll('.option-row'));
+        rows.slice(2).forEach(r => r.remove());
+        // Ensure we have 2 rows
+        while (optionsList.querySelectorAll('.option-row').length < 2) {
+            optionsList.appendChild(buildOptionRow(qIndex, optionsList.querySelectorAll('.option-row').length));
         }
-        const inputs = optionsWrapper.querySelectorAll('input[type="text"]');
-        const radios = optionsWrapper.querySelectorAll('input[type="radio"]');
-        if (inputs.length >= 1) inputs[0].value = 'True';
-        if (inputs.length >= 2) inputs[1].value = 'False';
-        if (radios.length >= 1) radios[0].value = '0';
-        if (radios.length >= 2) radios[1].value = '1';
+        const textInputs = optionsList.querySelectorAll('.option-text-input');
+        if (textInputs[0]) textInputs[0].value = 'True';
+        if (textInputs[1]) textInputs[1].value = 'False';
+        relabelOptions(optionsList, qIndex);
+        // Hide image rows and remove buttons
+        optionsList.querySelectorAll('.option-image-row, .option-remove-btn').forEach(el => el.style.visibility = 'hidden');
         if (addOptionBtn) addOptionBtn.style.display = 'none';
     } else {
+        optionsList.querySelectorAll('.option-image-row, .option-remove-btn').forEach(el => el.style.visibility = 'visible');
         if (addOptionBtn) addOptionBtn.style.display = 'inline-block';
+    }
+}
+
+function buildOptionRow(qIndex, optIndex) {
+    const letter = String.fromCharCode(65 + optIndex);
+    const row = document.createElement('div');
+    row.className = 'option-row flex items-start gap-2 bg-white border border-slate-200 rounded-xl p-3';
+    row.innerHTML = `
+        <div class="option-letter w-7 h-7 rounded-lg bg-blue-50 text-[#0d326b] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-1">${letter}</div>
+        <div class="option-body flex-1 space-y-2">
+            <input type="text" name="quiz[${qIndex}][options][${optIndex}][text]" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] outline-none transition-all" placeholder="Option ${letter} text">
+            <div class="option-image-row flex items-center gap-2">
+                <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200" src="" alt="" style="display:none;">
+                <input type="file" name="quiz[${qIndex}][options][${optIndex}][image]" accept="image/*" class="option-image-input text-sm text-slate-500 flex-1" onchange="previewOptionImage(this)">
+            </div>
+        </div>
+        <div class="option-correct-row flex items-center gap-1 flex-shrink-0 mt-1">
+            <input type="radio" name="quiz[${qIndex}][correct]" value="${optIndex}" class="w-5 h-5 accent-[#0d326b]">
+            <label class="text-sm text-slate-500">Correct</label>
+        </div>
+        <button type="button" class="option-remove-btn text-slate-300 hover:text-red-500 flex-shrink-0 mt-1" onclick="removeOption(this)">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+    `;
+    return row;
+}
+
+function getQuizQuestionIndex(questionDiv) {
+    const questionInput = questionDiv.querySelector('input[name*="[question]"]');
+    if (!questionInput) return 0;
+    const match = questionInput.name.match(/^quiz\[(\d+)\]/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
+function relabelOptions(optionsList, qIndex) {
+    optionsList.querySelectorAll('.option-row').forEach((row, i) => {
+        const letter = String.fromCharCode(65 + i);
+        const letterEl = row.querySelector('.option-letter');
+        if (letterEl) letterEl.textContent = letter;
+        const textInput = row.querySelector('.option-text-input');
+        if (textInput) { textInput.name = `quiz[${qIndex}][options][${i}][text]`; textInput.placeholder = `Option ${letter} text`; }
+        const imageInput = row.querySelector('.option-image-input');
+        if (imageInput) imageInput.name = `quiz[${qIndex}][options][${i}][image]`;
+        const radio = row.querySelector('input[type="radio"]');
+        if (radio) { radio.name = `quiz[${qIndex}][correct]`; radio.value = i; }
+    });
+}
+
+function addOption(btn) {
+    const questionDiv = btn.closest('.quiz-question');
+    const qIndex = getQuizQuestionIndex(questionDiv);
+    const optionsList = questionDiv.querySelector('.options-list');
+    const optIndex = optionsList.querySelectorAll('.option-row').length;
+    optionsList.appendChild(buildOptionRow(qIndex, optIndex));
+}
+
+function removeOption(btn) {
+    const questionDiv = btn.closest('.quiz-question');
+    const optionsList = questionDiv.querySelector('.options-list');
+    const qIndex = getQuizQuestionIndex(questionDiv);
+    if (optionsList.querySelectorAll('.option-row').length > 2) {
+        btn.closest('.option-row').remove();
+        relabelOptions(optionsList, qIndex);
     }
 }
 
 function addQuizQuestion() {
     const container = document.getElementById('quizQuestions');
+    const qIndex = quizIndex;
     const question = document.createElement('div');
     question.className = 'quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100';
     question.innerHTML = `
         <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-bold text-slate-500">Question ${quizIndex + 1}</span>
+            <span class="text-sm font-bold text-slate-500 question-label">Question ${qIndex + 1}</span>
             <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
                 <span class="material-symbols-outlined text-sm">close</span>
             </button>
@@ -557,40 +680,33 @@ function addQuizQuestion() {
         <div class="space-y-3">
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question</label>
-                <input type="text" name="quiz[${quizIndex}][question]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Enter your question">
+                <input type="text" name="quiz[${qIndex}][question]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Enter your question">
             </div>
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Type</label>
-                <select name="quiz[${quizIndex}][type]" onchange="handleQuestionTypeChange(this)" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
+                <select name="quiz[${qIndex}][type]" onchange="handleQuestionTypeChange(this)" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
                     <option value="multiple_choice">Multiple Choice</option>
                     <option value="true_false">True / False</option>
                 </select>
             </div>
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Media (Optional)</label>
-                <input type="file" name="quiz[${quizIndex}][media]" class="w-full px-4 py-3 border border-slate-200 rounded-xl">
+                <input type="file" name="quiz[${qIndex}][media]" accept="image/*" class="w-full px-4 py-3 border border-slate-200 rounded-xl">
             </div>
             <div class="options-container">
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Options</label>
-                <div class="space-y-2">
-                    <div class="flex items-center gap-2">
-                        <input type="text" name="quiz[${quizIndex}][options][]" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option A">
-                        <input type="radio" name="quiz[${quizIndex}][correct]" value="0" class="w-5 h-5 accent-[#0d326b]">
-                        <label class="text-sm text-slate-500">Correct</label>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="text" name="quiz[${quizIndex}][options][]" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option B">
-                        <input type="radio" name="quiz[${quizIndex}][correct]" value="1" class="w-5 h-5 accent-[#0d326b]">
-                        <label class="text-sm text-slate-500">Correct</label>
-                    </div>
-                    <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline">
-                        + Add Option
-                    </button>
-                </div>
+                <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image.</p>
+                <div class="space-y-2 options-list"></div>
+                <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">
+                    + Add Option
+                </button>
             </div>
         </div>
     `;
     container.appendChild(question);
+    const optionsList = question.querySelector('.options-list');
+    optionsList.appendChild(buildOptionRow(qIndex, 0));
+    optionsList.appendChild(buildOptionRow(qIndex, 1));
     quizIndex++;
 }
 
@@ -598,24 +714,38 @@ function removeQuizQuestion(btn) {
     const question = btn.closest('.quiz-question');
     if (document.querySelectorAll('.quiz-question').length > 1) {
         question.remove();
+        reindexQuizQuestions();
     }
 }
 
-function addOption(btn) {
-    const container = btn.closest('.options-container').querySelector('.space-y-2');
-    if (!container) return;
-    const optionDiv = document.createElement('div');
-    optionDiv.className = 'flex items-center gap-2';
-    const optionIndex = container.querySelectorAll('.flex.items-center.gap-2').length;
-    const firstRadio = container.querySelector('input[type="radio"]');
-    const radioName = firstRadio ? firstRadio.name : 'quiz[0][correct]';
-    const textName = container.querySelector('input[type="text"]').name;
-    optionDiv.innerHTML = `
-        <input type="text" name="${textName}" class="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option ${String.fromCharCode(65 + optionIndex)}">
-        <input type="radio" name="${radioName}" value="${optionIndex}" class="w-5 h-5 accent-[#0d326b]">
-        <label class="text-sm text-slate-500">Correct</label>
-    `;
-    container.insertBefore(optionDiv, btn);
+function reindexQuizQuestions() {
+    document.querySelectorAll('.quiz-question').forEach((questionDiv, qIndex) => {
+        const label = questionDiv.querySelector('.question-label');
+        if (label) label.textContent = `Question ${qIndex + 1}`;
+        const questionInput = questionDiv.querySelector('input[name*="[question]"]');
+        if (questionInput) questionInput.name = `quiz[${qIndex}][question]`;
+        const typeSelect = questionDiv.querySelector('select[name*="[type]"]');
+        if (typeSelect) typeSelect.name = `quiz[${qIndex}][type]`;
+        const mediaInput = questionDiv.querySelector('input[type="file"][name*="[media]"]:not([name*="options"])');
+        if (mediaInput) mediaInput.name = `quiz[${qIndex}][media]`;
+        const existingMedia = questionDiv.querySelector('input[type="hidden"][name*="[existing_media]"]');
+        if (existingMedia) existingMedia.name = `quiz[${qIndex}][existing_media]`;
+        const optionsList = questionDiv.querySelector('.options-list');
+        if (optionsList) relabelOptions(optionsList, qIndex);
+    });
+    quizIndex = document.querySelectorAll('.quiz-question').length;
+}
+
+function previewOptionImage(input) {
+    const body = input.closest('.option-body');
+    const img = body ? body.querySelector('.option-image-preview') : null;
+    if (!img) return;
+    if (input.files && input.files[0]) {
+        img.src = URL.createObjectURL(input.files[0]);
+        img.style.display = 'block';
+    } else {
+        img.style.display = 'none';
+    }
 }
 </script>
 @endsection
