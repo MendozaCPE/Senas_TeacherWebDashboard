@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lesson;
+use App\Models\Module;
 use App\Models\Student;
+use App\Models\LessonAssignment;
 use App\Models\StudentLessonProgress;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -48,10 +50,12 @@ class DashboardController extends Controller
         $sparklineLessons         = [];
         $students         = collect();
         $lessons          = collect();
+        $modules          = collect();
         $lessonMastery    = collect();
         $classRate        = 0;
         $needsAttention   = collect();
         $topLesson        = null;
+        $allStudents      = collect();
 
         if ($teacher) {
             $teacherId  = $teacher->id;
@@ -106,6 +110,40 @@ class DashboardController extends Controller
                     ->whereDate('updated_at', $day)
                     ->count();
             }
+
+            // ── Your Modules (grouped, for dashboard folder cards) ───────────────
+            $modules = Module::where('teacher_id', $teacherId)
+                ->with(['lessons' => function ($q) {
+                    $q->orderBy('module_order');
+                }])
+                ->orderBy('module_order')
+                ->get()
+                ->map(function ($module) use ($studentIds) {
+                    $lessonIds = $module->lessons->pluck('lesson_id');
+
+                    // Distinct students who are BOTH assigned to a lesson in this module
+                    // AND belong to this teacher
+                    $assignedStudentIds = LessonAssignment::whereIn('lesson_id', $lessonIds)
+                        ->whereIn('student_id', $studentIds)
+                        ->distinct('student_id')
+                        ->pluck('student_id');
+
+                    $enrolled = $assignedStudentIds->count();
+
+                    $completed = LessonAssignment::whereIn('lesson_id', $lessonIds)
+                        ->whereIn('student_id', $studentIds)
+                        ->where('status', 'completed')
+                        ->distinct('student_id')
+                        ->count('student_id');
+
+                    $module->enrolled   = $enrolled;
+                    $module->completion = $enrolled > 0 ? round(($completed / $enrolled) * 100) : 0;
+
+                    $module->topStudents   = Student::whereIn('student_id', $assignedStudentIds)->take(3)->get();
+                    $module->extraStudents = max(0, $enrolled - 3);
+
+                    return $module;
+                });
 
             // ── Your Lessons (with enrolled count + completion %) ────────────────
             $lessons = Lesson::where('teacher_id', $teacherId)
@@ -201,31 +239,10 @@ class DashboardController extends Controller
                     return $student;
                 });
 
-            // ── Needs Attention: students with 0% completion on any started lesson ─
-            // or students with quiz_score below 50 (struggling)
-            $needsAttentionIds = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->where('lesson_completed', 0)
-                ->where(function ($q) {
-                    $q->where('quiz_score', '<', 50)
-                      ->orWhereNotNull('last_accessed_at');
-                })
-                ->distinct('student_id')
-                ->pluck('student_id');
-
-            $needsAttention = Student::whereIn('student_id', $needsAttentionIds)
-                ->take(5)
-                ->get()
-                ->map(function ($student) {
-                    $hasLowScore = $student->progress()
-                        ->where('quiz_score', '<', 50)
-                        ->whereNotNull('quiz_score')
-                        ->exists();
-                    $student->alertType = $hasLowScore ? 'Alert' : 'Review';
-                    return $student;
-                });
-
-            // ── Top Lesson Insight ────────────────────────────────────────────────
-            $topLesson = $lessonMastery->sortByDesc('masteryPct')->first();
+        // ── My Students (sidebar list) ───────────────────────────────────────
+            $allStudents = Student::where('teacher_id', $teacherId)
+                ->orderBy('first_name')
+                ->get(['student_id', 'first_name', 'last_name', 'level', 'grade_level', 'fsl_mastery_level', 'total_xp']);
         }
 
         // Circumference for SVG circle stroke: 2 * pi * r = 2 * 3.14159 * 64 ≈ 402
@@ -253,11 +270,11 @@ class DashboardController extends Controller
             'sparklineLessons',
             'students',
             'lessons',
+            'modules',
             'lessonMastery',
             'classRate',
             'circleDashOffset',
-            'needsAttention',
-            'topLesson'
+            'allStudents'
         ));
     }
 }
