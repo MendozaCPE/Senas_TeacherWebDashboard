@@ -31,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/learning-path', [StudentAuthController::class, 'getLearningPath']);
 
     // Student Lessons
+        Route::get('/student/all-lessons', [StudentAuthController::class, 'getAllLessons']);
     Route::get('/student/lessons', [StudentAuthController::class, 'getLessons']);
 
     // Lesson viewing routes

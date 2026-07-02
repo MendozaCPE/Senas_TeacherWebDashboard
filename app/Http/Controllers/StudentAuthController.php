@@ -204,6 +204,139 @@ class StudentAuthController extends Controller
             return response()->json(['error' => 'Student not found'], 404);
         }
 
+        // Get all lesson assignments for this student with their modules
+        $assignments = LessonAssignment::where('student_id', $student->student_id)
+            ->with(['lesson' => function ($query) {
+                $query->where('status', 'published')
+                      ->with(['contents', 'quiz', 'module']);
+            }])
+            ->orderBy('assigned_at', 'desc')
+            ->get();
+
+        // Group lessons by module
+        $modulesMap = [];
+        
+        foreach ($assignments as $assignment) {
+            $lesson = $assignment->lesson;
+            
+            if (!$lesson) {
+                continue;
+            }
+            
+            // Get module info
+            $module = $lesson->module;
+            $moduleId = $module ? $module->module_id : null;
+            $moduleTitle = $module ? $module->title : 'General Lessons';
+            $moduleDescription = $module ? $module->description : 'Default module for lessons';
+            
+            if (!isset($modulesMap[$moduleId])) {
+                $modulesMap[$moduleId] = [
+                    'module_id' => $moduleId,
+                    'title' => $moduleTitle,
+                    'description' => $moduleDescription,
+                    'lessons' => []
+                ];
+            }
+            
+            // Get progress
+            $progress = DB::table('student_lesson_progress')
+                ->where('student_id', $assignment->student_id)
+                ->where('lesson_id', $lesson->lesson_id)
+                ->first();
+
+            $statusMap = [
+                'in_progress' => 'in_progress',
+                'completed' => 'completed',
+                'failed' => 'failed',
+            ];
+            $status = $statusMap[$assignment->status] ?? 'pending';
+            
+            // Map lesson order within module
+            $moduleOrder = $lesson->module_order ?? count($modulesMap[$moduleId]['lessons']);
+            
+            $modulesMap[$moduleId]['lessons'][] = [
+                'assignment_id' => $assignment->id,
+                'lesson_id' => $lesson->lesson_id,
+                'title' => $lesson->title,
+                'description' => $lesson->description,
+                'lesson_type' => $lesson->lesson_type,
+                'difficulty' => $lesson->difficulty,
+                'status' => $status,
+                'assigned_at' => $assignment->assigned_at,
+                'module_order' => $moduleOrder,
+                'progress' => $progress ? [
+                    'current_step' => $progress->current_step ?? 0,
+                    'lesson_completed' => $progress->lesson_completed ?? false,
+                    'quiz_completed' => $progress->quiz_completed ?? false,
+                    'quiz_score' => $progress->quiz_score ?? null,
+                ] : null,
+                'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
+                'has_quiz' => $lesson->quiz ? true : false,
+            ];
+        }
+        
+        // Sort lessons within each module by module_order
+        foreach ($modulesMap as &$module) {
+            usort($module['lessons'], function($a, $b) {
+                return ($a['module_order'] ?? 0) - ($b['module_order'] ?? 0);
+            });
+        }
+        
+        // Convert map to array and sort modules by module_id or title
+        $modules = array_values($modulesMap);
+        
+        // Sort modules by title
+        usort($modules, function($a, $b) {
+            return strcmp($a['title'], $b['title']);
+        });
+
+        // ════════════════════════════════════════════════════════════
+        // 🎯 Include XP data in the response
+        // ════════════════════════════════════════════════════════════
+        $xpService = new XPService();
+
+        return response()->json([
+            'success' => true,
+            'modules' => $modules,
+            'student' => [
+                'first_name' => $student->first_name,
+                'last_name' => $student->last_name,
+                'fsl_mastery_level' => $student->fsl_mastery_level,
+                'total_xp' => $student->total_xp ?? 0,
+                'level' => $student->level ?? 1,
+                'streak_days' => $student->streak_days ?? 0,
+                'next_level_xp' => $xpService->getNextLevelXp($student),
+                'level_progress' => $xpService->getLevelProgress($student),
+                'level_name' => $xpService->getLevelName($student->level ?? 1),
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get all lessons as a flat list (for dashboard)
+ * This returns lessons directly without module grouping
+ */
+public function getAllLessons(Request $request)
+{
+    try {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
         // Get all lesson assignments for this student
         $assignments = LessonAssignment::where('student_id', $student->student_id)
             ->with(['lesson' => function ($query) {
@@ -518,20 +651,40 @@ public function submitQuizAttempt(Request $request, $lessonId)
 
         // Save answers
         foreach ($request->answers as $answer) {
+            // Check if the answer has the required fields
+            $selectedOptionId = isset($answer['selected_option_id']) ? $answer['selected_option_id'] : null;
+            $questionId = isset($answer['question_id']) ? $answer['question_id'] : null;
+            
+            // If we don't have a question_id, try to find it from the selected option
+            if (!$questionId && $selectedOptionId) {
+                $option = DB::table('options')->where('option_id', $selectedOptionId)->first();
+                if ($option) {
+                    $questionId = $option->question_id;
+                }
+            }
+            
+            // If we still don't have a question_id, skip this answer
+            if (!$questionId) {
+                continue;
+            }
+            
+            $isCorrect = isset($answer['is_correct']) ? (bool)$answer['is_correct'] : false;
+            $pointsEarned = $isCorrect ? 1 : 0;
+            
             DB::table('student_answers')->insert([
                 'attempt_id' => $attemptId,
-                'question_id' => $answer['question_id'],
-                'selected_option_id' => $answer['selected_option_id'] ?? null,
+                'question_id' => $questionId,
+                'selected_option_id' => $selectedOptionId,
                 'gesture_recognized' => $answer['gesture_recognized'] ?? null,
-                'is_correct' => $answer['is_correct'] ?? false,
-                'points_earned' => $answer['is_correct'] ? 1 : 0,
+                'is_correct' => $isCorrect,
+                'points_earned' => $pointsEarned,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
         }
 
         // ============================================================
-        // 🎯 FIXED XP LOGIC
+        // 🎯 XP LOGIC
         // ============================================================
         $xpEarned = 0;
         $isFirstCompletion = false;
@@ -558,11 +711,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
         // Check if this attempt improved the score
         $isImproved = $request->percentage > $previousBestPercentage;
 
-        // Check if student already earned max XP for this quiz
-        // Max XP = perfect score XP + first completion bonus + perfect bonus
-        $maxXpForQuiz = (XPService::QUIZ_XP['perfect'] ?? 15) + (XPService::QUIZ_XP['bonus'] ?? 5) + (XPService::QUIZ_XP['bonus'] ?? 5);
-
-        // Check if student already earned XP from a previous perfect score
+        // Check if student already has a perfect score
         $hasPerfectScore = DB::table('quiz_attempts')
             ->where('student_id', $student->student_id)
             ->where('quiz_id', $request->quiz_id)
@@ -571,7 +720,6 @@ public function submitQuizAttempt(Request $request, $lessonId)
             ->where('attempt_id', '!=', $attemptId)
             ->exists();
 
-        // If student already has a perfect score, they cannot earn more XP
         if ($hasPerfectScore) {
             $hasMaxXpBeenEarned = true;
         }
@@ -579,7 +727,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
         // ONLY award XP if:
         // 1. Student passed (>= 60%)
         // 2. AND (it's their first completion OR they improved their score)
-        // 3. AND they haven't already earned max XP (perfect score already achieved)
+        // 3. AND they haven't already earned max XP
         if ($request->percentage >= 60 && !$hasMaxXpBeenEarned) {
             if ($isFirstCompletion || $isImproved) {
                 $xpService = new XPService();
@@ -591,7 +739,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
                     $xpEarned = XPService::QUIZ_XP['passed'] ?? 10;
                 }
 
-                // 🎁 BONUS: +5 XP for first attempt completion (only if first time)
+                // 🎁 BONUS: +5 XP for first attempt completion
                 if ($isFirstCompletion && $xpEarned > 0) {
                     $xpEarned += XPService::QUIZ_XP['bonus'] ?? 5;
                 }
