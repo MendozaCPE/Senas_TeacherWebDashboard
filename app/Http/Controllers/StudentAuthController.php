@@ -188,8 +188,7 @@ class StudentAuthController extends Controller
             ], 500);
         }
     }
-
-    public function getLessons(Request $request)
+public function getLessons(Request $request)
 {
     try {
         $user = Auth::user();
@@ -204,13 +203,15 @@ class StudentAuthController extends Controller
             return response()->json(['error' => 'Student not found'], 404);
         }
 
-        // Get all lesson assignments for this student with their modules
+        // 🔥 SYNC: Check and fix any inconsistent lock statuses
+        $this->syncLessonLocks($student);
+
+        // Get all lesson assignments for THIS student only
         $assignments = LessonAssignment::where('student_id', $student->student_id)
             ->with(['lesson' => function ($query) {
                 $query->where('status', 'published')
                       ->with(['contents', 'quiz', 'module']);
             }])
-            ->orderBy('assigned_at', 'desc')
             ->get();
 
         // Group lessons by module
@@ -223,7 +224,6 @@ class StudentAuthController extends Controller
                 continue;
             }
             
-            // Get module info
             $module = $lesson->module;
             $moduleId = $module ? $module->module_id : null;
             $moduleTitle = $module ? $module->title : 'General Lessons';
@@ -238,21 +238,34 @@ class StudentAuthController extends Controller
                 ];
             }
             
-            // Get progress
-            $progress = DB::table('student_lesson_progress')
-                ->where('student_id', $assignment->student_id)
-                ->where('lesson_id', $lesson->lesson_id)
-                ->first();
-
-            $statusMap = [
-                'in_progress' => 'in_progress',
-                'completed' => 'completed',
-                'failed' => 'failed',
-            ];
-            $status = $statusMap[$assignment->status] ?? 'pending';
+            // 🔥 Get the HIGHEST score from ALL quiz attempts for this lesson
+            $highestScore = DB::table('quiz_attempts as qa')
+                ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                ->where('qa.student_id', $student->student_id)
+                ->where('q.lesson_id', $lesson->lesson_id)
+                ->where('qa.status', 'completed')
+                ->max('qa.percentage');
             
-            // Map lesson order within module
-            $moduleOrder = $lesson->module_order ?? count($modulesMap[$moduleId]['lessons']);
+            // If no completed attempts, check student_lesson_progress as backup
+            if ($highestScore === null) {
+                $progress = DB::table('student_lesson_progress')
+                    ->where('student_id', $student->student_id)
+                    ->where('lesson_id', $lesson->lesson_id)
+                    ->first();
+                $highestScore = $progress ? $progress->quiz_score : null;
+            }
+            
+            // 🔥 Determine status based on highest score
+            $hasPassed = $highestScore !== null && $highestScore >= 60;
+            $hasFailed = $highestScore !== null && $highestScore < 60;
+            
+            // Determine status
+            $status = $assignment->status;
+            if ($hasPassed) {
+                $status = 'completed';
+            } elseif ($hasFailed) {
+                $status = 'failed';
+            }
             
             $modulesMap[$moduleId]['lessons'][] = [
                 'assignment_id' => $assignment->id,
@@ -262,14 +275,10 @@ class StudentAuthController extends Controller
                 'lesson_type' => $lesson->lesson_type,
                 'difficulty' => $lesson->difficulty,
                 'status' => $status,
+                'score' => $highestScore, // 🔥 Send the highest score
+                'is_locked' => (bool) $assignment->is_locked,
                 'assigned_at' => $assignment->assigned_at,
-                'module_order' => $moduleOrder,
-                'progress' => $progress ? [
-                    'current_step' => $progress->current_step ?? 0,
-                    'lesson_completed' => $progress->lesson_completed ?? false,
-                    'quiz_completed' => $progress->quiz_completed ?? false,
-                    'quiz_score' => $progress->quiz_score ?? null,
-                ] : null,
+                'module_order' => $lesson->module_order ?? 0,
                 'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
                 'has_quiz' => $lesson->quiz ? true : false,
             ];
@@ -282,17 +291,12 @@ class StudentAuthController extends Controller
             });
         }
         
-        // Convert map to array and sort modules by module_id or title
-        $modules = array_values($modulesMap);
+        // Sort modules by module_id (ASCENDING)
+        ksort($modulesMap);
         
-        // Sort modules by title
-        usort($modules, function($a, $b) {
-            return strcmp($a['title'], $b['title']);
-        });
+        // Convert map to array
+        $modules = array_values($modulesMap);
 
-        // ════════════════════════════════════════════════════════════
-        // 🎯 Include XP data in the response
-        // ════════════════════════════════════════════════════════════
         $xpService = new XPService();
 
         return response()->json([
@@ -771,30 +775,65 @@ public function submitQuizAttempt(Request $request, $lessonId)
                 'is_first_completion' => $isFirstCompletion,
             ]);
 
-        // Update progress
-        DB::table('student_lesson_progress')
-            ->updateOrInsert(
-                [
-                    'student_id' => $student->student_id,
-                    'lesson_id' => $lessonId,
-                ],
-                [
-                    'quiz_completed' => true,
-                    'quiz_score' => $request->percentage,
-                    'last_accessed_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+        // 🔥 Update progress - ONLY update if new score is HIGHER than existing
+$existingProgress = DB::table('student_lesson_progress')
+    ->where('student_id', $student->student_id)
+    ->where('lesson_id', $lessonId)
+    ->first();
+
+$currentHighestScore = $existingProgress ? $existingProgress->quiz_score : null;
+$newScore = $request->percentage;
+
+// Only update if new score is higher, or if there's no existing score
+if ($currentHighestScore === null || $newScore > $currentHighestScore) {
+    DB::table('student_lesson_progress')
+        ->updateOrInsert(
+            [
+                'student_id' => $student->student_id,
+                'lesson_id' => $lessonId,
+            ],
+            [
+                'quiz_completed' => true,
+                'quiz_score' => $newScore,
+                'last_accessed_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+}
 
         // Update assignment
         $assignment = LessonAssignment::where('student_id', $student->student_id)
             ->where('lesson_id', $lessonId)
             ->first();
-
+            
         if ($assignment) {
-            $assignment->status = 'completed';
+            $assignment->status = $status;
             $assignment->completed_at = now();
             $assignment->score = $request->percentage;
+            
+            // 🔥 If passed, unlock the next lesson
+            if ($status === 'completed' && $request->percentage >= 60) {
+                $currentLesson = Lesson::find($lessonId);
+                
+                if ($currentLesson && $currentLesson->module) {
+                    $nextLesson = Lesson::where('module_id', $currentLesson->module->module_id)
+                        ->where('module_order', '>', $currentLesson->module_order)
+                        ->orderBy('module_order', 'asc')
+                        ->first();
+                    
+                    if ($nextLesson) {
+                        $nextAssignment = LessonAssignment::where('student_id', $student->student_id)
+                            ->where('lesson_id', $nextLesson->lesson_id)
+                            ->first();
+                        
+                        if ($nextAssignment) {
+                            $nextAssignment->is_locked = false;
+                            $nextAssignment->save();
+                        }
+                    }
+                }
+            }
+            
             $assignment->save();
         }
 
@@ -1040,4 +1079,107 @@ public function getLessonLeaderboard(Request $request, $lessonId)
         ], 500);
     }
 }
+
+/**
+ * Sync lesson lock status based on completion
+ */
+private function syncLessonLocks($student)
+{
+    $assignments = LessonAssignment::where('student_id', $student->student_id)
+        ->with('lesson')
+        ->get();
+    
+    // First, process all lessons to determine their status based on highest score
+    foreach ($assignments as $assignment) {
+        $lesson = $assignment->lesson;
+        
+        if (!$lesson || !$lesson->module) {
+            continue;
+        }
+        
+        // Get highest score from quiz_attempts
+        $highestScore = DB::table('quiz_attempts as qa')
+            ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+            ->where('qa.student_id', $student->student_id)
+            ->where('q.lesson_id', $lesson->lesson_id)
+            ->where('qa.status', 'completed')
+            ->max('qa.percentage');
+        
+        if ($highestScore === null) {
+            $progress = DB::table('student_lesson_progress')
+                ->where('student_id', $student->student_id)
+                ->where('lesson_id', $lesson->lesson_id)
+                ->first();
+            $highestScore = $progress ? $progress->quiz_score : null;
+        }
+        
+        $hasPassed = $highestScore !== null && $highestScore >= 60;
+        $hasFailed = $highestScore !== null && $highestScore < 60;
+        
+        if ($hasPassed) {
+            $assignment->status = 'completed';
+            $assignment->score = $highestScore;
+            $assignment->is_locked = false; // Completed = unlocked (show checkmark)
+            $assignment->save();
+        } elseif ($hasFailed) {
+            $assignment->status = 'failed';
+            $assignment->score = $highestScore;
+            // Failed lessons are locked UNLESS they are the first lesson
+            $firstLesson = Lesson::where('module_id', $lesson->module->module_id)
+                ->where('status', 'published')
+                ->orderBy('module_order', 'asc')
+                ->first();
+            
+            if ($firstLesson && $firstLesson->lesson_id === $lesson->lesson_id) {
+                $assignment->is_locked = false; // First lesson always unlocked
+            } else {
+                $assignment->is_locked = true; // Other failed lessons are locked
+            }
+            $assignment->save();
+        } else {
+            // No attempts yet
+            $firstLesson = Lesson::where('module_id', $lesson->module->module_id)
+                ->where('status', 'published')
+                ->orderBy('module_order', 'asc')
+                ->first();
+            
+            if ($firstLesson && $firstLesson->lesson_id === $lesson->lesson_id) {
+                $assignment->is_locked = false; // First lesson always unlocked
+            } else {
+                $assignment->is_locked = true; // Other lessons locked by default
+            }
+            $assignment->save();
+        }
+    }
+    
+  // 🔥 SECOND PASS: Unlock the next lesson if previous is completed
+foreach ($assignments as $assignment) {
+    $lesson = $assignment->lesson;
+    
+    if (!$lesson || !$lesson->module) {
+        continue;
+    }
+    
+    // If this lesson is completed, unlock the next one
+    if ($assignment->status === 'completed' && $assignment->score >= 60) {
+        $nextLesson = Lesson::where('module_id', $lesson->module->module_id)
+            ->where('module_order', '>', $lesson->module_order)
+            ->orderBy('module_order', 'asc')
+            ->first();
+        
+        if ($nextLesson) {
+            $nextAssignment = LessonAssignment::where('student_id', $student->student_id)
+                ->where('lesson_id', $nextLesson->lesson_id)
+                ->first();
+            
+            if ($nextAssignment) {
+                // 🔥 FIX: Always unlock the next lesson, even if it was failed
+                // (so the student can retry it)
+                $nextAssignment->is_locked = false;
+                $nextAssignment->save();
+            }
+        }
+    }
+}
+    }
 }

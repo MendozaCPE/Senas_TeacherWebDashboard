@@ -536,24 +536,38 @@ public function publishLesson(Request $request, $id)
         'published_at' => now(),
     ]);
 
-    // Create records in lesson_assignments table
-    $assignedCount = 0;
-    foreach ($studentIds as $studentId) {
-        $exists = LessonAssignment::where('lesson_id', $lesson->lesson_id)
-                                  ->where('student_id', $studentId)
-                                  ->exists();
+   // Create records in lesson_assignments table
+$assignedCount = 0;
+foreach ($studentIds as $studentId) {
+    $exists = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+                              ->where('student_id', $studentId)
+                              ->exists();
 
-        if (! $exists) {
-            LessonAssignment::create([
-                'lesson_id' => $lesson->lesson_id,
-                'student_id' => $studentId,
-                'assigned_at' => now(),
-                'status' => 'pending',
-                'notified' => $request->input('notify_students', false),
-            ]);
-            $assignedCount++;
+    if (! $exists) {
+        // Determine if this lesson should be locked
+        $isLocked = true;
+        
+        // If it's the first lesson in the module, unlock it
+        $firstLesson = Lesson::where('module_id', $lesson->module_id)
+            ->where('status', 'published')
+            ->orderBy('module_order', 'asc')
+            ->first();
+        
+        if ($firstLesson && $firstLesson->lesson_id === $lesson->lesson_id) {
+            $isLocked = false;
         }
+        
+        LessonAssignment::create([
+            'lesson_id' => $lesson->lesson_id,
+            'student_id' => $studentId,
+            'assigned_at' => now(),
+            'status' => 'pending',
+            'is_locked' => $isLocked,
+            'notified' => $request->input('notify_students', false),
+        ]);
+        $assignedCount++;
     }
+}
 
     $message = "Lesson published successfully to {$assignedCount} students!";
 
