@@ -20,6 +20,19 @@ class XPService
         9 => 3000,
         10 => 4000,
     ];
+    // Level names (only in backend)
+const LEVEL_NAMES = [
+    1 => 'Novice Signer',
+    2 => 'Beginner Signer',
+    3 => 'Emerging Signer',
+    4 => 'Intermediate Signer',
+    5 => 'Advanced Beginner',
+    6 => 'Competent Signer',
+    7 => 'Proficient Signer',
+    8 => 'Advanced Signer',
+    9 => 'Expert Signer',
+    10 => 'Master Signer',
+];
 
     const QUIZ_XP = [
         'failed' => 0,      // 0-59%
@@ -27,19 +40,93 @@ class XPService
         'perfect' => 15,    // 100%
         'bonus' => 5,       // First completion bonus
     ];
+    
 
     /**
-     * Calculate XP based on quiz score
-     */
-    public function calculateQuizXp(float $percentage): int
-    {
-        if ($percentage >= 100) {
-            return self::QUIZ_XP['perfect'];
-        } elseif ($percentage >= 60) {
-            return self::QUIZ_XP['passed'];
-        }
-        return self::QUIZ_XP['failed'];
+ * Calculate XP BEFORE the attempt is saved
+ * This is cleaner because we don't have to worry about
+ * the current attempt affecting the previous best calculation
+ */
+public function calculateQuizXpBeforeSave(
+    Student $student,
+    int $quizId,
+    float $percentage,
+    bool $isPerfect,
+    int $attemptNumber
+): int {
+    // ─── 1. FIRST ATTEMPT PERFECT = 35 XP ──────────────────────
+    if ($attemptNumber === 1 && $isPerfect) {
+        return 35;
     }
+
+    // ─── 2. FAILING = 0 XP ─────────────────────────────────────
+    if ($percentage < 60) {
+        return 0;
+    }
+
+    // ─── 3. GET PREVIOUS BEST ──────────────────────────────────
+    // 🔥 Now we can safely get the previous best because 
+    // the current attempt hasn't been saved yet!
+    $previousBest = DB::table('quiz_attempts')
+        ->where('student_id', $student->student_id)
+        ->where('quiz_id', $quizId)
+        ->where('status', 'completed')
+        ->max('percentage');
+
+    // ─── 4. CHECK TOTAL XP EARNED SO FAR ──────────────────────
+    $totalXpEarned = DB::table('quiz_attempts')
+        ->where('student_id', $student->student_id)
+        ->where('quiz_id', $quizId)
+        ->sum('xp_earned');
+
+    if ($totalXpEarned >= 30) {
+        return 0;
+    }
+
+    // ─── 5. CALCULATE XP ──────────────────────────────────────
+    $xpEarned = 0;
+
+    // First time passing
+    if ($previousBest === null) {
+        $xpEarned = 20;  // First pass = 20 XP
+    } 
+    // Improvement on subsequent attempts
+    else if ($percentage > $previousBest) {
+        $improvement = $percentage - $previousBest;
+        $xpEarned = floor(($improvement / 10) * 5);  // 5 XP per 10% improvement
+        
+        // Extra bonus for reaching perfect
+        if ($isPerfect) {
+            $xpEarned += 5;
+        }
+    }
+    // Same score or lower = 0 XP
+    else {
+        return 0;
+    }
+
+    // ─── 6. CAP AT REMAINING XP ──────────────────────────────
+    $remainingXp = 30 - $totalXpEarned;
+    $xpEarned = min($xpEarned, $remainingXp);
+
+    return max(0, $xpEarned);
+}
+
+/**
+ * Get human-readable XP reason for quiz attempts
+ */
+public function getXpReason(int $attemptNumber, bool $isPerfect, float $percentage, int $xpEarned): string
+{
+    if ($attemptNumber === 1 && $isPerfect) {
+        return "🏆 PERFECT on FIRST TRY! +{$xpEarned} XP (Bonus!)";
+    } elseif ($attemptNumber === 1 && $percentage >= 60) {
+        return "🎯 Passed on first attempt! +{$xpEarned} XP";
+    } elseif ($isPerfect) {
+        return "⭐ Perfect score on attempt #{$attemptNumber}! +{$xpEarned} XP";
+    } else {
+        return "📈 Improved score on attempt #{$attemptNumber}! +{$xpEarned} XP";
+    }
+}
 
     /**
      * Award XP to student
@@ -106,36 +193,39 @@ class XPService
     /**
      * Update streak
      */
-    public function updateStreak(Student $student): void
+public function updateStreak(Student $student): void
 {
     $today = now()->toDateString();
-    
-    // Check if last_activity_date is null or string
     $lastActivity = $student->last_activity_date;
     
-    // If it's a string, convert to Carbon
     if (is_string($lastActivity)) {
         $lastActivity = \Carbon\Carbon::parse($lastActivity);
     }
-    
     $lastActivityDate = $lastActivity?->toDateString();
 
+    // Already updated today → no change
     if ($lastActivityDate === $today) {
-        return; // Already updated today
+        return;
     }
 
-    if ($lastActivityDate === now()->subDay()->toDateString()) {
-        // Consecutive day
+    // First time ever or streak broken
+    if ($lastActivity === null) {
+        // First activity ever - start streak at 1
+        $student->streak_days = 1;
+    } 
+    // Consecutive day
+    else if ($lastActivityDate === now()->subDay()->toDateString()) {
         $student->streak_days += 1;
-    } else {
-        // Streak broken
+    } 
+    // Streak broken (gap > 1 day) - reset to 1 for new streak
+    else {
         $student->streak_days = 1;
     }
 
     $student->last_activity_date = now();
     $student->save();
 
-    // Bonus XP for streak milestones
+    // Bonus XP for streak milestones (every 3 days)
     if ($student->streak_days > 0 && $student->streak_days % 3 === 0) {
         $bonusXp = 5 * ($student->streak_days / 3);
         $this->awardXp($student, (int)$bonusXp, 'streak_bonus', null, null);
@@ -189,23 +279,30 @@ class XPService
         return $xpNeeded > 0 ? min(100, ($xpEarned / $xpNeeded) * 100) : 100;
     }
 
-    /**
-     * Get level name based on level number
-     */
-    public function getLevelName(int $level): string
-    {
-        $names = [
-            1 => 'Novice Signer',
-            2 => 'Beginner Signer',
-            3 => 'Emerging Signer',
-            4 => 'Intermediate Signer',
-            5 => 'Advanced Beginner',
-            6 => 'Competent Signer',
-            7 => 'Proficient Signer',
-            8 => 'Advanced Signer',
-            9 => 'Expert Signer',
-            10 => 'Master Signer',
+   
+
+public function getLevelName(int $level): string
+{
+    return self::LEVEL_NAMES[$level] ?? 'Level ' . $level;
+}
+
+// Add this method to get level thresholds
+public function getLevelThresholds(): array
+{
+    return self::LEVEL_THRESHOLDS;
+}
+
+// Add this method to get all level data
+public function getLevelData(): array
+{
+    $data = [];
+    foreach (self::LEVEL_THRESHOLDS as $level => $threshold) {
+        $data[] = [
+            'level' => $level,
+            'xp_required' => $threshold,
+            'name' => self::LEVEL_NAMES[$level] ?? "Level $level",
         ];
-        return $names[$level] ?? 'Level ' . $level;
     }
+    return $data;
+}
 }

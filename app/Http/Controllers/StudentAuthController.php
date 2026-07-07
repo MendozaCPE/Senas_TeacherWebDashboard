@@ -299,7 +299,8 @@ public function getLessons(Request $request)
 
         $xpService = new XPService();
 
-        return response()->json([
+        return response
+        ()->json([
             'success' => true,
             'modules' => $modules,
             'student' => [
@@ -357,6 +358,23 @@ public function getAllLessons(Request $request)
                 return null;
             }
 
+            // 🔥 Get the HIGHEST score from ALL quiz attempts for this lesson
+            $highestScore = DB::table('quiz_attempts as qa')
+                ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                ->where('qa.student_id', $assignment->student_id)
+                ->where('q.lesson_id', $lesson->lesson_id)
+                ->where('qa.status', 'completed')
+                ->max('qa.percentage');
+
+            // If no completed attempts, check student_lesson_progress as backup
+            if ($highestScore === null) {
+                $progress = DB::table('student_lesson_progress')
+                    ->where('student_id', $assignment->student_id)
+                    ->where('lesson_id', $lesson->lesson_id)
+                    ->first();
+                $highestScore = $progress ? $progress->quiz_score : null;
+            }
+
             $progress = DB::table('student_lesson_progress')
                 ->where('student_id', $assignment->student_id)
                 ->where('lesson_id', $lesson->lesson_id)
@@ -369,6 +387,9 @@ public function getAllLessons(Request $request)
             ];
             $status = $statusMap[$assignment->status] ?? 'pending';
 
+            // 🔥 Determine if lesson is locked
+            $isLocked = $assignment->is_locked;
+
             return [
                 'assignment_id' => $assignment->id,
                 'lesson_id' => $lesson->lesson_id,
@@ -377,6 +398,8 @@ public function getAllLessons(Request $request)
                 'lesson_type' => $lesson->lesson_type,
                 'difficulty' => $lesson->difficulty,
                 'status' => $status,
+                'is_locked' => (bool) $isLocked, // 🔥 ADD THIS
+                'score' => $highestScore, // 🔥 ADD THIS (highest score)
                 'assigned_at' => $assignment->assigned_at,
                 'progress' => $progress ? [
                     'current_step' => $progress->current_step ?? 0,
@@ -416,7 +439,6 @@ public function getAllLessons(Request $request)
         ], 500);
     }
 }
-
 /**
  * Get a specific lesson with all content and quiz
  */
@@ -611,9 +633,6 @@ public function updateLessonProgress(Request $request, $lessonId)
     }
 }
 
-
-//   Submit quiz attempt
-
 public function submitQuizAttempt(Request $request, $lessonId)
 {
     try {
@@ -639,7 +658,28 @@ public function submitQuizAttempt(Request $request, $lessonId)
         // Calculate status
         $status = $request->percentage >= 60 ? 'completed' : 'failed';
 
-        // Create quiz attempt
+        // ─── GET ATTEMPT NUMBER ──────────────────────────────────────────
+        $attemptNumber = DB::table('quiz_attempts')
+            ->where('student_id', $student->student_id)
+            ->where('quiz_id', $request->quiz_id)
+            ->count() + 1;
+
+        // ============================================================
+        // 🎯 CALCULATE XP (BEFORE saving the attempt)
+        // ============================================================
+        $xpService = new XPService();
+        $isPerfect = $request->percentage == 100;
+        
+        // 🔥 Calculate XP BEFORE saving the attempt
+        $xpEarned = $xpService->calculateQuizXpBeforeSave(
+            $student,
+            $request->quiz_id,
+            $request->percentage,
+            $isPerfect,
+            $attemptNumber
+        );
+
+        // ─── CREATE QUIZ ATTEMPT WITH XP ──────────────────────────────
         $attemptId = DB::table('quiz_attempts')->insertGetId([
             'student_id' => $student->student_id,
             'quiz_id' => $request->quiz_id,
@@ -647,6 +687,9 @@ public function submitQuizAttempt(Request $request, $lessonId)
             'total_points' => $request->total_points,
             'percentage' => $request->percentage,
             'status' => $status,
+            'attempt_number' => $attemptNumber,
+            'xp_earned' => $xpEarned,  // ← Save XP immediately
+            'is_first_completion' => ($attemptNumber === 1),  // ← Set this too
             'started_at' => now(),
             'completed_at' => now(),
             'created_at' => now(),
@@ -655,11 +698,9 @@ public function submitQuizAttempt(Request $request, $lessonId)
 
         // Save answers
         foreach ($request->answers as $answer) {
-            // Check if the answer has the required fields
             $selectedOptionId = isset($answer['selected_option_id']) ? $answer['selected_option_id'] : null;
             $questionId = isset($answer['question_id']) ? $answer['question_id'] : null;
             
-            // If we don't have a question_id, try to find it from the selected option
             if (!$questionId && $selectedOptionId) {
                 $option = DB::table('options')->where('option_id', $selectedOptionId)->first();
                 if ($option) {
@@ -667,7 +708,6 @@ public function submitQuizAttempt(Request $request, $lessonId)
                 }
             }
             
-            // If we still don't have a question_id, skip this answer
             if (!$questionId) {
                 continue;
             }
@@ -688,120 +728,60 @@ public function submitQuizAttempt(Request $request, $lessonId)
         }
 
         // ============================================================
-        // 🎯 XP LOGIC
+        // 🎯 AWARD XP IF EARNED
         // ============================================================
-        $xpEarned = 0;
-        $isFirstCompletion = false;
-        $isImproved = false;
-        $isPerfect = $request->percentage == 100;
-        $hasMaxXpBeenEarned = false;
+        if ($xpEarned > 0) {
+            $reason = $xpService->getXpReason($attemptNumber, $isPerfect, $request->percentage, $xpEarned);
+            $xpService->awardXp(
+                $student,
+                $xpEarned,
+                'quiz_completed',
+                $attemptId,
+                $lessonId,
+                $reason
+            );
 
-        // Get all previous completed attempts (excluding current)
-        $previousAttempts = DB::table('quiz_attempts')
-            ->where('student_id', $student->student_id)
-            ->where('quiz_id', $request->quiz_id)
-            ->where('status', 'completed')
-            ->where('attempt_id', '!=', $attemptId)
-            ->orderBy('percentage', 'desc')
-            ->get();
-
-        $previousCount = $previousAttempts->count();
-        $isFirstCompletion = $previousCount == 0;
-
-        // Get the best previous score
-        $previousBest = $previousAttempts->first();
-        $previousBestPercentage = $previousBest ? $previousBest->percentage : 0;
-
-        // Check if this attempt improved the score
-        $isImproved = $request->percentage > $previousBestPercentage;
-
-        // Check if student already has a perfect score
-        $hasPerfectScore = DB::table('quiz_attempts')
-            ->where('student_id', $student->student_id)
-            ->where('quiz_id', $request->quiz_id)
-            ->where('status', 'completed')
-            ->where('percentage', 100)
-            ->where('attempt_id', '!=', $attemptId)
-            ->exists();
-
-        if ($hasPerfectScore) {
-            $hasMaxXpBeenEarned = true;
+            // Update streak
+            $xpService->updateStreak($student);
         }
 
-        // ONLY award XP if:
-        // 1. Student passed (>= 60%)
-        // 2. AND (it's their first completion OR they improved their score)
-        // 3. AND they haven't already earned max XP
-        if ($request->percentage >= 60 && !$hasMaxXpBeenEarned) {
-            if ($isFirstCompletion || $isImproved) {
-                $xpService = new XPService();
+        // ─── GET PREVIOUS BEST FOR COMPARISON ──────────────────────────
+        // 🔥 Now we can safely get the previous best (excluding current attempt)
+        $previousBest = DB::table('quiz_attempts')
+            ->where('student_id', $student->student_id)
+            ->where('quiz_id', $request->quiz_id)
+            ->where('status', 'completed')
+            ->where('attempt_id', '!=', $attemptId)  // ← Exclude current attempt
+            ->max('percentage');
+        
+        $isImproved = ($previousBest !== null && $request->percentage > $previousBest);
 
-                // Base XP based on percentage
-                if ($request->percentage == 100) {
-                    $xpEarned = XPService::QUIZ_XP['perfect'] ?? 15;
-                } elseif ($request->percentage >= 60) {
-                    $xpEarned = XPService::QUIZ_XP['passed'] ?? 10;
-                }
+        // ─── UPDATE PROGRESS ────────────────────────────────────────────
+        $existingProgress = DB::table('student_lesson_progress')
+            ->where('student_id', $student->student_id)
+            ->where('lesson_id', $lessonId)
+            ->first();
 
-                // 🎁 BONUS: +5 XP for first attempt completion
-                if ($isFirstCompletion && $xpEarned > 0) {
-                    $xpEarned += XPService::QUIZ_XP['bonus'] ?? 5;
-                }
+        $currentHighestScore = $existingProgress ? $existingProgress->quiz_score : null;
+        $newScore = $request->percentage;
 
-                // 🎁 BONUS: +5 XP for perfect score (only if not first attempt bonus)
-                if ($isPerfect && $xpEarned > 0 && !$isFirstCompletion) {
-                    $xpEarned += XPService::QUIZ_XP['bonus'] ?? 5;
-                }
-
-                // Award XP
-                $xpService->awardXp(
-                    $student,
-                    $xpEarned,
-                    'quiz_completed',
-                    $attemptId,
-                    $lessonId
+        if ($currentHighestScore === null || $newScore > $currentHighestScore) {
+            DB::table('student_lesson_progress')
+                ->updateOrInsert(
+                    [
+                        'student_id' => $student->student_id,
+                        'lesson_id' => $lessonId,
+                    ],
+                    [
+                        'quiz_completed' => true,
+                        'quiz_score' => $newScore,
+                        'last_accessed_at' => now(),
+                        'updated_at' => now(),
+                    ]
                 );
-
-                // Update streak
-                $xpService->updateStreak($student);
-            }
         }
 
-        // Update quiz attempt with XP info
-        DB::table('quiz_attempts')
-            ->where('attempt_id', $attemptId)
-            ->update([
-                'xp_earned' => $xpEarned,
-                'is_first_completion' => $isFirstCompletion,
-            ]);
-
-        // 🔥 Update progress - ONLY update if new score is HIGHER than existing
-$existingProgress = DB::table('student_lesson_progress')
-    ->where('student_id', $student->student_id)
-    ->where('lesson_id', $lessonId)
-    ->first();
-
-$currentHighestScore = $existingProgress ? $existingProgress->quiz_score : null;
-$newScore = $request->percentage;
-
-// Only update if new score is higher, or if there's no existing score
-if ($currentHighestScore === null || $newScore > $currentHighestScore) {
-    DB::table('student_lesson_progress')
-        ->updateOrInsert(
-            [
-                'student_id' => $student->student_id,
-                'lesson_id' => $lessonId,
-            ],
-            [
-                'quiz_completed' => true,
-                'quiz_score' => $newScore,
-                'last_accessed_at' => now(),
-                'updated_at' => now(),
-            ]
-        );
-}
-
-        // Update assignment
+        // ─── UPDATE ASSIGNMENT ──────────────────────────────────────────
         $assignment = LessonAssignment::where('student_id', $student->student_id)
             ->where('lesson_id', $lessonId)
             ->first();
@@ -811,7 +791,6 @@ if ($currentHighestScore === null || $newScore > $currentHighestScore) {
             $assignment->completed_at = now();
             $assignment->score = $request->percentage;
             
-            // 🔥 If passed, unlock the next lesson
             if ($status === 'completed' && $request->percentage >= 60) {
                 $currentLesson = Lesson::find($lessonId);
                 
@@ -848,9 +827,9 @@ if ($currentHighestScore === null || $newScore > $currentHighestScore) {
             'percentage' => $request->percentage,
             'status' => $status,
             'xp_earned' => $xpEarned,
-            'is_first_completion' => $isFirstCompletion,
+            'attempt_number' => $attemptNumber,
+            'is_first_completion' => ($attemptNumber === 1),
             'is_improved' => $isImproved,
-            'has_max_xp_earned' => $hasMaxXpBeenEarned,
             'total_xp' => $student->total_xp,
             'level' => $student->level,
             'streak_days' => $student->streak_days,
@@ -862,7 +841,21 @@ if ($currentHighestScore === null || $newScore > $currentHighestScore) {
         ], 500);
     }
 }
-
+/**
+ * Get human-readable XP reason
+ */
+private function getXpReason(int $attemptNumber, bool $isPerfect, float $percentage, int $xpEarned): string
+{
+    if ($attemptNumber === 1 && $isPerfect) {
+        return "🏆 PERFECT on FIRST TRY! +{$xpEarned} XP (Bonus!)";
+    } elseif ($attemptNumber === 1 && $percentage >= 60) {
+        return "🎯 Passed on first attempt! +{$xpEarned} XP";
+    } elseif ($isPerfect) {
+        return "⭐ Perfect score on attempt #{$attemptNumber}! +{$xpEarned} XP";
+    } else {
+        return "📈 Improved score on attempt #{$attemptNumber}! +{$xpEarned} XP";
+    }
+}
 /**
  * Award XP for completing a slide
  */
