@@ -13,14 +13,18 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportsController extends Controller
 {
+    /**
+     * Report page — one row per STUDENT, with a per-lesson breakdown
+     * attached to each row so the modal can render it without extra queries.
+     */
     public function index(Request $request)
     {
         $user    = Auth::user();
         $teacher = $user->teacher;
 
-        $students = collect();
-        $lessons  = collect();
-        $reportRows = collect();
+        $students       = collect();
+        $lessons        = collect();
+        $studentReports = collect();
 
         if ($teacher) {
             $teacherId  = $teacher->id;
@@ -38,7 +42,6 @@ class ReportsController extends Controller
             $filterStudent = $request->get('student_id', 'all');
             $filterLesson  = $request->get('lesson_id', 'all');
 
-            // Build report rows (student × lesson progress)
             $query = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->with(['student', 'lesson']);
 
@@ -49,22 +52,69 @@ class ReportsController extends Controller
                 $query->where('lesson_id', $filterLesson);
             }
 
-            $reportRows = $query->orderBy('last_accessed_at', 'desc')->get()->map(function ($row) {
-                $row->studentName = optional($row->student)->first_name . ' ' . optional($row->student)->last_name;
-                $row->lessonTitle = optional($row->lesson)->title ?? '—';
-                $row->statusLabel = $row->lesson_completed ? 'Completed' : 'In Progress';
-                $row->quizLabel   = $row->quiz_completed
-                    ? ($row->quiz_score . '/' . (optional($row->lesson)->quiz_total ?? '?') . ' pts')
-                    : 'Not taken';
-                $row->lastAccessed = Carbon::parse($row->last_accessed_at)->diffForHumans();
-                return $row;
-            });
+            $allRows = $query->orderBy('last_accessed_at', 'desc')->get();
+
+            $totalSteps = 7; // avg lesson steps, used for step-progress %
+
+            // Collapse many student×lesson rows into ONE summary row per student.
+            $studentReports = $allRows
+                ->groupBy('student_id')
+                ->map(function ($rows, $studentId) use ($totalSteps) {
+                    $student = $rows->first()->student;
+
+                    $lessonBreakdown = $rows->map(function ($row) use ($totalSteps) {
+                        $stepPct = $totalSteps > 0
+                            ? min(100, round(($row->current_step / $totalSteps) * 100))
+                            : 0;
+
+                        return [
+                            'lessonTitle'   => optional($row->lesson)->title ?? '—',
+                            'lessonType'    => optional($row->lesson)->lesson_type ?? '',
+                            'stepPct'       => $stepPct,
+                            'completed'     => (bool) $row->lesson_completed,
+                            'quizCompleted' => (bool) $row->quiz_completed,
+                            'quizScore'     => $row->quiz_score,
+                            'lastAccessed'  => $row->last_accessed_at
+                                ? Carbon::parse($row->last_accessed_at)->diffForHumans()
+                                : '—',
+                        ];
+                    })->values();
+
+                    $totalLessons     = $rows->count();
+                    $completedLessons = $rows->where('lesson_completed', 1)->count();
+                    $quizzesTaken     = $rows->where('quiz_completed', 1)->count();
+                    $avgScore         = $rows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
+                    $overallPct       = $totalLessons > 0
+                        ? round(($completedLessons / $totalLessons) * 100)
+                        : 0;
+                    $lastActiveRaw    = $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at;
+
+                    return [
+                        'student_id'       => $studentId,
+                        'studentName'      => trim(optional($student)->first_name . ' ' . optional($student)->last_name) ?: 'Unknown Student',
+                        'gradeLevel'       => optional($student)->grade_level ?? 'N/A',
+                        'initials'         => $student
+                            ? strtoupper(substr($student->first_name, 0, 1) . substr($student->last_name, 0, 1))
+                            : '??',
+                        'totalLessons'     => $totalLessons,
+                        'completedLessons' => $completedLessons,
+                        'quizzesTaken'     => $quizzesTaken,
+                        'avgScore'         => round($avgScore, 1),
+                        'overallPct'       => $overallPct,
+                        'lastAccessed'     => $lastActiveRaw
+                            ? Carbon::parse($lastActiveRaw)->diffForHumans()
+                            : '—',
+                        'lessons'          => $lessonBreakdown,
+                    ];
+                })
+                ->sortBy('studentName')
+                ->values();
         }
 
         return view('reports', compact(
             'students',
             'lessons',
-            'reportRows',
+            'studentReports',
             'teacher'
         ));
     }
