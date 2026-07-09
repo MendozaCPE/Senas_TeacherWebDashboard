@@ -8,6 +8,9 @@ use App\Models\LessonAssignment;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\XPService;  
+use App\Models\Gesture;
+use App\Models\GestureModule;
+use App\Models\GesturePerformance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -1175,4 +1178,472 @@ foreach ($assignments as $assignment) {
     }
 }
     }
+
+    /**
+ * Save student's gesture performance from the mobile app
+ * This handles practice sessions where students can practice anytime
+ */
+public function saveGesturePerformance(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'module_name' => 'required|string|in:alphabet_part1,alphabet_part2,numbers',
+            'letter_performances' => 'required|array',
+            'letter_performances.*.letter' => 'required|string',
+            'letter_performances.*.attempts' => 'required|integer|min:0',
+            'letter_performances.*.wrong_attempts' => 'required|integer|min:0',
+            'letter_performances.*.success_count' => 'required|integer|min:0',
+            'letter_performances.*.consecutive_wrong' => 'nullable|integer|min:0',
+            'session_id' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Find the module
+        $module = GestureModule::where('name', $request->module_name)->first();
+        if (!$module) {
+            return response()->json(['error' => 'Module not found'], 404);
+        }
+
+        $savedPerformances = [];
+        $totalAttempts = 0;
+        $totalCorrect = 0;
+        $totalWrong = 0;
+
+        foreach ($request->letter_performances as $letterData) {
+            // Find the gesture by name and module
+            $gesture = Gesture::where('name', $letterData['letter'])
+                             ->where('module_id', $module->module_id)
+                             ->first();
+
+            if (!$gesture) {
+                // Skip if gesture not found (shouldn't happen if data is correct)
+                continue;
+            }
+
+            // Update or create performance record
+            $performance = GesturePerformance::updateOrCreatePerformance(
+                $student->student_id,
+                $gesture->gesture_id,
+                $module->module_id,
+                [
+                    'attempts' => $letterData['attempts'],
+                    'successful_attempts' => $letterData['success_count'],
+                    'wrong_attempts' => $letterData['wrong_attempts'],
+                    'consecutive_wrong' => $letterData['consecutive_wrong'] ?? 0,
+                    'session_id' => $request->session_id,
+                ]
+            );
+
+            $savedPerformances[] = [
+                'letter' => $letterData['letter'],
+                'gesture_id' => $gesture->gesture_id,
+                'performance_id' => $performance->performance_id,
+                'attempts' => $performance->attempts,
+                'successful_attempts' => $performance->successful_attempts,
+                'wrong_attempts' => $performance->wrong_attempts,
+                'is_mastered' => $performance->is_mastered,
+                'mastery_level' => $performance->mastery_level,
+            ];
+
+            $totalAttempts += $letterData['attempts'];
+            $totalCorrect += $letterData['success_count'];
+            $totalWrong += $letterData['wrong_attempts'];
+        }
+
+        // Get module progress summary
+        $progress = GesturePerformance::getModuleProgress(
+            $student->student_id,
+            $module->module_id
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Gesture performance saved successfully',
+            'module' => [
+                'name' => $module->name,
+                'display_name' => $module->display_name,
+            ],
+            'session_summary' => [
+                'total_attempts' => $totalAttempts,
+                'total_correct' => $totalCorrect,
+                'total_wrong' => $totalWrong,
+                'accuracy' => $totalAttempts > 0 
+                    ? round(($totalCorrect / $totalAttempts) * 100) 
+                    : 0,
+            ],
+            'progress_summary' => $progress,
+            'performances' => $savedPerformances,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get student's gesture performance for a specific module
+ */
+public function getGesturePerformance(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $moduleName = $request->query('module_name', 'alphabet_part1');
+        
+        // Find the module
+        $module = GestureModule::where('name', $moduleName)
+                              ->with('gestures')
+                              ->first();
+
+        if (!$module) {
+            return response()->json(['error' => 'Module not found'], 404);
+        }
+
+        // Get all performances for this student in this module
+        $gestureIds = $module->gestures->pluck('gesture_id');
+        $performances = GesturePerformance::where('student_id', $student->student_id)
+                                          ->whereIn('gesture_id', $gestureIds)
+                                          ->get()
+                                          ->keyBy('gesture_id');
+
+        // Build response with all gestures and their performance
+        $result = $module->gestures->map(function($gesture) use ($performances) {
+            $performance = $performances->get($gesture->gesture_id);
+            
+            return [
+                'gesture_id' => $gesture->gesture_id,
+                'name' => $gesture->name,
+                'display_name' => $gesture->display_name,
+                'model_file' => $gesture->model_file,
+                'difficulty' => $gesture->difficulty,
+                'performance' => $performance ? [
+                    'attempts' => $performance->attempts,
+                    'successful_attempts' => $performance->successful_attempts,
+                    'wrong_attempts' => $performance->wrong_attempts,
+                    'consecutive_wrong' => $performance->consecutive_wrong,
+                    'is_mastered' => $performance->is_mastered,
+                    'mastery_level' => $performance->mastery_level,
+                    'first_attempt_at' => $performance->first_attempt_at,
+                    'last_attempt_at' => $performance->last_attempt_at,
+                    'mastered_at' => $performance->mastered_at,
+                ] : null,
+            ];
+        });
+
+        // Calculate overall stats
+        $totalGestures = $result->count();
+        $withPerformance = $result->filter(fn($g) => $g['performance'] !== null)->count();
+        $mastered = $result->filter(fn($g) => $g['performance'] && $g['performance']['is_mastered'])->count();
+        $struggling = $result->filter(fn($g) => $g['performance'] && $g['performance']['mastery_level'] === 'needs_practice')->count();
+
+        return response()->json([
+            'success' => true,
+            'module' => [
+                'module_id' => $module->module_id,
+                'name' => $module->name,
+                'display_name' => $module->display_name,
+                'description' => $module->description,
+                'difficulty' => $module->difficulty,
+                'total_gestures' => $totalGestures,
+            ],
+            'summary' => [
+                'gestures_with_performance' => $withPerformance,
+                'mastered' => $mastered,
+                'struggling' => $struggling,
+                'mastery_percentage' => $totalGestures > 0 
+                    ? round(($mastered / $totalGestures) * 100) 
+                    : 0,
+            ],
+            'gestures' => $result,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get struggling letters for a student (for recommendations)
+ */
+public function getStrugglingLetters(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $moduleName = $request->query('module_name');
+        
+        $module = null;
+        if ($moduleName) {
+            $module = GestureModule::where('name', $moduleName)->first();
+            if (!$module) {
+                return response()->json(['error' => 'Module not found'], 404);
+            }
+        }
+
+        // Get struggling letters
+        $struggling = GesturePerformance::getStrugglingLetters(
+            $student->student_id,
+            $module ? $module->module_id : null
+        );
+
+        $result = $struggling->map(function($performance) {
+            return [
+                'letter' => $performance->gesture->name,
+                'display_name' => $performance->gesture->display_name,
+                'attempts' => $performance->attempts,
+                'wrong_attempts' => $performance->wrong_attempts,
+                'successful_attempts' => $performance->successful_attempts,
+                'mastery_level' => $performance->mastery_level,
+                'module' => $performance->module ? $performance->module->display_name : null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'struggling_letters' => $result,
+            'count' => $result->count(),
+            'recommendation' => $result->count() > 0 
+                ? 'Practice these letters: ' . $result->pluck('letter')->implode(', ')
+                : 'Great job! No struggling letters found.',
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+public function getGestureProgress(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        // Get all gesture modules
+        $modules = GestureModule::where('is_active', true)
+                               ->orderBy('order', 'asc')
+                               ->get();
+
+        $moduleProgress = [];
+
+        foreach ($modules as $module) {
+            // Get all gestures in this module
+            $gestureIds = $module->gestures->pluck('gesture_id');
+            
+            // Get student's performances for these gestures
+            $performances = GesturePerformance::where('student_id', $student->student_id)
+                                             ->whereIn('gesture_id', $gestureIds)
+                                             ->get();
+
+            $totalGestures = $gestureIds->count();
+            
+            // ✅ FIX: Count mastered AND proficient as "completed"
+            $completedCount = $performances->whereIn('mastery_level', ['mastered', 'proficient'])->count();
+            
+            // Calculate progress percentage
+            $progress = $totalGestures > 0 
+                ? round(($completedCount / $totalGestures) * 100) 
+                : 0;
+
+            // Check if module is completed (all gestures mastered OR proficient)
+            $isCompleted = $completedCount === $totalGestures && $totalGestures > 0;
+
+            // Get XP for this module (default 40)
+            $xpAvailable = 40;
+            
+            // Check if module is locked
+            $isLocked = $this->isModuleLocked($student, $module);
+
+            $moduleProgress[] = [
+                'module_id' => $module->module_id,
+                'name' => $module->name,
+                'display_name' => $module->display_name,
+                'description' => $module->description,
+                'difficulty' => $module->difficulty,
+                'total_gestures' => $totalGestures,
+                'completed_count' => $completedCount,
+                'progress' => $progress,
+                'is_completed' => $isCompleted,
+                'xp_available' => $xpAvailable,
+                'is_locked' => $isLocked,
+            ];
+        }
+
+        // Get total XP from student
+        $totalXp = $student->total_xp ?? 0;
+
+        return response()->json([
+            'success' => true,
+            'student' => [
+                'id' => $student->student_id,
+                'first_name' => $student->first_name,
+                'last_name' => $student->last_name,
+                'total_xp' => $totalXp,
+                'level' => $student->level ?? 1,
+            ],
+            'modules' => $moduleProgress,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Award XP for completing a module
+ */
+public function awardModuleXp(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'module_name' => 'required|string|exists:gesture_modules,name',
+            'xp_earned' => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $module = GestureModule::where('name', $request->module_name)->first();
+        $xpEarned = $request->xp_earned;
+
+        // Check if XP was already awarded for this module
+        $alreadyAwarded = DB::table('xp_log')
+            ->where('student_id', $student->student_id)
+            ->where('action', 'module_completed')
+            ->where('reason', 'LIKE', "%{$module->display_name}%")
+            ->exists();
+
+        if ($alreadyAwarded) {
+            return response()->json([
+                'success' => true,
+                'message' => 'XP already awarded for this module',
+                'xp_earned' => 0,
+                'total_xp' => $student->total_xp,
+            ]);
+        }
+
+        // Award XP
+        $xpService = new XPService();
+        $xpService->awardXp(
+            $student,
+            $xpEarned,
+            'module_completed',
+            null,
+            null,
+            "Completed {$module->display_name} module! +{$xpEarned} XP"
+        );
+
+        $student->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'XP awarded successfully',
+            'xp_earned' => $xpEarned,
+            'total_xp' => $student->total_xp,
+            'level' => $student->level,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Check if a module is locked for a student
+ */
+private function isModuleLocked($student, $module)
+{
+    // First module is always unlocked
+    if ($module->order === 1) {
+        return false;
+    }
+
+    // Check if previous module is completed
+    $previousModule = GestureModule::where('order', '<', $module->order)
+                                  ->orderBy('order', 'desc')
+                                  ->first();
+
+    if (!$previousModule) {
+        return false;
+    }
+
+    // Get previous module's gestures
+    $gestureIds = $previousModule->gestures->pluck('gesture_id');
+    
+    // Count mastered AND proficient as "completed"
+    $completedCount = GesturePerformance::where('student_id', $student->student_id)
+                                       ->whereIn('gesture_id', $gestureIds)
+                                       ->whereIn('mastery_level', ['mastered', 'proficient'])
+                                       ->count();
+
+    // Count how many are still "developing" or "needs_practice"
+    $developingCount = GesturePerformance::where('student_id', $student->student_id)
+                                        ->whereIn('gesture_id', $gestureIds)
+                                        ->whereIn('mastery_level', ['developing', 'needs_practice'])
+                                        ->count();
+
+    $totalGestures = $gestureIds->count();
+
+    // 🎯 UNLOCK when 10 out of 13 letters are mastered/proficient
+    // OR when there are 3 or fewer letters still developing
+    $unlockThreshold = 0.70; // 70%
+    $requiredCount = ceil($totalGestures * $unlockThreshold);
+    $maxDeveloping = 3; // Allow up to 3 letters that need more practice
+    
+    $isUnlocked = ($completedCount >= $requiredCount) || ($developingCount <= $maxDeveloping);
+    
+    // Module is locked if not unlocked
+    return !$isUnlocked;
+}
 }
