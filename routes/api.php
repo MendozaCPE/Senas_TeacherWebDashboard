@@ -53,5 +53,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // ─── GESTURE PROGRESS ROUTES (NEW) ───────────────────────────
     Route::get('/student/gesture-progress', [StudentAuthController::class, 'getGestureProgress']);
+     Route::post('/student/award-module-xp', [StudentAuthController::class, 'awardModuleXp']);
    
 });

@@ -349,7 +349,7 @@ public function getAllLessons(Request $request)
         $assignments = LessonAssignment::where('student_id', $student->student_id)
             ->with(['lesson' => function ($query) {
                 $query->where('status', 'published')
-                      ->with(['contents', 'quiz']);
+                      ->with(['contents', 'quiz', 'module']);
             }])
             ->orderBy('assigned_at', 'desc')
             ->get();
@@ -393,6 +393,37 @@ public function getAllLessons(Request $request)
             // 🔥 Determine if lesson is locked
             $isLocked = $assignment->is_locked;
 
+            // 🔥 NEW: Determine if this is the next lesson
+            $isNextLesson = false;
+            if ($lesson->module) {
+                // Get the module order
+                $moduleOrder = $lesson->module_order;
+                
+                // Check if there's a previous lesson in this module
+                $prevLesson = Lesson::where('module_id', $lesson->module->module_id)
+                    ->where('module_order', '<', $moduleOrder)
+                    ->where('status', 'published')
+                    ->orderBy('module_order', 'desc')
+                    ->first();
+                
+                if (!$prevLesson) {
+                    // No previous lesson = this is the first lesson
+                    $isNextLesson = true;
+                } else {
+                    // Check if previous lesson is completed with passing score
+                    $prevAssignment = LessonAssignment::where('student_id', $assignment->student_id)
+                        ->where('lesson_id', $prevLesson->lesson_id)
+                        ->first();
+                    
+                    if ($prevAssignment && $prevAssignment->status === 'completed' && $prevAssignment->score >= 60) {
+                        $isNextLesson = true;
+                    }
+                }
+            } else {
+                // No module = treat as first lesson (unlocked)
+                $isNextLesson = true;
+            }
+
             return [
                 'assignment_id' => $assignment->id,
                 'lesson_id' => $lesson->lesson_id,
@@ -401,8 +432,9 @@ public function getAllLessons(Request $request)
                 'lesson_type' => $lesson->lesson_type,
                 'difficulty' => $lesson->difficulty,
                 'status' => $status,
-                'is_locked' => (bool) $isLocked, // 🔥 ADD THIS
-                'score' => $highestScore, // 🔥 ADD THIS (highest score)
+                'is_locked' => (bool) $isLocked,
+                'is_next_lesson' => $isNextLesson, // 🔥 ADD THIS
+                'score' => $highestScore,
                 'assigned_at' => $assignment->assigned_at,
                 'progress' => $progress ? [
                     'current_step' => $progress->current_step ?? 0,
@@ -1527,7 +1559,11 @@ public function getGestureProgress(Request $request)
 }
 
 /**
- * Award XP for completing a module
+ * Award XP for completing a module based on star rating
+ * - 1 star = 0 XP
+ * - 2 stars = 20 XP
+ * - 3 stars = 40 XP (or 20 if they already got 20 from 2-star attempt)
+ * - Max XP per module = 40
  */
 public function awardModuleXp(Request $request)
 {
@@ -1541,7 +1577,7 @@ public function awardModuleXp(Request $request)
 
         $validator = Validator::make($request->all(), [
             'module_name' => 'required|string|exists:gesture_modules,name',
-            'xp_earned' => 'required|integer|min:1',
+            'star_rating' => 'required|integer|in:1,2,3',
         ]);
 
         if ($validator->fails()) {
@@ -1552,43 +1588,84 @@ public function awardModuleXp(Request $request)
         }
 
         $module = GestureModule::where('name', $request->module_name)->first();
-        $xpEarned = $request->xp_earned;
+        $starRating = $request->star_rating;
 
-        // Check if XP was already awarded for this module
-        $alreadyAwarded = DB::table('xp_log')
+        // ─── CHECK TOTAL XP EARNED FOR THIS MODULE ──────────────────────
+        $totalXpEarned = DB::table('xp_log')
             ->where('student_id', $student->student_id)
             ->where('action', 'module_completed')
             ->where('reason', 'LIKE', "%{$module->display_name}%")
-            ->exists();
+            ->sum('xp_amount');
 
-        if ($alreadyAwarded) {
+        // Max XP per module is 40
+        $maxXpPerModule = 40;
+
+        // If already earned max XP, return 0
+        if ($totalXpEarned >= $maxXpPerModule) {
             return response()->json([
                 'success' => true,
-                'message' => 'XP already awarded for this module',
+                'message' => 'Already earned max XP for this module! 🎉',
+                'star_rating' => $starRating,
                 'xp_earned' => 0,
                 'total_xp' => $student->total_xp,
+                'level' => $student->level,
+                'xp_message' => "🏆 Max XP ({$maxXpPerModule} XP) already earned for {$module->display_name}!",
+                'max_xp_reached' => true,
             ]);
         }
 
-        // Award XP
-        $xpService = new XPService();
-        $xpService->awardXp(
-            $student,
-            $xpEarned,
-            'module_completed',
-            null,
-            null,
-            "Completed {$module->display_name} module! +{$xpEarned} XP"
-        );
+        // Calculate XP based on stars
+        $xpEarned = 0;
+        $xpMessage = '';
+
+        if ($starRating === 1) {
+            $xpEarned = 0;
+            $xpMessage = "⭐ 1 star! Keep practicing! No XP earned.";
+        } elseif ($starRating === 2) {
+            // Check remaining XP
+            $remainingXp = $maxXpPerModule - $totalXpEarned;
+            $xpEarned = min(20, $remainingXp);
+            $xpMessage = "⭐⭐ 2 stars! Great job! +{$xpEarned} XP";
+        } elseif ($starRating === 3) {
+            // Check remaining XP
+            $remainingXp = $maxXpPerModule - $totalXpEarned;
+            
+            if ($totalXpEarned > 0) {
+                // Already got some XP, give remaining up to 20
+                $xpEarned = min(20, $remainingXp);
+                $xpMessage = "⭐⭐⭐ AMAZING! 3 stars! +{$xpEarned} XP bonus! (Total: " . ($totalXpEarned + $xpEarned) . " XP)";
+            } else {
+                // First time getting 3 stars = full 40 XP
+                $xpEarned = min(40, $remainingXp);
+                $xpMessage = "⭐⭐⭐ PERFECT! 3 stars on first try! +{$xpEarned} XP!";
+            }
+        }
+
+        // Award XP if earned
+        if ($xpEarned > 0) {
+            $xpService = new XPService();
+            $xpService->awardXp(
+                $student,
+                $xpEarned,
+                'module_completed',
+                null,
+                null,
+                "{$xpMessage} - {$module->display_name} module"
+            );
+        }
 
         $student->refresh();
 
         return response()->json([
             'success' => true,
-            'message' => 'XP awarded successfully',
+            'message' => $xpEarned > 0 ? 'XP awarded successfully' : 'No XP earned this time',
+            'star_rating' => $starRating,
             'xp_earned' => $xpEarned,
             'total_xp' => $student->total_xp,
             'level' => $student->level,
+            'xp_message' => $xpMessage,
+            'max_xp_reached' => $totalXpEarned >= $maxXpPerModule,
+            'total_xp_earned_for_module' => $totalXpEarned + $xpEarned,
         ]);
 
     } catch (\Exception $e) {
