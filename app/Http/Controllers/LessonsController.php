@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Lesson;
 use App\Models\LessonAssignment;
 use App\Models\Module;
-use App\Models\LessonContent;  // <-- ADD THIS LINE
+use App\Models\LessonContent;
 use App\Models\Quiz;
 use App\Models\QuizOption;
 use App\Models\QuizQuestion;
 use App\Models\Teacher;
+use App\Services\DeepSeekService;
+use App\Services\GestureMediaResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +68,39 @@ class LessonsController extends Controller
     return view('lessons.create', compact('modules'));
 }
 
+    /**
+     * AI Lesson Generator — POST /lessons/ai-generate
+     * Accepts topic + settings, calls DeepSeek, resolves gesture media, returns JSON.
+     */
+    public function aiGenerate(Request $request)
+    {
+        $validated = $request->validate([
+            'topic'                => 'required|string|max:200',
+            'difficulty'           => 'required|in:beginner,intermediate,advanced',
+            'lesson_type'          => 'required|in:gesture,text,interactive',
+            'num_slides'           => 'required|integer|min:3|max:10',
+            'special_instructions' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $deepSeek = new DeepSeekService();
+            $lesson   = $deepSeek->generate($validated);
+
+            $resolver = new GestureMediaResolver();
+            $lesson   = $resolver->resolve($lesson);
+
+            return response()->json($lesson);
+        } catch (\Throwable $e) {
+            \Log::error('AI Lesson Generate failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'AI generation failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
 /**
  * Persist a new lesson + contents + quiz.
  * The submit button decides the status:
@@ -75,29 +110,24 @@ class LessonsController extends Controller
 public function store(Request $request)
 {
     $validated = $request->validate([
-    'title' => 'required|string|max:255',
-    'description' => 'nullable|string',
-    'lesson_type' => 'required|in:text,video,interactive,gesture',
-    'difficulty' => 'required|in:beginner,intermediate,advanced',
-    'module_action' => 'nullable|in:none,existing,new',
-    'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
-    'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
-    'new_module.description' => 'nullable|string|max:1000',
-    'contents' => 'nullable|array',
-    'contents.*.media' => 'nullable|file|max:51200',
-    'quiz' => 'nullable|array',
-    'quiz.*.media' => 'nullable|image|max:10240',
-    'quiz.*.options.*.image' => 'nullable|image|max:10240',
-]);
+        'title'                       => 'required|string|max:255',
+        'description'                 => 'nullable|string',
+        'lesson_type'                 => 'required|in:text,video,interactive,gesture',
+        'difficulty'                  => 'required|in:beginner,intermediate,advanced',
+        'module_action'               => 'nullable|in:none,existing,new',
+        'module_id'                   => 'nullable|required_if:module_action,existing|exists:modules,module_id',
+        'new_module.title'            => 'nullable|required_if:module_action,new|string|max:255',
+        'new_module.description'      => 'nullable|string|max:1000',
+        'contents'                    => 'nullable|array',
+        'contents.*.media'            => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
+        'quiz'                        => 'nullable|array',
+        'quiz.*.media'                => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
+        'quiz.*.options.*.image'      => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
+    ]);
 
-    // Get the button that was clicked
+    // Read which button was clicked: 'draft' or 'published'
     $buttonAction = $request->input('status', 'draft');
-
-    // If "Publish Lesson" was clicked, we save as draft first
-    $status = 'draft'; // Always save as draft initially
-    if (! in_array($status, ['draft', 'published', 'archived'])) {
-        $status = 'draft';
-    }
+    $status = in_array($buttonAction, ['draft', 'published', 'archived']) ? $buttonAction : 'draft';
 
     $teacherId = $this->resolveTeacherId();
     $moduleId = $this->resolveModuleId($request, $teacherId);
@@ -106,35 +136,59 @@ public function store(Request $request)
 
     $lesson = DB::transaction(function () use ($request, $validated, $status, $teacherId, $moduleId, $nextOrder) {
         $lesson = Lesson::create([
-    'teacher_id' => $teacherId,
-    'module_id' => $moduleId,
-    'title' => $validated['title'],
-    'description' => $validated['description'] ?? null,
-    'lesson_type' => $validated['lesson_type'],
-    'difficulty' => $validated['difficulty'],
-    'module_order' => $nextOrder,
-    'status' => $status,
-]);
+            'teacher_id'   => $teacherId,
+            'module_id'    => $moduleId,
+            'title'        => $validated['title'],
+            'description'  => $validated['description'] ?? null,
+            'lesson_type'  => $validated['lesson_type'],
+            'difficulty'   => $validated['difficulty'],
+            'module_order' => $nextOrder,
+            'status'       => $status,
+        ]);
 
         $this->persistLessonContents($request, $lesson, $request->input('contents', []));
 
-        // 3) Quiz
         $quizInput = $request->input('quiz', []);
         $this->persistQuizForLesson($request, $lesson, $quizInput);
 
         return $lesson;
     });
 
-    // After saving the lesson, check which button was clicked
+    // After saving, redirect based on which button was clicked
     if ($buttonAction === 'published') {
-        // "Publish Lesson" was clicked - redirect to publish config
         return redirect()->route('lessons.publish.config', $lesson->lesson_id)
             ->with('success', 'Lesson saved as draft. Select a module, then choose who should receive this lesson.');
     }
 
-    // "Save Draft" was clicked
     return redirect()->route('lessons.index')->with('success', 'Draft saved successfully!');
 }
+
+    /**
+     * AJAX endpoint: upload a single media file and return its public URL.
+     * POST /lessons/upload-media
+     * Returns JSON: { "url": "/storage/path/to/file.jpg", "path": "path/to/file.jpg" }
+     */
+    public function uploadMedia(Request $request)
+    {
+        $request->validate([
+            'file'    => 'required|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
+            'context' => 'nullable|string|in:lesson_media,quiz_media,quiz_option_media,temp_preview',
+        ]);
+
+        $file      = $request->file('file');
+        $directory = $request->input('context', 'lesson_media');
+
+        $path = $this->uploadPublicFile($file, $directory);
+
+        if (! $path) {
+            return response()->json(['message' => 'Upload failed.'], 500);
+        }
+
+        return response()->json([
+            'path' => $path,
+            'url'  => asset('storage/' . $path),
+        ]);
+    }
 
     /**
      * Live preview - render the mobile preview from posted form data
@@ -338,6 +392,7 @@ public function edit($id)
                 'content_text' => $content->content_text,
                 'media_url' => $content->media_url,
                 'gesture_name' => $content->gesture_name,
+                'media_missing' => $content->media_missing ?? 0,
             ];
         })->toArray(),
         'quiz' => [],
@@ -371,20 +426,20 @@ public function edit($id)
 public function update(Request $request, $id)
 {
     $validated = $request->validate([
-    'title' => 'required|string|max:255',
-    'description' => 'nullable|string',
-    'lesson_type' => 'required|in:text,video,interactive,gesture',
-    'difficulty' => 'required|in:beginner,intermediate,advanced',
-    'module_action' => 'nullable|in:none,existing,new',
-    'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
-    'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
-    'new_module.description' => 'nullable|string|max:1000',
-    'contents' => 'nullable|array',
-    'contents.*.media' => 'nullable|file|max:51200',
-    'quiz' => 'nullable|array',
-    'quiz.*.media' => 'nullable|image|max:10240',
-    'quiz.*.options.*.image' => 'nullable|image|max:10240',
-]);
+        'title'                       => 'required|string|max:255',
+        'description'                 => 'nullable|string',
+        'lesson_type'                 => 'required|in:text,video,interactive,gesture',
+        'difficulty'                  => 'required|in:beginner,intermediate,advanced',
+        'module_action'               => 'nullable|in:none,existing,new',
+        'module_id'                   => 'nullable|required_if:module_action,existing|exists:modules,module_id',
+        'new_module.title'            => 'nullable|required_if:module_action,new|string|max:255',
+        'new_module.description'      => 'nullable|string|max:1000',
+        'contents'                    => 'nullable|array',
+        'contents.*.media'            => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
+        'quiz'                        => 'nullable|array',
+        'quiz.*.media'                => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
+        'quiz.*.options.*.image'      => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
+    ]);
 
     $status = $request->input('status', 'draft');
     if (! in_array($status, ['draft', 'published', 'archived'])) {
@@ -765,9 +820,16 @@ foreach ($studentIds as $studentId) {
                 continue;
             }
 
-            $mediaUrl = $this->uploadPublicFile($this->getContentUploadedFile($request, $i), 'lesson_media');
+            $uploadedFile = $this->getContentUploadedFile($request, $i);
+            $mediaUrl = $this->uploadPublicFile($uploadedFile, 'lesson_media');
             if (! $mediaUrl && ! empty($c['existing_media'])) {
                 $mediaUrl = $c['existing_media'];
+            }
+
+            // Auto-clear media_missing when a file has been successfully uploaded
+            $mediaMissing = isset($c['media_missing']) ? (int) $c['media_missing'] : 0;
+            if ($uploadedFile && $mediaUrl) {
+                $mediaMissing = 0;
             }
 
             LessonContent::create([
@@ -778,6 +840,7 @@ foreach ($studentIds as $studentId) {
                 'content_text' => $c['content_text'] ?? null,
                 'media_url' => $mediaUrl,
                 'gesture_name' => $c['gesture_name'] ?? null,
+                'media_missing' => $mediaMissing,
             ]);
         }
     }

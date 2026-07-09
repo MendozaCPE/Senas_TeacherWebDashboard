@@ -325,17 +325,18 @@
                     <span class="ml-auto text-[#0d326b]">→</span>
                 </div>
             </button>
-            <button onclick="alert('Coming soon! AI lesson generation will be available in the next update.')"
-                    class="w-full p-6 bg-gradient-to-r from-[#0d326b] to-[#2563EB] rounded-2xl hover:shadow-xl transition-all opacity-50 cursor-not-allowed">
+            <button onclick="openAiFromModal()"
+                    class="w-full p-6 rounded-2xl hover:shadow-xl transition-all"
+                    style="background: linear-gradient(135deg, #6d28d9, #4f46e5); border: none; cursor: pointer;">
                 <div class="flex items-center gap-4">
-                    <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-white">
+                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white" style="background: rgba(255,255,255,0.2);">
                         <span class="material-symbols-outlined text-3xl">auto_awesome</span>
                     </div>
                     <div class="text-left text-white">
                         <p class="font-bold text-lg">AI Generate ✨</p>
-                        <p class="text-white/70 text-sm">Upload PDF or notes for automatic generation</p>
+                        <p class="text-sm" style="color: rgba(255,255,255,0.75);">Describe a topic — AI builds the full lesson</p>
                     </div>
-                    <span class="ml-auto text-white/50">Soon</span>
+                    <span class="ml-auto text-white font-bold text-lg">→</span>
                 </div>
             </button>
         </div>
@@ -439,6 +440,12 @@ function closeNewLessonModal() {
 }
 function openManualCreate() {
     window.location.href = '{{ route('lessons.create') }}';
+}
+
+function openAiFromModal() {
+    closeNewLessonModal();
+    // Navigate to create page with ai=1 flag so it auto-opens the AI modal
+    window.location.href = '{{ route('lessons.create') }}?ai=1';
 }
 function toggleModule(id) {
     const el  = document.getElementById(id);

@@ -1,57 +1,66 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: laravel-app
-    restart: always
-    ports:
-      - "8080:80"
-    volumes:
-      - .:/var/www/html
-      # Prevent Windows from syncing the vendor folder for performance
-      - /var/www/html/vendor
-    environment:
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: senas_db
-      DB_USERNAME: root
-      DB_PASSWORD: root
-    depends_on:
-      db:
-        condition: service_healthy
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: laravel-app
+        restart: always
+        ports:
+            - "8080:80"
+        volumes:
+            - .:/var/www/html
+            # Prevent Windows from syncing the vendor folder for performance
+            - /var/www/html/vendor
+        environment:
+            DB_CONNECTION: mysql
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_DATABASE: senas_db
+            DB_USERNAME: root
+            DB_PASSWORD: root
+        depends_on:
+            db:
+                condition: service_healthy
 
-  db:
-    image: mysql:8.0
-    container_name: mysql-db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: senas_db
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./database/senas_db.sql:/docker-entrypoint-initdb.d/senas_db.sql:ro
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    db:
+        image: mysql:8.0
+        container_name: mysql-db
+        restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_DATABASE: senas_db
+        ports:
+            - "3306:3306"
+        volumes:
+            - mysql_data:/var/lib/mysql
+            - ./database/senas_db.sql:/docker-entrypoint-initdb.d/senas_db.sql:ro
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "mysqladmin",
+                    "ping",
+                    "-h",
+                    "localhost",
+                    "-uroot",
+                    "-proot",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 10
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: senas-phpmyadmin
-    restart: always
-    ports:
-      - "8081:80"
-    environment:
-      PMA_HOST: db
-      PMA_USER: root
-      PMA_PASSWORD: root
-    depends_on:
-      - db
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin
+        container_name: senas-phpmyadmin
+        restart: always
+        ports:
+            - "8089:80"
+        environment:
+            PMA_HOST: db
+            PMA_USER: root
+            PMA_PASSWORD: root
+        depends_on:
+            - db
 
 volumes:
-  mysql_data:
+    mysql_data:

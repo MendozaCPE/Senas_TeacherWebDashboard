@@ -15,14 +15,16 @@ class Lesson extends Model
 
     protected $fillable = [
         'teacher_id',
-         'module_id',
+        'module_id',
         'title',
         'description',
         'lesson_type',
         'difficulty',
         'module_order',
         'status',
-        'published_at', // Add this if not already there
+        'published_at',
+        'ai_generated',
+        'ai_prompt',
     ];
 
     public function teacher()

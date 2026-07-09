@@ -343,14 +343,17 @@
                                 <div class="glass-card" style="flex:1;">
                                     <div class="slide-accent" style="background: {{ $slideColor }};"></div>
                                     <h3 style="font-size: 17px; font-weight: 800; color: {{ $slideColor }}; margin-bottom: 10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                    @if(isset($current['content_type']) && !empty($current['media']) && is_string($current['media']))
+                                    @if(!empty($current['media']) && is_string($current['media']))
                                         @php
                                             $mediaUrl = formatImageUrl($current['media']);
+                                            $isVideo  = in_array(strtolower(pathinfo($current['media'], PATHINFO_EXTENSION)), ['mp4','mov','avi','mkv','webm']);
                                         @endphp
-                                        @if($current['content_type'] == 'image')
-                                            <div class="media-wrap"><img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" onerror="this.style.display='none'"></div>
-                                        @elseif($current['content_type'] == 'video')
-                                            <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}" type="video/mp4"></video></div>
+                                        @if($mediaUrl)
+                                            @if($isVideo)
+                                                <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}"></video></div>
+                                            @else
+                                                <div class="media-wrap"><img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" onerror="this.parentElement.style.display='none'"></div>
+                                            @endif
                                         @endif
                                     @endif
                                     <p style="font-size: 14px; color: #334155; line-height: 1.6;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
@@ -379,10 +382,11 @@
             <!-- Quiz panel -->
             <div class="content-panel" id="m-quizPanel">
                 @if($totalQuestions > 0)
-                    <div class="glass-card">
+                    {{-- Progress header --}}
+                    <div class="glass-card" id="m-quizHeader">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                             <span style="font-size:12px; font-weight:700; color:#0f3172;" id="m-quizLabel">Question 1 of {{ $totalQuestions }}</span>
-                            <span class="badge badge-yellow">⚡ 10 XP</span>
+                            <span class="badge badge-yellow" id="m-quizXpBadge">⚡ 10 XP each</span>
                         </div>
                         <div class="progress-dots" id="m-quizDots">
                             @foreach($normalizedQuiz as $index => $quizItem)
@@ -390,49 +394,109 @@
                             @endforeach
                         </div>
                     </div>
+
+                    {{-- Question panels --}}
                     @foreach($normalizedQuiz as $qIndex => $q)
-                        <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="m-q-{{ $qIndex }}">
+                        @php $correctIdx = (int)($q['correct'] ?? 0); @endphp
+                        <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="m-q-{{ $qIndex }}" data-correct="{{ $correctIdx }}">
                             <div class="glass-card" style="text-align:center; padding:24px;">
                                 @if(!empty($q['_media']))
-                                    @php
-                                        $imageUrl = formatImageUrl($q['_media']);
-                                    @endphp
+                                    @php $imageUrl = formatImageUrl($q['_media']); @endphp
                                     @if($imageUrl)
                                         <div class="quiz-media-wrap">
-                                            <img src="{{ $imageUrl }}" alt="Quiz image" class="quiz-media" 
+                                            <img src="{{ $imageUrl }}" alt="Quiz image" class="quiz-media"
                                                  onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
                                         </div>
                                     @endif
                                 @endif
                                 <p style="font-size:16px; font-weight:800; color:#0f3172; margin-top:10px;">{{ $q['question'] ?? 'Sample Question' }}</p>
                             </div>
+
                             @foreach($q['_opts'] as $optIndex => $option)
                                 <div class="option-card" onclick="selectOption('m', {{ $qIndex }}, {{ $optIndex }})" id="m-opt-{{ $qIndex }}-{{ $optIndex }}">
                                     <div class="option-circle">{{ chr(65+$optIndex) }}</div>
                                     @if(!empty($option['image']))
-                                        @php
-                                            $optionImageUrl = formatImageUrl($option['image']);
-                                        @endphp
+                                        @php $optionImageUrl = formatImageUrl($option['image']); @endphp
                                         @if($optionImageUrl)
-                                            <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb"
-                                                 onerror="this.style.display='none'">
+                                            <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
                                         @endif
                                     @endif
                                     <span style="font-size:14px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
                                 </div>
                             @endforeach
-                            <div class="senya-tip">
-                                <img src="{{ asset('images/senya_teaching.png') }}" alt="Senya Teaching">
+
+                            {{-- Feedback area (shown after answering) --}}
+                            <div class="answer-feedback" id="m-feedback-{{ $qIndex }}" style="display:none;">
+                                <div class="feedback-correct" id="m-feedback-correct-{{ $qIndex }}" style="display:none;">
+                                    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:rgba(5,150,105,0.1);border:1.5px solid #059669;border-radius:14px;margin-bottom:10px;">
+                                        <span style="font-size:20px;">✅</span>
+                                        <div>
+                                            <p style="font-size:13px;font-weight:800;color:#059669;margin:0;">Correct! Great job!</p>
+                                            <p style="font-size:11px;color:#065F46;margin:0;">+10 XP earned</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="feedback-wrong" id="m-feedback-wrong-{{ $qIndex }}" style="display:none;">
+                                    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:rgba(239,68,68,0.08);border:1.5px solid #EF4444;border-radius:14px;margin-bottom:10px;">
+                                        <span style="font-size:20px;">❌</span>
+                                        <div>
+                                            <p style="font-size:13px;font-weight:800;color:#DC2626;margin:0;">Not quite right</p>
+                                            <p style="font-size:11px;color:#7F1D1D;margin:0;" id="m-correct-answer-text-{{ $qIndex }}">The correct answer is: <strong>{{ chr(65+$correctIdx) }}</strong></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="senya-tip" id="m-senya-tip-{{ $qIndex }}">
+                                <img src="{{ asset('images/senya_teaching.png') }}" alt="Senya">
                                 <div class="feedback-bubble"><span style="font-size:12.5px; font-weight:500; color:#0f3172; line-height:1.5;">Read carefully and pick the best answer!</span></div>
                             </div>
+
                             <div class="quiz-nav">
-                                <button class="ghost-btn" onclick="prevQuestion('m')" style="{{ $qIndex == 0 ? 'display:none;' : '' }}">← Back</button>
-                                <button class="primary-btn {{ $qIndex == $totalQuestions-1 ? 'gold-btn' : '' }}" style="{{ $qIndex == 0 ? 'flex:1;' : '' }}" onclick="nextQuestion('m')">
-                                    {{ $qIndex == $totalQuestions-1 ? 'Finish Quiz' : 'Next →' }}
+                                <button class="ghost-btn" onclick="prevQuestion('m')" {{ $qIndex == 0 ? 'style=display:none;' : '' }}>← Back</button>
+                                <button class="primary-btn" id="m-next-btn-{{ $qIndex }}"
+                                        onclick="handleNextQuestion('m', {{ $qIndex }}, {{ $totalQuestions }})"
+                                        style="opacity:0.4;pointer-events:none;{{ $qIndex == 0 ? 'flex:1;' : '' }}">
+                                    {{ $qIndex == $totalQuestions-1 ? '🏁 Finish Quiz' : 'Next →' }}
                                 </button>
                             </div>
                         </div>
                     @endforeach
+
+                    {{-- Quiz Summary Screen --}}
+                    <div id="m-quizSummary" style="display:none; padding:8px 0;">
+                        <div class="glass-card" style="text-align:center; padding:28px 20px;">
+                            <div id="m-summary-emoji" style="font-size:52px; margin-bottom:12px;">🏆</div>
+                            <h3 style="font-size:20px; font-weight:900; color:#0f3172; margin:0 0 6px;">Quiz Complete!</h3>
+                            <p style="font-size:13px; color:#64748b; margin:0 0 20px;">Here's how you did</p>
+                            <div style="display:flex;justify-content:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+                                <div style="background:rgba(24,72,200,0.07);border-radius:14px;padding:14px 20px;min-width:80px;">
+                                    <p style="font-size:26px;font-weight:900;color:#1848c8;margin:0;" id="m-score-fraction">0/0</p>
+                                    <p style="font-size:11px;color:#64748b;margin:0;font-weight:600;">Correct</p>
+                                </div>
+                                <div style="background:rgba(234,179,8,0.1);border-radius:14px;padding:14px 20px;min-width:80px;">
+                                    <p style="font-size:26px;font-weight:900;color:#D97706;margin:0;" id="m-score-xp">0 XP</p>
+                                    <p style="font-size:11px;color:#64748b;margin:0;font-weight:600;">Earned</p>
+                                </div>
+                                <div style="background:rgba(5,150,105,0.08);border-radius:14px;padding:14px 20px;min-width:80px;">
+                                    <p style="font-size:26px;font-weight:900;color:#059669;margin:0;" id="m-score-pct">0%</p>
+                                    <p style="font-size:11px;color:#64748b;margin:0;font-weight:600;">Score</p>
+                                </div>
+                            </div>
+                            <div id="m-summary-message" style="font-size:13px;font-weight:600;color:#475569;margin-bottom:20px;padding:12px 16px;background:#F8FAFC;border-radius:12px;"></div>
+                        </div>
+
+                        {{-- Per-question review --}}
+                        <div class="glass-card" style="padding:16px 20px;">
+                            <p style="font-size:12px;font-weight:800;color:#0f3172;margin:0 0 12px;">Question Review</p>
+                            <div id="m-question-review" style="display:flex;flex-direction:column;gap:8px;"></div>
+                        </div>
+
+                        <button onclick="retakeQuiz('m')"
+                                style="width:100%;padding:14px;background:linear-gradient(135deg,#1848c8,#0f3172);color:white;border:none;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer;margin-top:8px;">
+                            🔁 Retake Quiz
+                        </button>
+                    </div>
                 @endif
             </div>
         </div>
@@ -485,14 +549,17 @@
                                             <div class="glass-card">
                                                 <div class="slide-accent" style="background:{{ $slideColor }};"></div>
                                                 <h3 style="font-size:19px; font-weight:800; color:{{ $slideColor }}; margin-bottom:10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                                @if(isset($current['content_type']) && !empty($current['media']) && is_string($current['media']))
+                                                @if(!empty($current['media']) && is_string($current['media']))
                                                     @php
                                                         $mediaUrl = formatImageUrl($current['media']);
+                                                        $isVideo  = in_array(strtolower(pathinfo($current['media'], PATHINFO_EXTENSION)), ['mp4','mov','avi','mkv','webm']);
                                                     @endphp
-                                                    @if($current['content_type'] == 'image')
-                                                        <div class="media-wrap"><img src="{{ $mediaUrl }}" class="slide-image" onerror="this.style.display='none'"></div>
-                                                    @elseif($current['content_type'] == 'video')
-                                                        <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}" type="video/mp4"></video></div>
+                                                    @if($mediaUrl)
+                                                        @if($isVideo)
+                                                            <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}"></video></div>
+                                                        @else
+                                                            <div class="media-wrap"><img src="{{ $mediaUrl }}" class="slide-image" onerror="this.parentElement.style.display='none'"></div>
+                                                        @endif
                                                     @endif
                                                 @endif
                                                 <p style="font-size:14.5px; color:#334155; line-height:1.7;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
@@ -529,10 +596,11 @@
                     @if($totalQuestions > 0)
                         <div class="web-grid-2col">
                             <div class="web-content-col">
-                                <div class="glass-card">
+                                {{-- Progress header --}}
+                                <div class="glass-card" id="w-quizHeader">
                                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                                         <span style="font-size:13px; font-weight:700; color:#0f3172;" id="w-quizLabel">Question 1 of {{ $totalQuestions }}</span>
-                                        <span class="badge badge-yellow">⚡ 10 XP</span>
+                                        <span class="badge badge-yellow">⚡ 10 XP each</span>
                                     </div>
                                     <div class="progress-dots" id="w-quizDots">
                                         @foreach($normalizedQuiz as $index => $quizItem)
@@ -540,51 +608,106 @@
                                         @endforeach
                                     </div>
                                 </div>
+
                                 @foreach($normalizedQuiz as $qIndex => $q)
-                                    <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="w-q-{{ $qIndex }}">
+                                    @php $correctIdx = (int)($q['correct'] ?? 0); @endphp
+                                    <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="w-q-{{ $qIndex }}" data-correct="{{ $correctIdx }}">
                                         <div class="glass-card" style="text-align:center; padding:28px;">
                                             @if(!empty($q['_media']))
-                                                @php
-                                                    $imageUrl = formatImageUrl($q['_media']);
-                                                @endphp
+                                                @php $imageUrl = formatImageUrl($q['_media']); @endphp
                                                 @if($imageUrl)
                                                     <div class="quiz-media-wrap" style="max-width:360px;">
-                                                        <img src="{{ $imageUrl }}" class="quiz-media" 
+                                                        <img src="{{ $imageUrl }}" class="quiz-media"
                                                              onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
                                                     </div>
                                                 @endif
                                             @endif
                                             <p style="font-size:18px; font-weight:800; color:#0f3172; margin-top:10px;">{{ $q['question'] ?? 'Sample Question' }}</p>
                                         </div>
+
                                         @foreach($q['_opts'] as $optIndex => $option)
                                             <div class="option-card" onclick="selectOption('w', {{ $qIndex }}, {{ $optIndex }})" id="w-opt-{{ $qIndex }}-{{ $optIndex }}">
                                                 <div class="option-circle">{{ chr(65+$optIndex) }}</div>
                                                 @if(!empty($option['image']))
-                                                    @php
-                                                        $optionImageUrl = formatImageUrl($option['image']);
-                                                    @endphp
+                                                    @php $optionImageUrl = formatImageUrl($option['image']); @endphp
                                                     @if($optionImageUrl)
-                                                        <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb"
-                                                             onerror="this.style.display='none'">
+                                                        <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
                                                     @endif
                                                 @endif
                                                 <span style="font-size:14.5px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
                                             </div>
                                         @endforeach
+
+                                        {{-- Feedback area --}}
+                                        <div class="answer-feedback" id="w-feedback-{{ $qIndex }}" style="display:none;">
+                                            <div id="w-feedback-correct-{{ $qIndex }}" style="display:none;">
+                                                <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;background:rgba(5,150,105,0.1);border:1.5px solid #059669;border-radius:14px;margin-bottom:12px;">
+                                                    <span style="font-size:22px;">✅</span>
+                                                    <div>
+                                                        <p style="font-size:14px;font-weight:800;color:#059669;margin:0;">Correct! Great job!</p>
+                                                        <p style="font-size:12px;color:#065F46;margin:0;">+10 XP earned</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="w-feedback-wrong-{{ $qIndex }}" style="display:none;">
+                                                <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;background:rgba(239,68,68,0.08);border:1.5px solid #EF4444;border-radius:14px;margin-bottom:12px;">
+                                                    <span style="font-size:22px;">❌</span>
+                                                    <div>
+                                                        <p style="font-size:14px;font-weight:800;color:#DC2626;margin:0;">Not quite right</p>
+                                                        <p style="font-size:12px;color:#7F1D1D;margin:0;" id="w-correct-answer-text-{{ $qIndex }}">The correct answer is: <strong>{{ chr(65+$correctIdx) }}</strong></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div class="quiz-nav">
-                                            <button class="ghost-btn" onclick="prevQuestion('w')" style="{{ $qIndex == 0 ? 'display:none;' : '' }}">← Back</button>
-                                            <button class="primary-btn {{ $qIndex == $totalQuestions-1 ? 'gold-btn' : '' }}" style="{{ $qIndex == 0 ? 'flex:1;' : '' }}" onclick="nextQuestion('w')">
-                                                {{ $qIndex == $totalQuestions-1 ? 'Finish Quiz' : 'Next →' }}
+                                            <button class="ghost-btn" onclick="prevQuestion('w')" {{ $qIndex == 0 ? 'style=display:none;' : '' }}>← Back</button>
+                                            <button class="primary-btn" id="w-next-btn-{{ $qIndex }}"
+                                                    onclick="handleNextQuestion('w', {{ $qIndex }}, {{ $totalQuestions }})"
+                                                    style="opacity:0.4;pointer-events:none;{{ $qIndex == 0 ? 'flex:1;' : '' }}">
+                                                {{ $qIndex == $totalQuestions-1 ? '🏁 Finish Quiz' : 'Next →' }}
                                             </button>
                                         </div>
                                     </div>
                                 @endforeach
+
+                                {{-- Web Summary Screen --}}
+                                <div id="w-quizSummary" style="display:none;">
+                                    <div class="glass-card" style="text-align:center; padding:36px 28px;">
+                                        <div id="w-summary-emoji" style="font-size:60px; margin-bottom:14px;">🏆</div>
+                                        <h3 style="font-size:24px; font-weight:900; color:#0f3172; margin:0 0 6px;">Quiz Complete!</h3>
+                                        <p style="font-size:14px; color:#64748b; margin:0 0 24px;">Here's how you did</p>
+                                        <div style="display:flex;justify-content:center;gap:20px;margin-bottom:24px;flex-wrap:wrap;">
+                                            <div style="background:rgba(24,72,200,0.07);border-radius:16px;padding:18px 28px;min-width:100px;">
+                                                <p style="font-size:30px;font-weight:900;color:#1848c8;margin:0;" id="w-score-fraction">0/0</p>
+                                                <p style="font-size:12px;color:#64748b;margin:0;font-weight:600;">Correct</p>
+                                            </div>
+                                            <div style="background:rgba(234,179,8,0.1);border-radius:16px;padding:18px 28px;min-width:100px;">
+                                                <p style="font-size:30px;font-weight:900;color:#D97706;margin:0;" id="w-score-xp">0 XP</p>
+                                                <p style="font-size:12px;color:#64748b;margin:0;font-weight:600;">Earned</p>
+                                            </div>
+                                            <div style="background:rgba(5,150,105,0.08);border-radius:16px;padding:18px 28px;min-width:100px;">
+                                                <p style="font-size:30px;font-weight:900;color:#059669;margin:0;" id="w-score-pct">0%</p>
+                                                <p style="font-size:12px;color:#64748b;margin:0;font-weight:600;">Score</p>
+                                            </div>
+                                        </div>
+                                        <div id="w-summary-message" style="font-size:14px;font-weight:600;color:#475569;margin-bottom:24px;padding:14px 20px;background:#F8FAFC;border-radius:14px;"></div>
+                                        <div id="w-question-review" style="text-align:left;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;"></div>
+                                        <button onclick="retakeQuiz('w')"
+                                                style="padding:14px 32px;background:linear-gradient(135deg,#1848c8,#0f3172);color:white;border:none;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;">
+                                            🔁 Retake Quiz
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="web-side-col">
+
+                            <div class="web-side-col" id="w-senyaCol">
                                 <div class="glass-card">
                                     <div class="senya-tip" style="margin-bottom:0;">
                                         <img src="{{ asset('images/senya_teaching.png') }}" alt="Senya Teaching">
-                                        <div class="feedback-bubble"><span style="font-size:13px; font-weight:500; color:#0f3172; line-height:1.6;">Read carefully and pick the best answer!</span></div>
+                                        <div class="feedback-bubble" id="w-senyaTip">
+                                            <span style="font-size:13px; font-weight:500; color:#0f3172; line-height:1.6;">Read carefully and pick the best answer!</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -604,6 +727,8 @@ const totalQuestions = {{ $totalQuestions }};
 const slideColors = @json($colors);
 let slideState = { m: 0, w: 0 };
 let questionState = { m: 0, w: 0 };
+let quizAnswers = { m: {}, w: {} };
+let quizScore   = { m: 0, w: 0 };
 
 function colorFor(i) { return slideColors[i % slideColors.length]; }
 
@@ -680,9 +805,203 @@ window.prevQuestion = function(prefix) {
 };
 
 window.selectOption = function(prefix, qIndex, optIndex) {
-    document.querySelectorAll('#' + prefix + '-q-' + qIndex + ' .option-card').forEach(c => c.classList.remove('selected'));
-    const chosen = document.getElementById(prefix + '-opt-' + qIndex + '-' + optIndex);
-    if (chosen) chosen.classList.add('selected');
+    const panel = document.getElementById(prefix + '-q-' + qIndex);
+    if (!panel) return;
+
+    // If already answered, don't allow re-selection
+    if (panel.dataset.answered === '1') return;
+    panel.dataset.answered = '1';
+
+    const correctIdx = parseInt(panel.dataset.correct ?? '0');
+    const isCorrect = (optIndex === correctIdx);
+
+    // Store answer
+    quizAnswers[prefix][qIndex] = { chosen: optIndex, correct: correctIdx, isCorrect };
+    if (isCorrect) quizScore[prefix]++;
+
+    // Highlight all options
+    document.querySelectorAll('#' + prefix + '-q-' + qIndex + ' .option-card').forEach((card, i) => {
+        card.style.pointerEvents = 'none';
+        card.style.opacity = '0.75';
+        if (i === correctIdx) {
+            card.style.background = 'rgba(5,150,105,0.12)';
+            card.style.border = '2px solid #059669';
+            card.querySelector('.option-circle').style.background = '#059669';
+            card.querySelector('.option-circle').style.color = 'white';
+            card.style.opacity = '1';
+        }
+        if (i === optIndex && !isCorrect) {
+            card.style.background = 'rgba(239,68,68,0.08)';
+            card.style.border = '2px solid #EF4444';
+            card.querySelector('.option-circle').style.background = '#EF4444';
+            card.querySelector('.option-circle').style.color = 'white';
+            card.style.opacity = '1';
+        }
+    });
+
+    // Show feedback banner
+    const feedback = document.getElementById(prefix + '-feedback-' + qIndex);
+    if (feedback) feedback.style.display = 'block';
+    const correctBanner = document.getElementById(prefix + '-feedback-correct-' + qIndex);
+    const wrongBanner = document.getElementById(prefix + '-feedback-wrong-' + qIndex);
+    if (isCorrect) {
+        if (correctBanner) correctBanner.style.display = 'block';
+    } else {
+        if (wrongBanner) wrongBanner.style.display = 'block';
+    }
+
+    // Update Senya tip for web
+    const senyaTip = document.getElementById('w-senyaTip');
+    if (senyaTip && prefix === 'w') {
+        senyaTip.innerHTML = isCorrect
+            ? '<span style="font-size:13px;font-weight:700;color:#059669;line-height:1.6;">✅ That\'s correct! Keep it up!</span>'
+            : '<span style="font-size:13px;font-weight:700;color:#DC2626;line-height:1.6;">❌ Not quite! Review the highlighted answer above.</span>';
+    }
+
+    // Enable Next button
+    const nextBtn = document.getElementById(prefix + '-next-btn-' + qIndex);
+    if (nextBtn) {
+        nextBtn.style.opacity = '1';
+        nextBtn.style.pointerEvents = 'auto';
+        if (qIndex === totalQuestions - 1) {
+            nextBtn.classList.add('gold-btn');
+        }
+    }
+
+    // Mark dot as answered
+    document.querySelectorAll('#' + prefix + '-quizDots .progress-dot').forEach((dot, i) => {
+        if (i === qIndex) {
+            dot.style.background = isCorrect ? '#059669' : '#EF4444';
+        }
+    });
+};
+
+window.handleNextQuestion = function(prefix, qIndex, total) {
+    if (qIndex < total - 1) {
+        setQuestion(prefix, qIndex + 1);
+        // Reset Senya tip for web
+        const senyaTip = document.getElementById('w-senyaTip');
+        if (senyaTip && prefix === 'w') {
+            senyaTip.innerHTML = '<span style="font-size:13px;font-weight:500;color:#0f3172;line-height:1.6;">Read carefully and pick the best answer!</span>';
+        }
+    } else {
+        showQuizSummary(prefix, total);
+    }
+};
+
+window.prevQuestion = function(prefix) {
+    if (questionState[prefix] > 0) setQuestion(prefix, questionState[prefix] - 1);
+};
+
+window.showQuizSummary = function(prefix, total) {
+    // Hide header and all question panels
+    const header = document.getElementById(prefix + '-quizHeader');
+    if (header) header.style.display = 'none';
+    document.querySelectorAll('#' + prefix + '-quizPanel .quiz-question-panel').forEach(p => p.classList.remove('active'));
+    if (prefix === 'w') {
+        const senyaCol = document.getElementById('w-senyaCol');
+        if (senyaCol) senyaCol.style.display = 'none';
+    }
+
+    const score = quizScore[prefix];
+    const pct = Math.round((score / total) * 100);
+    const xp = score * 10;
+
+    // Pick emoji + message based on score
+    let emoji, message;
+    if (pct === 100)      { emoji = '🏆'; message = 'Perfect score! Outstanding work!'; }
+    else if (pct >= 80)   { emoji = '🌟'; message = 'Great job! You really know your FSL!'; }
+    else if (pct >= 60)   { emoji = '👍'; message = 'Good effort! Review the missed questions and try again.'; }
+    else if (pct >= 40)   { emoji = '📚'; message = 'Keep studying! You\'re making progress.'; }
+    else                   { emoji = '💪'; message = 'Don\'t give up! Practice makes perfect.'; }
+
+    document.getElementById(prefix + '-summary-emoji').textContent = emoji;
+    document.getElementById(prefix + '-score-fraction').textContent = score + '/' + total;
+    document.getElementById(prefix + '-score-xp').textContent = xp + ' XP';
+    document.getElementById(prefix + '-score-pct').textContent = pct + '%';
+    document.getElementById(prefix + '-summary-message').textContent = message;
+
+    // Build per-question review
+    const reviewEl = document.getElementById(prefix + '-question-review');
+    if (reviewEl) {
+        reviewEl.innerHTML = '';
+        const answers = quizAnswers[prefix];
+        for (let i = 0; i < total; i++) {
+            const ans = answers[i];
+            if (!ans) continue;
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:11px;background:' + (ans.isCorrect ? 'rgba(5,150,105,0.08)' : 'rgba(239,68,68,0.06)') + ';';
+            row.innerHTML = '<span style="font-size:16px;flex-shrink:0;">' + (ans.isCorrect ? '✅' : '❌') + '</span>'
+                + '<span style="font-size:12px;font-weight:700;color:#374151;">Q' + (i+1) + '</span>'
+                + '<span style="font-size:12px;color:#6B7280;flex:1;">You chose <strong>' + String.fromCharCode(65 + ans.chosen) + '</strong>'
+                + (ans.isCorrect ? '' : ' — correct: <strong>' + String.fromCharCode(65 + ans.correct) + '</strong>') + '</span>';
+            reviewEl.appendChild(row);
+        }
+    }
+
+    // Show summary
+    const summary = document.getElementById(prefix + '-quizSummary');
+    if (summary) summary.style.display = 'block';
+
+    // Update label
+    const label = document.getElementById(prefix + '-quizLabel');
+    if (label) label.textContent = 'Results';
+};
+
+window.retakeQuiz = function(prefix) {
+    quizScore[prefix] = 0;
+    quizAnswers[prefix] = {};
+
+    const header = document.getElementById(prefix + '-quizHeader');
+    if (header) header.style.display = 'block';
+
+    const summary = document.getElementById(prefix + '-quizSummary');
+    if (summary) summary.style.display = 'none';
+
+    if (prefix === 'w') {
+        const senyaCol = document.getElementById('w-senyaCol');
+        if (senyaCol) senyaCol.style.display = '';
+        const senyaTip = document.getElementById('w-senyaTip');
+        if (senyaTip) senyaTip.innerHTML = '<span style="font-size:13px;font-weight:500;color:#0f3172;line-height:1.6;">Read carefully and pick the best answer!</span>';
+    }
+
+    // Reset all question panels
+    for (let i = 0; i < totalQuestions; i++) {
+        const panel = document.getElementById(prefix + '-q-' + i);
+        if (panel) {
+            panel.dataset.answered = '0';
+            panel.querySelectorAll('.option-card').forEach(card => {
+                card.style.background = '';
+                card.style.border = '';
+                card.style.opacity = '';
+                card.style.pointerEvents = '';
+                const circle = card.querySelector('.option-circle');
+                if (circle) { circle.style.background = ''; circle.style.color = ''; }
+            });
+            // Hide feedback
+            const fb = document.getElementById(prefix + '-feedback-' + i);
+            if (fb) fb.style.display = 'none';
+            const fbC = document.getElementById(prefix + '-feedback-correct-' + i);
+            if (fbC) fbC.style.display = 'none';
+            const fbW = document.getElementById(prefix + '-feedback-wrong-' + i);
+            if (fbW) fbW.style.display = 'none';
+            // Disable next button
+            const nextBtn = document.getElementById(prefix + '-next-btn-' + i);
+            if (nextBtn) {
+                nextBtn.style.opacity = '0.4';
+                nextBtn.style.pointerEvents = 'none';
+                nextBtn.classList.remove('gold-btn');
+            }
+        }
+    }
+
+    // Reset dots
+    document.querySelectorAll('#' + prefix + '-quizDots .progress-dot').forEach((dot, i) => {
+        dot.style.background = '';
+        dot.className = 'progress-dot ' + (i === 0 ? 'active' : 'pending');
+    });
+
+    setQuestion(prefix, 0);
 };
 
 if (totalSlides > 0) { setSlide('m', 0); setSlide('w', 0); }

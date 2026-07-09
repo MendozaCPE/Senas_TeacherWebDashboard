@@ -42,6 +42,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/lessons/create', [LessonsController::class, 'create'])->name('lessons.create');
     Route::post('/lessons', [LessonsController::class, 'store'])->name('lessons.store');
     Route::post('/lessons/preview', [LessonsController::class, 'preview'])->name('lessons.preview');
+    Route::post('/lessons/ai-generate', [LessonsController::class, 'aiGenerate'])->name('lessons.ai-generate');
+    Route::post('/lessons/upload-media', [LessonsController::class, 'uploadMedia'])->name('lessons.upload-media');
+
 
     // Add these new routes:
     Route::get('/lessons/{lesson}/view', [LessonsController::class, 'view'])->name('lessons.view');

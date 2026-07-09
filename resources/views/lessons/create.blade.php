@@ -275,28 +275,52 @@
     }
     .btn-outline-blue:hover { background: rgba(24,72,200,0.06); }
 
-    /* ---- Mobile-only preview overlay ---- */
+    /* ── AJAX Upload Widget ─────────────────────────────────────────── */
+    .media-upload-widget {
+        border: 2px dashed #cbd5e1; border-radius: 14px; padding: 12px;
+        background: #f8fafc; transition: border-color 0.2s, background 0.2s; position: relative;
+    }
+    .media-upload-widget.has-file { border-color: #1848c8; background: #f0f4ff; }
+    .media-upload-widget.uploading { border-color: #6366f1; background: #f5f3ff; }
+    .media-upload-widget .upload-trigger {
+        display: flex; align-items: center; gap: 10px; cursor: pointer; position: relative;
+    }
+    .media-upload-widget .upload-trigger input[type="file"] {
+        position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .media-upload-widget .upload-label { font-size: 13px; font-weight: 600; color: #475569; pointer-events: none; }
+    .media-upload-widget .upload-spinner {
+        display: none; width: 16px; height: 16px; border: 2px solid #c7d2fe;
+        border-top-color: #6366f1; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    .media-upload-widget.uploading .upload-spinner { display: block; }
+    .media-upload-widget.uploading .upload-icon { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .media-upload-widget .media-thumb-wrap { display: none; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .media-upload-widget.has-file .media-thumb-wrap { display: flex; }
+    .media-upload-widget .media-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e2e8f0; flex-shrink: 0; }
+    .media-upload-widget .media-thumb-info { font-size: 12px; color: #64748b; }
+    .media-upload-widget .media-thumb-info strong { display: block; font-size: 12px; color: #1e293b; }
+    .media-upload-widget .media-remove-btn { font-size: 11px; color: #ef4444; background: none; border: none; cursor: pointer; font-weight: 700; margin-top: 2px; }
+    .media-upload-error { font-size: 12px; color: #dc2626; margin-top: 4px; display: none; }
+
+    /* ── Mobile preview overlay ──────────────────────────────────────── */
     #previewOverlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(15,23,42,0.7); z-index: 9999; overflow-y: auto; display: none; padding: 20px;
     }
     #previewOverlay.active { display: flex; align-items: flex-start; justify-content: center; }
     #previewOverlay .preview-container {
-    width: auto;
-    max-width: 900px;
-    margin: 20px auto;
-    background: transparent;
-    border-radius: 0;
-    overflow: visible;
-    box-shadow: none;
-    border: none;
-    position: relative;
-    min-height: auto;
-}
+        width: auto; max-width: 900px; margin: 20px auto; background: transparent;
+        border-radius: 0; overflow: visible; box-shadow: none; border: none;
+        position: relative; min-height: auto;
+    }
     #previewOverlay .preview-loading {
-    display: flex; align-items: center; justify-content: center; height: 400px; color: white; font-size: 16px; font-weight: 600;
-}
+        display: flex; align-items: center; justify-content: center;
+        height: 400px; color: white; font-size: 16px; font-weight: 600;
+    }
 </style>
+
 
 <div class="max-w-4xl mx-auto pb-10">
     <div class="flex items-center justify-between mb-8">
@@ -304,9 +328,17 @@
             <h2 class="text-3xl font-bold text-[#0f3172]">Create New Lesson</h2>
             <p class="text-slate-500 text-sm mt-1">Build your lesson content and quiz questions</p>
         </div>
-        <button onclick="window.location.href='{{ route('lessons.index') }}'" class="btn-ghost">
-            Cancel
-        </button>
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="openAiModal()"
+                    style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:12px 22px;border-radius:14px;font-weight:800;font-size:14px;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 5px 18px rgba(109,40,217,0.35);transition:all 0.2s;"
+                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px rgba(109,40,217,0.45)';"
+                    onmouseout="this.style.transform='';this.style.boxShadow='0 5px 18px rgba(109,40,217,0.35)';">
+                ✨ Generate with AI
+            </button>
+            <button onclick="window.location.href='{{ route('lessons.index') }}'" class="btn-ghost">
+                Cancel
+            </button>
+        </div>
     </div>
 
     <form action="{{ route('lessons.store') }}" method="POST" enctype="multipart/form-data" id="lessonForm">
@@ -451,7 +483,17 @@
                         </div>
                         <div class="media-field hidden">
                             <label class="field-label">Upload Media</label>
-                            <input type="file" name="contents[0][media]" class="field-input">
+                            <input type="hidden" name="contents[0][existing_media]" value="" class="media-path-input">
+                            <div class="media-upload-widget" data-context="lesson_media" data-accept="image/*,video/*">
+                                <div class="upload-trigger">
+                                    <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this, 'content')">
+                                    <span class="upload-icon material-symbols-outlined text-slate-400" style="font-size:20px;">cloud_upload</span>
+                                    <div class="upload-spinner"></div>
+                                    <span class="upload-label">Click or drag to upload</span>
+                                </div>
+                                <div class="media-thumb-wrap"></div>
+                                <div class="media-upload-error"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -497,8 +539,18 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="field-label">Question Media (Optional)</label>
-                                <input type="file" name="quiz[0][media]" accept="image/*" class="field-input">
+                                <label class="field-label">Question Image (Optional)</label>
+                                <input type="hidden" name="quiz[0][existing_media]" value="" class="media-path-input">
+                                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:10px;">
+                                    <div class="upload-trigger" style="gap:8px;">
+                                        <input type="file" accept="image/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
+                                        <span class="upload-icon material-symbols-outlined" style="font-size:18px;color:#94a3b8;">cloud_upload</span>
+                                        <div class="upload-spinner"></div>
+                                        <span class="upload-label" style="font-size:12px;">Upload image</span>
+                                    </div>
+                                    <div class="media-thumb-wrap" style="margin-top:8px;"></div>
+                                    <div class="media-upload-error"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -511,8 +563,13 @@
                                     <div class="option-body">
                                         <input type="text" name="quiz[0][options][0][text]" class="option-text-input" placeholder="Option A text">
                                         <div class="option-image-row">
-                                            <input type="file" name="quiz[0][options][0][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
+                                            <input type="hidden" name="quiz[0][options][0][existing_image]" value="" class="media-path-input">
                                             <img class="option-image-preview" src="" alt="">
+                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                                                <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
+                                                <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                                            </label>
+                                            <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
                                         </div>
                                     </div>
                                     <div class="option-correct-row">
@@ -528,8 +585,13 @@
                                     <div class="option-body">
                                         <input type="text" name="quiz[0][options][1][text]" class="option-text-input" placeholder="Option B text">
                                         <div class="option-image-row">
-                                            <input type="file" name="quiz[0][options][1][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
+                                            <input type="hidden" name="quiz[0][options][1][existing_image]" value="" class="media-path-input">
                                             <img class="option-image-preview" src="" alt="">
+                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                                                <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
+                                                <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                                            </label>
+                                            <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
                                         </div>
                                     </div>
                                     <div class="option-correct-row">
@@ -574,34 +636,193 @@
 </div>
 
 <script>
+const UPLOAD_URL  = '{{ route('lessons.upload-media') }}';
+const CSRF_TOKEN  = document.querySelector('meta[name="csrf-token"]')?.content
+                 || document.querySelector('input[name="_token"]')?.value;
 let contentIndex = 1;
 let quizIndex = 1;
+
+/* ── AJAX upload helpers ─────────────────────────────────────────────────── */
+async function handleAjaxUpload(input, type) {
+    if (!input.files || !input.files[0]) return;
+    const file   = input.files[0];
+    const widget = input.closest('.media-upload-widget');
+    if (!widget) return;
+    const context   = widget.dataset.context || 'lesson_media';
+    const errorEl   = widget.querySelector('.media-upload-error');
+    const thumbWrap = widget.querySelector('.media-thumb-wrap');
+    const label     = widget.querySelector('.upload-label');
+    widget.classList.add('uploading');
+    widget.classList.remove('has-file');
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    const pathInput = widget.closest('div')?.querySelector('.media-path-input');
+    const fd = new FormData();
+    fd.append('file', file); fd.append('context', context); fd.append('_token', CSRF_TOKEN);
+    try {
+        const resp = await fetch(UPLOAD_URL, { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || 'Upload failed');
+        if (pathInput) pathInput.value = data.path;
+        widget.classList.remove('uploading');
+        widget.classList.add('has-file');
+        if (label) label.textContent = 'Click to replace file';
+        if (thumbWrap) {
+            thumbWrap.innerHTML = '';
+            const isVid = file.type.startsWith('video/');
+            if (!isVid) {
+                const img = document.createElement('img');
+                img.className = 'media-thumb';
+                img.src = data.url;
+                thumbWrap.appendChild(img);
+            } else {
+                thumbWrap.innerHTML = '<span class="material-symbols-outlined" style="font-size:40px;color:#94a3b8;">videocam</span>';
+            }
+            const info = document.createElement('div');
+            info.className = 'media-thumb-info';
+            info.innerHTML = `<strong>Uploaded</strong>${file.name}<button type="button" class="media-remove-btn" onclick="clearMediaWidget(this)">✕ Remove</button>`;
+            thumbWrap.appendChild(info);
+        }
+    } catch (err) {
+        widget.classList.remove('uploading');
+        if (errorEl) { errorEl.textContent = '⚠ ' + err.message; errorEl.style.display = 'block'; }
+    }
+    input.value = '';
+}
+
+async function handleOptionImageUpload(input) {
+    if (!input.files || !input.files[0]) return;
+    const file    = input.files[0];
+    const optBody = input.closest('.option-body');
+    if (!optBody) return;
+    const spinner   = optBody.querySelector('.option-upload-spinner');
+    const preview   = optBody.querySelector('.option-image-preview');
+    const pathInput = optBody.querySelector('.media-path-input');
+    if (spinner) spinner.style.display = 'inline';
+    const fd = new FormData();
+    fd.append('file', file); fd.append('context', 'quiz_option_media'); fd.append('_token', CSRF_TOKEN);
+    try {
+        const resp = await fetch(UPLOAD_URL, { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || 'Upload failed');
+        if (pathInput) pathInput.value = data.path;
+        if (preview) { preview.src = data.url; preview.style.display = 'block'; }
+        let clearBtn = optBody.querySelector('.option-img-clear-btn');
+        if (!clearBtn) {
+            clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'option-img-clear-btn text-xs font-semibold flex-shrink-0';
+            clearBtn.style.color = '#ef4444';
+            clearBtn.textContent = '✕';
+            clearBtn.onclick = function() { clearOptionImage(this); };
+            optBody.querySelector('.option-image-row').appendChild(clearBtn);
+        }
+    } catch (err) {
+        alert('Image upload failed: ' + err.message);
+    } finally {
+        if (spinner) spinner.style.display = 'none';
+        input.value = '';
+    }
+}
+
+function clearMediaWidget(btn) {
+    const widget = btn.closest('.media-upload-widget'); if (!widget) return;
+    const thumbWrap = widget.querySelector('.media-thumb-wrap');
+    const pathInput = widget.closest('div')?.querySelector('.media-path-input');
+    if (thumbWrap) thumbWrap.innerHTML = '';
+    if (pathInput) pathInput.value = '';
+    const lbl = widget.querySelector('.upload-label'); if (lbl) lbl.textContent = 'Click or drag to upload';
+    widget.classList.remove('has-file');
+}
+function clearOptionImage(btn) {
+    const optBody = btn.closest('.option-body'); if (!optBody) return;
+    const preview = optBody.querySelector('.option-image-preview');
+    const pathInput = optBody.querySelector('.media-path-input');
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    if (pathInput) pathInput.value = '';
+    btn.remove();
+}
 
 function openPreview() {
     const overlay = document.getElementById('previewOverlay');
     const content = document.getElementById('previewContent');
     overlay.classList.add('active');
-    content.innerHTML = '<div class="preview-loading">Loading preview...</div>';
+    content.innerHTML = '<div class="preview-loading">⏳ Preparing preview...</div>';
 
-    const form = document.getElementById('lessonForm');
-    const formData = new FormData(form);
+    const form   = document.getElementById('lessonForm');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
-        || document.querySelector('input[name="_token"]')?.value;
+                   || document.querySelector('input[name="_token"]')?.value;
 
-    fetch('{{ route('lessons.preview') }}', {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin',
-        headers: {
-            'X-CSRF-TOKEN': csrfToken,
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'text/html',
+    // Collect all pending file inputs that have a file selected
+    const pendingUploads = [];
+    form.querySelectorAll('input[type="file"]').forEach(input => {
+        if (input.files && input.files[0]) {
+            pendingUploads.push(input);
         }
+    });
+
+    // Upload each pending file to temp_preview, store the returned path
+    // back into a hidden input so cleanData picks it up as existing_media
+    const uploadPromises = pendingUploads.map(input => {
+        const file = input.files[0];
+        const fd   = new FormData();
+        fd.append('file', file);
+        fd.append('context', 'temp_preview');
+        fd.append('_token', csrfToken);
+        return fetch('{{ route('lessons.upload-media') }}', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (data.path) {
+                    // Insert or update an existing_media / existing_image hidden input
+                    // so it travels with the preview POST
+                    const name = input.name; // e.g. contents[0][media] or quiz[0][options][1][image]
+
+                    let hiddenName;
+                    const contentMatch = name.match(/^(contents\[\d+\])\[media\]$/);
+                    const quizMediaMatch = name.match(/^(quiz\[\d+\])\[media\]$/);
+                    const optionMatch = name.match(/^(quiz\[\d+\]\[options\]\[\d+\])\[image\]$/);
+
+                    if (contentMatch)   hiddenName = contentMatch[1]   + '[existing_media]';
+                    else if (quizMediaMatch) hiddenName = quizMediaMatch[1] + '[existing_media]';
+                    else if (optionMatch)    hiddenName = optionMatch[1]    + '[existing_image]';
+
+                    if (hiddenName) {
+                        let hidden = form.querySelector(`input[type="hidden"][name="${CSS.escape(hiddenName)}"]`);
+                        if (!hidden) {
+                            hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = hiddenName;
+                            hidden.className = 'preview-temp-hidden';
+                            input.parentElement.appendChild(hidden);
+                        }
+                        hidden.value = data.path;
+                    }
+                }
+            })
+            .catch(() => {}); // silently ignore individual upload failures
+    });
+
+    Promise.all(uploadPromises).then(() => {
+        // Now build a clean FormData — no File objects (already handled above)
+        const rawData   = new FormData(form);
+        const cleanData = new FormData();
+        for (const [key, value] of rawData.entries()) {
+            if (value instanceof File) continue; // skip any remaining raw files
+            cleanData.append(key, value);
+        }
+
+        return fetch('{{ route('lessons.preview') }}', {
+            method: 'POST',
+            body: cleanData,
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html',
+            }
+        });
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Preview request failed (HTTP ' + response.status + ')');
-        }
+        if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.text();
     })
     .then(html => {
@@ -612,10 +833,13 @@ function openPreview() {
             newScript.text = oldScript.textContent;
             oldScript.parentNode.replaceChild(newScript, oldScript);
         });
+        // Clean up temp hidden inputs after preview loads
+        form.querySelectorAll('.preview-temp-hidden').forEach(el => el.remove());
     })
     .catch(error => {
         content.innerHTML = '<div class="preview-loading" style="color:#FCA5A5;">Preview failed. Please try again.</div>';
         console.error('Preview error:', error);
+        form.querySelectorAll('.preview-temp-hidden').forEach(el => el.remove());
     });
 }
 
@@ -643,6 +867,12 @@ function toggleModuleFields() {
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.content-type').forEach(toggleFields);
     toggleModuleFields();
+
+    // Auto-open AI modal if redirected from the index with ?ai=1
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('ai') === '1') {
+        setTimeout(() => openAiModal(), 300);
+    }
 
     document.getElementById('lessonForm')?.addEventListener('submit', function(e) {
         const action = document.getElementById('moduleAction')?.value;
@@ -690,6 +920,11 @@ function toggleFields(select) {
     } else if (select.value === 'image' || select.value === 'video') {
         if (mediaField) mediaField.classList.remove('hidden');
     }
+    // Always show media-field if slide is media_missing (AI-generated)
+    const mediaMissingInput = card.querySelector('input[name*="[media_missing]"]');
+    if (mediaMissingInput && mediaMissingInput.value === '1') {
+        if (mediaField) mediaField.classList.remove('hidden');
+    }
 }
 
 function addContentCard() {
@@ -730,7 +965,17 @@ function addContentCard() {
             </div>
             <div class="media-field hidden">
                 <label class="field-label">Upload Media</label>
-                <input type="file" name="contents[${contentIndex}][media]" class="field-input">
+                <input type="hidden" name="contents[${contentIndex}][existing_media]" value="" class="media-path-input">
+                <div class="media-upload-widget" data-context="lesson_media" data-accept="image/*,video/*">
+                    <div class="upload-trigger">
+                        <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this, 'content')">
+                        <span class="upload-icon material-symbols-outlined text-slate-400" style="font-size:20px;">cloud_upload</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label">Click or drag to upload</span>
+                    </div>
+                    <div class="media-thumb-wrap"></div>
+                    <div class="media-upload-error"></div>
+                </div>
             </div>
         </div>
     `;
@@ -795,6 +1040,27 @@ function previewOptionImage(input) {
     }
 }
 
+function previewContentMedia(input) {
+    const wrap = input.closest('.media-field')?.querySelector('.media-preview-wrap');
+    const img  = wrap?.querySelector('.content-media-preview');
+    if (!wrap || !img) return;
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.type.startsWith('image/')) {
+            img.src = URL.createObjectURL(file);
+            img.style.display = 'block';
+            wrap.style.display = 'block';
+        } else {
+            // video — just show filename, no preview
+            img.style.display = 'none';
+            wrap.style.display = 'none';
+        }
+    } else {
+        img.style.display = 'none';
+        wrap.style.display = 'none';
+    }
+}
+
 function buildOptionRow(qIndex, optIndex) {
     const letter = String.fromCharCode(65 + optIndex);
     const row = document.createElement('div');
@@ -804,8 +1070,13 @@ function buildOptionRow(qIndex, optIndex) {
         <div class="option-body">
             <input type="text" name="quiz[${qIndex}][options][${optIndex}][text]" class="option-text-input" placeholder="Option ${letter} text">
             <div class="option-image-row">
-                <input type="file" name="quiz[${qIndex}][options][${optIndex}][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
+                <input type="hidden" name="quiz[${qIndex}][options][${optIndex}][existing_image]" value="" class="media-path-input">
                 <img class="option-image-preview" src="" alt="">
+                <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                    <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
+                    <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                </label>
+                <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
             </div>
         </div>
         <div class="option-correct-row">
@@ -826,7 +1097,13 @@ function relabelOptions(optionsList, qIndex) {
         const textInput = row.querySelector('.option-text-input');
         textInput.name = `quiz[${qIndex}][options][${i}][text]`;
         textInput.placeholder = `Option ${letter} text`;
-        row.querySelector('.option-image-input').name = `quiz[${qIndex}][options][${i}][image]`;
+        const pathInput = row.querySelector('.media-path-input');
+        if (pathInput) pathInput.name = `quiz[${qIndex}][options][${i}][existing_image]`;
+        const imgInput = row.querySelector('.option-image-input');
+        if (imgInput) imgInput.name = `quiz[${qIndex}][options][${i}][image]`;
+        // Also update existing_image hidden inputs
+        const existingImg = row.querySelector('input[type="hidden"][name*="[existing_image]"]');
+        if (existingImg) existingImg.name = `quiz[${qIndex}][options][${i}][existing_image]`;
         row.querySelector('input[type="radio"]').name = `quiz[${qIndex}][correct]`;
         row.querySelector('input[type="radio"]').value = i;
     });
@@ -879,13 +1156,22 @@ function addQuizQuestion() {
                     </select>
                 </div>
                 <div>
-                    <label class="field-label">Question Media (Optional)</label>
-                    <input type="file" name="quiz[${qIndex}][media]" accept="image/*" class="field-input">
+                    <label class="field-label">Question Image (Optional)</label>
+                    <input type="hidden" name="quiz[${qIndex}][existing_media]" value="" class="media-path-input">
+                    <div class="media-upload-widget" data-context="quiz_media" style="padding:10px;">
+                        <div class="upload-trigger" style="gap:8px;">
+                            <input type="file" accept="image/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
+                            <span class="upload-icon material-symbols-outlined" style="font-size:18px;color:#94a3b8;">cloud_upload</span>
+                            <div class="upload-spinner"></div>
+                            <span class="upload-label" style="font-size:12px;">Upload image</span>
+                        </div>
+                        <div class="media-thumb-wrap" style="margin-top:8px;"></div>
+                    </div>
                 </div>
             </div>
             <div class="options-container">
                 <label class="field-label">Answer Options</label>
-                <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image.</p>
+                <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image (e.g. for FSL hand-sign choices).</p>
                 <div class="space-y-2 options-list"></div>
                 <button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
                     + Add Option
@@ -913,8 +1199,8 @@ function reindexQuizQuestions() {
         const typeSelect = questionDiv.querySelector('.question-type');
         if (typeSelect) typeSelect.name = `quiz[${qIndex}][type]`;
 
-        const mediaInput = questionDiv.querySelector('input[type="file"][name*="[media]"]');
-        if (mediaInput) mediaInput.name = `quiz[${qIndex}][media]`;
+        const qMediaPath = questionDiv.querySelector('.media-path-input');
+        if (qMediaPath) qMediaPath.name = `quiz[${qIndex}][existing_media]`;
 
         const optionsList = questionDiv.querySelector('.options-list');
         if (optionsList) relabelOptions(optionsList, qIndex);
@@ -930,4 +1216,6 @@ function removeQuizQuestion(btn) {
     }
 }
 </script>
+
+@include('lessons.partials.ai-generator-modal')
 @endsection

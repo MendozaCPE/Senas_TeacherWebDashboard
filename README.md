@@ -3,26 +3,33 @@
 > Database setup, migrations, table structure, seeding, and troubleshooting guide for the SENYAS Project.
 
 # 1. Clone the repository
+
 git clone [your-repo-url]
 cd Senas_TeacherWebDashboard
 
 # 2. Install dependencies
+
 composer install
 npm install
 
 # 3. Copy environment file
+
 cp .env.example .env
 
 # 4. Generate app key
+
 php artisan key:generate
 
 # 5. Start Docker containers (or use XAMPP)
+
 docker start senas-mysql phpmyadmin
 
 # 6. Run migrations and seeders
+
 php artisan migrate:fresh --seed
 
 # 7. Start the server
+
 php artisan serve
 
 # 1. Start XAMPP (Apache + MySQL)
@@ -30,14 +37,17 @@ php artisan serve
 # 2. Create database 'senyas' in phpMyAdmin
 
 # 3. Update .env file:
+
 DB_DATABASE=senyas
 DB_USERNAME=root
 DB_PASSWORD=
 
 # 4. Run:
+
 php artisan config:clear
 php artisan migrate:fresh --seed
 php artisan serve
+
 ---
 
 ## 📑 Table of Contents
@@ -46,10 +56,10 @@ php artisan serve
 - [Starting the Database](#-starting-the-database)
 - [Running Migrations](#-running-migrations)
 - [Database Schema](#-database-schema)
-  - [Users Table](#users-table)
-  - [Teachers Table](#teachers-table)
-  - [Students Table](#students-table)
-  - [Schools Table](#schools-table)
+    - [Users Table](#users-table)
+    - [Teachers Table](#teachers-table)
+    - [Students Table](#students-table)
+    - [Schools Table](#schools-table)
 - [ENUM Values](#-enum-values)
 - [Common Laravel Commands](#-common-laravel-commands)
 - [Sample Teacher Seeder](#-sample-teacher-seeder)
@@ -60,9 +70,11 @@ php artisan serve
 - [Quick Setup Checklist](#-quick-setup-checklist-for-groupmate)
 
 ---
+
 ## 🏗️ System Architecture
 
 The SEÑAS platform consists of two main applications:
+
 - **Web Dashboard** (Laravel PHP) - Teacher/admin interface for managing students and lessons
 - **Mobile App** (React Native Expo) - Student learning application
 
@@ -70,11 +82,11 @@ The SEÑAS platform consists of two main applications:
 
 ### phpMyAdmin
 
-| Setting | Value |
-|----------|--------|
-| URL | http://localhost:8080 |
-| Username | `root` |
-| Password | `root` |
+| Setting  | Value                 |
+| -------- | --------------------- |
+| URL      | http://localhost:8080 |
+| Username | `root`                |
+| Password | `root`                |
 
 ---
 
@@ -132,302 +144,303 @@ php artisan migrate:status
 
 Laravel default authentication table with additional project-specific fields.
 
-| Column | Type | Rules | Nullable |
-|----------|----------|----------|----------|
-| `id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `username` | STRING | Unique | ❌ |
-| `email` | STRING | Unique | ✅ |
-| `password` | STRING | Hashed Password | ✅ |
-| `google_id` | STRING | Unique | ✅ |
-| `role` | ENUM | `teacher`, `student` | ❌ |
-| `status` | ENUM | `active`, `inactive` | ❌ |
-| `created_at` | TIMESTAMP | Auto Generated | ✅ |
-| `updated_at` | TIMESTAMP | Auto Generated | ✅ |
+| Column       | Type      | Rules                       | Nullable |
+| ------------ | --------- | --------------------------- | -------- |
+| `id`         | BIGINT    | Primary Key, Auto Increment | ❌       |
+| `username`   | STRING    | Unique                      | ❌       |
+| `email`      | STRING    | Unique                      | ✅       |
+| `password`   | STRING    | Hashed Password             | ✅       |
+| `google_id`  | STRING    | Unique                      | ✅       |
+| `role`       | ENUM      | `teacher`, `student`        | ❌       |
+| `status`     | ENUM      | `active`, `inactive`        | ❌       |
+| `created_at` | TIMESTAMP | Auto Generated              | ✅       |
+| `updated_at` | TIMESTAMP | Auto Generated              | ✅       |
 
 ---
 
 ## Teachers Table
 
-| Column | Type | Rules | Nullable |
-|----------|----------|----------|----------|
-| `teacher_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `user_id` | BIGINT | Foreign Key → `users.id` | ❌ |
-| `first_name` | STRING | — | ❌ |
-| `last_name` | STRING | — | ❌ |
-| `specialization` | ENUM | `SNED`, `Regular` | ❌ |
-| `created_at` | TIMESTAMP | Auto Generated | ✅ |
-| `updated_at` | TIMESTAMP | Auto Generated | ✅ |
+| Column           | Type      | Rules                       | Nullable |
+| ---------------- | --------- | --------------------------- | -------- |
+| `teacher_id`     | BIGINT    | Primary Key, Auto Increment | ❌       |
+| `user_id`        | BIGINT    | Foreign Key → `users.id`    | ❌       |
+| `first_name`     | STRING    | —                           | ❌       |
+| `last_name`      | STRING    | —                           | ❌       |
+| `specialization` | ENUM      | `SNED`, `Regular`           | ❌       |
+| `created_at`     | TIMESTAMP | Auto Generated              | ✅       |
+| `updated_at`     | TIMESTAMP | Auto Generated              | ✅       |
 
 ---
 
 ## Students Table
 
-| Column | Type | Rules | Nullable |
-|----------|----------|----------|----------|
-| `student_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `user_id` | BIGINT | Foreign Key → `users.id` | ❌ |
-| `teacher_id` | BIGINT | Foreign Key → `teachers.teacher_id` | ❌ |
-| `lrn` | STRING(12) | Unique, Exactly 12 Digits | ❌ |
-| `pin` | STRING(4) | 4-Digit PIN | ❌ |
-| `first_name` | STRING | — | ❌ |
-| `last_name` | STRING | — | ❌ |
-| `age` | INTEGER | — | ❌ |
-| `grade_level` | STRING | Null for self-contained and transition students | ✅ |
-| `section` | STRING | Null for self-contained and transition students | ✅ |
-| `program_type` | ENUM | (Regular, Self-Contained, Transition, Inlcusion) | ❌ |
-| `created_at` | TIMESTAMP | Auto Generated | ✅ |
-| `updated_at` | TIMESTAMP | Auto Generated | ✅ |
+| Column         | Type       | Rules                                            | Nullable |
+| -------------- | ---------- | ------------------------------------------------ | -------- |
+| `student_id`   | BIGINT     | Primary Key, Auto Increment                      | ❌       |
+| `user_id`      | BIGINT     | Foreign Key → `users.id`                         | ❌       |
+| `teacher_id`   | BIGINT     | Foreign Key → `teachers.teacher_id`              | ❌       |
+| `lrn`          | STRING(12) | Unique, Exactly 12 Digits                        | ❌       |
+| `pin`          | STRING(4)  | 4-Digit PIN                                      | ❌       |
+| `first_name`   | STRING     | —                                                | ❌       |
+| `last_name`    | STRING     | —                                                | ❌       |
+| `age`          | INTEGER    | —                                                | ❌       |
+| `grade_level`  | STRING     | Null for self-contained and transition students  | ✅       |
+| `section`      | STRING     | Null for self-contained and transition students  | ✅       |
+| `program_type` | ENUM       | (Regular, Self-Contained, Transition, Inlcusion) | ❌       |
+| `created_at`   | TIMESTAMP  | Auto Generated                                   | ✅       |
+| `updated_at`   | TIMESTAMP  | Auto Generated                                   | ✅       |
 
 ---
 
-## Schools Table *(Optional / Future Use)*
+## Schools Table _(Optional / Future Use)_
 
-| Column | Type | Rules | Nullable |
-|----------|----------|----------|----------|
-| `id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `name` | STRING | — | ❌ |
-| `address` | STRING | — | ❌ |
-| `created_at` | TIMESTAMP | Auto Generated | ✅ |
-| `updated_at` | TIMESTAMP | Auto Generated | ✅ |
+| Column       | Type      | Rules                       | Nullable |
+| ------------ | --------- | --------------------------- | -------- |
+| `id`         | BIGINT    | Primary Key, Auto Increment | ❌       |
+| `name`       | STRING    | —                           | ❌       |
+| `address`    | STRING    | —                           | ❌       |
+| `created_at` | TIMESTAMP | Auto Generated              | ✅       |
+| `updated_at` | TIMESTAMP | Auto Generated              | ✅       |
 
 ---
+
 ## Lessons & Quizzes Tables
 
 ### Lessons Table
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `lesson_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `teacher_id` | BIGINT | Foreign Key → `teachers.teacher_id` | ❌ |
-| `title` | STRING | — | ❌ |
-| `description` | TEXT | — | ✅ |
-| `lesson_type` | ENUM | `text`, `video`, `interactive`, `gesture` | ❌ |
-| `difficulty` | ENUM | `beginner`, `intermediate`, `advanced` | ❌ |
-| `module_order` | INTEGER | Default 0 | ❌ |
-| `status` | ENUM | `draft`, `published`, `archived` | ❌ |
-| `created_at` | TIMESTAMP | Auto | ✅ |
-| `updated_at` | TIMESTAMP | Auto | ✅ |
+| Column         | Type      | Rules                                     | Nullable |
+| -------------- | --------- | ----------------------------------------- | -------- |
+| `lesson_id`    | BIGINT    | Primary Key, Auto Increment               | ❌       |
+| `teacher_id`   | BIGINT    | Foreign Key → `teachers.teacher_id`       | ❌       |
+| `title`        | STRING    | —                                         | ❌       |
+| `description`  | TEXT      | —                                         | ✅       |
+| `lesson_type`  | ENUM      | `text`, `video`, `interactive`, `gesture` | ❌       |
+| `difficulty`   | ENUM      | `beginner`, `intermediate`, `advanced`    | ❌       |
+| `module_order` | INTEGER   | Default 0                                 | ❌       |
+| `status`       | ENUM      | `draft`, `published`, `archived`          | ❌       |
+| `created_at`   | TIMESTAMP | Auto                                      | ✅       |
+| `updated_at`   | TIMESTAMP | Auto                                      | ✅       |
 
 ---
 
 ### Lesson Contents Table (Step-by-step)
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `content_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `lesson_id` | BIGINT | Foreign Key → `lessons.lesson_id` | ❌ |
-| `step_number` | INTEGER | Order of content (1,2,3...) | ❌ |
-| `content_type` | ENUM | `text`, `image`, `video`, `gesture_demo` | ❌ |
-| `title` | STRING | — | ✅ |
-| `content_text` | TEXT | Description/explanation | ✅ |
-| `media_url` | STRING | Path to image/video | ✅ |
-| `gesture_name` | STRING | For gesture recognition: `letter_a`, `hello`, etc. | ✅ |
+| Column         | Type    | Rules                                              | Nullable |
+| -------------- | ------- | -------------------------------------------------- | -------- |
+| `content_id`   | BIGINT  | Primary Key, Auto Increment                        | ❌       |
+| `lesson_id`    | BIGINT  | Foreign Key → `lessons.lesson_id`                  | ❌       |
+| `step_number`  | INTEGER | Order of content (1,2,3...)                        | ❌       |
+| `content_type` | ENUM    | `text`, `image`, `video`, `gesture_demo`           | ❌       |
+| `title`        | STRING  | —                                                  | ✅       |
+| `content_text` | TEXT    | Description/explanation                            | ✅       |
+| `media_url`    | STRING  | Path to image/video                                | ✅       |
+| `gesture_name` | STRING  | For gesture recognition: `letter_a`, `hello`, etc. | ✅       |
 
 ---
 
 ### Quizzes Table
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `quiz_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `lesson_id` | BIGINT | Foreign Key → `lessons.lesson_id` | ❌ |
-| `title` | STRING | — | ❌ |
-| `description` | TEXT | — | ✅ |
-| `total_points` | INTEGER | Default 0 | ❌ |
-| `passing_score` | INTEGER | Default 70 (percentage) | ❌ |
+| Column          | Type    | Rules                             | Nullable |
+| --------------- | ------- | --------------------------------- | -------- |
+| `quiz_id`       | BIGINT  | Primary Key, Auto Increment       | ❌       |
+| `lesson_id`     | BIGINT  | Foreign Key → `lessons.lesson_id` | ❌       |
+| `title`         | STRING  | —                                 | ❌       |
+| `description`   | TEXT    | —                                 | ✅       |
+| `total_points`  | INTEGER | Default 0                         | ❌       |
+| `passing_score` | INTEGER | Default 70 (percentage)           | ❌       |
 
 ---
 
 ### Quiz Questions Table
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `question_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `quiz_id` | BIGINT | Foreign Key → `quizzes.quiz_id` | ❌ |
-| `question_number` | INTEGER | Order of questions | ❌ |
-| `question_type` | ENUM | `multiple_choice`, `gesture_recognition`, `true_false` | ❌ |
-| `question_text` | TEXT | "Which sign shows letter A?" | ❌ |
-| `media_url` | STRING | Image/video for question | ✅ |
-| `gesture_required` | STRING | For gesture recognition: `letter_a` | ✅ |
-| `points` | INTEGER | Default 1 | ❌ |
+| Column             | Type    | Rules                                                  | Nullable |
+| ------------------ | ------- | ------------------------------------------------------ | -------- |
+| `question_id`      | BIGINT  | Primary Key, Auto Increment                            | ❌       |
+| `quiz_id`          | BIGINT  | Foreign Key → `quizzes.quiz_id`                        | ❌       |
+| `question_number`  | INTEGER | Order of questions                                     | ❌       |
+| `question_type`    | ENUM    | `multiple_choice`, `gesture_recognition`, `true_false` | ❌       |
+| `question_text`    | TEXT    | "Which sign shows letter A?"                           | ❌       |
+| `media_url`        | STRING  | Image/video for question                               | ✅       |
+| `gesture_required` | STRING  | For gesture recognition: `letter_a`                    | ✅       |
+| `points`           | INTEGER | Default 1                                              | ❌       |
 
 ---
 
 ### Quiz Options Table (for Multiple Choice)
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `option_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `question_id` | BIGINT | Foreign Key → `quiz_questions.question_id` | ❌ |
-| `option_text` | STRING | Answer text | ❌ |
-| `option_media_url` | STRING | Image of the sign | ✅ |
-| `is_correct` | BOOLEAN | Default false | ❌ |
+| Column             | Type    | Rules                                      | Nullable |
+| ------------------ | ------- | ------------------------------------------ | -------- |
+| `option_id`        | BIGINT  | Primary Key, Auto Increment                | ❌       |
+| `question_id`      | BIGINT  | Foreign Key → `quiz_questions.question_id` | ❌       |
+| `option_text`      | STRING  | Answer text                                | ❌       |
+| `option_media_url` | STRING  | Image of the sign                          | ✅       |
+| `is_correct`       | BOOLEAN | Default false                              | ❌       |
 
 ---
 
 ### Quiz Attempts Table (Student takes quiz)
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `attempt_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `student_id` | BIGINT | Foreign Key → `students.student_id` | ❌ |
-| `quiz_id` | BIGINT | Foreign Key → `quizzes.quiz_id` | ❌ |
-| `score` | INTEGER | Points earned | ❌ |
-| `total_points` | INTEGER | Maximum possible points | ❌ |
-| `percentage` | FLOAT | Score percentage | ❌ |
-| `status` | ENUM | `in_progress`, `completed`, `failed` | ❌ |
-| `started_at` | TIMESTAMP | When quiz began | ❌ |
-| `completed_at` | TIMESTAMP | When quiz finished | ✅ |
+| Column         | Type      | Rules                                | Nullable |
+| -------------- | --------- | ------------------------------------ | -------- |
+| `attempt_id`   | BIGINT    | Primary Key, Auto Increment          | ❌       |
+| `student_id`   | BIGINT    | Foreign Key → `students.student_id`  | ❌       |
+| `quiz_id`      | BIGINT    | Foreign Key → `quizzes.quiz_id`      | ❌       |
+| `score`        | INTEGER   | Points earned                        | ❌       |
+| `total_points` | INTEGER   | Maximum possible points              | ❌       |
+| `percentage`   | FLOAT     | Score percentage                     | ❌       |
+| `status`       | ENUM      | `in_progress`, `completed`, `failed` | ❌       |
+| `started_at`   | TIMESTAMP | When quiz began                      | ❌       |
+| `completed_at` | TIMESTAMP | When quiz finished                   | ✅       |
 
 ---
 
 ### Student Answers Table (Detailed per question)
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `answer_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `attempt_id` | BIGINT | Foreign Key → `quiz_attempts.attempt_id` | ❌ |
-| `question_id` | BIGINT | Foreign Key → `quiz_questions.question_id` | ❌ |
-| `selected_option_id` | BIGINT | Foreign Key → `quiz_options.option_id` | ✅ |
-| `gesture_recognized` | STRING | Captured gesture name | ✅ |
-| `is_correct` | BOOLEAN | Whether answer was correct | ❌ |
-| `points_earned` | INTEGER | Points for this question | ❌ |
+| Column               | Type    | Rules                                      | Nullable |
+| -------------------- | ------- | ------------------------------------------ | -------- |
+| `answer_id`          | BIGINT  | Primary Key, Auto Increment                | ❌       |
+| `attempt_id`         | BIGINT  | Foreign Key → `quiz_attempts.attempt_id`   | ❌       |
+| `question_id`        | BIGINT  | Foreign Key → `quiz_questions.question_id` | ❌       |
+| `selected_option_id` | BIGINT  | Foreign Key → `quiz_options.option_id`     | ✅       |
+| `gesture_recognized` | STRING  | Captured gesture name                      | ✅       |
+| `is_correct`         | BOOLEAN | Whether answer was correct                 | ❌       |
+| `points_earned`      | INTEGER | Points for this question                   | ❌       |
 
 ---
 
 ### Student Lesson Progress Table
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `progress_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `student_id` | BIGINT | Foreign Key → `students.student_id` | ❌ |
-| `lesson_id` | BIGINT | Foreign Key → `lessons.lesson_id` | ❌ |
-| `current_step` | INTEGER | Which content step they're on | ❌ |
-| `lesson_completed` | BOOLEAN | Default false | ❌ |
-| `quiz_completed` | BOOLEAN | Default false | ❌ |
-| `quiz_score` | INTEGER | Last quiz score | ✅ |
-| `last_accessed_at` | TIMESTAMP | Last time they opened lesson | ❌ |
+| Column             | Type      | Rules                               | Nullable |
+| ------------------ | --------- | ----------------------------------- | -------- |
+| `progress_id`      | BIGINT    | Primary Key, Auto Increment         | ❌       |
+| `student_id`       | BIGINT    | Foreign Key → `students.student_id` | ❌       |
+| `lesson_id`        | BIGINT    | Foreign Key → `lessons.lesson_id`   | ❌       |
+| `current_step`     | INTEGER   | Which content step they're on       | ❌       |
+| `lesson_completed` | BOOLEAN   | Default false                       | ❌       |
+| `quiz_completed`   | BOOLEAN   | Default false                       | ❌       |
+| `quiz_score`       | INTEGER   | Last quiz score                     | ✅       |
+| `last_accessed_at` | TIMESTAMP | Last time they opened lesson        | ❌       |
 
 ---
 
 ### Gestures Library Table
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `gesture_id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `name` | STRING | Unique identifier: `letter_a`, `hello` | ❌ |
-| `display_name` | STRING | User friendly: `Letter A`, `Hello` | ❌ |
-| `description` | TEXT | How to perform the sign | ✅ |
-| `image_url` | STRING | Reference image path | ✅ |
-| `video_url` | STRING | Tutorial video path | ✅ |
-| `model_file` | STRING | Path to `.h5` model file | ✅ |
-| `difficulty` | ENUM | `beginner`, `intermediate`, `advanced` | ❌ |
+| Column         | Type   | Rules                                  | Nullable |
+| -------------- | ------ | -------------------------------------- | -------- |
+| `gesture_id`   | BIGINT | Primary Key, Auto Increment            | ❌       |
+| `name`         | STRING | Unique identifier: `letter_a`, `hello` | ❌       |
+| `display_name` | STRING | User friendly: `Letter A`, `Hello`     | ❌       |
+| `description`  | TEXT   | How to perform the sign                | ✅       |
+| `image_url`    | STRING | Reference image path                   | ✅       |
+| `video_url`    | STRING | Tutorial video path                    | ✅       |
+| `model_file`   | STRING | Path to `.h5` model file               | ✅       |
+| `difficulty`   | ENUM   | `beginner`, `intermediate`, `advanced` | ❌       |
 
 ---
 
 ### Lesson Gestures (Which gestures are taught in each lesson)
 
-| Column | Type | Rules | Nullable |
-|--------|------|-------|----------|
-| `id` | BIGINT | Primary Key, Auto Increment | ❌ |
-| `lesson_id` | BIGINT | Foreign Key → `lessons.lesson_id` | ❌ |
-| `gesture_id` | BIGINT | Foreign Key → `gestures.gesture_id` | ❌ |
+| Column       | Type   | Rules                               | Nullable |
+| ------------ | ------ | ----------------------------------- | -------- |
+| `id`         | BIGINT | Primary Key, Auto Increment         | ❌       |
+| `lesson_id`  | BIGINT | Foreign Key → `lessons.lesson_id`   | ❌       |
+| `gesture_id` | BIGINT | Foreign Key → `gestures.gesture_id` | ❌       |
 
 ### Learning Paths
 
-| id | student_id | fsl_level | learning_goal | practice_time | is_completed | completed_at |
-|----|------------|-----------|---------------|---------------|--------------|--------------|
-| 1 | 2 | Beginner | Alphabet_Numbers | 5_10_min | 1 | 2026-06-21 00:34:05 |
+| id  | student_id | fsl_level | learning_goal    | practice_time | is_completed | completed_at        |
+| --- | ---------- | --------- | ---------------- | ------------- | ------------ | ------------------- |
+| 1   | 2          | Beginner  | Alphabet_Numbers | 5_10_min      | 1            | 2026-06-21 00:34:05 |
 
 # 📝 ENUM Values
 
 ## Role (`users.role`)
 
-| Value | Description |
-|---------|-------------|
-| `teacher` | Teacher / Administrator Account |
+| Value     | Description                       |
+| --------- | --------------------------------- |
+| `teacher` | Teacher / Administrator Account   |
 | `student` | Student Account (LRN + PIN Login) |
 
 ---
 
 ## Status (`users.status`)
 
-| Value | Description |
-|---------|-------------|
-| `active` | User can log in |
+| Value      | Description         |
+| ---------- | ------------------- |
+| `active`   | User can log in     |
 | `inactive` | Account is disabled |
 
 ---
 
 ## Specialization (`teachers.specialization`)
 
-| Value | Description |
-|---------|-------------|
-| `SNED` | Special Needs Education Teacher |
-| `Regular` | Regular Classroom Teacher |
+| Value     | Description                     |
+| --------- | ------------------------------- |
+| `SNED`    | Special Needs Education Teacher |
+| `Regular` | Regular Classroom Teacher       |
 
 ---
 
 ## Program Type (`students.program_type`)
 
-| Value | Description |
-|---------|-------------|
-| `Regular` | Mainstream Classroom |
-| `Inclusion` | Regular Classroom with Additional Support |
-| `Transition` | About to Graduate |
-| `Self-contained` | Separate Special Education Classroom |
+| Value            | Description                               |
+| ---------------- | ----------------------------------------- |
+| `Regular`        | Mainstream Classroom                      |
+| `Inclusion`      | Regular Classroom with Additional Support |
+| `Transition`     | About to Graduate                         |
+| `Self-contained` | Separate Special Education Classroom      |
 
 ## Additional ENUM Values
 
 ### Lesson Type (`lessons.lesson_type`)
 
-| Value | Description |
-|-------|-------------|
-| `text` | Text-based lesson |
-| `video` | Video lesson |
-| `interactive` | Interactive content |
-| `gesture` | Gesture recognition lesson |
+| Value         | Description                |
+| ------------- | -------------------------- |
+| `text`        | Text-based lesson          |
+| `video`       | Video lesson               |
+| `interactive` | Interactive content        |
+| `gesture`     | Gesture recognition lesson |
 
 ### Difficulty (`lessons.difficulty`, `gestures.difficulty`)
 
-| Value | Description |
-|-------|-------------|
-| `beginner` | Easy, basic signs |
+| Value          | Description         |
+| -------------- | ------------------- |
+| `beginner`     | Easy, basic signs   |
 | `intermediate` | Moderate difficulty |
-| `advanced` | Complex signs |
+| `advanced`     | Complex signs       |
 
 ### Lesson Status (`lessons.status`)
 
-| Value | Description |
-|-------|-------------|
-| `draft` | Being edited, not visible to students |
-| `published` | Visible to students |
-| `archived` | Hidden, kept for reference |
+| Value       | Description                           |
+| ----------- | ------------------------------------- |
+| `draft`     | Being edited, not visible to students |
+| `published` | Visible to students                   |
+| `archived`  | Hidden, kept for reference            |
 
 ### Content Type (`lesson_contents.content_type`)
 
-| Value | Description |
-|-------|-------------|
-| `text` | Text explanation |
-| `image` | Image showing the sign |
-| `video` | Video tutorial |
+| Value          | Description                  |
+| -------------- | ---------------------------- |
+| `text`         | Text explanation             |
+| `image`        | Image showing the sign       |
+| `video`        | Video tutorial               |
 | `gesture_demo` | Requires camera for practice |
 
 ### Question Type (`quiz_questions.question_type`)
 
-| Value | Description |
-|-------|-------------|
-| `multiple_choice` | Choose from options |
+| Value                 | Description                    |
+| --------------------- | ------------------------------ |
+| `multiple_choice`     | Choose from options            |
 | `gesture_recognition` | Camera captures student's sign |
-| `true_false` | True or false answer |
+| `true_false`          | True or false answer           |
 
 ### Attempt Status (`quiz_attempts.status`)
 
-| Value | Description |
-|-------|-------------|
-| `in_progress` | Student currently taking quiz |
-| `completed` | Finished and passed |
-| `failed` | Finished but below passing score |
+| Value         | Description                      |
+| ------------- | -------------------------------- |
+| `in_progress` | Student currently taking quiz    |
+| `completed`   | Finished and passed              |
+| `failed`      | Finished but below passing score |
 
 ---
 
@@ -481,55 +494,57 @@ the database will be populated with sample records for development and testing.
 
 ## School
 
-| id | name | address | region | division |
-|----|------|----------|----------|----------|
-| 1 | Nasugbu West Central School | Concepcion St., Barangay IV, Nasugbu, Batangas | IV-A | Batangas Province |
+| id  | name                        | address                                        | region | division          |
+| --- | --------------------------- | ---------------------------------------------- | ------ | ----------------- |
+| 1   | Nasugbu West Central School | Concepcion St., Barangay IV, Nasugbu, Batangas | IV-A   | Batangas Province |
 
 ---
 
 ## Users
 
-| id | username | email | role | status |
-|----|----------|--------|--------|--------|
-| 1 | emmaruth | emmaruth@deped.gov.ph | teacher | active |
-| 2 | juandelacruz | NULL | student | active |
-| 3 | mariasantos | NULL | student | active |
-| 4 | pedroreyes | NULL | student | active |
-| 5 | anasalvador | NULL | student | active |
+| id  | username     | email                 | role    | status |
+| --- | ------------ | --------------------- | ------- | ------ |
+| 1   | emmaruth     | emmaruth@deped.gov.ph | teacher | active |
+| 2   | juandelacruz | NULL                  | student | active |
+| 3   | mariasantos  | NULL                  | student | active |
+| 4   | pedroreyes   | NULL                  | student | active |
+| 5   | anasalvador  | NULL                  | student | active |
 
 ---
 
 ## Teachers
 
 | teacher_id | user_id | first_name | last_name | specialization |
-|------------|---------|------------|------------|----------------|
-| 1 | 1 | Emma | Ruth | SNED |
+| ---------- | ------- | ---------- | --------- | -------------- |
+| 1          | 1       | Emma       | Ruth      | SNED           |
 
 ---
 
 ## Students
 
-| student_id | user_id | lrn | pin | first_name | last_name | program_type |
-|------------|---------|-----|-----|------------|------------|--------------|
-| 1 | 2 | 123456789012 | 1234 | Juan | Dela Cruz | Regular |
-| 2 | 3 | 234567890123 | 2345 | Maria | Santos | Inclusion |
-| 3 | 4 | 345678901234 | 3456 | Pedro | Reyes | Self-contained |
-| 4 | 5 | 456789012345 | 4567 | Ana | Salvador | Transition |
+| student_id | user_id | lrn          | pin  | first_name | last_name | program_type   |
+| ---------- | ------- | ------------ | ---- | ---------- | --------- | -------------- |
+| 1          | 2       | 123456789012 | 1234 | Juan       | Dela Cruz | Regular        |
+| 2          | 3       | 234567890123 | 2345 | Maria      | Santos    | Inclusion      |
+| 3          | 4       | 345678901234 | 3456 | Pedro      | Reyes     | Self-contained |
+| 4          | 5       | 456789012345 | 4567 | Ana        | Salvador  | Transition     |
 
 ---
 
 ## Test Credentials
 
-| Role | Login Method | Credentials |
-|--------|--------------|-------------|
-| Teacher | Email + Password | `emmaruth@deped.gov.ph` / `password123` |
-| Student 1 | LRN + PIN | `123456789012` / `1234` |
-| Student 2 | LRN + PIN | `234567890123` / `2345` |
-| Student 3 | LRN + PIN | `345678901234` / `3456` |
-| Student 4 | LRN + PIN | `456789012345` / `4567` |
+| Role      | Login Method     | Credentials                             |
+| --------- | ---------------- | --------------------------------------- |
+| Teacher   | Email + Password | `emmaruth@deped.gov.ph` / `password123` |
+| Student 1 | LRN + PIN        | `123456789012` / `1234`                 |
+| Student 2 | LRN + PIN        | `234567890123` / `2345`                 |
+| Student 3 | LRN + PIN        | `345678901234` / `3456`                 |
+| Student 4 | LRN + PIN        | `456789012345` / `4567`                 |
 
 > ⚠️ These credentials are for development/testing only and should never be used in production.
+
 ---
+
 ## 📊 Full Database ERD
 
 ```text
@@ -630,14 +645,12 @@ the database will be populated with sample records for development and testing.
 ### Relationship Summary
 
 | Parent Table | Child Table | Relationship |
-|-------------|-------------|-------------|
-| users | teachers | One-to-One |
-| users | students | One-to-One |
-| schools | teachers | One-to-Many |
-| schools | students | One-to-Many |
-| teachers | students | One-to-Many |
-
-
+| ------------ | ----------- | ------------ |
+| users        | teachers    | One-to-One   |
+| users        | students    | One-to-One   |
+| schools      | teachers    | One-to-Many  |
+| schools      | students    | One-to-Many  |
+| teachers     | students    | One-to-Many  |
 
 # 🚨 Troubleshooting
 
@@ -669,7 +682,7 @@ php artisan migrate
 
 ## Run it:
 
-```bash
+````bash
 php artisan migrate:fresh --seed
 
 ---
@@ -685,7 +698,7 @@ Verify that:
 users
  └── teachers
       └── students
-```
+````
 
 Migration order should be:
 
@@ -752,13 +765,13 @@ During installation, make sure the following components are included:
 
 Open **XAMPP Control Panel** and start:
 
-| Service | Required |
-|----------|----------|
-| Apache | ✅ Yes |
-| MySQL | ✅ Yes |
-| FileZilla | ❌ No |
-| Mercury | ❌ No |
-| Tomcat | ❌ No |
+| Service   | Required |
+| --------- | -------- |
+| Apache    | ✅ Yes   |
+| MySQL     | ✅ Yes   |
+| FileZilla | ❌ No    |
+| Mercury   | ❌ No    |
+| Tomcat    | ❌ No    |
 
 Your control panel should show both Apache and MySQL running.
 
@@ -774,10 +787,10 @@ http://localhost/phpmyadmin
 
 Default credentials:
 
-| Setting | Value |
-|----------|--------|
-| Username | root |
-| Password | *(leave blank)* |
+| Setting  | Value           |
+| -------- | --------------- |
+| Username | root            |
+| Password | _(leave blank)_ |
 
 > ⚠️ Most XAMPP installations use an empty password for the root user.
 
@@ -864,29 +877,29 @@ If migrations are displayed, the connection is working correctly.
 
 ## 🗄️ Database Schema
 
-| Table Name                | Primary Key Column |
-|--------------------------|--------------------|
-| users                    | id                 |
-| teachers                 | id                 |
-| students                 | student_id         |
-| schools                  | id                 |
-| lessons                  | lesson_id          |
-| quizzes                  | quiz_id            |
-| quiz_questions           | question_id        |
-| quiz_options             | option_id          |
-| quiz_attempts            | attempt_id         |
-| student_answers          | answer_id          |
-| student_lesson_progress  | progress_id        |
-| gestures                 | gesture_id         |
+| Table Name              | Primary Key Column |
+| ----------------------- | ------------------ |
+| users                   | id                 |
+| teachers                | id                 |
+| students                | student_id         |
+| schools                 | id                 |
+| lessons                 | lesson_id          |
+| quizzes                 | quiz_id            |
+| quiz_questions          | question_id        |
+| quiz_options            | option_id          |
+| quiz_attempts           | attempt_id         |
+| student_answers         | answer_id          |
+| student_lesson_progress | progress_id        |
+| gestures                | gesture_id         |
 
 API Endpoints
-Method	Endpoint	Description
-POST	/api/student/login	Student login
-GET	/api/student/profile	Get student profile
-GET	/api/student/learning-path	Get learning path
-POST	/api/student/save-learning-path	Save learning path
-POST	/api/student/update-level	Update mastery level
-POST	/api/student/logout	Student logout
+Method Endpoint Description
+POST /api/student/login Student login
+GET /api/student/profile Get student profile
+GET /api/student/learning-path Get learning path
+POST /api/student/save-learning-path Save learning path
+POST /api/student/update-level Update mastery level
+POST /api/student/logout Student logout
 
 ## 🎉 What's Next?
 
@@ -895,4 +908,3 @@ POST	/api/student/logout	Student logout
 3. **Gesture Recognition** - Camera-based sign language detection
 4. **Achievements** - Badges and progress tracking
 5. **Push Notifications** - Daily reminders to practice
-

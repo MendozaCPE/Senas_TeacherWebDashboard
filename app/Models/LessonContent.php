@@ -16,6 +16,7 @@ class LessonContent extends Model
         'content_text',
         'media_url',
         'gesture_name',
+        'media_missing',
     ];
 
     public function lesson()
