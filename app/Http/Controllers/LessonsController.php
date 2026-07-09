@@ -69,6 +69,111 @@ class LessonsController extends Controller
 }
 
     /**
+     * AI PDF Lesson Generator — POST /lessons/ai-generate-pdf
+     * Accepts a PDF file, extracts text, sends to DeepSeek, returns JSON lesson.
+     */
+    public function aiGeneratePdf(Request $request)
+    {
+        $request->validate([
+            'pdf'          => 'required|file|mimes:pdf|max:20480',
+            'difficulty'   => 'required|in:beginner,intermediate,advanced',
+            'lesson_type'  => 'required|in:gesture,text,interactive',
+            'num_slides'   => 'required|integer|min:3|max:30',
+            'instructions' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $pdfPath = $request->file('pdf')->getRealPath();
+            $pdfText = $this->extractPdfText($pdfPath);
+
+            // If extraction yielded nothing, still try — give AI the filename as context
+            if (empty(trim($pdfText))) {
+                $pdfText = 'PDF filename: ' . $request->file('pdf')->getClientOriginalName()
+                    . '. The document appears to be image-based. Generate an FSL lesson based on the filename topic.';
+            }
+
+            $deepSeek = new DeepSeekService();
+            $lesson   = $deepSeek->generateFromPdfText($pdfText, [
+                'difficulty'   => $request->input('difficulty'),
+                'lesson_type'  => $request->input('lesson_type'),
+                'num_slides'   => (int) $request->input('num_slides'),
+                'instructions' => $request->input('instructions', ''),
+            ]);
+
+            $resolver = new GestureMediaResolver();
+            $lesson   = $resolver->resolve($lesson);
+
+            return response()->json($lesson);
+
+        } catch (\Throwable $e) {
+            \Log::error('AI PDF Generate failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => 'PDF generation failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Extract plain text from a PDF file path.
+     * Uses smalot/pdfparser if installed, otherwise basic stream extraction.
+     */
+    private function extractPdfText(string $pdfPath): string
+    {
+        // Try smalot/pdfparser first — best quality
+        if (class_exists('\Smalot\PdfParser\Parser')) {
+            try {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf    = $parser->parseFile($pdfPath);
+                $text   = $pdf->getText();
+                if (!empty(trim($text))) {
+                    return $text;
+                }
+                // Fallthrough to per-page extraction if getText() returns empty
+                $pages = $pdf->getPages();
+                $text  = '';
+                foreach ($pages as $page) {
+                    $text .= $page->getText() . "\n";
+                }
+                if (!empty(trim($text))) {
+                    return $text;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('smalot/pdfparser failed, trying fallback: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback: raw PDF stream extraction
+        $content = @file_get_contents($pdfPath);
+        if ($content === false) return '';
+
+        $text = '';
+
+        // Decompress flate-encoded streams and extract text
+        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $content, $streamMatches);
+        foreach ($streamMatches[1] as $stream) {
+            $decoded = @gzuncompress($stream);
+            if ($decoded === false) {
+                $decoded = @gzinflate(substr($stream, 2));
+            }
+            if ($decoded !== false) {
+                preg_match_all('/\(([^)]{1,})\)/', $decoded, $paren);
+                foreach ($paren[1] as $p) {
+                    $text .= preg_replace('/\\\\./', ' ', $p) . ' ';
+                }
+            }
+        }
+
+        // Direct BT/ET text blocks
+        preg_match_all('/BT(.*?)ET/s', $content, $btMatches);
+        foreach ($btMatches[1] as $block) {
+            preg_match_all('/\(([^)]+)\)/', $block, $strMatches);
+            foreach ($strMatches[1] as $str) {
+                $text .= preg_replace('/\\\\./', ' ', $str) . ' ';
+            }
+        }
+
+        return trim(preg_replace('/\s+/', ' ', $text));
+    }
+
+    /**
      * AI Lesson Generator — POST /lessons/ai-generate
      * Accepts topic + settings, calls DeepSeek, resolves gesture media, returns JSON.
      */
@@ -78,7 +183,7 @@ class LessonsController extends Controller
             'topic'                => 'required|string|max:200',
             'difficulty'           => 'required|in:beginner,intermediate,advanced',
             'lesson_type'          => 'required|in:gesture,text,interactive',
-            'num_slides'           => 'required|integer|min:3|max:10',
+            'num_slides'           => 'required|integer|min:3|max:30',
             'special_instructions' => 'nullable|string|max:500',
         ]);
 

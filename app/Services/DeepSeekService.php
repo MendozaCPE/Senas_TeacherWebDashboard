@@ -36,7 +36,7 @@ class DeepSeekService
             'HTTP-Referer'  => config('app.url'),
             'X-Title'       => 'SENAS Teacher Dashboard',
         ])
-        ->timeout(60)
+        ->timeout(90)
         ->post("{$this->baseUrl}/chat/completions", [
             'model'           => $this->model,
             'messages'        => [
@@ -45,7 +45,7 @@ class DeepSeekService
             ],
             'response_format' => ['type' => 'json_object'],
             'temperature'     => 0.7,
-            'max_tokens'      => 4000,
+            'max_tokens'      => 8000,
         ]);
 
         if ($response->failed()) {
@@ -84,7 +84,7 @@ class DeepSeekService
     private function buildSystemPrompt(): string
     {
         return <<<'PROMPT'
-You are an expert Filipino Sign Language (FSL) curriculum designer for the SENAS learning app. Generate complete, structured FSL lesson plans for teachers.
+You are an expert Filipino Sign Language (FSL) curriculum designer for the SENAS learning app. Generate complete, structured FSL lesson plans for children.
 
 Respond with ONLY valid JSON — no markdown, no explanation, just raw JSON.
 
@@ -106,7 +106,7 @@ Schema:
   "quiz": [
     {
       "question": string,
-      "type": "multiple_choice",
+      "type": "multiple_choice"|"true_false",
       "options": [string, string, string, string],
       "correct_index": number
     }
@@ -115,9 +115,12 @@ Schema:
 
 Rules:
 - gesture_name must be snake_case (e.g. "letter_a", "hello", "thank_you")
-- content_text must be educational, encouraging, and clear for deaf/HoH learners
-- difficulty levels: beginner = alphabet/numbers, intermediate = phrases, advanced = sentences
+- content_text must be educational, encouraging, and clear for deaf/HoH learners — use simple words, short sentences, and positive tone
+- difficulty: beginner = alphabet/numbers/basic signs, intermediate = common phrases, advanced = full sentences/conversations
 - Generate EXACTLY the number of content steps requested and EXACTLY 5 quiz questions
+- Mix quiz types: use both "multiple_choice" (4 options) and "true_false" (options: ["True","False"], correct_index 0 or 1)
+- For true_false questions, options must be exactly ["True", "False"]
+- Make quizzes fun and age-appropriate for school children learning FSL
 PROMPT;
     }
 
@@ -150,10 +153,81 @@ PROMPT;
             throw new \RuntimeException('AI response has no content slides.');
         }
 
-        if (!is_array($lesson['quiz']) || count($lesson['quiz']) !== 5) {
-            throw new \RuntimeException(
-                'AI response must contain exactly 5 quiz questions, got ' . count($lesson['quiz'] ?? []) . '.'
-            );
+        if (!is_array($lesson['quiz']) || count($lesson['quiz']) < 1) {
+            throw new \RuntimeException('AI response has no quiz questions.');
         }
+    }
+
+    /**
+     * Generate a lesson from raw PDF text extracted by the controller.
+     *
+     * @param  string  $pdfText   Extracted plain text from the PDF
+     * @param  array   $params    Keys: difficulty, lesson_type, num_slides, instructions
+     * @return array   Structured lesson array
+     */
+    public function generateFromPdfText(string $pdfText, array $params): array
+    {
+        // Trim to ~12 000 chars so we don't blow the context window
+        $pdfText = mb_substr($pdfText, 0, 12000);
+
+        $systemPrompt = $this->buildSystemPrompt();
+
+        $extra = !empty($params['instructions']) ? $params['instructions'] : 'None';
+
+        $userPrompt = <<<TEXT
+Generate a complete FSL lesson from the following document content.
+Adapt it for children learning Filipino Sign Language — keep language simple, friendly, and encouraging.
+
+Difficulty: {$params['difficulty']}
+Lesson Type: {$params['lesson_type']}
+Number of slides: {$params['num_slides']}
+Additional instructions: {$extra}
+
+--- DOCUMENT CONTENT START ---
+{$pdfText}
+--- DOCUMENT CONTENT END ---
+
+Capture the key ideas from the document and turn them into engaging FSL lesson slides and 5 quiz questions.
+TEXT;
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Content-Type'  => 'application/json',
+            'HTTP-Referer'  => config('app.url'),
+            'X-Title'       => 'SENAS Teacher Dashboard',
+        ])
+        ->timeout(90)
+        ->post("{$this->baseUrl}/chat/completions", [
+            'model'           => $this->model,
+            'messages'        => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user',   'content' => $userPrompt],
+            ],
+            'response_format' => ['type' => 'json_object'],
+            'temperature'     => 0.7,
+            'max_tokens'      => 4000,
+        ]);
+
+        if ($response->failed()) {
+            Log::error('DeepSeek PDF API error', ['status' => $response->status(), 'body' => $response->body()]);
+            throw new \RuntimeException('DeepSeek API returned HTTP ' . $response->status() . '. Please try again.');
+        }
+
+        $rawContent = $response->json()['choices'][0]['message']['content'] ?? null;
+        if (empty($rawContent)) {
+            throw new \RuntimeException('DeepSeek returned an empty response. Please try again.');
+        }
+
+        $rawContent = preg_replace('/^```(?:json)?\s*/i', '', trim($rawContent));
+        $rawContent = preg_replace('/\s*```$/', '', $rawContent);
+
+        $lesson = json_decode($rawContent, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException('Could not parse AI response as JSON: ' . json_last_error_msg());
+        }
+
+        $this->validateLessonStructure($lesson, (int) $params['num_slides']);
+
+        return $lesson;
     }
 }

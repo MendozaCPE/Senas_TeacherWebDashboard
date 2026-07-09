@@ -11,7 +11,7 @@
 
         {{-- Header --}}
         <div style="background: linear-gradient(135deg,#6d28d9,#4f46e5); padding:24px 28px; flex-shrink:0;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
                 <div style="display:flex; align-items:center; gap:12px;">
                     <div style="width:42px;height:42px;background:rgba(255,255,255,0.2);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;">✨</div>
                     <div>
@@ -23,6 +23,18 @@
                         style="background:rgba(255,255,255,0.15);border:none;color:white;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;"
                         onmouseover="this.style.background='rgba(255,255,255,0.25)'"
                         onmouseout="this.style.background='rgba(255,255,255,0.15)'">✕</button>
+            </div>
+
+            {{-- Mode Tabs --}}
+            <div style="display:flex;gap:6px;">
+                <button id="tabTopic" onclick="switchAiTab('topic')"
+                        style="flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:white;color:#6d28d9;">
+                    ✏️ By Topic
+                </button>
+                <button id="tabPdf" onclick="switchAiTab('pdf')"
+                        style="flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:rgba(255,255,255,0.15);color:white;">
+                    📄 From PDF
+                </button>
             </div>
         </div>
 
@@ -37,12 +49,12 @@
             {{-- Loading State --}}
             <div id="aiLoadingState" style="display:none; text-align:center; padding:40px 20px;">
                 <div style="display:inline-block; width:48px; height:48px; border:4px solid rgba(109,40,217,0.2); border-top-color:#6d28d9; border-radius:50%; animation:aiSpin 0.8s linear infinite;"></div>
-                <p style="color:#6d28d9; font-weight:700; font-size:15px; margin:18px 0 6px;">Generating your lesson...</p>
-                <p style="color:#94a3b8; font-size:13px;">DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.</p>
+                <p style="color:#6d28d9; font-weight:700; font-size:15px; margin:18px 0 6px;" id="aiLoadingText">Generating your lesson...</p>
+                <p style="color:#94a3b8; font-size:13px;" id="aiLoadingSubtext">DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.</p>
             </div>
 
-            {{-- Form --}}
-            <div id="aiForm">
+            {{-- ── TOPIC FORM ── --}}
+            <div id="aiFormTopic">
                 <div style="margin-bottom:20px;">
                     <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">
                         Topic <span style="color:#EF4444;">*</span>
@@ -79,9 +91,9 @@
                 <div style="margin-bottom:20px;">
                     <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">
                         Number of Slides
-                        <span style="font-weight:400;color:#94a3b8;">(3–10)</span>
+                        <span style="font-weight:400;color:#94a3b8;">(3–30)</span>
                     </label>
-                    <input id="ai_num_slides" type="number" min="3" max="10" value="5"
+                    <input id="ai_num_slides" type="number" min="3" max="30" value="5"
                            style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;transition:all 0.2s;box-sizing:border-box;"
                            onfocus="this.style.borderColor='#6d28d9'; this.style.boxShadow='0 0 0 4px rgba(109,40,217,0.1)';"
                            onblur="this.style.borderColor='#E5EAF2'; this.style.boxShadow='none';">
@@ -114,116 +126,231 @@
                     </button>
                 </div>
             </div>
+
+            {{-- ── PDF FORM ── --}}
+            <div id="aiFormPdf" style="display:none;">
+
+                {{-- Drop Zone --}}
+                <div id="pdfDropZone"
+                     onclick="document.getElementById('pdfFileInput').click()"
+                     ondrop="handlePdfDrop(event)" ondragover="event.preventDefault();this.style.borderColor='#6d28d9';this.style.background='rgba(109,40,217,0.05)';" ondragleave="this.style.borderColor='#c4b5fd';this.style.background='rgba(109,40,217,0.02)';"
+                     style="border:2.5px dashed #c4b5fd;border-radius:16px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(109,40,217,0.02);margin-bottom:20px;">
+                    <div style="font-size:40px;margin-bottom:10px;">📄</div>
+                    <p style="font-size:14px;font-weight:700;color:#6d28d9;margin:0 0 4px;">Drop your PDF here</p>
+                    <p style="font-size:12px;color:#94a3b8;margin:0;">or click to browse — max 10MB</p>
+                    <input type="file" id="pdfFileInput" accept=".pdf" style="display:none;" onchange="handlePdfSelect(this)">
+                </div>
+
+                {{-- Selected File Badge --}}
+                <div id="pdfFileBadge" style="display:none;align-items:center;gap:10px;background:#F5F3FF;border:1.5px solid #c4b5fd;border-radius:12px;padding:12px 14px;margin-bottom:20px;">
+                    <span style="font-size:20px;flex-shrink:0;">📄</span>
+                    <div style="flex:1;min-width:0;">
+                        <p id="pdfFileName" style="font-size:13px;font-weight:700;color:#5b21b6;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></p>
+                        <p id="pdfFileSize" style="font-size:11px;color:#7c3aed;margin:0;"></p>
+                    </div>
+                    <button onclick="clearPdfFile()" type="button"
+                            style="background:rgba(109,40,217,0.1);border:none;color:#7c3aed;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
+                </div>
+
+                {{-- PDF Settings --}}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Difficulty</label>
+                        <select id="pdf_difficulty"
+                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;background:#FAFBFD;cursor:pointer;">
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Lesson Type</label>
+                        <select id="pdf_lesson_type"
+                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;background:#FAFBFD;cursor:pointer;">
+                            <option value="gesture">Gesture</option>
+                            <option value="interactive">Interactive</option>
+                            <option value="text">Text</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">
+                        Number of Slides
+                        <span style="font-weight:400;color:#94a3b8;">(3–30)</span>
+                    </label>
+                    <input id="pdf_num_slides" type="number" min="3" max="30" value="5"
+                           style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;transition:all 0.2s;box-sizing:border-box;"
+                           onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                </div>
+
+                <div style="margin-bottom:24px;">
+                    <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">
+                        Additional Instructions
+                        <span style="font-weight:400;color:#94a3b8;">(optional)</span>
+                    </label>
+                    <textarea id="pdf_instructions" rows="3" maxlength="500"
+                              style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;resize:vertical;box-sizing:border-box;"
+                              placeholder="e.g. Focus on the signs mentioned on page 3, simplify for young learners..."
+                              onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';"></textarea>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <button id="aiPdfGenerateBtn" onclick="submitPdfGenerate()"
+                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(109,40,217,0.35);"
+                            onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)';}"
+                            onmouseout="this.style.transform='';">
+                        📄 Generate from PDF
+                    </button>
+                    <button onclick="closeAiModalDirect()"
+                            style="background:white;color:#64748b;padding:13px 24px;border-radius:14px;font-weight:700;font-size:14px;border:1.5px solid #E5EAF2;cursor:pointer;width:100%;transition:all 0.2s;"
+                            onmouseover="this.style.background='#F8FAFC';" onmouseout="this.style.background='white';">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
 <style>
-@keyframes aiSpin {
-    to { transform: rotate(360deg); }
-}
+@keyframes aiSpin { to { transform: rotate(360deg); } }
 </style>
 
 <script>
+let _selectedPdfFile = null;
+
+/* ── Tab switching ───────────────────────────────────────────────── */
+function switchAiTab(tab) {
+    const isTopic = (tab === 'topic');
+    const activeStyle   = 'flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:white;color:#6d28d9;';
+    const inactiveStyle = 'flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:rgba(255,255,255,0.15);color:white;';
+    document.getElementById('tabTopic').style.cssText = isTopic  ? activeStyle : inactiveStyle;
+    document.getElementById('tabPdf').style.cssText   = !isTopic ? activeStyle : inactiveStyle;
+    document.getElementById('aiFormTopic').style.display = isTopic  ? 'block' : 'none';
+    document.getElementById('aiFormPdf').style.display   = !isTopic ? 'block' : 'none';
+    hideAiError();
+}
+
+/* ── PDF file handling ───────────────────────────────────────────── */
+function handlePdfSelect(input) {
+    if (input.files && input.files[0]) setPdfFile(input.files[0]);
+}
+function handlePdfDrop(e) {
+    e.preventDefault();
+    const zone = document.getElementById('pdfDropZone');
+    zone.style.borderColor = '#c4b5fd';
+    zone.style.background  = 'rgba(109,40,217,0.02)';
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') setPdfFile(file);
+    else showAiError('Please drop a PDF file.');
+}
+function setPdfFile(file) {
+    if (file.size > 10 * 1024 * 1024) { showAiError('PDF must be under 10MB.'); return; }
+    _selectedPdfFile = file;
+    document.getElementById('pdfDropZone').style.display = 'none';
+    const badge = document.getElementById('pdfFileBadge');
+    badge.style.display = 'flex';
+    document.getElementById('pdfFileName').textContent = file.name;
+    document.getElementById('pdfFileSize').textContent = (file.size / 1024).toFixed(0) + ' KB';
+    hideAiError();
+}
+function clearPdfFile() {
+    _selectedPdfFile = null;
+    document.getElementById('pdfFileInput').value = '';
+    document.getElementById('pdfFileBadge').style.display = 'none';
+    document.getElementById('pdfDropZone').style.display  = 'block';
+}
+
+/* ── Submit — PDF ────────────────────────────────────────────────── */
+function submitPdfGenerate() {
+    if (!_selectedPdfFile) { showAiError('Please select a PDF file first.'); return; }
+    const numSlides = parseInt(document.getElementById('pdf_num_slides').value);
+    if (isNaN(numSlides) || numSlides < 3 || numSlides > 30) { showAiError('Slides must be between 3 and 30.'); return; }
+    hideAiError();
+    setAiLoading(true, '📖 Reading your PDF...', 'AI is scanning the document and building<br>your lesson. This may take 30–60 seconds.');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
+    const fd = new FormData();
+    fd.append('pdf',          _selectedPdfFile);
+    fd.append('difficulty',   document.getElementById('pdf_difficulty').value);
+    fd.append('lesson_type',  document.getElementById('pdf_lesson_type').value);
+    fd.append('num_slides',   numSlides);
+    fd.append('instructions', document.getElementById('pdf_instructions').value.trim());
+    fetch('{{ route("lessons.ai-generate-pdf") }}', { method:'POST', headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}, body:fd })
+        .then(r => r.json().then(d => ({ok:r.ok,d})))
+        .then(({ok,d}) => { if (!ok) throw new Error(d.message||'PDF generation failed.'); closeAiModalDirect(); populateLessonForm(d); })
+        .catch(err => { showAiError(err.message||'Something went wrong.'); setAiLoading(false); });
+}
+
+/* ── Submit — Topic ──────────────────────────────────────────────── */
+function submitAiGenerate() {
+    const topic = document.getElementById('ai_topic').value.trim();
+    if (!topic) { showAiError('Please enter a topic for the lesson.'); document.getElementById('ai_topic').focus(); return; }
+    const numSlides = parseInt(document.getElementById('ai_num_slides').value);
+    if (isNaN(numSlides) || numSlides < 3 || numSlides > 30) { showAiError('Slides must be between 3 and 30.'); return; }
+    hideAiError();
+    setAiLoading(true, 'Generating your lesson...', 'DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
+    fetch('{{ route("lessons.ai-generate") }}', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body:JSON.stringify({ topic, difficulty:document.getElementById('ai_difficulty').value, lesson_type:document.getElementById('ai_lesson_type').value, num_slides:numSlides, special_instructions:document.getElementById('ai_special_instructions').value.trim()||null }),
+    })
+    .then(r => r.json().then(d => ({ok:r.ok,d})))
+    .then(({ok,d}) => { if (!ok) throw new Error(d.message||'AI generation failed.'); closeAiModalDirect(); populateLessonForm(d); })
+    .catch(err => { showAiError(err.message||'Something went wrong.'); setAiLoading(false); });
+}
+
+/* ── Helpers ─────────────────────────────────────────────────────── */
 function openAiModal() {
     const modal = document.getElementById('aiGeneratorModal');
     const panel = document.getElementById('aiModalPanel');
     modal.style.display = 'block';
-    requestAnimationFrame(() => {
-        panel.style.transform = 'translateX(0)';
-    });
+    requestAnimationFrame(() => { panel.style.transform = 'translateX(0)'; });
     document.getElementById('ai_topic').focus();
 }
-
 function closeAiModalDirect() {
-    const modal = document.getElementById('aiGeneratorModal');
     const panel = document.getElementById('aiModalPanel');
     panel.style.transform = 'translateX(100%)';
-    setTimeout(() => { modal.style.display = 'none'; }, 350);
+    setTimeout(() => { document.getElementById('aiGeneratorModal').style.display = 'none'; }, 350);
     resetAiModal();
 }
-
 function closeAiModal(e) {
-    if (e.target === document.getElementById('aiGeneratorModal')) {
-        closeAiModalDirect();
-    }
+    if (e.target === document.getElementById('aiGeneratorModal')) closeAiModalDirect();
 }
-
 function resetAiModal() {
-    document.getElementById('aiErrorBanner').style.display = 'none';
-    document.getElementById('aiLoadingState').style.display = 'none';
-    document.getElementById('aiForm').style.display = 'block';
-    const btn = document.getElementById('aiGenerateBtn');
-    btn.disabled = false;
-    btn.textContent = '✨ Generate Lesson';
-}
-
-function submitAiGenerate() {
-    const topic = document.getElementById('ai_topic').value.trim();
-    if (!topic) {
-        showAiError('Please enter a topic for the lesson.');
-        document.getElementById('ai_topic').focus();
-        return;
-    }
-
-    const numSlides = parseInt(document.getElementById('ai_num_slides').value);
-    if (isNaN(numSlides) || numSlides < 3 || numSlides > 10) {
-        showAiError('Number of slides must be between 3 and 10.');
-        return;
-    }
-
     hideAiError();
-    setAiLoading(true);
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
-        || document.querySelector('input[name="_token"]')?.value;
-
-    fetch('{{ route("lessons.ai-generate") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify({
-            topic:                topic,
-            difficulty:           document.getElementById('ai_difficulty').value,
-            lesson_type:          document.getElementById('ai_lesson_type').value,
-            num_slides:           numSlides,
-            special_instructions: document.getElementById('ai_special_instructions').value.trim() || null,
-        }),
-    })
-    .then(response => response.json().then(data => ({ ok: response.ok, data })))
-    .then(({ ok, data }) => {
-        if (!ok) {
-            throw new Error(data.message || 'AI generation failed. Please try again.');
-        }
-        closeAiModalDirect();
-        populateLessonForm(data);
-    })
-    .catch(err => {
-        showAiError(err.message || 'Something went wrong. Please try again.');
-        setAiLoading(false);
-    });
+    setAiLoading(false);
+    document.getElementById('aiGenerateBtn').disabled    = false;
+    document.getElementById('aiGenerateBtn').textContent = '✨ Generate Lesson';
+    document.getElementById('aiPdfGenerateBtn').disabled    = false;
+    document.getElementById('aiPdfGenerateBtn').textContent = '📄 Generate from PDF';
+    clearPdfFile();
+    switchAiTab('topic');
 }
-
-function setAiLoading(loading) {
-    document.getElementById('aiLoadingState').style.display = loading ? 'block' : 'none';
-    document.getElementById('aiForm').style.display = loading ? 'none' : 'block';
-    const btn = document.getElementById('aiGenerateBtn');
-    btn.disabled = loading;
+function setAiLoading(loading, title, sub) {
+    const ls = document.getElementById('aiLoadingState');
+    ls.style.display = loading ? 'block' : 'none';
+    if (loading && title) ls.querySelector('p').textContent = title;
+    if (loading && sub)   ls.querySelectorAll('p')[1].innerHTML = sub;
+    const isTopicActive = document.getElementById('tabTopic').style.color.includes('109');
+    document.getElementById('aiFormTopic').style.display = loading ? 'none' : (isTopicActive ? 'block' : 'none');
+    document.getElementById('aiFormPdf').style.display   = loading ? 'none' : (!isTopicActive ? 'block' : 'none');
+    document.getElementById('aiGenerateBtn').disabled    = loading;
+    document.getElementById('aiPdfGenerateBtn').disabled = loading;
 }
-
-function showAiError(msg) {
-    const banner = document.getElementById('aiErrorBanner');
-    banner.textContent = '⚠️ ' + msg;
-    banner.style.display = 'block';
+function showAiError(msg) { const b=document.getElementById('aiErrorBanner'); b.textContent='⚠️ '+msg; b.style.display='block'; }
+function hideAiError()     { document.getElementById('aiErrorBanner').style.display='none'; }
+function showAiSuccessToast() {
+    const t=document.createElement('div');
+    t.style.cssText='position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(109,40,217,0.4);z-index:20000;transition:all 0.4s;';
+    t.textContent='✨ Lesson generated! Review and edit below.';
+    document.body.appendChild(t);
+    setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(10px)';},3000);
+    setTimeout(()=>t.remove(),3500);
 }
-
-function hideAiError() {
-    document.getElementById('aiErrorBanner').style.display = 'none';
-}
+document.addEventListener('keydown', e => { if (e.key==='Escape'&&document.getElementById('aiGeneratorModal').style.display!=='none') closeAiModalDirect(); });
 
 function populateLessonForm(lesson) {
     // Basic fields
@@ -344,28 +471,40 @@ function buildAiContentCard(slide, idx) {
 }
 
 function buildAiQuizCard(q, idx) {
-    const options = Array.isArray(q.options) ? q.options : ['', '', '', ''];
+    const isTrueFalse = (q.type === 'true_false');
+    // For true_false AI may send options:[] empty or ["True","False"]
+    let options = Array.isArray(q.options) && q.options.length >= 2
+        ? q.options
+        : (isTrueFalse ? ['True', 'False'] : ['', '', '', '']);
     const correct = typeof q.correct_index === 'number' ? q.correct_index : 0;
-    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const letters  = ['A', 'B', 'C', 'D', 'E', 'F'];
 
     const optionsHtml = options.map((opt, optIdx) => `
         <div class="option-row">
             <div class="option-letter">${letters[optIdx] || optIdx}</div>
             <div class="option-body">
-                <input type="text" name="quiz[${idx}][options][${optIdx}][text]" value="${escapeHtml(opt)}" class="option-text-input" placeholder="Option ${letters[optIdx] || optIdx} text">
+                <input type="text" name="quiz[${idx}][options][${optIdx}][text]"
+                       value="${escapeHtml(typeof opt === 'object' ? (opt.text || '') : opt)}"
+                       class="option-text-input"
+                       placeholder="Option ${letters[optIdx] || optIdx} text"
+                       ${isTrueFalse ? 'readonly style="background:#F8FAFC;color:#64748b;"' : ''}>
+                ${isTrueFalse ? '' : `
                 <div class="option-image-row">
                     <input type="file" name="quiz[${idx}][options][${optIdx}][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
                     <img class="option-image-preview" src="" alt="">
-                </div>
+                </div>`}
             </div>
             <div class="option-correct-row">
                 <input type="radio" name="quiz[${idx}][correct]" value="${optIdx}" ${correct === optIdx ? 'checked' : ''}>
                 <label>Correct</label>
             </div>
+            ${isTrueFalse ? '<div style="width:24px;"></div>' : `
             <button type="button" class="option-remove-btn" onclick="removeOption(this)">
                 <span class="material-symbols-outlined text-sm">close</span>
-            </button>
+            </button>`}
         </div>`).join('');
+
+    const selectedType = isTrueFalse ? 'true_false' : 'multiple_choice';
 
     return `
     <div class="quiz-question">
@@ -373,6 +512,7 @@ function buildAiQuizCard(q, idx) {
             <div class="flex items-center gap-3">
                 <div class="step-circle" style="background:#D97706;">${idx + 1}</div>
                 <span class="text-sm font-bold text-slate-500 question-label">Question ${idx + 1}</span>
+                ${isTrueFalse ? '<span style="background:#FEF3C7;color:#D97706;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">True/False</span>' : ''}
             </div>
             <button type="button" onclick="removeQuizQuestion(this)" class="icon-btn-remove">
                 <span class="material-symbols-outlined text-sm">close</span>
@@ -387,8 +527,8 @@ function buildAiQuizCard(q, idx) {
                 <div>
                     <label class="field-label">Question Type</label>
                     <select name="quiz[${idx}][type]" onchange="handleQuestionTypeChange(this)" class="field-select question-type">
-                        <option value="multiple_choice" selected>Multiple Choice</option>
-                        <option value="true_false">True / False</option>
+                        <option value="multiple_choice" ${!isTrueFalse ? 'selected' : ''}>Multiple Choice</option>
+                        <option value="true_false" ${isTrueFalse ? 'selected' : ''}>True / False</option>
                     </select>
                 </div>
                 <div>
@@ -398,9 +538,9 @@ function buildAiQuizCard(q, idx) {
             </div>
             <div class="options-container">
                 <label class="field-label">Answer Options</label>
-                <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image.</p>
+                <p class="text-xs text-slate-400 mb-2">${isTrueFalse ? 'Select the correct answer.' : 'Each option can have text and/or an image.'}</p>
                 <div class="space-y-2 options-list">${optionsHtml}</div>
-                <button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">+ Add Option</button>
+                ${isTrueFalse ? '' : '<button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">+ Add Option</button>'}
             </div>
         </div>
     </div>`;
