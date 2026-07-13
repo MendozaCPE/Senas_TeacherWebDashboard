@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SENAS Greetings Level 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a1628;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        #overlay {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #greeting-display {
+            display: inline-block;
+            background: rgba(15, 49, 114, 0.85);
+            padding: 14px 30px;
+            border-radius: 20px;
+            border: 2px solid rgba(180, 90, 10, 0.4);
+            backdrop-filter: blur(12px);
+            min-width: 200px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        #greeting {
+            color: #FFD700;
+            font-size: 32px;
+            font-weight: bold;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+            line-height: 1.2;
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #confidence {
+            color: #4ECDC4;
+            font-size: 13px;
+            margin-top: 4px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        #hand-count {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        #status-bar {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 15;
+            pointer-events: none;
+        }
+
+        #status-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 14px 6px 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0;
+        }
+
+        .dot.active {
+            background: #10B981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        .dot.waiting {
+            background: #F59E0B;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .dot.error {
+            background: #EF4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .dot.matched {
+            background: #10B981;
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.8);
+            animation: pulse-match 0.5s ease-in-out 3;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.3);
+            }
+        }
+
+        @keyframes pulse-match {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.5);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        #status-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        #fps-display {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            z-index: 20;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #FFD700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            z-index: 5;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #B45A0A, #FFD700);
+            transition: width 0.3s ease;
+            width: 0%;
+            border-radius: 0 2px 2px 0;
+        }
+
+        #match-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #match-indicator.show {
+            opacity: 1;
+        }
+
+        #progress-tracker {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px 16px;
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 15;
+            min-width: 140px;
+            pointer-events: none;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        #progress-tracker .title {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .progress-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 2px 0;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .progress-item.learned {
+            color: #10B981;
+        }
+
+        .progress-item.current {
+            color: #FFD700;
+        }
+
+        .progress-item .check {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            flex-shrink: 0;
+        }
+
+        .progress-item.learned .check {
+            background: #10B981;
+            border-color: #10B981;
+            color: white;
+        }
+
+        .progress-item.current .check {
+            border-color: #FFD700;
+            background: rgba(255, 215, 0, 0.2);
+        }
+
+        #greeting-sub {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 10px;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas"></canvas>
+
+        <div id="match-indicator">🎉</div>
+
+        <div id="status-bar">
+            <div id="status-bar-left">
+                <span class="dot waiting" id="statusDot"></span>
+                <span id="status-text">Initializing...</span>
+            </div>
+            <div id="fps-display">⚡ 0 FPS</div>
+        </div>
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <div style="font-size:18px;font-weight:600;color:white;">Loading SENAS Greetings</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:8px;">Initializing camera and models</div>
+        </div>
+
+        <div id="progress-tracker">
+            <div class="title">📚 Progress</div>
+            <div id="progress-list"></div>
+        </div>
+
+        <div id="overlay">
+            <div id="greeting-display">
+                <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:2px;">
+                    <span
+                        style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:600;letter-spacing:1px;">DETECTED</span>
+                </div>
+                <div id="greeting">✋</div>
+                <div id="confidence">Confidence: 0%</div>
+                <div id="hand-count">👆 Hands: 0</div>
+                <div id="greeting-sub">Show your hands to start</div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="confidenceBar"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+
+    <script>
+        // ============================================================
+        // TFJS MODEL - Using your converted model files
+        // ============================================================
+        const GREETINGS_SEQUENCE_LENGTH = 45;
+        const TOTAL_FEATURES = 126;
+
+        const WORKING_SIGNS = [
+            "HELLO", "THANK YOU", "SEE YOU TOMORROW", "HOW ARE YOU", "NICE TO MEET YOU"
+        ];
+
+        const ORIGINAL_INDEX_MAP = {
+            "HELLO": 3, "HOW ARE YOU": 4, "IM FINE": 5, "NICE TO MEET YOU": 6,
+            "THANK YOU": 7, "YOURE WELCOME": 8, "SEE YOU TOMORROW": 9,
+            "GOOD MORNING": 0, "GOOD AFTERNOON": 1, "GOOD EVENING": 2
+        };
+
+        let GREETINGS_LABELS = WORKING_SIGNS;
+        let ONE_HAND_SIGNS = ["HELLO", "THANK YOU", "SEE YOU TOMORROW"];
+        let TWO_HAND_SIGNS = ["HOW ARE YOU", "NICE TO MEET YOU"];
+        let learnedGreetings = [];
+        let currentGreetingIndex = 0;
+
+        // ============================================================
+        // DOM REFERENCES
+        // ============================================================
+        const videoElement = document.getElementById('video');
+        const canvasElement = document.getElementById('canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const greetingElement = document.getElementById('greeting');
+        const confidenceElement = document.getElementById('confidence');
+        const confidenceBar = document.getElementById('confidenceBar');
+        const handCountElement = document.getElementById('hand-count');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('status-text');
+        const fpsDisplay = document.getElementById('fps-display');
+        const loadingElement = document.getElementById('loading');
+        const matchIndicator = document.getElementById('match-indicator');
+        const progressList = document.getElementById('progress-list');
+        const greetingSub = document.getElementById('greeting-sub');
+        const container = document.getElementById('container');
+
+        let handsInstance = null;
+        let frameCount = 0;
+        let lastFpsUpdate = performance.now();
+        let greetingSequenceBuffer = [];
+        let greetingsModel = null;
+        let handCount = 0;
+        let autoAdvanceCooldown = 0;
+        let matchFlashTimeout = null;
+        let motionCounter = 0;
+
+        // ============================================================
+        // UPDATE PROGRESS
+        // ============================================================
+        function updateProgressTracker() {
+            progressList.innerHTML = '';
+            GREETINGS_LABELS.forEach((label, idx) => {
+                const div = document.createElement('div');
+                div.className = 'progress-item';
+                const isLearned = learnedGreetings.includes(label);
+                const isCurrent = idx === currentGreetingIndex;
+
+                if (isLearned) div.classList.add('learned');
+                if (isCurrent) div.classList.add('current');
+
+                const check = document.createElement('span');
+                check.className = 'check';
+                check.textContent = isLearned ? '✓' : (isCurrent ? '●' : '○');
+                const name = document.createElement('span');
+                name.textContent = label;
+
+                div.appendChild(check);
+                div.appendChild(name);
+                progressList.appendChild(div);
+            });
+
+            const target = GREETINGS_LABELS[currentGreetingIndex] || '';
+            greetingSub.textContent = TWO_HAND_SIGNS.includes(target) ? '✋✋ TWO-HANDED SIGN' : '✋ ONE-HANDED SIGN';
+        }
+
+        // ============================================================
+        // MEDIAPIPE
+        // ============================================================
+        function initMediaPipe() {
+            try {
+                handsInstance = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+                handsInstance.setOptions({
+                    maxNumHands: 2, modelComplexity: 1,
+                    minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+                });
+                handsInstance.onResults(onResults);
+                statusText.textContent = 'MediaPipe Ready';
+                console.log('✅ MediaPipe initialized');
+            } catch (err) {
+                console.error('MediaPipe error:', err);
+                statusText.textContent = 'MediaPipe Error';
+            }
+        }
+
+        // ============================================================
+        // LOAD TFJS MODEL
+        // ============================================================
+        async function loadGreetingsModel() {
+            try {
+                statusText.textContent = 'Loading Greetings Model...';
+                console.log('📦 Loading TFJS model...');
+
+                // Load the model using the model.json and shard files
+                greetingsModel = await tf.loadLayersModel('/models/model.json');
+
+                // Check if model loaded successfully
+                if (!greetingsModel) {
+                    throw new Error('Model failed to load');
+                }
+
+                console.log('✅ Model loaded successfully!');
+                console.log('Model input shape:', greetingsModel.inputs[0].shape);
+                console.log('Model output shape:', greetingsModel.outputs[0].shape);
+
+                // Warm up the model with a dummy input
+                const dummyInput = tf.zeros([1, GREETINGS_SEQUENCE_LENGTH, TOTAL_FEATURES]);
+                const dummyOutput = greetingsModel.predict(dummyInput);
+                await dummyOutput.data();
+                dummyInput.dispose();
+                dummyOutput.dispose();
+
+                statusText.textContent = 'Model Ready';
+                console.log('✅ Model warmed up and ready for inference');
+                return true;
+            } catch (error) {
+                console.error('❌ Model loading failed:', error);
+                statusText.textContent = 'Model Error - Check Console';
+
+                // Log more details about the error
+                if (error.message) {
+                    console.error('Error message:', error.message);
+                }
+                if (error.stack) {
+                    console.error('Stack trace:', error.stack);
+                }
+                return false;
+            }
+        }
+
+        // ============================================================
+        // DETECTION ENGINE
+        // ============================================================
+        function extractHandFeatures(landmarks) {
+            const features = new Float32Array(63);
+            for (let i = 0; i < landmarks.length; i++) {
+                features[i * 3] = landmarks[i].x;
+                features[i * 3 + 1] = landmarks[i].y;
+                features[i * 3 + 2] = landmarks[i].z;
+            }
+            return features;
+        }
+
+        function normalizeFeatures(features) {
+            let min = Infinity, max = -Infinity;
+            for (let i = 0; i < features.length; i++) {
+                if (features[i] < min) min = features[i];
+                if (features[i] > max) max = features[i];
+            }
+            const range = max - min + 1e-7;
+            const normalized = new Float32Array(63);
+            if (range > 0) {
+                for (let i = 0; i < features.length; i++) {
+                    normalized[i] = (features[i] - min) / range;
+                }
+            }
+            return normalized;
+        }
+
+        function detectGreeting(sortedHands) {
+            if (!greetingsModel) return { greeting: '...', confidence: 0 };
+
+            try {
+                let features = new Float32Array(126);
+                let currentHandCount = sortedHands.length;
+
+                if (currentHandCount > 0) {
+                    features.set(normalizeFeatures(extractHandFeatures(sortedHands[0].landmarks)), 0);
+                }
+                if (currentHandCount > 1) {
+                    features.set(normalizeFeatures(extractHandFeatures(sortedHands[1].landmarks)), 63);
+                }
+
+                greetingSequenceBuffer.push(features);
+                if (greetingSequenceBuffer.length > GREETINGS_SEQUENCE_LENGTH) {
+                    greetingSequenceBuffer.shift();
+                }
+
+                if (greetingSequenceBuffer.length === GREETINGS_SEQUENCE_LENGTH) {
+                    const flatBuffer = new Float32Array(GREETINGS_SEQUENCE_LENGTH * TOTAL_FEATURES);
+                    for (let i = 0; i < GREETINGS_SEQUENCE_LENGTH; i++) {
+                        flatBuffer.set(greetingSequenceBuffer[i], i * TOTAL_FEATURES);
+                    }
+
+                    const inputTensor = tf.tensor3d(flatBuffer, [1, GREETINGS_SEQUENCE_LENGTH, TOTAL_FEATURES], 'float32');
+                    const outputTensor = greetingsModel.predict(inputTensor);
+                    const probabilities = outputTensor.dataSync();
+
+                    let bestScore = -1.0;
+                    let detectedGreeting = '...';
+
+                    // Check only the working signs
+                    for (let i = 0; i < WORKING_SIGNS.length; i++) {
+                        const sign = WORKING_SIGNS[i];
+                        const originalIdx = ORIGINAL_INDEX_MAP[sign];
+                        let prob = probabilities[originalIdx] || 0;
+
+                        // Apply hand count constraints
+                        if (currentHandCount === 1 && TWO_HAND_SIGNS.includes(sign)) prob = -1.0;
+                        if (currentHandCount === 2 && ONE_HAND_SIGNS.includes(sign)) prob = -1.0;
+
+                        if (prob > bestScore) {
+                            bestScore = prob;
+                            detectedGreeting = sign;
+                        }
+                    }
+
+                    inputTensor.dispose();
+                    outputTensor.dispose();
+
+                    if (motionCounter >= 3 || (currentHandCount > 0 && bestScore > 0.60)) {
+                        if (bestScore !== -1.0) {
+                            return { greeting: detectedGreeting, confidence: bestScore };
+                        }
+                    }
+                }
+                return { greeting: '...', confidence: 0 };
+            } catch (error) {
+                console.error('TensorFlow execution error:', error);
+                return { greeting: '...', confidence: 0 };
+            }
+        }
+
+        // ============================================================
+        // DRAW HAND
+        // ============================================================
+        function drawHandMesh(ctx, landmarks, cWidth, cHeight, vWidth, vHeight, color = '#FFD700') {
+            const connections = [
+                [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10],
+                [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18],
+                [18, 19], [19, 20], [0, 17]
+            ];
+            const s = Math.max(cWidth / vWidth, cHeight / vHeight);
+            const offX = (cWidth - (vWidth * s)) / 2;
+            const offY = (cHeight - (vHeight * s)) / 2;
+
+            const pts = landmarks.map(lm => ({
+                x: (1 - lm.x) * vWidth * s + offX,
+                y: lm.y * vHeight * s + offY
+            }));
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+
+            connections.forEach(([i, j]) => {
+                if (i < pts.length && j < pts.length) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i].x, pts[i].y);
+                    ctx.lineTo(pts[j].x, pts[j].y);
+                    ctx.stroke();
+                }
+            });
+
+            pts.forEach((pt, i) => {
+                const isFingertip = [4, 8, 12, 16, 20].includes(i);
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, isFingertip ? 5 : 3, 0, 2 * Math.PI);
+                ctx.fillStyle = isFingertip ? '#FFD700' : '#4ECDC4';
+                ctx.fill();
+            });
+        }
+
+        // ============================================================
+        // MAIN ONRESULTS
+        // ============================================================
+        function onResults(results) {
+            loadingElement.style.display = 'none';
+
+            frameCount++;
+            const now = performance.now();
+            if (now - lastFpsUpdate > 1000) {
+                fpsDisplay.textContent = `⚡ ${frameCount} FPS`;
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+
+            const dpr = window.devicePixelRatio || 1;
+            const tW = container.clientWidth * dpr;
+            const tH = container.clientHeight * dpr;
+            if (canvasElement.width !== tW || canvasElement.height !== tH) {
+                canvasElement.width = tW;
+                canvasElement.height = tH;
+            }
+
+            canvasCtx.clearRect(0, 0, tW, tH);
+            canvasCtx.save();
+            canvasCtx.scale(dpr, dpr);
+
+            const vW = videoElement.videoWidth || 640;
+            const vH = videoElement.videoHeight || 480;
+
+            let sortedHands = [];
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                sortedHands = results.multiHandLandmarks.map(lm => ({ landmarks: lm, x: lm[0].x }));
+                sortedHands.sort((a, b) => a.x - b.x);
+            }
+
+            handCount = sortedHands.length;
+            handCountElement.textContent = `👆 Hands: ${handCount}`;
+
+            if (handCount === 0) motionCounter++;
+            else motionCounter = 0;
+
+            sortedHands.forEach((hand, idx) => {
+                drawHandMesh(canvasCtx, hand.landmarks, container.clientWidth, container.clientHeight, vW, vH, idx === 0 ? '#FFD700' : '#4ECDC4');
+            });
+
+            let result = detectGreeting(sortedHands);
+
+            if (handCount > 0) {
+                statusDot.className = 'dot active';
+                statusText.textContent = 'Detecting...';
+            } else {
+                statusDot.className = 'dot waiting';
+                statusText.textContent = 'Show your hands';
+            }
+
+            const displayGreeting = result.greeting || '...';
+            const confPercent = Math.round(Math.min(result.confidence * 100, 100));
+
+            const isMatch = displayGreeting !== '...' && result.confidence > 0.60;
+            const targetGreeting = GREETINGS_LABELS[currentGreetingIndex] || '';
+            const isTargetMatch = isMatch && displayGreeting === targetGreeting;
+
+            if (isTargetMatch) {
+                statusDot.className = 'dot matched';
+                statusText.textContent = '✅ MATCH!';
+                matchIndicator.textContent = '🎉';
+                matchIndicator.className = 'show';
+                clearTimeout(matchFlashTimeout);
+                matchFlashTimeout = setTimeout(() => matchIndicator.className = '', 1500);
+
+                if (autoAdvanceCooldown === 0 && !learnedGreetings.includes(targetGreeting)) {
+                    learnedGreetings.push(targetGreeting);
+                    autoAdvanceCooldown = 40;
+
+                    let foundNext = false;
+                    for (let offset = 1; offset <= GREETINGS_LABELS.length; offset++) {
+                        const nextIdx = (currentGreetingIndex + offset) % GREETINGS_LABELS.length;
+                        if (!learnedGreetings.includes(GREETINGS_LABELS[nextIdx])) {
+                            currentGreetingIndex = nextIdx;
+                            foundNext = true;
+                            statusText.textContent = `🎯 Next: ${GREETINGS_LABELS[nextIdx]}`;
+                            updateProgressTracker();
+                            break;
+                        }
+                    }
+                    if (!foundNext) {
+                        statusText.textContent = '🎉 ALL GREETINGS MASTERED! 🎉';
+                        matchIndicator.textContent = '🎊';
+                        matchIndicator.className = 'show';
+                    }
+                }
+            } else if (isMatch) {
+                statusText.textContent = `Detected: ${displayGreeting}`;
+            }
+
+            greetingElement.textContent = isMatch ? displayGreeting : '✋';
+            confidenceElement.textContent = `Confidence: ${confPercent}%`;
+            confidenceBar.style.width = `${confPercent}%`;
+
+            if (autoAdvanceCooldown > 0) autoAdvanceCooldown--;
+
+            if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                    greeting: isMatch ? displayGreeting : '',
+                    confidence: result.confidence,
+                    handCount: handCount,
+                    target: targetGreeting,
+                    isMatch: isTargetMatch,
+                    learned: learnedGreetings,
+                    progress: learnedGreetings.length / GREETINGS_LABELS.length
+                }));
+            }
+            canvasCtx.restore();
+        }
+
+        // ============================================================
+        // CAMERA SETUP
+        // ============================================================
+        async function startCamera() {
+            try {
+                statusText.textContent = 'Opening camera...';
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                videoElement.srcObject = stream;
+                await videoElement.play();
+
+                updateProgressTracker();
+                initMediaPipe();
+                await loadGreetingsModel();
+
+                processFrame();
+            } catch (err) {
+                console.error('Camera error:', err);
+                loadingElement.innerHTML = `
+                    <div style="font-size:48px;">📷</div>
+                    <div style="font-size:18px;color:white;margin-top:12px;">Camera Access Error</div>
+                    <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:8px;">${err.message}</div>
+                `;
+            }
+        }
+
+        async function processFrame() {
+            if (!handsInstance || !videoElement || videoElement.readyState < 2) {
+                requestAnimationFrame(processFrame);
+                return;
+            }
+            try {
+                await handsInstance.send({ image: videoElement });
+            } catch (err) { }
+            requestAnimationFrame(processFrame);
+        }
+
+        // ============================================================
+        // HOTKEYS
+        // ============================================================
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                learnedGreetings = [];
+                currentGreetingIndex = 0;
+                updateProgressTracker();
+                greetingSequenceBuffer = [];
+                statusText.textContent = '🔄 Reset progress';
+            }
+        });
+
+        // ============================================================
+        // START
+        // ============================================================
+        startCamera();
+
+        window.addEventListener('beforeunload', () => {
+            if (videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+
+</html>
