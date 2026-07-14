@@ -481,19 +481,50 @@
                 statusText.textContent = 'Loading Greetings Model...';
                 console.log('📦 Loading TFJS model...');
 
-                // Load the model using the model.json and shard files
-                greetingsModel = await tf.loadLayersModel('/models/model.json');
+                sendToReactNative({
+                    type: 'model_status',
+                    status: 'loading',
+                    message: 'Loading model...'
+                });
 
-                // Check if model loaded successfully
+                // 1. BYPASS MOBILE WEBGL BUNDLE OVERHEADS
+                const isInsideApp = !!window.ReactNativeWebView || navigator.userAgent.includes('Mobile');
+                if (isInsideApp) {
+                    console.log("📱 Mobile WebView detected! Forcing native CPU allocation mode...");
+                    await tf.setBackend('cpu');
+                } else {
+                    console.log("🌐 Standalone browser detected! Using default WebGL acceleration.");
+                    await tf.setBackend('webgl');
+                }
+                console.log("⚙️ Active Processing Engine Backend:", tf.getBackend());
+
+                // 2. USE CLEAN URL DIRECTIVES WITH ACCURATE FILE EXTENSIONS
+                const absoluteOrigin = window.location.origin;
+                const targetModelPath = `${absoluteOrigin}/models/model.json`;
+
+                console.log(`📦 WebView pulling model from destination: ${targetModelPath}`);
+
+                // Load the model using pure layers loader pipeline options
+                // We explicitly specify request headers to force the ngrok gateway to stream raw JSON
+                greetingsModel = await tf.loadLayersModel(targetModelPath, {
+                    fetchFunc: (url, init) => {
+                        const customInit = init || {};
+                        customInit.headers = {
+                            ...customInit.headers,
+                            'Accept': 'application/json',
+                            'ngrok-skip-browser-warning': 'true'
+                        };
+                        return fetch(url, customInit);
+                    }
+                });
+
                 if (!greetingsModel) {
-                    throw new Error('Model failed to load');
+                    throw new Error('Model layers failed to initialize into memory structure');
                 }
 
-                console.log('✅ Model loaded successfully!');
-                console.log('Model input shape:', greetingsModel.inputs[0].shape);
-                console.log('Model output shape:', greetingsModel.outputs[0].shape);
+                console.log('✅ Model loaded successfully from server domain source!');
 
-                // Warm up the model with a dummy input
+                // Warm up neural network gates with quick dummy data executions
                 const dummyInput = tf.zeros([1, GREETINGS_SEQUENCE_LENGTH, TOTAL_FEATURES]);
                 const dummyOutput = greetingsModel.predict(dummyInput);
                 await dummyOutput.data();
@@ -501,22 +532,27 @@
                 dummyOutput.dispose();
 
                 statusText.textContent = 'Model Ready';
-                console.log('✅ Model warmed up and ready for inference');
+                console.log('✅ Model warmed up and ready for running inferences!');
+
+                sendToReactNative({
+                    type: 'model_ready',
+                    status: 'loaded',
+                    message: `Model ready on engine context layout: ${tf.getBackend()}`
+                });
+
                 return true;
             } catch (error) {
-                console.error('❌ Model loading failed:', error);
-                statusText.textContent = 'Model Error - Check Console';
-
-                // Log more details about the error
-                if (error.message) {
-                    console.error('Error message:', error.message);
-                }
-                if (error.stack) {
-                    console.error('Stack trace:', error.stack);
-                }
+                console.error('❌ Model loading runtime crash loop failed:', error);
+                sendToReactNative({
+                    type: 'model_error',
+                    error: `Model load error: ${error.message}`
+                });
+                statusText.textContent = 'Model Error';
                 return false;
             }
         }
+
+
 
         // ============================================================
         // DETECTION ENGINE
@@ -532,7 +568,8 @@
         }
 
         function normalizeFeatures(features) {
-            let min = Infinity, max = -Infinity;
+            let min = Infinity,
+                max = -Infinity;
             for (let i = 0; i < features.length; i++) {
                 if (features[i] < min) min = features[i];
                 if (features[i] > max) max = features[i];
@@ -579,13 +616,11 @@
                     let bestScore = -1.0;
                     let detectedGreeting = '...';
 
-                    // Check only the working signs
                     for (let i = 0; i < WORKING_SIGNS.length; i++) {
                         const sign = WORKING_SIGNS[i];
                         const originalIdx = ORIGINAL_INDEX_MAP[sign];
                         let prob = probabilities[originalIdx] || 0;
 
-                        // Apply hand count constraints
                         if (currentHandCount === 1 && TWO_HAND_SIGNS.includes(sign)) prob = -1.0;
                         if (currentHandCount === 2 && ONE_HAND_SIGNS.includes(sign)) prob = -1.0;
 
@@ -611,6 +646,46 @@
             }
         }
 
+        // ============================================================
+        // SEND MESSAGE TO REACT NATIVE (with fallback)
+        // ============================================================
+        function sendToReactNative(data) {
+            try {
+                const message = JSON.stringify(data);
+
+                if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(message);
+                    console.log('📤 Sent to React Native:', data);
+                    return true;
+                }
+
+                console.log('📤 Browser mode:', data);
+                return false;
+            } catch (e) {
+                console.warn('⚠️ Could not send message:', e);
+                return false;
+            }
+        }
+
+
+        // Also add a test function to verify messaging works
+        function testMessaging() {
+            const testData = {
+                greeting: 'HELLO',
+                confidence: 0.95,
+                handCount: 1,
+                target: 'HELLO',
+                isMatch: true,
+                learned: ['HELLO'],
+                progress: 0.2,
+                test: true
+            };
+            console.log('🔬 Testing messaging...');
+            sendToReactNative(testData);
+        }
+
+        // Call test after 2 seconds to verify
+        setTimeout(testMessaging, 2000);
         // ============================================================
         // DRAW HAND
         // ============================================================
@@ -751,17 +826,28 @@
 
             if (autoAdvanceCooldown > 0) autoAdvanceCooldown--;
 
-            if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    greeting: isMatch ? displayGreeting : '',
-                    confidence: result.confidence,
-                    handCount: handCount,
-                    target: targetGreeting,
-                    isMatch: isTargetMatch,
-                    learned: learnedGreetings,
-                    progress: learnedGreetings.length / GREETINGS_LABELS.length
-                }));
-            }
+            // ============================================================
+            // ALWAYS SEND DATA - even if no detection
+            // ============================================================
+            // ============================================================
+            // ALWAYS SEND DATA - even if no detection
+            // ============================================================
+            const dataToSend = {
+                greeting: isMatch ? displayGreeting : '',
+                confidence: result.confidence || 0,
+                handCount: handCount,
+                target: targetGreeting,
+                isMatch: isTargetMatch,
+                learned: Array.from(learnedGreetings), // Convert Set to Array
+                progress: learnedGreetings.length / GREETINGS_LABELS.length
+            };
+
+            // Log what we're sending
+            console.log('🔍 Sending detection:', dataToSend);
+
+            // Send to React Native using the helper function
+            sendToReactNative(dataToSend);
+
             canvasCtx.restore();
         }
 
