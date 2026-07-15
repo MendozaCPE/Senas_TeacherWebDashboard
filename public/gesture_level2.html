@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SENAS Survival Signs Level 2</title>
     <style>
+        /* ... keep all your existing styles ... */
         * {
             margin: 0;
             padding: 0;
@@ -412,7 +413,7 @@
         // ============================================================
         // LEVEL 2 - SURVIVAL SIGNS (10 signs) with Face Tracking
         // ============================================================
-        const SEQUENCE_LENGTH = 90;  // Level 2 uses 90 frames
+        const SEQUENCE_LENGTH = 90;
         const TOTAL_FEATURES = 126;
 
         // 10 Survival Signs
@@ -509,14 +510,13 @@
         }
 
         // ============================================================
-        // DETECT HEAD MOVEMENT (JavaScript port of Python version)
+        // DETECT HEAD MOVEMENT
         // ============================================================
         function detectHeadMovement(faceLandmarks) {
             if (!faceLandmarks || !faceLandmarks.length) {
                 return "STILL";
             }
 
-            // Nose tip is index 1 in MediaPipe Face Mesh
             const nose = faceLandmarks[1];
             headXHistory.push(nose.x);
             headYHistory.push(nose.y);
@@ -549,11 +549,50 @@
         }
 
         // ============================================================
-        // MEDIAPIPE HANDS
+        // SEND MESSAGE TO REACT NATIVE
+        // ============================================================
+        function sendToReactNative(data) {
+            try {
+                const message = JSON.stringify(data);
+                if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(message);
+                    console.log('📤 Sent to React Native:', data);
+                    return true;
+                }
+                console.log('📤 Browser mode:', data);
+                return false;
+            } catch (e) {
+                console.warn('⚠️ Could not send message:', e);
+                return false;
+            }
+        }
+
+        // ============================================================
+        // TEST MESSAGING
+        // ============================================================
+        function testMessaging() {
+            const testData = {
+                greeting: 'UNDERSTAND',
+                confidence: 0.95,
+                handCount: 1,
+                target: 'UNDERSTAND',
+                isMatch: true,
+                learned: ['UNDERSTAND'],
+                progress: 0.1,
+                test: true
+            };
+            console.log('🔬 Testing messaging...');
+            sendToReactNative(testData);
+        }
+
+        // Call test after 2 seconds
+        setTimeout(testMessaging, 2000);
+
+        // ============================================================
+        // MEDIAPIPE HANDS & FACE
         // ============================================================
         function initMediaPipe() {
             try {
-                // Initialize Hands
                 handsInstance = new Hands({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
                 });
@@ -562,7 +601,6 @@
                     minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
                 });
 
-                // Initialize Face Mesh
                 faceMeshInstance = new FaceMesh({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
                 });
@@ -572,19 +610,26 @@
                     minTrackingConfidence: 0.5
                 });
 
-                // We'll process both in the same frame
                 handsInstance.onResults(onHandResults);
                 faceMeshInstance.onResults(onFaceResults);
 
                 statusText.textContent = 'MediaPipe Ready';
                 console.log('✅ MediaPipe initialized');
+
+                sendToReactNative({
+                    type: 'mediapipe_ready',
+                    status: 'initialized'
+                });
             } catch (err) {
                 console.error('MediaPipe error:', err);
                 statusText.textContent = 'MediaPipe Error';
+                sendToReactNative({
+                    type: 'model_error',
+                    error: `MediaPipe: ${err.message}`
+                });
             }
         }
 
-        // Store face landmarks globally
         let currentFaceLandmarks = null;
 
         function onFaceResults(results) {
@@ -600,19 +645,52 @@
         }
 
         function onHandResults(results) {
-            // Process hands with face landmarks
             processFrame(results, currentFaceLandmarks);
         }
 
         // ============================================================
-        // LOAD TFJS MODEL - Level 2
+        // LOAD TFJS MODEL - Level 2 (WITH FIXES!)
         // ============================================================
         async function loadGreetingsModel() {
             try {
                 statusText.textContent = 'Loading Level 2 Model...';
                 console.log('📦 Loading Level 2 TFJS model...');
 
-                greetingsModel = await tf.loadLayersModel('/models/level2_survival_tfjs_model/model.json');
+                sendToReactNative({
+                    type: 'model_status',
+                    status: 'loading',
+                    message: 'Loading Level 2 model...'
+                });
+
+                // 🚀 FIX 1: Force CPU for mobile WebView
+                const isInsideApp = !!window.ReactNativeWebView || navigator.userAgent.includes('Mobile');
+                if (isInsideApp) {
+                    console.log("📱 Mobile WebView detected! Forcing CPU mode...");
+                    await tf.setBackend('cpu');
+                } else {
+                    console.log("🌐 Browser detected! Using WebGL.");
+                    await tf.setBackend('webgl');
+                }
+                console.log("⚙️ Backend:", tf.getBackend());
+
+                // 🚀 FIX 2: Dynamic URL with custom headers
+                const absoluteOrigin = window.location.origin;
+                const targetModelPath = `${absoluteOrigin}/models/level2_survival_tfjs_model/model.json`;
+
+                console.log(`📦 Loading Level 2 model from: ${targetModelPath}`);
+
+                // 🚀 FIX 3: Custom fetch with headers
+                greetingsModel = await tf.loadLayersModel(targetModelPath, {
+                    fetchFunc: (url, init) => {
+                        const customInit = init || {};
+                        customInit.headers = {
+                            ...customInit.headers,
+                            'Accept': 'application/json',
+                            'ngrok-skip-browser-warning': 'true'
+                        };
+                        return fetch(url, customInit);
+                    }
+                });
 
                 if (!greetingsModel) {
                     throw new Error('Model failed to load');
@@ -622,6 +700,7 @@
                 console.log('Model input shape:', greetingsModel.inputs[0].shape);
                 console.log('Model output shape:', greetingsModel.outputs[0].shape);
 
+                // Warm up the model
                 const dummyInput = tf.zeros([1, SEQUENCE_LENGTH, TOTAL_FEATURES]);
                 const dummyOutput = greetingsModel.predict(dummyInput);
                 await dummyOutput.data();
@@ -631,10 +710,21 @@
                 modelReady = true;
                 statusText.textContent = 'Model Ready';
                 console.log('✅ Level 2 model warmed up');
+
+                sendToReactNative({
+                    type: 'model_ready',
+                    status: 'loaded',
+                    message: `Level 2 model ready on ${tf.getBackend()}`
+                });
+
                 return true;
             } catch (error) {
                 console.error('❌ Model loading failed:', error);
-                statusText.textContent = 'Model Error - Check Console';
+                sendToReactNative({
+                    type: 'model_error',
+                    error: `Model load error: ${error.message}`
+                });
+                statusText.textContent = 'Model Error';
                 return false;
             }
         }
@@ -778,7 +868,6 @@
             const offX = (cWidth - (vWidth * s)) / 2;
             const offY = (cHeight - (vHeight * s)) / 2;
 
-            // Draw face contours (simplified - just draw key points)
             landmarks.forEach((lm, idx) => {
                 const x = (1 - lm.x) * vWidth * s + offX;
                 const y = lm.y * vHeight * s + offY;
@@ -788,7 +877,6 @@
                 ctx.fill();
             });
 
-            // Highlight nose tip (index 1)
             if (landmarks.length > 1) {
                 const nose = landmarks[1];
                 const x = (1 - nose.x) * vWidth * s + offX;
@@ -829,7 +917,7 @@
             const vW = videoElement.videoWidth || 640;
             const vH = videoElement.videoHeight || 480;
 
-            // Draw face landmarks first (behind hands)
+            // Draw face landmarks first
             if (faceLandmarks) {
                 drawFaceMesh(canvasCtx, faceLandmarks, container.clientWidth, container.clientHeight, vW, vH);
             }
@@ -909,6 +997,25 @@
 
             if (autoAdvanceCooldown > 0) autoAdvanceCooldown--;
 
+            // ============================================================
+            // SEND DATA TO REACT NATIVE
+            // ============================================================
+            const dataToSend = {
+                greeting: isMatch ? displayGreeting : '',
+                confidence: result.confidence || 0,
+                handCount: handCount,
+                target: targetGreeting,
+                isMatch: isTargetMatch,
+                learned: Array.from(learnedGreetings),
+                progress: learnedGreetings.length / GREETINGS_LABELS.length,
+                headState: headState
+            };
+
+            if (isMatch || handCount > 0) {
+                console.log('🔍 Sending Level 2 detection:', dataToSend);
+                sendToReactNative(dataToSend);
+            }
+
             canvasCtx.restore();
         }
 
@@ -928,7 +1035,6 @@
                 initMediaPipe();
                 await loadGreetingsModel();
 
-                // Start both pipelines
                 sendToMediaPipe();
             } catch (err) {
                 console.error('Camera error:', err);
@@ -937,6 +1043,10 @@
                     <div style="font-size:18px;color:white;margin-top:12px;">Camera Access Error</div>
                     <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:8px;">${err.message}</div>
                 `;
+                sendToReactNative({
+                    type: 'model_error',
+                    error: `Camera error: ${err.message}`
+                });
             }
         }
 
@@ -946,7 +1056,6 @@
                 return;
             }
             try {
-                // Send to both Hands and Face Mesh
                 if (handsInstance) {
                     await handsInstance.send({ image: videoElement });
                 }

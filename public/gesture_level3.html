@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SENAS FSL Numbers Level 3</title>
     <style>
+        /* ... keep all your existing styles ... */
         * {
             margin: 0;
             padding: 0;
@@ -394,7 +395,7 @@
         // ============================================================
         // LEVEL 3 - FSL NUMBERS (10 signs: ONE to TEN)
         // ============================================================
-        const SEQUENCE_LENGTH = 90;  // Level 3 uses 90 frames
+        const SEQUENCE_LENGTH = 90;
         const TOTAL_FEATURES = 126;
 
         // 10 FSL Numbers
@@ -416,8 +417,8 @@
         };
 
         let GREETINGS_LABELS = WORKING_SIGNS;
-        let ONE_HAND_SIGNS = WORKING_SIGNS;  // All numbers are one-handed
-        let TWO_HAND_SIGNS = [];  // No two-handed signs in Level 3
+        let ONE_HAND_SIGNS = WORKING_SIGNS;
+        let TWO_HAND_SIGNS = [];
         let learnedGreetings = [];
         let currentGreetingIndex = 0;
 
@@ -450,6 +451,45 @@
         let matchFlashTimeout = null;
         let motionCounter = 0;
         let modelReady = false;
+
+        // ============================================================
+        // SEND MESSAGE TO REACT NATIVE
+        // ============================================================
+        function sendToReactNative(data) {
+            try {
+                const message = JSON.stringify(data);
+                if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(message);
+                    console.log('📤 Sent to React Native:', data);
+                    return true;
+                }
+                console.log('📤 Browser mode:', data);
+                return false;
+            } catch (e) {
+                console.warn('⚠️ Could not send message:', e);
+                return false;
+            }
+        }
+
+        // ============================================================
+        // TEST MESSAGING
+        // ============================================================
+        function testMessaging() {
+            const testData = {
+                greeting: 'ONE',
+                confidence: 0.95,
+                handCount: 1,
+                target: 'ONE',
+                isMatch: true,
+                learned: ['ONE'],
+                progress: 0.1,
+                test: true
+            };
+            console.log('🔬 Testing Level 3 messaging...');
+            sendToReactNative(testData);
+        }
+
+        setTimeout(testMessaging, 2000);
 
         // ============================================================
         // UPDATE PROGRESS
@@ -495,22 +535,64 @@
                 handsInstance.onResults(onResults);
                 statusText.textContent = 'MediaPipe Ready';
                 console.log('✅ MediaPipe initialized');
+
+                sendToReactNative({
+                    type: 'mediapipe_ready',
+                    status: 'initialized'
+                });
             } catch (err) {
                 console.error('MediaPipe error:', err);
                 statusText.textContent = 'MediaPipe Error';
+                sendToReactNative({
+                    type: 'model_error',
+                    error: `MediaPipe: ${err.message}`
+                });
             }
         }
 
         // ============================================================
-        // LOAD TFJS MODEL - Level 3
+        // LOAD TFJS MODEL - Level 3 (WITH FIXES!)
         // ============================================================
         async function loadGreetingsModel() {
             try {
                 statusText.textContent = 'Loading Level 3 Model...';
                 console.log('📦 Loading Level 3 TFJS model...');
 
-                // Load the Level 3 model
-                greetingsModel = await tf.loadLayersModel('/models/level3_numbers_tfjs_model/model.json');
+                sendToReactNative({
+                    type: 'model_status',
+                    status: 'loading',
+                    message: 'Loading Level 3 model...'
+                });
+
+                // 🚀 FIX 1: Force CPU for mobile WebView
+                const isInsideApp = !!window.ReactNativeWebView || navigator.userAgent.includes('Mobile');
+                if (isInsideApp) {
+                    console.log("📱 Mobile WebView detected! Forcing CPU mode...");
+                    await tf.setBackend('cpu');
+                } else {
+                    console.log("🌐 Browser detected! Using WebGL.");
+                    await tf.setBackend('webgl');
+                }
+                console.log("⚙️ Backend:", tf.getBackend());
+
+                // 🚀 FIX 2: Dynamic URL with custom headers
+                const absoluteOrigin = window.location.origin;
+                const targetModelPath = `${absoluteOrigin}/models/level3_numbers_tfjs_model/model.json`;
+
+                console.log(`📦 Loading Level 3 model from: ${targetModelPath}`);
+
+                // 🚀 FIX 3: Custom fetch with headers
+                greetingsModel = await tf.loadLayersModel(targetModelPath, {
+                    fetchFunc: (url, init) => {
+                        const customInit = init || {};
+                        customInit.headers = {
+                            ...customInit.headers,
+                            'Accept': 'application/json',
+                            'ngrok-skip-browser-warning': 'true'
+                        };
+                        return fetch(url, customInit);
+                    }
+                });
 
                 if (!greetingsModel) {
                     throw new Error('Model failed to load');
@@ -530,16 +612,21 @@
                 modelReady = true;
                 statusText.textContent = 'Model Ready';
                 console.log('✅ Level 3 model warmed up and ready for inference');
+
+                sendToReactNative({
+                    type: 'model_ready',
+                    status: 'loaded',
+                    message: `Level 3 model ready on ${tf.getBackend()}`
+                });
+
                 return true;
             } catch (error) {
                 console.error('❌ Model loading failed:', error);
-                statusText.textContent = 'Model Error - Check Console';
-                if (error.message) {
-                    console.error('Error message:', error.message);
-                }
-                if (error.stack) {
-                    console.error('Stack trace:', error.stack);
-                }
+                sendToReactNative({
+                    type: 'model_error',
+                    error: `Model load error: ${error.message}`
+                });
+                statusText.textContent = 'Model Error';
                 return false;
             }
         }
@@ -606,14 +693,11 @@
                     let bestScore = -1.0;
                     let detectedGreeting = '...';
 
-                    // Check all 10 numbers
                     for (let i = 0; i < WORKING_SIGNS.length; i++) {
                         const sign = WORKING_SIGNS[i];
                         const originalIdx = ORIGINAL_INDEX_MAP[sign];
                         let prob = probabilities[originalIdx] || 0;
 
-                        // Level 3 only has one-handed signs
-                        // If 2 hands detected, we might want to still use the best one
                         if (prob > bestScore) {
                             bestScore = prob;
                             detectedGreeting = sign;
@@ -623,7 +707,6 @@
                     inputTensor.dispose();
                     outputTensor.dispose();
 
-                    // Motion counter helps smooth detection
                     if (motionCounter >= 3 || (currentHandCount > 0 && bestScore > 0.65)) {
                         if (bestScore !== -1.0) {
                             return { greeting: detectedGreeting, confidence: bestScore };
@@ -741,7 +824,6 @@
             const targetGreeting = GREETINGS_LABELS[currentGreetingIndex] || '';
             const isTargetMatch = isMatch && displayGreeting === targetGreeting;
 
-            // Display with digit
             const displayText = isMatch ?
                 `${DIGIT_MAPPING[displayGreeting] || ''} - ${displayGreeting}` :
                 '✋';
@@ -785,17 +867,25 @@
 
             if (autoAdvanceCooldown > 0) autoAdvanceCooldown--;
 
-            if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    greeting: isMatch ? displayGreeting : '',
-                    confidence: result.confidence,
-                    handCount: handCount,
-                    target: targetGreeting,
-                    isMatch: isTargetMatch,
-                    learned: learnedGreetings,
-                    progress: learnedGreetings.length / GREETINGS_LABELS.length
-                }));
+            // ============================================================
+            // SEND DATA TO REACT NATIVE
+            // ============================================================
+            const dataToSend = {
+                greeting: isMatch ? displayGreeting : '',
+                confidence: result.confidence || 0,
+                handCount: handCount,
+                target: targetGreeting,
+                isMatch: isTargetMatch,
+                learned: Array.from(learnedGreetings),
+                progress: learnedGreetings.length / GREETINGS_LABELS.length,
+                digit: isMatch ? DIGIT_MAPPING[displayGreeting] : ''
+            };
+
+            if (isMatch || handCount > 0) {
+                console.log('🔍 Sending Level 3 detection:', dataToSend);
+                sendToReactNative(dataToSend);
             }
+
             canvasCtx.restore();
         }
 
@@ -823,6 +913,10 @@
                     <div style="font-size:18px;color:white;margin-top:12px;">Camera Access Error</div>
                     <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:8px;">${err.message}</div>
                 `;
+                sendToReactNative({
+                    type: 'model_error',
+                    error: `Camera error: ${err.message}`
+                });
             }
         }
 
