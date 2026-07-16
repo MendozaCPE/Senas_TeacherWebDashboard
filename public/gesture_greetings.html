@@ -633,7 +633,15 @@
                     inputTensor.dispose();
                     outputTensor.dispose();
 
-                    if (motionCounter >= 3 || (currentHandCount > 0 && bestScore > 0.60)) {
+                    // 1. ADD DYNAMIC THRESHOLDS HERE
+                    const thresholds = {
+                        "SEE YOU TOMORROW": 0.40, // Lower threshold for complex, multi-step movement
+                        "DEFAULT": 0.60
+                    };
+                    const requiredConfidence = thresholds[detectedGreeting] || thresholds["DEFAULT"];
+
+                    // 2. USE THE DYNAMIC THRESHOLD INSTEAD OF HARDCODED 0.60
+                    if (motionCounter >= 3 || (currentHandCount > 0 && bestScore > requiredConfidence)) {
                         if (bestScore !== -1.0) {
                             return { greeting: detectedGreeting, confidence: bestScore };
                         }
@@ -783,7 +791,15 @@
             const displayGreeting = result.greeting || '...';
             const confPercent = Math.round(Math.min(result.confidence * 100, 100));
 
-            const isMatch = displayGreeting !== '...' && result.confidence > 0.60;
+            // 1. ADD UI DYNAMIC THRESHOLDS HERE
+            const uiThresholds = {
+                "SEE YOU TOMORROW": 0.40,
+                "DEFAULT": 0.60
+            };
+            const reqUiConf = uiThresholds[displayGreeting] || uiThresholds["DEFAULT"];
+
+            // 2. UPDATE THE isMatch VARIABLE
+            const isMatch = displayGreeting !== '...' && result.confidence > reqUiConf;
             const targetGreeting = GREETINGS_LABELS[currentGreetingIndex] || '';
             const isTargetMatch = isMatch && displayGreeting === targetGreeting;
 

@@ -658,6 +658,58 @@
             }
             return normalized;
         }
+        // ============================================================
+        // EXPLICIT FSL NUMBER RULES (Overrides LSTM)
+        // ============================================================
+        function calculateFslHeuristics(lm) {
+            if (!lm || lm.length < 21) return { prediction: null, conf: 0 };
+
+            const dist = (idx1, idx2) => {
+                return Math.sqrt(Math.pow(lm[idx1].x - lm[idx2].x, 2) + Math.pow(lm[idx1].y - lm[idx2].y, 2));
+            };
+
+            const index_open = lm[8].y < lm[6].y;
+            const middle_open = lm[12].y < lm[10].y;
+            const ring_open = lm[16].y < lm[14].y;
+            const pinky_open = lm[20].y < lm[18].y;
+
+            const extended_fingers_count = [index_open, middle_open, ring_open, pinky_open].filter(Boolean).length;
+
+            const thumb_index_dist = dist(4, 5);
+            const thumb_horizontal_clearance = Math.abs(lm[4].x - lm[5].x);
+
+            const thumb_is_tucked = (thumb_horizontal_clearance < 0.040 || thumb_index_dist < 0.050) && (lm[4].y > lm[5].y - 0.02);
+            const thumb_is_wide_open = thumb_index_dist > 0.058 || (thumb_horizontal_clearance > 0.042 && lm[4].y < lm[5].y);
+
+            const thumb_tip = 4;
+            const d_index = dist(8, thumb_tip);
+            const d_middle = dist(12, thumb_tip);
+            const d_ring = dist(16, thumb_tip);
+            const d_pinky = dist(20, thumb_tip);
+
+            const contact_thresh = 0.045;
+
+            // FSL specific finger mapping rules
+            if (thumb_is_wide_open && extended_fingers_count === 0 && lm[4].y < lm[2].y) return { prediction: "TEN", conf: 0.90 };
+            if (extended_fingers_count === 4 && thumb_is_tucked) return { prediction: "FOUR", conf: 0.95 };
+            if (extended_fingers_count === 4 && thumb_is_wide_open) return { prediction: "FIVE", conf: 0.95 };
+
+            if (d_pinky < contact_thresh && index_open && middle_open && ring_open) return { prediction: "SIX", conf: 0.88 };
+            if (d_ring < contact_thresh && index_open && middle_open && pinky_open) return { prediction: "SEVEN", conf: 0.88 };
+            if (d_middle < contact_thresh && index_open && ring_open && pinky_open) return { prediction: "EIGHT", conf: 0.88 };
+            if (d_index < contact_thresh && middle_open && ring_open && pinky_open) return { prediction: "NINE", conf: 0.88 };
+
+            if (index_open && middle_open && !ring_open && !pinky_open) {
+                const thumb_to_pinky_base = dist(4, 17);
+                if (thumb_to_pinky_base > 0.085) return { prediction: "THREE", conf: 0.98 };
+                else return { prediction: "TWO", conf: 0.98 };
+            }
+
+            if (index_open && middle_open && ring_open && !pinky_open) return { prediction: "THREE", conf: 0.95 };
+            if (index_open && !middle_open && !ring_open && !pinky_open) return { prediction: "ONE", conf: 0.95 };
+
+            return { prediction: null, conf: 0.0 };
+        }
 
         function detectGreeting(sortedHands) {
             if (!greetingsModel || !modelReady) return { greeting: '...', confidence: 0 };
@@ -665,8 +717,12 @@
             try {
                 let features = new Float32Array(126);
                 let currentHandCount = sortedHands.length;
+                let heuristicResult = { prediction: null, conf: 0 };
 
                 if (currentHandCount > 0) {
+                    // 1. Calculate the explicit FSL rules first
+                    heuristicResult = calculateFslHeuristics(sortedHands[0].landmarks);
+
                     const hand1 = normalizeFeatures(extractHandFeatures(sortedHands[0].landmarks));
                     features.set(hand1, 0);
                 }
@@ -707,7 +763,16 @@
                     inputTensor.dispose();
                     outputTensor.dispose();
 
-                    if (motionCounter >= 3 || (currentHandCount > 0 && bestScore > 0.65)) {
+                    // 2. PRIORITIZE HEURISTICS OVERRIDE
+                    if (heuristicResult.prediction !== null) {
+                        return {
+                            greeting: heuristicResult.prediction,
+                            // Take the highest confidence between the AI and our strict rules
+                            confidence: Math.max(bestScore, heuristicResult.conf)
+                        };
+                    }
+                    // 3. Fallback to AI model if no explicit rule matched
+                    else if (motionCounter >= 3 || (currentHandCount > 0 && bestScore > 0.65)) {
                         if (bestScore !== -1.0) {
                             return { greeting: detectedGreeting, confidence: bestScore };
                         }
@@ -719,7 +784,6 @@
                 return { greeting: '...', confidence: 0 };
             }
         }
-
         // ============================================================
         // DRAW HAND
         // ============================================================

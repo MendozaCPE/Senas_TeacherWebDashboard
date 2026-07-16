@@ -757,14 +757,117 @@
             return normalized;
         }
 
-        function detectGreeting(sortedHands) {
+        // ============================================================
+        // EXPLICIT SURVIVAL RULES (Face + Hands Holistic Override)
+        // ============================================================
+        function analyzeHolisticHeuristics(handLandmarks, faceLandmarks, headState, handCount, targetGreeting) {
+            if (!handLandmarks || !faceLandmarks || faceLandmarks.length === 0) return { prediction: null, conf: 0.0 };
+
+            const hlm = handLandmarks;
+            const flm = faceLandmarks;
+
+            // Calculate 3D distance between two landmarks
+            const dist3d = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + (p1.z && p2.z ? Math.pow(p1.z - p2.z, 2) : 0));
+
+            // Hand joints
+            const WRIST = 0, INDEX_PIP = 6, INDEX_DIP = 7, INDEX_TIP = 8;
+            const MIDDLE_PIP = 10, MIDDLE_TIP = 12, RING_TIP = 16, PINKY_TIP = 20;
+
+            const index_extended = hlm[INDEX_TIP].y < hlm[INDEX_PIP].y;
+            const middle_extended = hlm[MIDDLE_TIP].y < hlm[MIDDLE_PIP].y;
+            const ring_extended = hlm[RING_TIP].y < hlm[14].y; // 14 is RING_PIP
+            const pinky_extended = hlm[PINKY_TIP].y < hlm[18].y; // 18 is PINKY_PIP
+
+            const is_fist = !index_extended && !middle_extended && !ring_extended && !pinky_extended;
+            const is_open_palm = index_extended && middle_extended && ring_extended && pinky_extended;
+            const index_curled_x = (hlm[INDEX_TIP].y > hlm[INDEX_DIP].y) && (hlm[INDEX_DIP].y < hlm[INDEX_PIP].y);
+
+            // Face Anchors (MediaPipe Face Mesh Indices)
+            const nose_landmark = flm[2] || flm[1];
+            const chin_anchor = flm[152];
+            const forehead_anchor = flm[10];
+            const right_temple = flm[54];
+            const left_temple = flm[284];
+
+            const is_hand_upper_zone = hlm[WRIST].y <= nose_landmark.y;
+            const is_hand_lower_zone = hlm[WRIST].y > nose_landmark.y;
+
+            const clean_target = (targetGreeting || "").replace(/'/g, "").trim().toUpperCase();
+
+            // --- SHAKING HEAD RULES ---
+            if (headState === "SHAKING") {
+                if (clean_target !== "DONT KNOW" && clean_target !== "DONT UNDERSTAND") {
+                    if (is_hand_lower_zone && (is_fist || index_curled_x) && dist3d(hlm[INDEX_PIP], chin_anchor) < 0.12) {
+                        return { prediction: "WRONG", conf: 0.98 };
+                    }
+                }
+                if (index_curled_x && !middle_extended) {
+                    if (dist3d(hlm[INDEX_TIP], forehead_anchor) < 0.28 || is_hand_upper_zone) {
+                        return { prediction: "DON'T UNDERSTAND", conf: 0.97 };
+                    }
+                }
+                if ((is_open_palm || index_extended) && dist3d(hlm[WRIST], forehead_anchor) < 0.28) {
+                    return { prediction: "DON'T KNOW", conf: 0.96 };
+                }
+                if (index_extended && middle_extended && !ring_extended && !pinky_extended) {
+                    return { prediction: "NO", conf: 0.92 };
+                }
+            }
+            // --- NODDING HEAD RULES ---
+            else if (headState === "NODDING") {
+                if (index_extended && !index_curled_x && !middle_extended && !ring_extended) {
+                    if (dist3d(hlm[INDEX_TIP], chin_anchor) > 0.15) {
+                        return { prediction: "UNDERSTAND", conf: 0.97 };
+                    }
+                }
+                if (is_open_palm || (index_extended && middle_extended && ring_extended)) {
+                    if (dist3d(hlm[INDEX_TIP], right_temple) < 0.18 || dist3d(hlm[INDEX_TIP], left_temple) < 0.18) {
+                        return { prediction: "KNOW", conf: 0.94 };
+                    }
+                }
+                if (is_fist && dist3d(hlm[INDEX_PIP], chin_anchor) > 0.14) {
+                    return { prediction: "YES", conf: 0.91 };
+                }
+                if (index_extended && handCount === 2) {
+                    return { prediction: "CORRECT", conf: 0.93 };
+                }
+            }
+
+            // --- STILL HEAD RULES (Speed signs) ---
+            if (index_curled_x && !middle_extended && !ring_extended && handCount === 1) {
+                if (dist3d(hlm[INDEX_TIP], chin_anchor) > 0.15 && headState !== "SHAKING") {
+                    return { prediction: "FAST", conf: 0.90 };
+                }
+            }
+            if (handCount === 2 && is_open_palm) {
+                return { prediction: "SLOW", conf: 0.85 };
+            }
+
+            return { prediction: null, conf: 0.0 };
+        }
+        function detectGreeting(sortedHands, faceLandmarks, headState, targetGreeting) {
             if (!greetingsModel || !modelReady) return { greeting: '...', confidence: 0 };
 
             try {
                 let features = new Float32Array(126);
                 let currentHandCount = sortedHands.length;
+                let heuristicResult = { prediction: null, conf: 0 };
 
                 if (currentHandCount > 0) {
+                    // Determine primary hand (the one closest to the face) for heuristic checks
+                    let primaryHand = sortedHands[0];
+                    if (currentHandCount > 1 && faceLandmarks && faceLandmarks.length > 0) {
+                        const nose = faceLandmarks[2] || faceLandmarks[1];
+                        const dist1 = Math.abs(sortedHands[0].landmarks[0].y - nose.y);
+                        const dist2 = Math.abs(sortedHands[1].landmarks[0].y - nose.y);
+                        if (dist2 < dist1) {
+                            primaryHand = sortedHands[1];
+                        }
+                    }
+
+                    // 1. Run the Explicit Survival Rules
+                    heuristicResult = analyzeHolisticHeuristics(primaryHand.landmarks, faceLandmarks, headState, currentHandCount, targetGreeting);
+
                     const hand1 = normalizeFeatures(extractHandFeatures(sortedHands[0].landmarks));
                     features.set(hand1, 0);
                 }
@@ -778,6 +881,15 @@
                     greetingSequenceBuffer.shift();
                 }
 
+                // 2. Prioritize Heuristics Override if a strict rule matched
+                if (heuristicResult.prediction !== null) {
+                    return {
+                        greeting: heuristicResult.prediction,
+                        confidence: heuristicResult.conf
+                    };
+                }
+
+                // 3. Fallback to AI model if no explicit rule matched
                 if (greetingSequenceBuffer.length === SEQUENCE_LENGTH) {
                     const flatBuffer = new Float32Array(SEQUENCE_LENGTH * TOTAL_FEATURES);
                     for (let i = 0; i < SEQUENCE_LENGTH; i++) {
@@ -940,9 +1052,9 @@
 
             let result = { greeting: '...', confidence: 0 };
             if (modelReady) {
-                result = detectGreeting(sortedHands);
+                const targetGreeting = GREETINGS_LABELS[currentGreetingIndex] || '';
+                result = detectGreeting(sortedHands, faceLandmarks, headState, targetGreeting);
             }
-
             if (handCount > 0) {
                 statusDot.className = 'dot active';
                 statusText.textContent = modelReady ? 'Detecting...' : 'Model loading...';
@@ -956,7 +1068,12 @@
 
             const isMatch = displayGreeting !== '...' && result.confidence > 0.55;
             const targetGreeting = GREETINGS_LABELS[currentGreetingIndex] || '';
-            const isTargetMatch = isMatch && displayGreeting === targetGreeting;
+
+            // Clean strings just like the Python version to prevent silent mismatches
+            const cleanDisplay = displayGreeting.replace(/['’]/g, "").trim().toUpperCase();
+            const cleanTarget = targetGreeting.replace(/['’]/g, "").trim().toUpperCase();
+
+            const isTargetMatch = isMatch && (cleanDisplay === cleanTarget);
 
             if (isTargetMatch) {
                 statusDot.className = 'dot matched';
@@ -998,7 +1115,7 @@
             if (autoAdvanceCooldown > 0) autoAdvanceCooldown--;
 
             // ============================================================
-            // SEND DATA TO REACT NATIVE
+            // SEND DATA TO REACT NATIVE - FIXED!
             // ============================================================
             const dataToSend = {
                 greeting: isMatch ? displayGreeting : '',
@@ -1006,13 +1123,17 @@
                 handCount: handCount,
                 target: targetGreeting,
                 isMatch: isTargetMatch,
-                learned: Array.from(learnedGreetings),
+                learned: Array.from(learnedGreetings), // ← This is the WebView's progress
                 progress: learnedGreetings.length / GREETINGS_LABELS.length,
                 headState: headState
             };
-
-            if (isMatch || handCount > 0) {
+            // ALWAYS send when we have a valid detection
+            if (displayGreeting !== '...' && displayGreeting !== '✋' && displayGreeting !== '') {
                 console.log('🔍 Sending Level 2 detection:', dataToSend);
+                sendToReactNative(dataToSend);
+            } else if (handCount > 0) {
+                // Send hand detection even if no sign recognized yet
+                console.log('🔍 Sending Level 2 hand detection (no sign):', dataToSend);
                 sendToReactNative(dataToSend);
             }
 
