@@ -45,6 +45,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/lessons/preview', [LessonsController::class, 'preview'])->name('lessons.preview');
     Route::post('/lessons/ai-generate', [LessonsController::class, 'aiGenerate'])->name('lessons.ai-generate');
     Route::post('/lessons/ai-generate-pdf', [LessonsController::class, 'aiGeneratePdf'])->name('lessons.ai-generate-pdf');
+    Route::post('/lessons/ai-generate-quiz', [LessonsController::class, 'aiGenerateQuiz'])->name('lessons.ai-generate-quiz');
     Route::post('/lessons/upload-media', [LessonsController::class, 'uploadMedia'])->name('lessons.upload-media');
 
 

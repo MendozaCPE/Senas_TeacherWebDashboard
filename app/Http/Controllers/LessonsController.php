@@ -220,6 +220,37 @@ class LessonsController extends Controller
         }
     }
 
+    /**
+     * AI Quiz Generator from manual lesson content — POST /lessons/ai-generate-quiz
+     * Takes lesson content text typed by teacher, returns quiz questions only.
+     */
+    public function aiGenerateQuiz(Request $request)
+    {
+        $validated = $request->validate([
+            'content_text' => 'required|string|min:20|max:10000',
+            'num_mc'       => 'required|integer|min:0|max:15',
+            'num_tf'       => 'required|integer|min:0|max:15',
+        ]);
+
+        if ((int)$validated['num_mc'] + (int)$validated['num_tf'] < 1) {
+            return response()->json(['message' => 'Please request at least 1 quiz question.'], 422);
+        }
+
+        try {
+            $deepSeek = new DeepSeekService();
+            $questions = $deepSeek->generateQuizOnly(
+                $validated['content_text'],
+                (int) $validated['num_mc'],
+                (int) $validated['num_tf']
+            );
+
+            return response()->json(['quiz' => $questions]);
+        } catch (\Throwable $e) {
+            \Log::error('AI Quiz Generate failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => 'AI quiz generation failed: ' . $e->getMessage()], 500);
+        }
+    }
+
 /**
  * Persist a new lesson + contents + quiz.
  * The submit button decides the status:

@@ -64,7 +64,10 @@
                            placeholder="e.g. FSL Alphabet A to E"
                            onfocus="this.style.borderColor='#6d28d9'; this.style.boxShadow='0 0 0 4px rgba(109,40,217,0.1)';"
                            onblur="this.style.borderColor='#E5EAF2'; this.style.boxShadow='none';">
-                    <p style="font-size:11px;color:#94a3b8;margin:4px 0 0;">Be specific for better results</p>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px;background:#F5F3FF;border-radius:10px;padding:8px 12px;">
+                        <span style="font-size:14px;flex-shrink:0;">🇵🇭</span>
+                        <p style="font-size:11px;color:#6d28d9;font-weight:700;margin:0;">FSL Only — AI generates Filipino Sign Language content exclusively. Topics like Animals, Numbers, and Greetings will be taught using FSL signs.</p>
+                    </div>
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">

@@ -167,6 +167,93 @@ PROMPT;
     }
 
     /**
+     * Generate quiz questions ONLY from lesson content text.
+     * Used by the "Generate Quiz with AI" button in the manual lesson creator.
+     *
+     * @param  string  $contentText  The lesson content text entered by the teacher
+     * @param  int     $numMc        Number of multiple-choice questions
+     * @param  int     $numTf        Number of true/false questions
+     * @return array   Array of quiz question objects
+     */
+    public function generateQuizOnly(string $contentText, int $numMc, int $numTf): array
+    {
+        $total = $numMc + $numTf;
+
+        $systemPrompt = <<<PROMPT
+You are an expert Filipino Sign Language (FSL) quiz designer for the SENAS learning app.
+You will receive lesson content written by a teacher, and your job is to generate quiz questions based ONLY on that content.
+
+CRITICAL RULES:
+- Only generate questions about Filipino Sign Language (FSL) concepts present in the content.
+- Do NOT invent information not present in the lesson content.
+- All questions must be age-appropriate for school children.
+- Respond with ONLY valid JSON — no markdown, no explanation.
+
+Output schema:
+{
+  "quiz": [
+    {
+      "question": string,
+      "type": "multiple_choice"|"true_false",
+      "options": [string, ...],
+      "correct_index": number
+    }
+  ]
+}
+
+Rules:
+- Generate EXACTLY {$total} quiz questions.
+- Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options).
+- Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True","False"], correct_index must be 0 or 1).
+- Make questions test understanding of the lesson content, not just memorization.
+PROMPT;
+
+        $userPrompt = "Generate {$total} quiz questions ({$numMc} multiple choice, {$numTf} true/false) based on the following lesson content:\n\n---\n{$contentText}\n---";
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Content-Type'  => 'application/json',
+            'HTTP-Referer'  => config('app.url'),
+            'X-Title'       => 'SENAS Teacher Dashboard',
+        ])
+        ->timeout(60)
+        ->post("{$this->baseUrl}/chat/completions", [
+            'model'           => $this->model,
+            'messages'        => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user',   'content' => $userPrompt],
+            ],
+            'response_format' => ['type' => 'json_object'],
+            'temperature'     => 0.6,
+            'max_tokens'      => 3000,
+        ]);
+
+        if ($response->failed()) {
+            Log::error('DeepSeek Quiz-Only API error', ['status' => $response->status(), 'body' => $response->body()]);
+            throw new \RuntimeException('DeepSeek API returned HTTP ' . $response->status() . '. Please try again.');
+        }
+
+        $rawContent = $response->json()['choices'][0]['message']['content'] ?? null;
+        if (empty($rawContent)) {
+            throw new \RuntimeException('DeepSeek returned an empty response. Please try again.');
+        }
+
+        $rawContent = preg_replace('/^```(?:json)?\s*/i', '', trim($rawContent));
+        $rawContent = preg_replace('/\s*```$/', '', $rawContent);
+
+        $data = json_decode($rawContent, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException('Could not parse AI response as JSON: ' . json_last_error_msg());
+        }
+
+        if (empty($data['quiz']) || !is_array($data['quiz'])) {
+            throw new \RuntimeException('AI returned no quiz questions. Please try again.');
+        }
+
+        return $data['quiz'];
+    }
+
+    /**
      * Generate a lesson from raw PDF text extracted by the controller.
      *
      * @param  string  $pdfText   Extracted plain text from the PDF

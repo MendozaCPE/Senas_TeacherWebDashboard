@@ -510,9 +510,18 @@
                     <div class="section-icon" style="background: rgba(245,158,11,0.12); color:#D97706;">📝</div>
                     Quiz Questions
                 </div>
-                <button type="button" onclick="addQuizQuestion()" class="text-sm text-[#1848c8] font-bold hover:underline flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">add</span> Add Question
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="aiQuizGenerateBtn" onclick="openAiQuizModal()"
+                            title="Add lesson content first to enable AI quiz generation"
+                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:8px 16px;border-radius:11px;font-weight:700;font-size:12px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;opacity:0.4;pointer-events:none;"
+                            onmouseover="if(!this.disabled&&this.style.opacity==='1'){this.style.transform='translateY(-1px)'}"
+                            onmouseout="this.style.transform=''">
+                        ✨ Generate Quiz with AI
+                    </button>
+                    <button type="button" onclick="addQuizQuestion()" class="text-sm text-[#1848c8] font-bold hover:underline flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">add</span> Add Question
+                    </button>
+                </div>
             </div>
             <div id="quizQuestions">
                 <div class="quiz-question">
@@ -1215,7 +1224,159 @@ function removeQuizQuestion(btn) {
         reindexQuizQuestions();
     }
 }
+
+/* ── AI Quiz from Content ─────────────────────────────────────────── */
+function getLessonContentText() {
+    let text = '';
+    document.querySelectorAll('[name*="[content_text]"]').forEach(el => {
+        if (el.value && el.value.trim()) text += el.value.trim() + '\n\n';
+    });
+    document.querySelectorAll('[name*="[title]"]').forEach(el => {
+        if (el.name && el.name.includes('contents[') && el.value && el.value.trim()) text += el.value.trim() + ' ';
+    });
+    return text.trim();
+}
+
+function updateAiQuizBtnState() {
+    const btn = document.getElementById('aiQuizGenerateBtn');
+    if (!btn) return;
+    const hasContent = getLessonContentText().length >= 20;
+    btn.style.opacity = hasContent ? '1' : '0.4';
+    btn.style.pointerEvents = hasContent ? 'auto' : 'none';
+    btn.title = hasContent ? 'Generate quiz questions from your lesson content using AI' : 'Add lesson content first to enable AI quiz generation';
+}
+
+function openAiQuizModal() {
+    const text = getLessonContentText();
+    if (text.length < 20) return;
+    document.getElementById('aiQuizModal').style.display = 'flex';
+    document.getElementById('aqm_error').style.display = 'none';
+    document.getElementById('aqm_num_mc').value = 3;
+    document.getElementById('aqm_num_tf').value = 2;
+}
+
+function closeAiQuizModal() {
+    document.getElementById('aiQuizModal').style.display = 'none';
+}
+
+async function submitAiQuizGenerate() {
+    const numMc = parseInt(document.getElementById('aqm_num_mc').value) || 0;
+    const numTf = parseInt(document.getElementById('aqm_num_tf').value) || 0;
+    const errorEl = document.getElementById('aqm_error');
+    errorEl.style.display = 'none';
+
+    if (numMc + numTf < 1) {
+        errorEl.textContent = '⚠️ Please request at least 1 question.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const contentText = getLessonContentText();
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
+
+    const genBtn = document.getElementById('aqm_generateBtn');
+    genBtn.disabled = true;
+    genBtn.textContent = '✨ Generating...';
+
+    try {
+        const resp = await fetch('{{ route("lessons.ai-generate-quiz") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+            body: JSON.stringify({ content_text: contentText, num_mc: numMc, num_tf: numTf })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || 'AI generation failed.');
+
+        // Populate quiz
+        const quizContainer = document.getElementById('quizQuestions');
+        quizContainer.innerHTML = '';
+        quizIndex = 0;
+        data.quiz.forEach((q, idx) => {
+            const qCard = buildAiQuizCard(q, idx);
+            quizContainer.insertAdjacentHTML('beforeend', qCard);
+            quizIndex = idx + 1;
+        });
+
+        closeAiQuizModal();
+
+        // Toast
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(109,40,217,0.4);z-index:20000;transition:all 0.4s;';
+        toast.textContent = `✨ ${data.quiz.length} quiz questions generated!`;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(10px)'; }, 3000);
+        setTimeout(() => toast.remove(), 3500);
+
+    } catch (err) {
+        errorEl.textContent = '⚠️ ' + (err.message || 'Something went wrong.');
+        errorEl.style.display = 'block';
+    } finally {
+        genBtn.disabled = false;
+        genBtn.textContent = '✨ Generate Questions';
+    }
+}
+
+// Watch content changes to update AI quiz button state
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('contentCards').addEventListener('input', updateAiQuizBtnState);
+    // MutationObserver to catch dynamically added cards
+    new MutationObserver(updateAiQuizBtnState).observe(
+        document.getElementById('contentCards'),
+        { childList: true, subtree: true }
+    );
+    updateAiQuizBtnState();
+});
 </script>
+
+{{-- AI Quiz from Content Modal --}}
+<div id="aiQuizModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:24px;padding:32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(15,49,114,0.2);position:relative;">
+        <button onclick="closeAiQuizModal()" type="button"
+                style="position:absolute;top:16px;right:16px;background:rgba(15,49,114,0.07);border:none;width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#64748b;">✕</button>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+            <div style="width:42px;height:42px;background:linear-gradient(135deg,#6d28d9,#4f46e5);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>
+            <div>
+                <h3 style="font-size:17px;font-weight:800;color:#0f3172;margin:0;">Generate Quiz with AI</h3>
+                <p style="font-size:12px;color:#64748b;margin:2px 0 0;">Based on your lesson content</p>
+            </div>
+        </div>
+
+        <div style="background:#F5F3FF;border-radius:12px;padding:10px 14px;margin:14px 0 20px;display:flex;gap:8px;align-items:flex-start;">
+            <span style="font-size:16px;flex-shrink:0;">🇵🇭</span>
+            <p style="font-size:11px;color:#6d28d9;font-weight:600;margin:0;line-height:1.5;">AI will read your lesson content and create quiz questions about the FSL concepts you wrote.</p>
+        </div>
+
+        <div id="aqm_error" style="display:none;background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:12px;padding:10px 14px;margin-bottom:16px;color:#B91C1C;font-size:13px;font-weight:600;"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+            <div>
+                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
+                <input id="aqm_num_mc" type="number" min="0" max="15" value="3"
+                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+            </div>
+            <div>
+                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
+                <input id="aqm_num_tf" type="number" min="0" max="15" value="2"
+                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <button id="aqm_generateBtn" onclick="submitAiQuizGenerate()" type="button"
+                    style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(109,40,217,0.35);"
+                    onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)'}"
+                    onmouseout="this.style.transform=''">
+                ✨ Generate Questions
+            </button>
+            <button onclick="closeAiQuizModal()" type="button"
+                    style="background:white;color:#64748b;padding:13px 24px;border-radius:14px;font-weight:700;font-size:14px;border:1.5px solid #E5EAF2;cursor:pointer;width:100%;transition:all 0.2s;"
+                    onmouseover="this.style.background='#F8FAFC';" onmouseout="this.style.background='white';">Cancel</button>
+        </div>
+    </div>
+</div>
 
 @include('lessons.partials.ai-generator-modal')
 @endsection
