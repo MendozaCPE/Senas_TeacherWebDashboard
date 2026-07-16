@@ -1085,7 +1085,7 @@
 
                 if (autoAdvanceCooldown === 0 && !learnedGreetings.includes(targetGreeting)) {
                     learnedGreetings.push(targetGreeting);
-                    autoAdvanceCooldown = 40;
+                    autoAdvanceCooldown = 20;
 
                     let foundNext = false;
                     for (let offset = 1; offset <= GREETINGS_LABELS.length; offset++) {
@@ -1118,7 +1118,8 @@
             // SEND DATA TO REACT NATIVE - FIXED!
             // ============================================================
             const dataToSend = {
-                greeting: isMatch ? displayGreeting : '',
+                // 🔥 FIX: Always send the greeting so the app gets live percentage updates!
+                greeting: displayGreeting !== '...' ? displayGreeting : '',
                 confidence: result.confidence || 0,
                 handCount: handCount,
                 target: targetGreeting,

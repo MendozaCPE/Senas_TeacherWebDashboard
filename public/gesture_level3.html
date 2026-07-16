@@ -935,8 +935,9 @@
             // SEND DATA TO REACT NATIVE
             // ============================================================
             const dataToSend = {
+                // 🔥 FIX: Always send the greeting so the app gets live percentage updates!
                 greeting: isMatch ? displayGreeting : '',
-                confidence: result.confidence || 0,
+                confidence: result.confidence || 0,  // 🔥 FIX: Send as decimal (0-1)
                 handCount: handCount,
                 target: targetGreeting,
                 isMatch: isTargetMatch,

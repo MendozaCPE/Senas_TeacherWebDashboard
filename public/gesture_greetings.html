@@ -675,7 +675,6 @@
             }
         }
 
-
         // Also add a test function to verify messaging works
         function testMessaging() {
             const testData = {
@@ -841,22 +840,19 @@
             confidenceBar.style.width = `${confPercent}%`;
 
             if (autoAdvanceCooldown > 0) autoAdvanceCooldown--;
-
-            // ============================================================
-            // ALWAYS SEND DATA - even if no detection
-            // ============================================================
             // ============================================================
             // ALWAYS SEND DATA - even if no detection
             // ============================================================
             const dataToSend = {
-                greeting: isMatch ? displayGreeting : '',
-                confidence: result.confidence || 0,
+                greeting: displayGreeting !== '...' ? displayGreeting : '', // 🔥 FIX: Always send the greeting
+                confidence: result.confidence || 0, // 🔥 FIX: Send as decimal (0-1)
                 handCount: handCount,
                 target: targetGreeting,
                 isMatch: isTargetMatch,
-                learned: Array.from(learnedGreetings), // Convert Set to Array
+                learned: Array.from(learnedGreetings),
                 progress: learnedGreetings.length / GREETINGS_LABELS.length
             };
+
 
             // Log what we're sending
             console.log('🔍 Sending detection:', dataToSend);
