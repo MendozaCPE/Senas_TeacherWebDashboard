@@ -99,6 +99,21 @@
                            onblur="this.style.borderColor='#E5EAF2'; this.style.boxShadow='none';">
                 </div>
 
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
+                        <input id="ai_num_mc" type="number" min="0" max="15" value="3"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
+                        <input id="ai_num_tf" type="number" min="0" max="15" value="2"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
+                </div>
+
                 <div style="margin-bottom:24px;">
                     <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">
                         Special Instructions
@@ -182,6 +197,21 @@
                     <input id="pdf_num_slides" type="number" min="3" max="30" value="5"
                            style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;transition:all 0.2s;box-sizing:border-box;"
                            onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
+                        <input id="pdf_num_mc" type="number" min="0" max="15" value="3"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
+                        <input id="pdf_num_tf" type="number" min="0" max="15" value="2"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
                 </div>
 
                 <div style="margin-bottom:24px;">
@@ -268,6 +298,9 @@ function submitPdfGenerate() {
     if (!_selectedPdfFile) { showAiError('Please select a PDF file first.'); return; }
     const numSlides = parseInt(document.getElementById('pdf_num_slides').value);
     if (isNaN(numSlides) || numSlides < 3 || numSlides > 30) { showAiError('Slides must be between 3 and 30.'); return; }
+    const numMc = parseInt(document.getElementById('pdf_num_mc').value) || 0;
+    const numTf = parseInt(document.getElementById('pdf_num_tf').value) || 0;
+    if (numMc + numTf < 1) { showAiError('Please request at least 1 quiz question (Multiple Choice or True/False).'); return; }
     hideAiError();
     setAiLoading(true, '📖 Reading your PDF...', 'AI is scanning the document and building<br>your lesson. This may take 30–60 seconds.');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
@@ -276,6 +309,8 @@ function submitPdfGenerate() {
     fd.append('difficulty',   document.getElementById('pdf_difficulty').value);
     fd.append('lesson_type',  document.getElementById('pdf_lesson_type').value);
     fd.append('num_slides',   numSlides);
+    fd.append('num_mc',       numMc);
+    fd.append('num_tf',       numTf);
     fd.append('instructions', document.getElementById('pdf_instructions').value.trim());
     fetch('{{ route("lessons.ai-generate-pdf") }}', { method:'POST', headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}, body:fd })
         .then(r => r.json().then(d => ({ok:r.ok,d})))
@@ -289,13 +324,16 @@ function submitAiGenerate() {
     if (!topic) { showAiError('Please enter a topic for the lesson.'); document.getElementById('ai_topic').focus(); return; }
     const numSlides = parseInt(document.getElementById('ai_num_slides').value);
     if (isNaN(numSlides) || numSlides < 3 || numSlides > 30) { showAiError('Slides must be between 3 and 30.'); return; }
+    const numMc = parseInt(document.getElementById('ai_num_mc').value) || 0;
+    const numTf = parseInt(document.getElementById('ai_num_tf').value) || 0;
+    if (numMc + numTf < 1) { showAiError('Please request at least 1 quiz question (Multiple Choice or True/False).'); return; }
     hideAiError();
     setAiLoading(true, 'Generating your lesson...', 'DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
     fetch('{{ route("lessons.ai-generate") }}', {
         method:'POST',
         headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
-        body:JSON.stringify({ topic, difficulty:document.getElementById('ai_difficulty').value, lesson_type:document.getElementById('ai_lesson_type').value, num_slides:numSlides, special_instructions:document.getElementById('ai_special_instructions').value.trim()||null }),
+        body:JSON.stringify({ topic, difficulty:document.getElementById('ai_difficulty').value, lesson_type:document.getElementById('ai_lesson_type').value, num_slides:numSlides, num_mc:numMc, num_tf:numTf, special_instructions:document.getElementById('ai_special_instructions').value.trim()||null }),
     })
     .then(r => r.json().then(d => ({ok:r.ok,d})))
     .then(({ok,d}) => { if (!ok) throw new Error(d.message||'AI generation failed.'); closeAiModalDirect(); populateLessonForm(d); })

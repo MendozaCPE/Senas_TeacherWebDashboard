@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 // Add these at the top
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Student extends Model
 {
@@ -59,5 +60,14 @@ class Student extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(LessonAssignment::class, 'student_id', 'student_id');
+    }
+
+    /**
+     * Get all promotion history records for this student.
+     */
+    public function promotions(): HasMany
+    {
+        return $this->hasMany(StudentPromotion::class, 'student_id', 'student_id')
+                    ->orderBy('promoted_at', 'desc');
     }
 }

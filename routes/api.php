@@ -54,5 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // ─── GESTURE PROGRESS ROUTES (NEW) ───────────────────────────
     Route::get('/student/gesture-progress', [StudentAuthController::class, 'getGestureProgress']);
      Route::post('/student/award-module-xp', [StudentAuthController::class, 'awardModuleXp']);
+
+    // ─── MODULE CHECKPOINT QUIZ ───────────────────────────────────
+    Route::get('/student/module/{moduleId}/quiz', [StudentAuthController::class, 'getModuleQuiz']);
+    Route::post('/student/module/{moduleId}/quiz/submit', [StudentAuthController::class, 'submitModuleQuiz']);
    
-});
+});

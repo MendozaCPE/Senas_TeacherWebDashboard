@@ -27,7 +27,7 @@ class DeepSeekService
      */
     public function generate(array $params): array
     {
-        $systemPrompt = $this->buildSystemPrompt();
+        $systemPrompt = $this->buildSystemPrompt($params);
         $userPrompt   = $this->buildUserPrompt($params);
 
         $response = Http::withHeaders([
@@ -81,10 +81,17 @@ class DeepSeekService
         return $lesson;
     }
 
-    private function buildSystemPrompt(): string
+    private function buildSystemPrompt(array $params = []): string
     {
-        return <<<'PROMPT'
+        $numMc = isset($params['num_mc']) ? (int) $params['num_mc'] : 3;
+        $numTf = isset($params['num_tf']) ? (int) $params['num_tf'] : 2;
+        $totalQuestions = $numMc + $numTf;
+
+        return <<<PROMPT
 You are an expert Filipino Sign Language (FSL) curriculum designer for the SENAS learning app. Generate complete, structured FSL lesson plans for children.
+
+CRITICAL: You must ONLY generate lesson content and quiz questions that focus on Filipino Sign Language (FSL). Do NOT include ASL (American Sign Language), BSL (British Sign Language), or any other sign/spoken language. All sign names, alphabet signs, vocabulary, and grammar must be FSL-specific.
+If the topic requested is general or unrelated to FSL (e.g. "Science", "Math", "Animals"), you MUST adapt it to teach FSL vocabulary and FSL signs for the terms related to that topic (e.g., teach FSL signs for "dog", "cat", "fish" if the topic is Animals). Do not teach non-FSL concepts.
 
 Respond with ONLY valid JSON — no markdown, no explanation, just raw JSON.
 
@@ -117,9 +124,10 @@ Rules:
 - gesture_name must be snake_case (e.g. "letter_a", "hello", "thank_you")
 - content_text must be educational, encouraging, and clear for deaf/HoH learners — use simple words, short sentences, and positive tone
 - difficulty: beginner = alphabet/numbers/basic signs, intermediate = common phrases, advanced = full sentences/conversations
-- Generate EXACTLY the number of content steps requested and EXACTLY 5 quiz questions
-- Mix quiz types: use both "multiple_choice" (4 options) and "true_false" (options: ["True","False"], correct_index 0 or 1)
-- For true_false questions, options must be exactly ["True", "False"]
+- Generate EXACTLY the number of content steps requested.
+- Generate EXACTLY {$totalQuestions} quiz questions:
+  - Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options)
+  - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True", "False"], and correct_index must be 0 or 1)
 - Make quizzes fun and age-appropriate for school children learning FSL
 PROMPT;
     }
@@ -170,7 +178,7 @@ PROMPT;
         // Trim to ~12 000 chars so we don't blow the context window
         $pdfText = mb_substr($pdfText, 0, 12000);
 
-        $systemPrompt = $this->buildSystemPrompt();
+        $systemPrompt = $this->buildSystemPrompt($params);
 
         $extra = !empty($params['instructions']) ? $params['instructions'] : 'None';
 

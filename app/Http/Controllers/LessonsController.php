@@ -79,8 +79,14 @@ class LessonsController extends Controller
             'difficulty'   => 'required|in:beginner,intermediate,advanced',
             'lesson_type'  => 'required|in:gesture,text,interactive',
             'num_slides'   => 'required|integer|min:3|max:30',
+            'num_mc'       => 'required|integer|min:0|max:15',
+            'num_tf'       => 'required|integer|min:0|max:15',
             'instructions' => 'nullable|string|max:1000',
         ]);
+
+        if ((int)$request->input('num_mc') + (int)$request->input('num_tf') < 1) {
+            return response()->json(['message' => 'Please generate at least 1 quiz question.'], 422);
+        }
 
         try {
             $pdfPath = $request->file('pdf')->getRealPath();
@@ -97,6 +103,8 @@ class LessonsController extends Controller
                 'difficulty'   => $request->input('difficulty'),
                 'lesson_type'  => $request->input('lesson_type'),
                 'num_slides'   => (int) $request->input('num_slides'),
+                'num_mc'       => (int) $request->input('num_mc', 3),
+                'num_tf'       => (int) $request->input('num_tf', 2),
                 'instructions' => $request->input('instructions', ''),
             ]);
 
@@ -184,8 +192,14 @@ class LessonsController extends Controller
             'difficulty'           => 'required|in:beginner,intermediate,advanced',
             'lesson_type'          => 'required|in:gesture,text,interactive',
             'num_slides'           => 'required|integer|min:3|max:30',
+            'num_mc'               => 'required|integer|min:0|max:15',
+            'num_tf'               => 'required|integer|min:0|max:15',
             'special_instructions' => 'nullable|string|max:500',
         ]);
+
+        if ((int)$validated['num_mc'] + (int)$validated['num_tf'] < 1) {
+            return response()->json(['message' => 'Please generate at least 1 quiz question.'], 422);
+        }
 
         try {
             $deepSeek = new DeepSeekService();

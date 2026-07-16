@@ -11,6 +11,8 @@ use App\Services\XPService;
 use App\Models\Gesture;
 use App\Models\GestureModule;
 use App\Models\GesturePerformance;
+use App\Models\ModuleQuizResult;
+use App\Models\Module;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -233,10 +235,21 @@ public function getLessons(Request $request)
             $moduleDescription = $module ? $module->description : 'Default module for lessons';
             
             if (!isset($modulesMap[$moduleId])) {
+                $quizResult = null;
+                if ($moduleId) {
+                    $quizResult = DB::table('module_quiz_results')
+                        ->where('student_id', $student->student_id)
+                        ->where('module_id', $moduleId)
+                        ->orderByDesc('percentage')
+                        ->first();
+                }
+
                 $modulesMap[$moduleId] = [
                     'module_id' => $moduleId,
                     'title' => $moduleTitle,
                     'description' => $moduleDescription,
+                    'quiz_passed' => $quizResult ? (bool) $quizResult->passed : false,
+                    'quiz_score' => $quizResult ? $quizResult->percentage : null,
                     'lessons' => []
                 ];
             }
@@ -1723,4 +1736,244 @@ private function isModuleLocked($student, $module)
     // Module is locked if not unlocked
     return !$isUnlocked;
 }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MODULE CHECKPOINT QUIZ
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /student/module/{moduleId}/quiz
+     * Returns 10 randomly-selected questions from all lesson quizzes inside
+     * this module. Mix of multiple_choice and true_false.
+     */
+    public function getModuleQuiz(Request $request, $moduleId)
+    {
+        try {
+            $user = Auth::user();
+            $student = Student::where('user_id', $user->id)->first();
+
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
+
+            // Verify module exists
+            $module = Module::find($moduleId);
+            if (!$module) {
+                return response()->json(['error' => 'Module not found'], 404);
+            }
+
+            // Get all published lesson IDs in this module that are assigned to student
+            $lessonIds = LessonAssignment::where('student_id', $student->student_id)
+                ->join('lessons as l', 'lesson_assignments.lesson_id', '=', 'l.lesson_id')
+                ->where('l.module_id', $moduleId)
+                ->where('l.status', 'published')
+                ->pluck('l.lesson_id');
+
+            if ($lessonIds->isEmpty()) {
+                return response()->json(['error' => 'No lessons found for this module'], 404);
+            }
+
+            // Gather all quiz questions from those lessons
+            $allQuestions = DB::table('quiz_questions as qq')
+                ->join('quizzes as qz', 'qq.quiz_id', '=', 'qz.quiz_id')
+                ->whereIn('qz.lesson_id', $lessonIds)
+                ->whereIn('qq.question_type', ['multiple_choice', 'true_false'])
+                ->select('qq.question_id', 'qq.question_type', 'qq.question_text', 'qq.points')
+                ->get()
+                ->shuffle();
+
+            // Take up to 10 questions
+            $selected = $allQuestions->take(10);
+
+            if ($selected->isEmpty()) {
+                return response()->json(['error' => 'No quiz questions available for this module'], 404);
+            }
+
+            // Load options for each selected question
+            $questionIds = $selected->pluck('question_id');
+            $optionsByQuestion = DB::table('quiz_options')
+                ->whereIn('question_id', $questionIds)
+                ->get()
+                ->groupBy('question_id');
+
+            $questions = $selected->map(function ($q) use ($optionsByQuestion) {
+                $options = collect($optionsByQuestion->get($q->question_id, []))->map(function ($opt) {
+                    return [
+                        'option_id'   => $opt->option_id,
+                        'option_text' => $opt->option_text,
+                        'is_correct'  => (bool) $opt->is_correct,
+                    ];
+                })->shuffle()->values();
+
+                return [
+                    'question_id'   => $q->question_id,
+                    'question_type' => $q->question_type,
+                    'question_text' => $q->question_text,
+                    'points'        => $q->points,
+                    'options'       => $options,
+                ];
+            })->values();
+
+            // Best previous score for this module
+            $bestResult = ModuleQuizResult::where('student_id', $student->student_id)
+                ->where('module_id', $moduleId)
+                ->orderByDesc('percentage')
+                ->first();
+
+            // Attempt history for this module
+            $attempts = DB::table('module_quiz_results')
+                ->where('student_id', $student->student_id)
+                ->where('module_id', $moduleId)
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(function ($att) {
+                    return [
+                        'percentage' => (float)$att->percentage,
+                        'passed'     => (bool)$att->passed,
+                        'created_at' => $att->created_at,
+                    ];
+                });
+
+            return response()->json([
+                'success'     => true,
+                'module_id'   => (int) $moduleId,
+                'module_title'=> $module->title,
+                'questions'   => $questions,
+                'total'       => $questions->count(),
+                'best_score'  => $bestResult ? $bestResult->percentage : null,
+                'quiz_passed' => $bestResult ? $bestResult->passed : false,
+                'attempts'    => $attempts,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /student/module/{moduleId}/quiz/submit
+     * Accepts { answers: [{ question_id, selected_option_id }] }
+     * Saves the result and, if passed (≥60%), unlocks the first lesson of the
+     * next module.
+     */
+    public function submitModuleQuiz(Request $request, $moduleId)
+    {
+        try {
+            $user = Auth::user();
+            $student = Student::where('user_id', $user->id)->first();
+
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
+
+            $module = Module::find($moduleId);
+            if (!$module) {
+                return response()->json(['error' => 'Module not found'], 404);
+            }
+
+            $answers = $request->input('answers', []);
+            if (empty($answers)) {
+                return response()->json(['error' => 'No answers provided'], 422);
+            }
+
+            // Evaluate each answer
+            $correct = 0;
+            $total   = count($answers);
+            $details = [];
+
+            foreach ($answers as $ans) {
+                $questionId      = $ans['question_id'] ?? null;
+                $selectedOptionId = $ans['selected_option_id'] ?? null;
+
+                if (!$questionId || !$selectedOptionId) {
+                    $details[] = ['question_id' => $questionId, 'is_correct' => false];
+                    continue;
+                }
+
+                $isCorrect = DB::table('quiz_options')
+                    ->where('question_id', $questionId)
+                    ->where('option_id', $selectedOptionId)
+                    ->where('is_correct', true)
+                    ->exists();
+
+                if ($isCorrect) $correct++;
+                $details[] = ['question_id' => $questionId, 'is_correct' => $isCorrect];
+            }
+
+            $percentage = $total > 0 ? round(($correct / $total) * 100, 2) : 0;
+            $passed     = $percentage >= 60;
+
+            // Count previous attempts
+            $attemptNumber = ModuleQuizResult::where('student_id', $student->student_id)
+                ->where('module_id', $moduleId)
+                ->count() + 1;
+
+            // Save result
+            ModuleQuizResult::create([
+                'student_id'     => $student->student_id,
+                'module_id'      => $moduleId,
+                'score'          => $correct,
+                'percentage'     => $percentage,
+                'passed'         => $passed,
+                'attempt_number' => $attemptNumber,
+            ]);
+
+            // If passed, unlock the first lesson of the NEXT module
+            if ($passed) {
+                // Find the next module (by module_order)
+                $currentModule = Module::find($moduleId);
+                $nextModule = Module::where('module_order', '>', $currentModule->module_order)
+                    ->where('status', 'published')
+                    ->orderBy('module_order', 'asc')
+                    ->first();
+
+                if ($nextModule) {
+                    // Find the first lesson of that next module
+                    $firstLesson = Lesson::where('module_id', $nextModule->module_id)
+                        ->where('status', 'published')
+                        ->orderBy('module_order', 'asc')
+                        ->first();
+
+                    if ($firstLesson) {
+                        LessonAssignment::where('student_id', $student->student_id)
+                            ->where('lesson_id', $firstLesson->lesson_id)
+                            ->update(['is_locked' => false]);
+                    }
+                }
+            }
+
+            // XP award: 30 XP for passing
+            $xpEarned = 0;
+            if ($passed) {
+                $xpEarned = 30;
+                $xpService = new \App\Services\XPService();
+                $xpService->awardXp(
+                    $student,
+                    $xpEarned,
+                    'quiz_completed',
+                    null, // dummy or no attempt_id
+                    null, // no lesson_id
+                    "Completed module checkpoint quiz"
+                );
+                $xpService->updateStreak($student);
+            }
+
+            $student->refresh();
+
+            return response()->json([
+                'success'       => true,
+                'score'         => $correct,
+                'total'         => $total,
+                'percentage'    => $percentage,
+                'passed'        => $passed,
+                'attempt_number'=> $attemptNumber,
+                'xp_earned'     => $xpEarned,
+                'total_xp'      => $student->total_xp ?? 0,
+                'level'         => $student->level ?? 1,
+                'streak_days'   => $student->streak_days ?? 0,
+                'details'       => $details,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 }

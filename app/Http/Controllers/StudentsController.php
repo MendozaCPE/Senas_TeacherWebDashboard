@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Student;
+use App\Models\StudentPromotion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class StudentsController extends Controller
                                   
             // Get all students for this teacher, ideally paginate them
             $students = Student::where('teacher_id', $teacher->id)
+                               ->with('promotions')
                                ->orderBy('created_at', 'desc')
                                ->paginate(10);
         }
@@ -251,6 +253,90 @@ class StudentsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Bulk import failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Promote a student to the next FSL mastery level.
+     */
+    public function promote(Request $request, $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'target_level' => 'required|in:Intermediate,Advanced,Completed',
+            'force'        => 'nullable|boolean',
+        ]);
+
+        $student = Student::where('student_id', $id)
+                          ->where('teacher_id', $teacher->id)
+                          ->firstOrFail();
+
+        $xp         = $student->total_xp ?? 0;
+        $currentLvl = $student->fsl_mastery_level;
+        $targetLvl  = $request->target_level;
+        $force      = (bool) $request->input('force', false);
+
+        // Validate the promotion path is logical
+        $allowedPaths = [
+            'Beginner'     => 'Intermediate',
+            'Intermediate' => 'Advanced',
+            'Advanced'     => 'Completed',
+        ];
+
+        if (!isset($allowedPaths[$currentLvl]) || $allowedPaths[$currentLvl] !== $targetLvl) {
+            return response()->json([
+                'success' => false,
+                'message' => "Invalid promotion path: {$currentLvl} → {$targetLvl}."
+            ], 422);
+        }
+
+        // XP thresholds
+        $xpRequired = ['Beginner' => 300, 'Intermediate' => 600, 'Advanced' => 1000];
+        $requiredXp = $xpRequired[$currentLvl] ?? 0;
+        $meetsXp    = $xp >= $requiredXp;
+
+        // If XP not met and not forcing, reject
+        if (!$meetsXp && !$force) {
+            return response()->json([
+                'success'  => false,
+                'message'  => "Student needs {$requiredXp} XP to promote. Currently has {$xp} XP.",
+                'needs_xp' => $requiredXp,
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Update mastery level
+            $student->update(['fsl_mastery_level' => $targetLvl]);
+
+            // Record promotion history
+            StudentPromotion::create([
+                'student_id'      => $student->student_id,
+                'from_level'      => $currentLvl,
+                'to_level'        => $targetLvl,
+                'xp_at_promotion' => $xp,
+                'promoted_by'     => Auth::id(),
+                'was_forced'      => !$meetsXp,
+                'promoted_at'     => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$student->first_name} {$student->last_name} has been promoted to {$targetLvl}!",
+                'new_level' => $targetLvl,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Promotion failed: ' . $e->getMessage()
             ], 500);
         }
     }
