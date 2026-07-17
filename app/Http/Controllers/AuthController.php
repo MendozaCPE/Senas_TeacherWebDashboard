@@ -8,6 +8,9 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -93,6 +96,60 @@ class AuthController extends Controller
         Auth::login($user);
 
         return redirect(route('dashboard'));
+    }
+
+    /** Show the forgot password form */
+    public function showForgotPasswordForm()
+    {
+        return view('auth.forgot-password');
+    }
+
+    /** Send the password reset link to the user's email */
+    public function sendPasswordResetLink(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $status = Password::sendResetLink($request->only('email'));
+
+        return $status == Password::RESET_LINK_SENT
+            ? back()->with('status', __($status))
+            : back()->withErrors(['email' => __($status)]);
+    }
+
+    /** Show the password reset form */
+    public function showResetPasswordForm($token, Request $request)
+    {
+        return view('auth.reset-password', [
+            'token' => $token,
+            'email' => $request->query('email'),
+        ]);
+    }
+
+    /** Reset the user's password */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email|exists:users,email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->password = Hash::make($password);
+                $user->setRememberToken(Str::random(60));
+                $user->save();
+                event(new PasswordReset($user));
+                Auth::login($user);
+            }
+        );
+
+        return $status == Password::PASSWORD_RESET
+            ? redirect()->route('dashboard')->with('status', __($status))
+            : back()->withErrors(['email' => __($status)]);
     }
 
     /** Show terms & conditions */

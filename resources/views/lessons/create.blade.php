@@ -384,7 +384,7 @@
                     <div>
                         <label class="field-label">Lesson Type</label>
                         <select name="lesson_type" class="field-select">
-                            <option value="gesture">Gesture Lesson</option>
+                        <option value="gesture">Gesture Lesson</option>
                             <option value="interactive">Interactive Lesson</option>
                         </select>
                     </div>
@@ -394,20 +394,32 @@
         </div>
 
         <!-- ============ MODULE ============ -->
-        <div class="section-card">
+        @php
+            $preselectedModuleId = old('module_id', request()->query('module_id'));
+            $moduleActionDefault = old('module_action', $preselectedModuleId ? 'existing' : 'none');
+        @endphp
+        <div class="section-card" @if($preselectedModuleId) style="border-color:rgba(99,102,241,0.35);background:rgba(99,102,241,0.02);" @endif>
             <div class="section-header">
                 <div class="section-title">
                     <div class="section-icon" style="background: rgba(99,102,241,0.12); color:#6366F1;">📁</div>
                     Module
+                    @if($preselectedModuleId)
+                        @php $preModule = $modules->firstWhere('module_id', $preselectedModuleId); @endphp
+                        @if($preModule)
+                            <span style="background:#EEF2FF;color:#4F46E5;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;margin-left:4px;">
+                                📌 {{ $preModule->title }}
+                            </span>
+                        @endif
+                    @endif
                 </div>
             </div>
             <div class="space-y-4">
                 <div>
                     <label class="field-label">Module assignment</label>
                     <select name="module_action" id="moduleAction" class="field-select" onchange="toggleModuleFields()">
-                        <option value="none" {{ old('module_action', 'none') === 'none' ? 'selected' : '' }}>No module (assign when publishing)</option>
-                        <option value="existing" {{ old('module_action') === 'existing' ? 'selected' : '' }}>Use existing module</option>
-                        <option value="new" {{ old('module_action') === 'new' ? 'selected' : '' }}>Create new module</option>
+                        <option value="none" {{ $moduleActionDefault === 'none' ? 'selected' : '' }}>No module (assign when publishing)</option>
+                        <option value="existing" {{ $moduleActionDefault === 'existing' ? 'selected' : '' }}>Use existing module</option>
+                        <option value="new" {{ $moduleActionDefault === 'new' ? 'selected' : '' }}>Create new module</option>
                     </select>
                 </div>
                 <div id="existingModuleFields" class="hidden">
@@ -415,13 +427,13 @@
                     <select name="module_id" id="moduleIdSelect" class="field-select">
                         <option value="">Choose a module</option>
                         @foreach($modules as $module)
-                            <option value="{{ $module->module_id }}" {{ (string) old('module_id') === (string) $module->module_id ? 'selected' : '' }}>
+                            <option value="{{ $module->module_id }}" {{ (string) $preselectedModuleId === (string) $module->module_id ? 'selected' : '' }}>
                                 {{ $module->title }}
                             </option>
                         @endforeach
                     </select>
                     @if($modules->isEmpty())
-                        <p class="text-xs text-amber-600 mt-2">No modules yet — choose “Create new module” above.</p>
+                        <p class="text-xs text-amber-600 mt-2">No modules yet — choose "Create new module" above.</p>
                     @endif
                 </div>
                 <div id="newModuleFields" class="hidden space-y-3">

@@ -129,7 +129,7 @@
                             <tr>
                                 <td colspan="6" class="py-8 text-center text-slate-400 text-sm">
                                     No lessons in this module yet.
-                                    <a href="{{ route('lessons.create') }}" class="text-[#0d326b] font-semibold hover:underline ml-1">Create one →</a>
+                                    <a href="{{ route('lessons.create', ['module_id' => $module->module_id]) }}" class="text-[#0d326b] font-semibold hover:underline ml-1">Create one →</a>
                                 </td>
                             </tr>
                             @endforelse
@@ -139,7 +139,7 @@
 
                 <div class="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
                     <span class="text-[11px] text-slate-400 font-medium">{{ $lessonCount }} lesson{{ $lessonCount !== 1 ? 's' : '' }} · {{ $published }} published</span>
-                    <a href="{{ route('lessons.create') }}"
+                    <a href="{{ route('lessons.create', ['module_id' => $module->module_id]) }}"
                        class="flex items-center space-x-1 text-[#0d326b] font-bold text-[13px] hover:underline">
                         <span class="material-symbols-outlined icon-outline text-[16px]">add</span>
                         <span>Add Lesson to this Module</span>
