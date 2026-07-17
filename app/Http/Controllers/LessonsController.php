@@ -10,6 +10,8 @@ use App\Models\Quiz;
 use App\Models\QuizOption;
 use App\Models\QuizQuestion;
 use App\Models\Teacher;
+use App\Models\Gesture;
+use App\Models\GestureModule;
 use App\Services\DeepSeekService;
 use App\Services\GestureMediaResolver;
 use Illuminate\Http\Request;
@@ -58,14 +60,19 @@ class LessonsController extends Controller
     /**
      * Show the create form.
      */
-    public function create()
+  public function create()
 {
     $teacherId = $this->resolveTeacherId();
     $modules = Module::where('teacher_id', $teacherId)
         ->orderBy('module_order')
         ->get();
+    
+    // Add this line to load gesture modules
+    $gestureModules = GestureModule::where('is_active', true)
+        ->orderBy('order')
+        ->get();
 
-    return view('lessons.create', compact('modules'));
+    return view('lessons.create', compact('modules', 'gestureModules'));
 }
 
     /**
@@ -259,6 +266,10 @@ class LessonsController extends Controller
  */
 public function store(Request $request)
 {
+     // DEBUG: Log all quiz data
+    \Log::info('Full request data:', $request->all());
+    \Log::info('Quiz data:', $request->input('quiz', []));
+    
     $validated = $request->validate([
         'title'                       => 'required|string|max:255',
         'description'                 => 'nullable|string',
@@ -1038,100 +1049,121 @@ foreach ($studentIds as $studentId) {
         return $indices;
     }
 
-    private function persistQuizForLesson(Request $request, Lesson $lesson, array $quizInput): void
-    {
-        $validQuestions = array_filter($quizInput, fn ($q) => ! empty($q['question']));
-        if (empty($validQuestions)) {
-            return;
+   private function persistQuizForLesson(Request $request, Lesson $lesson, array $quizInput): void
+{
+    $validQuestions = array_filter($quizInput, fn ($q) => ! empty($q['question']));
+    if (empty($validQuestions)) {
+        return;
+    }
+
+    $totalPoints = count($validQuestions);
+    $passingScore = max(1, round($totalPoints * 0.6));
+
+    $quiz = Quiz::create([
+        'lesson_id' => $lesson->lesson_id,
+        'title' => 'Quiz: '.$lesson->title,
+        'description' => 'Auto-generated quiz for '.$lesson->title,
+        'total_points' => $totalPoints,
+        'passing_score' => $passingScore,
+    ]);
+
+    $quizFiles = $request->file('quiz') ?? [];
+    $qNum = 1;
+
+    foreach ($quizInput as $qi => $q) {
+        if (empty($q['question'])) {
+            continue;
         }
 
-        $totalPoints = count($validQuestions);
-        $passingScore = max(1, round($totalPoints * 0.6));
+        $questionFile = $this->getQuizUploadedFile($request, $qi, 'media');
+        $qMedia = $this->uploadPublicFile($questionFile, 'quiz_media');
+        if (! $qMedia && ! empty($q['existing_media'])) {
+            $qMedia = $q['existing_media'];
+        }
 
-        $quiz = Quiz::create([
-            'lesson_id' => $lesson->lesson_id,
-            'title' => 'Quiz: '.$lesson->title,
-            'description' => 'Auto-generated quiz for '.$lesson->title,
-            'total_points' => $totalPoints,
-            'passing_score' => $passingScore,
-        ]);
+        $questionData = [
+            'quiz_id' => $quiz->quiz_id,
+            'question_number' => $qNum++,
+            'question_type' => $q['type'] ?? 'multiple_choice',
+            'question_text' => $q['question'],
+            'media_url' => $qMedia,
+            'gesture_required' => $q['gesture_required'] ?? null,
+            'points' => 1,
+        ];
 
-        $quizFiles = $request->file('quiz') ?? [];
-        $qNum = 1;
+        // Handle drag and drop data
+        if (($q['type'] ?? '') === 'drag_drop' && !empty($q['drag_drop_pairs'])) {
+            $questionData['drag_drop_pairs'] = json_encode($q['drag_drop_pairs']);
+        }
 
-        foreach ($quizInput as $qi => $q) {
-            if (empty($q['question'])) {
-                continue;
-            }
+// Handle gesture recognition data
+if (($q['type'] ?? '') === 'gesture') {
+    $gestureData = [
+        'module_id' => $q['gesture_module_id'] ?? null,
+        'gesture_ids' => $q['gesture_ids'] ?? [],
+    ];
+    $questionData['gesture_data'] = json_encode($gestureData);
+}
 
-            $questionFile = $this->getQuizUploadedFile($request, $qi, 'media');
-            $qMedia = $this->uploadPublicFile($questionFile, 'quiz_media');
-            if (! $qMedia && ! empty($q['existing_media'])) {
-                $qMedia = $q['existing_media'];
-            }
+        $question = QuizQuestion::create($questionData);
 
-            $question = QuizQuestion::create([
-                'quiz_id' => $quiz->quiz_id,
-                'question_number' => $qNum++,
-                'question_type' => $q['type'] ?? 'multiple_choice',
-                'question_text' => $q['question'],
-                'media_url' => $qMedia,
-                'gesture_required' => $q['gesture_required'] ?? null,
-                'points' => 1,
-            ]);
+        $correctIndex = isset($q['correct']) ? (int) $q['correct'] : -1;
 
-            $correctIndex = isset($q['correct']) ? (int) $q['correct'] : -1;
+        // Skip creating options for drag_drop and gesture types
+        if (($q['type'] ?? '') === 'drag_drop' || ($q['type'] ?? '') === 'gesture') {
+            continue;
+        }
 
-            if (($q['type'] ?? 'multiple_choice') === 'true_false') {
-                foreach (['True', 'False'] as $idx => $text) {
-                    QuizOption::create([
-                        'question_id' => $question->question_id,
-                        'option_text' => $text,
-                        'option_media_url' => null,
-                        'is_correct' => $idx === $correctIndex,
-                    ]);
-                }
-
-                continue;
-            }
-
-            $optionInput = is_array($q['options'] ?? null) ? $q['options'] : [];
-            $optionFiles = [];
-            if (isset($quizFiles[$qi]['options']) && is_array($quizFiles[$qi]['options'])) {
-                $optionFiles = $quizFiles[$qi]['options'];
-            }
-
-            foreach ($this->collectOptionIndices($optionInput, $optionFiles) as $idx) {
-                $optData = $optionInput[$idx] ?? [];
-                $optText = is_array($optData) ? ($optData['text'] ?? '') : (string) $optData;
-
-                $optionFile = null;
-                if (isset($optionFiles[$idx]['image']) && $optionFiles[$idx]['image'] instanceof UploadedFile) {
-                    $optionFile = $optionFiles[$idx]['image'];
-                } else {
-                    $optionFile = $this->getQuizUploadedFile($request, $qi, "options.{$idx}.image");
-                }
-
-                $optImagePath = $this->uploadPublicFile($optionFile, 'quiz_option_media');
-                if (! $optImagePath && is_array($optData) && ! empty($optData['existing_image'])) {
-                    $optImagePath = $optData['existing_image'];
-                }
-
-                if (trim((string) $optText) === '' && empty($optImagePath)) {
-                    continue;
-                }
-
-                if (trim((string) $optText) === '') {
-                    $optText = 'Option '.chr(65 + (int) $idx);
-                }
-
+        if (($q['type'] ?? '') === 'true_false') {
+            foreach (['True', 'False'] as $idx => $text) {
                 QuizOption::create([
                     'question_id' => $question->question_id,
-                    'option_text' => $optText,
-                    'option_media_url' => $optImagePath,
-                    'is_correct' => (int) $idx === $correctIndex,
+                    'option_text' => $text,
+                    'option_media_url' => null,
+                    'is_correct' => $idx === $correctIndex,
                 ]);
             }
+            continue;
+        }
+
+        // Handle multiple choice options (existing code)
+        $optionInput = is_array($q['options'] ?? null) ? $q['options'] : [];
+        $optionFiles = [];
+        if (isset($quizFiles[$qi]['options']) && is_array($quizFiles[$qi]['options'])) {
+            $optionFiles = $quizFiles[$qi]['options'];
+        }
+
+        foreach ($this->collectOptionIndices($optionInput, $optionFiles) as $idx) {
+            $optData = $optionInput[$idx] ?? [];
+            $optText = is_array($optData) ? ($optData['text'] ?? '') : (string) $optData;
+
+            $optionFile = null;
+            if (isset($optionFiles[$idx]['image']) && $optionFiles[$idx]['image'] instanceof UploadedFile) {
+                $optionFile = $optionFiles[$idx]['image'];
+            } else {
+                $optionFile = $this->getQuizUploadedFile($request, $qi, "options.{$idx}.image");
+            }
+
+            $optImagePath = $this->uploadPublicFile($optionFile, 'quiz_option_media');
+            if (! $optImagePath && is_array($optData) && ! empty($optData['existing_image'])) {
+                $optImagePath = $optData['existing_image'];
+            }
+
+            if (trim((string) $optText) === '' && empty($optImagePath)) {
+                continue;
+            }
+
+            if (trim((string) $optText) === '') {
+                $optText = 'Option '.chr(65 + (int) $idx);
+            }
+
+            QuizOption::create([
+                'question_id' => $question->question_id,
+                'option_text' => $optText,
+                'option_media_url' => $optImagePath,
+                'is_correct' => (int) $idx === $correctIndex,
+            ]);
         }
     }
+}
 }

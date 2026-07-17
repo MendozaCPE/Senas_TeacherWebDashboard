@@ -72,4 +72,21 @@ Route::middleware('auth')->group(function () {
     Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
     Route::patch('/settings/school', [SettingsController::class, 'updateSchool'])->name('settings.school');
     Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+
+    Route::get('/api/gesture-modules/{moduleId}/gestures', function ($moduleId) {
+    $module = App\Models\GestureModule::with('gestures')->find($moduleId);
+    if (!$module) {
+        return response()->json(['gestures' => []]);
+    }
+    return response()->json([
+        'module' => $module,
+        'gestures' => $module->gestures->map(function ($g) {
+            return [
+                'gesture_id' => $g->gesture_id,
+                'name' => $g->name,
+                'display_name' => $g->display_name ?? $g->name,
+            ];
+        })
+    ]);
+})->name('api.gesture-module.gestures');
 });

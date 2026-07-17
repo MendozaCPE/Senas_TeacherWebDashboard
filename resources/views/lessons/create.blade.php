@@ -503,126 +503,171 @@
             </button>
         </div>
 
-        <!-- ============ QUIZ QUESTIONS ============ -->
-        <div class="section-card">
-            <div class="section-header">
-                <div class="section-title">
-                    <div class="section-icon" style="background: rgba(245,158,11,0.12); color:#D97706;">📝</div>
-                    Quiz Questions
+ <!-- ============ QUIZ QUESTIONS ============ -->
+<div class="section-card">
+    <div class="section-header">
+        <div class="section-title">
+            <div class="section-icon" style="background: rgba(245,158,11,0.12); color:#D97706;">📝</div>
+            Quiz Questions
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="button" id="aiQuizGenerateBtn" onclick="openAiQuizModal()"
+                    title="Add lesson content first to enable AI quiz generation"
+                    style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:8px 16px;border-radius:11px;font-weight:700;font-size:12px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;opacity:0.4;pointer-events:none;"
+                    onmouseover="if(!this.disabled&&this.style.opacity==='1'){this.style.transform='translateY(-1px)'}"
+                    onmouseout="this.style.transform=''">
+                ✨ Generate Quiz with AI
+            </button>
+            <button type="button" onclick="addQuizQuestion()" class="text-sm text-[#1848c8] font-bold hover:underline flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">add</span> Add Question
+            </button>
+        </div>
+    </div>
+    
+    <!-- QUESTIONS CONTAINER -->
+    <div id="quizQuestions">
+        <!-- Question 1 - Initial Question -->
+        <div class="quiz-question">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="step-circle" style="background:#D97706;">1</div>
+                    <span class="text-sm font-bold text-slate-500 question-label">Question 1</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" id="aiQuizGenerateBtn" onclick="openAiQuizModal()"
-                            title="Add lesson content first to enable AI quiz generation"
-                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:8px 16px;border-radius:11px;font-weight:700;font-size:12px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;opacity:0.4;pointer-events:none;"
-                            onmouseover="if(!this.disabled&&this.style.opacity==='1'){this.style.transform='translateY(-1px)'}"
-                            onmouseout="this.style.transform=''">
-                        ✨ Generate Quiz with AI
-                    </button>
-                    <button type="button" onclick="addQuizQuestion()" class="text-sm text-[#1848c8] font-bold hover:underline flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">add</span> Add Question
-                    </button>
-                </div>
+                <button type="button" onclick="removeQuizQuestion(this)" class="icon-btn-remove">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
             </div>
-            <div id="quizQuestions">
-                <div class="quiz-question">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-3">
-                            <div class="step-circle" style="background:#D97706;">1</div>
-                            <span class="text-sm font-bold text-slate-500 question-label">Question 1</span>
-                        </div>
-                        <button type="button" onclick="removeQuizQuestion(this)" class="icon-btn-remove">
-                            <span class="material-symbols-outlined text-sm">close</span>
-                        </button>
+            <div class="space-y-3">
+                <div>
+                    <label class="field-label">Question</label>
+                    <input type="text" name="quiz[0][question]" class="field-input" placeholder="Enter your question">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="field-label">Question Type</label>
+                        <select name="quiz[0][type]" onchange="handleQuestionTypeChange(this)" class="field-select question-type">
+                            <option value="multiple_choice">Multiple Choice</option>
+                            <option value="true_false">True / False</option>
+                            <option value="drag_drop">Drag and Drop</option>
+                            <option value="gesture">Gesture Recognition</option>
+                        </select>
                     </div>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="field-label">Question</label>
-                            <input type="text" name="quiz[0][question]" class="field-input" placeholder="Enter your question">
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="field-label">Question Type</label>
-                                <select name="quiz[0][type]" onchange="handleQuestionTypeChange(this)" class="field-select question-type">
-                                    <option value="multiple_choice">Multiple Choice</option>
-                                    <option value="true_false">True / False</option>
-                                </select>
+                    <div>
+                        <label class="field-label">Question Image (Optional)</label>
+                        <input type="hidden" name="quiz[0][existing_media]" value="" class="media-path-input">
+                        <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:10px;">
+                            <div class="upload-trigger" style="gap:8px;">
+                                <input type="file" accept="image/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
+                                <span class="upload-icon material-symbols-outlined" style="font-size:18px;color:#94a3b8;">cloud_upload</span>
+                                <div class="upload-spinner"></div>
+                                <span class="upload-label" style="font-size:12px;">Upload image</span>
                             </div>
-                            <div>
-                                <label class="field-label">Question Image (Optional)</label>
-                                <input type="hidden" name="quiz[0][existing_media]" value="" class="media-path-input">
-                                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:10px;">
-                                    <div class="upload-trigger" style="gap:8px;">
-                                        <input type="file" accept="image/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
-                                        <span class="upload-icon material-symbols-outlined" style="font-size:18px;color:#94a3b8;">cloud_upload</span>
-                                        <div class="upload-spinner"></div>
-                                        <span class="upload-label" style="font-size:12px;">Upload image</span>
-                                    </div>
-                                    <div class="media-thumb-wrap" style="margin-top:8px;"></div>
-                                    <div class="media-upload-error"></div>
-                                </div>
-                            </div>
+                            <div class="media-thumb-wrap" style="margin-top:8px;"></div>
+                            <div class="media-upload-error"></div>
                         </div>
+                    </div>
+                </div>
 
-                        <div class="options-container">
-                            <label class="field-label">Answer Options</label>
-                            <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image (e.g. for FSL hand-sign choices).</p>
-                            <div class="space-y-2 options-list">
-                                <div class="option-row">
-                                    <div class="option-letter">A</div>
-                                    <div class="option-body">
-                                        <input type="text" name="quiz[0][options][0][text]" class="option-text-input" placeholder="Option A text">
-                                        <div class="option-image-row">
-                                            <input type="hidden" name="quiz[0][options][0][existing_image]" value="" class="media-path-input">
-                                            <img class="option-image-preview" src="" alt="">
-                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
-                                                <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
-                                                <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
-                                            </label>
-                                            <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
-                                        </div>
-                                    </div>
-                                    <div class="option-correct-row">
-                                        <input type="radio" name="quiz[0][correct]" value="0">
-                                        <label>Correct</label>
-                                    </div>
-                                    <button type="button" class="option-remove-btn" onclick="removeOption(this)">
-                                        <span class="material-symbols-outlined text-sm">close</span>
-                                    </button>
-                                </div>
-                                <div class="option-row">
-                                    <div class="option-letter">B</div>
-                                    <div class="option-body">
-                                        <input type="text" name="quiz[0][options][1][text]" class="option-text-input" placeholder="Option B text">
-                                        <div class="option-image-row">
-                                            <input type="hidden" name="quiz[0][options][1][existing_image]" value="" class="media-path-input">
-                                            <img class="option-image-preview" src="" alt="">
-                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
-                                                <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
-                                                <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
-                                            </label>
-                                            <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
-                                        </div>
-                                    </div>
-                                    <div class="option-correct-row">
-                                        <input type="radio" name="quiz[0][correct]" value="1">
-                                        <label>Correct</label>
-                                    </div>
-                                    <button type="button" class="option-remove-btn" onclick="removeOption(this)">
-                                        <span class="material-symbols-outlined text-sm">close</span>
-                                    </button>
+                <div class="options-container">
+                    <label class="field-label">Answer Options</label>
+                    <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image (e.g. for FSL hand-sign choices).</p>
+                    <div class="space-y-2 options-list">
+                        <div class="option-row">
+                            <div class="option-letter">A</div>
+                            <div class="option-body">
+                                <input type="text" name="quiz[0][options][0][text]" class="option-text-input" placeholder="Option A text">
+                                <div class="option-image-row">
+                                    <input type="hidden" name="quiz[0][options][0][existing_image]" value="" class="media-path-input">
+                                    <img class="option-image-preview" src="" alt="">
+                                    <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                                        <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
+                                        <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                                    </label>
+                                    <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
                                 </div>
                             </div>
-                            <button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
-                                + Add Option
+                            <div class="option-correct-row">
+                                <input type="radio" name="quiz[0][correct]" value="0">
+                                <label>Correct</label>
+                            </div>
+                            <button type="button" class="option-remove-btn" onclick="removeOption(this)">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                        <div class="option-row">
+                            <div class="option-letter">B</div>
+                            <div class="option-body">
+                                <input type="text" name="quiz[0][options][1][text]" class="option-text-input" placeholder="Option B text">
+                                <div class="option-image-row">
+                                    <input type="hidden" name="quiz[0][options][1][existing_image]" value="" class="media-path-input">
+                                    <img class="option-image-preview" src="" alt="">
+                                    <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                                        <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
+                                        <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                                    </label>
+                                    <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
+                                </div>
+                            </div>
+                            <div class="option-correct-row">
+                                <input type="radio" name="quiz[0][correct]" value="1">
+                                <label>Correct</label>
+                            </div>
+                            <button type="button" class="option-remove-btn" onclick="removeOption(this)">
+                                <span class="material-symbols-outlined text-sm">close</span>
                             </button>
                         </div>
                     </div>
+                    <button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
+                        + Add Option
+                    </button>
+                </div>
+
+                <!-- Drag and Drop Pairs -->
+                <div class="drag-drop-container hidden">
+                    <label class="field-label">Drag and Drop Pairs</label>
+                    <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
+                    <div class="space-y-2 drag-drop-pairs-list"></div>
+                    <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
+                        + Add Pair
+                    </button>
+                </div>
+
+                <!-- Gesture Recognition Fields -->
+                <div class="gesture-quiz-container hidden">
+                    <label class="field-label">Gesture Recognition Settings</label>
+                    <p class="text-xs text-slate-400 mb-2">Select a gesture module and the specific gestures students need to perform.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="field-label">Gesture Module</label>
+                            <select name="quiz[0][gesture_module_id]" class="field-select gesture-module-select" onchange="loadGesturesForModule(this, 0)">
+                                <option value="">Select a module...</option>
+                                @foreach($gestureModules as $module)
+                                    <option value="{{ $module->module_id }}">{{ $module->display_name ?? $module->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Select Gestures to Recognize</label>
+                            <p class="text-xs text-slate-400 mb-2">Click to select gestures. Students will need to perform all selected gestures.</p>
+                            <div id="gestureCheckboxes_0" class="flex flex-wrap gap-2 mt-2" style="min-height:60px;">
+                                <span class="text-sm text-slate-400">Select a module first</span>
+                            </div>
+                        </div>
+                        <div class="selected-gestures-preview" style="display:none;">
+                            <label class="field-label">Selected Gestures</label>
+                            <div class="flex flex-wrap gap-2" id="selectedGestureTags_0"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <button type="button" onclick="addQuizQuestion()" class="dashed-add-btn mt-2">
-                <span class="material-symbols-outlined text-sm">add</span> Add Another Question
-            </button>
         </div>
+    </div> <!-- END #quizQuestions -->
+    
+    <!-- ADD ANOTHER QUESTION BUTTON - OUTSIDE #quizQuestions -->
+    <button type="button" onclick="addQuizQuestion()" class="dashed-add-btn mt-2">
+        <span class="material-symbols-outlined text-sm">add</span> Add Another Question
+    </button>
+</div> <!-- END .section-card -->
 
         <div class="form-footer">
             <button type="button" onclick="openPreview()" class="btn-outline-blue flex items-center gap-2">
@@ -1014,14 +1059,228 @@ function getQuizQuestionIndex(questionDiv) {
     return match ? parseInt(match[1], 10) : 0;
 }
 
+// Drag and Drop functions
+function addDragDropPair(btn) {
+    const container = btn.closest('.drag-drop-container');
+    if (!container) return;
+    const pairsList = container.querySelector('.drag-drop-pairs-list');
+    const qIndex = getQuizQuestionIndex(container.closest('.quiz-question'));
+    const pairIndex = pairsList.querySelectorAll('.drag-drop-pair').length;
+    
+    const pair = document.createElement('div');
+    pair.className = 'drag-drop-pair';
+    pair.style.cssText = 'display:flex;gap:12px;align-items:center;background:white;border:1.5px solid #E5EAF2;border-radius:14px;padding:12px;margin-bottom:8px;';
+    pair.innerHTML = `
+        <div style="flex:1;">
+            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Left Item</label>
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left]" class="field-input" placeholder="e.g., Letter A" style="padding:8px 12px;font-size:13px;">
+        </div>
+        <div style="display:flex;align-items:center;padding:0 4px;color:#94a3b8;">
+            <span class="material-symbols-outlined">arrow_forward</span>
+        </div>
+        <div style="flex:1;">
+            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Right Match</label>
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right]" class="field-input" placeholder="e.g., Hand sign for A" style="padding:8px 12px;font-size:13px;">
+        </div>
+        <button type="button" onclick="removeDragDropPair(this)" class="option-remove-btn" style="margin-top:16px;">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+    `;
+    pairsList.appendChild(pair);
+}
+
+function removeDragDropPair(btn) {
+    const pair = btn.closest('.drag-drop-pair');
+    const container = pair.closest('.drag-drop-pairs-list');
+    if (container.querySelectorAll('.drag-drop-pair').length > 2) {
+        pair.remove();
+    }
+}
+// Load gestures for a module
+function loadGesturesForModule(select, questionIndex) {
+    const moduleId = select.value;
+    const questionDiv = select.closest('.quiz-question');
+    const checkboxesContainer = document.getElementById(`gestureCheckboxes_${questionIndex}`);
+    const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
+    const tagsContainer = document.getElementById(`selectedGestureTags_${questionIndex}`);
+    
+    if (!moduleId) {
+        checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Select a module first</span>';
+        previewContainer.style.display = 'none';
+        return;
+    }
+    
+    // Show loading state
+    checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Loading gestures...</span>';
+    
+    // Fetch gestures for this module
+    fetch(`/api/gesture-modules/${moduleId}/gestures`, {
+        headers: {
+            'X-CSRF-TOKEN': CSRF_TOKEN,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        checkboxesContainer.innerHTML = '';
+        if (data.gestures && data.gestures.length > 0) {
+            data.gestures.forEach(gesture => {
+                const label = document.createElement('label');
+                label.className = 'gesture-checkbox-label';
+                label.style.cssText = `
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px 14px;
+                    border-radius: 12px;
+                    border: 2px solid #E5EAF2;
+                    background: white;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #475569;
+                    user-select: none;
+                `;
+                
+                // Hover effect
+                label.onmouseenter = function() {
+                    if (!this.classList.contains('selected')) {
+                        this.style.borderColor = '#1848c8';
+                        this.style.background = '#f0f4ff';
+                    }
+                };
+                label.onmouseleave = function() {
+                    if (!this.classList.contains('selected')) {
+                        this.style.borderColor = '#E5EAF2';
+                        this.style.background = 'white';
+                    }
+                };
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = `quiz[${questionIndex}][gesture_ids][]`;
+                checkbox.value = gesture.gesture_id;
+                checkbox.className = 'gesture-checkbox';
+                checkbox.style.cssText = 'display: none;';
+                
+                // Store display name for preview
+                checkbox.dataset.displayName = gesture.display_name || gesture.name;
+                
+                // On change - toggle selected state
+                checkbox.onchange = function() {
+                    if (this.checked) {
+                        label.classList.add('selected');
+                        label.style.borderColor = '#10B981';
+                        label.style.background = '#ecfdf5';
+                        label.style.color = '#065F46';
+                    } else {
+                        label.classList.remove('selected');
+                        label.style.borderColor = '#E5EAF2';
+                        label.style.background = 'white';
+                        label.style.color = '#475569';
+                    }
+                    updateGesturePreview(questionIndex);
+                };
+                
+                const span = document.createElement('span');
+                span.textContent = gesture.display_name || gesture.name;
+                
+                // Add checkmark icon when selected
+                const checkIcon = document.createElement('span');
+                checkIcon.className = 'check-icon';
+                checkIcon.textContent = '✓';
+                checkIcon.style.cssText = `
+                    display: none;
+                    color: #10B981;
+                    font-weight: 800;
+                    font-size: 14px;
+                `;
+                
+                // Override the checkbox change to show/hide check icon
+                const originalOnChange = checkbox.onchange;
+                checkbox.onchange = function() {
+                    if (this.checked) {
+                        label.classList.add('selected');
+                        label.style.borderColor = '#10B981';
+                        label.style.background = '#ecfdf5';
+                        label.style.color = '#065F46';
+                        checkIcon.style.display = 'inline';
+                    } else {
+                        label.classList.remove('selected');
+                        label.style.borderColor = '#E5EAF2';
+                        label.style.background = 'white';
+                        label.style.color = '#475569';
+                        checkIcon.style.display = 'none';
+                    }
+                    updateGesturePreview(questionIndex);
+                };
+                
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                label.appendChild(checkIcon);
+                checkboxesContainer.appendChild(label);
+            });
+        } else {
+            checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">No gestures in this module</span>';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading gestures:', error);
+        checkboxesContainer.innerHTML = '<span class="text-sm text-red-500">Error loading gestures</span>';
+    });
+}
+
+// Update gesture preview tags
+function updateGesturePreview(questionIndex) {
+    const tagsContainer = document.getElementById(`selectedGestureTags_${questionIndex}`);
+    const questionDiv = document.getElementById(`selectedGestureTags_${questionIndex}`)?.closest('.quiz-question');
+    if (!questionDiv) return;
+    
+    const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
+    const checkboxes = questionDiv.querySelectorAll(`input[name="quiz[${questionIndex}][gesture_ids][]"]:checked`);
+    
+    if (checkboxes.length === 0) {
+        previewContainer.style.display = 'none';
+        return;
+    }
+    
+    previewContainer.style.display = 'block';
+    tagsContainer.innerHTML = '';
+    
+    checkboxes.forEach(checkbox => {
+        const tag = document.createElement('span');
+        tag.className = 'badge-pill';
+        tag.style.cssText = `
+            background: rgba(16, 185, 129, 0.15);
+            color: #065F46;
+            padding: 6px 14px;
+            font-size: 12px;
+            border-radius: 99px;
+            font-weight: 700;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        `;
+        tag.textContent = checkbox.dataset.displayName || checkbox.value;
+        tagsContainer.appendChild(tag);
+    });
+}
+
 function handleQuestionTypeChange(select) {
     const questionDiv = select.closest('.quiz-question');
     if (!questionDiv) return;
     const optionsList = questionDiv.querySelector('.options-list');
     const addOptionBtn = questionDiv.querySelector('.options-container > button');
+    const dragDropContainer = questionDiv.querySelector('.drag-drop-container');
+    const gestureContainer = questionDiv.querySelector('.gesture-quiz-container');
     const qIndex = getQuizQuestionIndex(questionDiv);
 
+    // Hide all type-specific containers
+    if (dragDropContainer) dragDropContainer.classList.add('hidden');
+    if (gestureContainer) gestureContainer.classList.add('hidden');
+    if (optionsList) optionsList.closest('.options-container')?.classList.remove('hidden');
+
     if (select.value === 'true_false') {
+        // Existing true/false logic...
         const rows = optionsList.querySelectorAll('.option-row');
         while (rows.length > 2) rows[rows.length - 1].remove();
         const textInputs = optionsList.querySelectorAll('.option-text-input');
@@ -1032,11 +1291,31 @@ function handleQuestionTypeChange(select) {
         if (radios[1]) radios[1].value = '1';
         optionsList.querySelectorAll('.option-image-row, .option-remove-btn').forEach(el => el.style.visibility = 'hidden');
         if (addOptionBtn) addOptionBtn.style.display = 'none';
-    } else {
+        if (optionsList) optionsList.closest('.options-container')?.classList.remove('hidden');
+        
+    } else if (select.value === 'drag_drop') {
+        // Show drag-drop container, hide options
+        if (dragDropContainer) dragDropContainer.classList.remove('hidden');
+        if (optionsList) optionsList.closest('.options-container')?.classList.add('hidden');
+        
+    } else if (select.value === 'gesture') {
+    // Show gesture container, hide options
+    if (gestureContainer) gestureContainer.classList.remove('hidden');
+    if (optionsList) optionsList.closest('.options-container')?.classList.add('hidden');
+    
+    // Auto-load gestures if module is already selected
+    const moduleSelect = gestureContainer.querySelector('.gesture-module-select');
+    if (moduleSelect && moduleSelect.value) {
+        loadGesturesForModule(moduleSelect, getQuizQuestionIndex(questionDiv));
+    }
+}else if (select.value === 'multiple_choice') {
+        // Show options
+        if (optionsList) optionsList.closest('.options-container')?.classList.remove('hidden');
         optionsList.querySelectorAll('.option-image-row, .option-remove-btn').forEach(el => el.style.visibility = 'visible');
         if (addOptionBtn) addOptionBtn.style.display = 'inline-block';
     }
 }
+
 
 function previewOptionImage(input) {
     const row = input.closest('.option-body');
@@ -1136,6 +1415,7 @@ function removeOption(btn) {
     }
 }
 
+// Update addQuizQuestion to include new fields
 function addQuizQuestion() {
     const container = document.getElementById('quizQuestions');
     const qIndex = quizIndex;
@@ -1162,6 +1442,8 @@ function addQuizQuestion() {
                     <select name="quiz[${qIndex}][type]" onchange="handleQuestionTypeChange(this)" class="field-select question-type">
                         <option value="multiple_choice">Multiple Choice</option>
                         <option value="true_false">True / False</option>
+                        <option value="drag_drop">Drag and Drop</option>
+                        <option value="gesture">Gesture Recognition</option>
                     </select>
                 </div>
                 <div>
@@ -1185,6 +1467,46 @@ function addQuizQuestion() {
                 <button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
                     + Add Option
                 </button>
+            </div>
+            
+            <!-- Drag and Drop Pairs -->
+            <div class="drag-drop-container hidden">
+                <label class="field-label">Drag and Drop Pairs</label>
+                <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
+                <div class="space-y-2 drag-drop-pairs-list"></div>
+                <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
+                    + Add Pair
+                </button>
+            </div>
+            
+           <!-- Gesture Recognition Fields -->
+<div class="gesture-quiz-container hidden">
+    <label class="field-label">Gesture Recognition Settings</label>
+    <p class="text-xs text-slate-400 mb-2">Select a gesture module and the specific gestures students need to perform.</p>
+    <div class="space-y-3">
+        <div>
+            <label class="field-label">Gesture Module</label>
+            <select name="quiz[${qIndex}][gesture_module_id]" class="field-select gesture-module-select" onchange="loadGesturesForModule(this, ${qIndex})">
+                <option value="">Select a module...</option>
+                @foreach($gestureModules as $module)
+                    <option value="{{ $module->module_id }}">{{ $module->display_name ?? $module->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="field-label">Select Gestures to Recognize</label>
+            <p class="text-xs text-slate-400 mb-2">Click to select gestures. Students will need to perform all selected gestures.</p>
+            <div id="gestureCheckboxes_${qIndex}" class="flex flex-wrap gap-2 mt-2" style="min-height:60px;">
+                <span class="text-sm text-slate-400">Select a module first</span>
+            </div>
+        </div>
+        <div class="selected-gestures-preview" style="display:none;">
+            <label class="field-label">Selected Gestures</label>
+            <div class="flex flex-wrap gap-2" id="selectedGestureTags_${qIndex}"></div>
+        </div>
+    </div>
+</div>
+                </div>
             </div>
         </div>
     `;

@@ -14,8 +14,16 @@ class QuizQuestion extends Model
         'question_type',
         'question_text',
         'media_url',
+        'drag_drop_pairs',    // ADD THIS
+        'gesture_data',       // ADD THIS
         'gesture_required',
         'points',
+    ];
+
+    // ADD THIS CASTS ARRAY
+    protected $casts = [
+        'drag_drop_pairs' => 'array',
+        'gesture_data' => 'array',
     ];
 
     public function quiz()

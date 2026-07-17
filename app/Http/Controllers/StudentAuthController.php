@@ -543,11 +543,11 @@ public function getLessonById(Request $request, $lessonId)
             ];
         });
 
-        // Format quiz
+        // Format quiz - FIX: Include gesture_data and drag_drop_pairs
         $quiz = null;
         if ($lesson->quiz) {
             $questions = $lesson->quiz->questions->map(function ($question) {
-                return [
+                $questionData = [
                     'question_id' => $question->question_id,
                     'question_number' => $question->question_number,
                     'question_type' => $question->question_type,
@@ -563,6 +563,27 @@ public function getLessonById(Request $request, $lessonId)
                         ];
                     }),
                 ];
+
+                // ✅ ADD THIS: Include gesture_data if it exists
+                if ($question->question_type === 'gesture' && !empty($question->gesture_data)) {
+                    // If gesture_data is stored as JSON string, decode it
+                    if (is_string($question->gesture_data)) {
+                        $questionData['gesture_data'] = json_decode($question->gesture_data, true);
+                    } else {
+                        $questionData['gesture_data'] = $question->gesture_data;
+                    }
+                }
+
+                // ✅ ADD THIS: Include drag_drop_pairs if it exists
+                if ($question->question_type === 'drag_drop' && !empty($question->drag_drop_pairs)) {
+                    if (is_string($question->drag_drop_pairs)) {
+                        $questionData['drag_drop_pairs'] = json_decode($question->drag_drop_pairs, true);
+                    } else {
+                        $questionData['drag_drop_pairs'] = $question->drag_drop_pairs;
+                    }
+                }
+
+                return $questionData;
             });
 
             $quiz = [
