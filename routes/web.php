@@ -8,6 +8,9 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/lessons/upload-media-test', function (Request $request) {
+    return response()->json(['message' => 'Upload route is working!']);
+})->name('lessons.upload-media-test');
 // ── Auth Routes (guests only) ────────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');

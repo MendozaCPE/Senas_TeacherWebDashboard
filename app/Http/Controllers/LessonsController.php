@@ -330,26 +330,31 @@ public function store(Request $request)
      * Returns JSON: { "url": "/storage/path/to/file.jpg", "path": "path/to/file.jpg" }
      */
     public function uploadMedia(Request $request)
-    {
+{
+    try {
         $request->validate([
-            'file'    => 'required|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
+            'file' => 'required|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
             'context' => 'nullable|string|in:lesson_media,quiz_media,quiz_option_media,temp_preview',
         ]);
 
-        $file      = $request->file('file');
+        $file = $request->file('file');
         $directory = $request->input('context', 'lesson_media');
 
         $path = $this->uploadPublicFile($file, $directory);
 
-        if (! $path) {
+        if (!$path) {
             return response()->json(['message' => 'Upload failed.'], 500);
         }
 
         return response()->json([
             'path' => $path,
-            'url'  => asset('storage/' . $path),
+            'url' => asset('storage/' . $path),
         ]);
+    } catch (\Exception $e) {
+        \Log::error('Upload error: ' . $e->getMessage());
+        return response()->json(['message' => 'Upload failed: ' . $e->getMessage()], 500);
     }
+}
 
     /**
      * Live preview - render the mobile preview from posted form data
@@ -1049,12 +1054,15 @@ foreach ($studentIds as $studentId) {
         return $indices;
     }
 
-   private function persistQuizForLesson(Request $request, Lesson $lesson, array $quizInput): void
+private function persistQuizForLesson(Request $request, Lesson $lesson, array $quizInput): void
 {
     $validQuestions = array_filter($quizInput, fn ($q) => ! empty($q['question']));
     if (empty($validQuestions)) {
         return;
     }
+
+    // 🔍 DEBUG: Log the entire quiz input to see what's being sent
+    \Log::info('📝 Full quiz input:', $quizInput);
 
     $totalPoints = count($validQuestions);
     $passingScore = max(1, round($totalPoints * 0.6));
@@ -1091,30 +1099,72 @@ foreach ($studentIds as $studentId) {
             'points' => 1,
         ];
 
-        // Handle drag and drop data
-        if (($q['type'] ?? '') === 'drag_drop' && !empty($q['drag_drop_pairs'])) {
-            $questionData['drag_drop_pairs'] = json_encode($q['drag_drop_pairs']);
+        // ==========================================
+        // Handle drag and drop data - FIXED
+        // ==========================================
+        if (($q['type'] ?? '') === 'drag_drop') {
+            \Log::info('🔍 Processing drag_drop question', ['question' => $q, 'drag_drop_pairs' => $q['drag_drop_pairs'] ?? 'NOT SET']);
+            
+            // Check for drag_drop_pairs in the request
+            if (!empty($q['drag_drop_pairs'])) {
+                $processedPairs = [];
+                foreach ($q['drag_drop_pairs'] as $pairIndex => $pair) {
+                    // Handle both formats: ['left' => '...', 'right' => '...'] OR ['left_text' => '...', 'right_text' => '...']
+                    $leftText = $pair['left'] ?? $pair['left_text'] ?? '';
+                    $rightText = $pair['right'] ?? $pair['right_text'] ?? '';
+                    $leftImage = $pair['left_image'] ?? '';
+                    $rightImage = $pair['right_image'] ?? '';
+                    
+                    // 🐛 DEBUG: Log each pair
+                    \Log::info('🔍 Pair data:', ['pair' => $pair, 'leftText' => $leftText, 'rightText' => $rightText, 'leftImage' => $leftImage, 'rightImage' => $rightImage]);
+                    
+                    // Only add if at least one field has content
+                    if (!empty($leftText) || !empty($rightText) || !empty($leftImage) || !empty($rightImage)) {
+                        $processedPairs[] = [
+                            'left_text' => $leftText,
+                            'right_text' => $rightText,
+                            'left_image' => $leftImage,
+                            'right_image' => $rightImage,
+                            'match_id' => $pairIndex,
+                        ];
+                    }
+                }
+                
+                if (!empty($processedPairs)) {
+                    $questionData['drag_drop_pairs'] = json_encode($processedPairs, JSON_UNESCAPED_SLASHES);
+                    \Log::info('✅ Drag drop pairs saved', ['pairs' => $processedPairs]);
+                } else {
+                    \Log::warning('⚠️ No valid drag drop pairs found', ['pairs' => $q['drag_drop_pairs']]);
+                }
+            } else {
+                \Log::warning('⚠️ drag_drop_pairs is empty for question', ['question_id' => $qi, 'question' => $q]);
+            }
         }
 
-// Handle gesture recognition data
-if (($q['type'] ?? '') === 'gesture') {
-    $gestureData = [
-        'module_id' => $q['gesture_module_id'] ?? null,
-        'gesture_ids' => $q['gesture_ids'] ?? [],
-    ];
-    $questionData['gesture_data'] = json_encode($gestureData);
-}
+        // ==========================================
+        // Handle gesture recognition data
+        // ==========================================
+        if (($q['type'] ?? '') === 'gesture') {
+            $gestureData = [
+                'module_id' => $q['gesture_module_id'] ?? null,
+                'gesture_ids' => $q['gesture_ids'] ?? [],
+            ];
+            $questionData['gesture_data'] = json_encode($gestureData, JSON_UNESCAPED_SLASHES);
+        }
 
         $question = QuizQuestion::create($questionData);
-
-        $correctIndex = isset($q['correct']) ? (int) $q['correct'] : -1;
 
         // Skip creating options for drag_drop and gesture types
         if (($q['type'] ?? '') === 'drag_drop' || ($q['type'] ?? '') === 'gesture') {
             continue;
         }
 
+        // ==========================================
+        // Handle true_false questions
+        // ==========================================
         if (($q['type'] ?? '') === 'true_false') {
+            $correctIndex = isset($q['correct']) ? (int) $q['correct'] : 0;
+            
             foreach (['True', 'False'] as $idx => $text) {
                 QuizOption::create([
                     'question_id' => $question->question_id,
@@ -1126,12 +1176,16 @@ if (($q['type'] ?? '') === 'gesture') {
             continue;
         }
 
-        // Handle multiple choice options (existing code)
+        // ==========================================
+        // Handle multiple choice questions
+        // ==========================================
         $optionInput = is_array($q['options'] ?? null) ? $q['options'] : [];
         $optionFiles = [];
         if (isset($quizFiles[$qi]['options']) && is_array($quizFiles[$qi]['options'])) {
             $optionFiles = $quizFiles[$qi]['options'];
         }
+
+        $correctIndex = isset($q['correct']) ? (int) $q['correct'] : 0;
 
         foreach ($this->collectOptionIndices($optionInput, $optionFiles) as $idx) {
             $optData = $optionInput[$idx] ?? [];

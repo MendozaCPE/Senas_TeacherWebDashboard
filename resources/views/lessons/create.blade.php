@@ -702,7 +702,7 @@
 </div>
 
 <script>
-const UPLOAD_URL  = '{{ route('lessons.upload-media') }}';
+const UPLOAD_URL = '{{ url('/lessons/upload-media') }}';
 const CSRF_TOKEN  = document.querySelector('meta[name="csrf-token"]')?.content
                  || document.querySelector('input[name="_token"]')?.value;
 let contentIndex = 1;
@@ -721,7 +721,16 @@ async function handleAjaxUpload(input, type) {
     widget.classList.add('uploading');
     widget.classList.remove('has-file');
     if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
-    const pathInput = widget.closest('div')?.querySelector('.media-path-input');
+    
+    // Find the media-path-input - this could be for content, quiz question, or option
+    let pathInput = widget.closest('div')?.querySelector('.media-path-input');
+    
+    // If no media-path-input found, check if this is a quiz question media
+    if (!pathInput) {
+        // Look for the hidden input that stores the existing media path
+        pathInput = widget.closest('.quiz-question')?.querySelector('input[name*="[existing_media]"]');
+    }
+    
     const fd = new FormData();
     fd.append('file', file); fd.append('context', context); fd.append('_token', CSRF_TOKEN);
     try {
@@ -941,6 +950,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     document.getElementById('lessonForm')?.addEventListener('submit', function(e) {
+        // First validate drag drop pairs
+        const validation = validateDragDropPairs();
+        if (!validation.isValid) {
+            e.preventDefault();
+            alert(validation.errorMsg);
+            return;
+        }
+        
+        // Then validate module
         const action = document.getElementById('moduleAction')?.value;
         if (action === 'existing') {
             const moduleSelect = document.getElementById('moduleIdSelect');
@@ -960,6 +978,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
 
 function closePreview() {
     document.getElementById('previewOverlay').classList.remove('active');
@@ -1081,24 +1100,145 @@ function addDragDropPair(btn) {
     
     const pair = document.createElement('div');
     pair.className = 'drag-drop-pair';
-    pair.style.cssText = 'display:flex;gap:12px;align-items:center;background:white;border:1.5px solid #E5EAF2;border-radius:14px;padding:12px;margin-bottom:8px;';
+    pair.style.cssText = 'display:flex;gap:12px;align-items:center;background:white;border:1.5px solid #E5EAF2;border-radius:14px;padding:12px;margin-bottom:8px;flex-wrap:wrap;';
     pair.innerHTML = `
-        <div style="flex:1;">
+        <div style="flex:1;min-width:120px;">
             <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Left Item</label>
-            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left]" class="field-input" placeholder="e.g., Letter A" style="padding:8px 12px;font-size:13px;">
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_text]" class="field-input" placeholder="e.g., Letter A" style="padding:8px 12px;font-size:13px;width:100%;">
+            <div style="margin-top:4px;">
+                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_image]" value="" class="drag-drop-image-path left-image-path">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                    <div class="upload-trigger" style="gap:6px;">
+                        <input type="file" accept="image/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label" style="font-size:11px;">Add image</span>
+                    </div>
+                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
+                </div>
+            </div>
         </div>
         <div style="display:flex;align-items:center;padding:0 4px;color:#94a3b8;">
             <span class="material-symbols-outlined">arrow_forward</span>
         </div>
-        <div style="flex:1;">
+        <div style="flex:1;min-width:120px;">
             <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Right Match</label>
-            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right]" class="field-input" placeholder="e.g., Hand sign for A" style="padding:8px 12px;font-size:13px;">
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_text]" class="field-input" placeholder="e.g., Hand sign for A" style="padding:8px 12px;font-size:13px;width:100%;">
+            <div style="margin-top:4px;">
+                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_image]" value="" class="drag-drop-image-path right-image-path">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                    <div class="upload-trigger" style="gap:6px;">
+                        <input type="file" accept="image/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label" style="font-size:11px;">Add image</span>
+                    </div>
+                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
+                </div>
+            </div>
         </div>
         <button type="button" onclick="removeDragDropPair(this)" class="option-remove-btn" style="margin-top:16px;">
             <span class="material-symbols-outlined text-sm">close</span>
         </button>
     `;
     pairsList.appendChild(pair);
+}
+
+async function handleDragDropImageUpload(input, qIndex, pairIndex) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const widget = input.closest('.media-upload-widget');
+    if (!widget) return;
+    
+    const side = input.dataset.side || 'left';
+    const errorEl = widget.querySelector('.media-upload-error');
+    const thumbWrap = widget.querySelector('.media-thumb-wrap');
+    const label = widget.querySelector('.upload-label');
+    
+    // Find the correct hidden input based on side
+    let pathInput;
+    if (side === 'left') {
+        pathInput = widget.closest('.drag-drop-pair').querySelector('.left-image-path');
+    } else {
+        pathInput = widget.closest('.drag-drop-pair').querySelector('.right-image-path');
+    }
+    
+    widget.classList.add('uploading');
+    widget.classList.remove('has-file');
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('context', 'quiz_media');
+    fd.append('_token', CSRF_TOKEN);
+    
+    try {
+        const resp = await fetch(UPLOAD_URL, {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+        
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || 'Upload failed');
+        
+        if (pathInput) {
+            const normalizedPath = data.path.replace(/\\/g, '/');
+            pathInput.value = normalizedPath;
+            console.log(`✅ ${side} image saved:`, normalizedPath);
+        }
+        
+        widget.classList.remove('uploading');
+        widget.classList.add('has-file');
+        if (label) label.textContent = 'Replace image';
+        if (thumbWrap) {
+            thumbWrap.innerHTML = '';
+            const img = document.createElement('img');
+            img.className = 'media-thumb';
+            img.src = data.url;
+            img.style.width = '40px';
+            img.style.height = '40px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '6px';
+            img.style.border = '1.5px solid #e2e8f0';
+            thumbWrap.appendChild(img);
+            
+            const info = document.createElement('div');
+            info.className = 'media-thumb-info';
+            info.innerHTML = `<button type="button" class="media-remove-btn" onclick="clearDragDropImage(this)">✕ Remove</button>`;
+            thumbWrap.appendChild(info);
+        }
+    } catch (err) {
+        widget.classList.remove('uploading');
+        if (errorEl) {
+            errorEl.textContent = '⚠ ' + err.message;
+            errorEl.style.display = 'block';
+        }
+        console.error('Upload error:', err);
+    }
+    input.value = '';
+}
+
+function clearDragDropImage(btn) {
+    const widget = btn.closest('.media-upload-widget');
+    if (!widget) return;
+    const thumbWrap = widget.querySelector('.media-thumb-wrap');
+    const pair = widget.closest('.drag-drop-pair');
+    
+    // Find both hidden inputs and clear the one that has a value
+    const leftPath = pair.querySelector('.left-image-path');
+    const rightPath = pair.querySelector('.right-image-path');
+    
+    if (thumbWrap) thumbWrap.innerHTML = '';
+    if (leftPath) leftPath.value = '';
+    if (rightPath) rightPath.value = '';
+    
+    const lbl = widget.querySelector('.upload-label');
+    if (lbl) lbl.textContent = 'Add image';
+    widget.classList.remove('has-file');
 }
 
 function removeDragDropPair(btn) {
@@ -1276,6 +1416,32 @@ function updateGesturePreview(questionIndex) {
         tagsContainer.appendChild(tag);
     });
 }
+function validateDragDropPairs() {
+    let isValid = true;
+    let errorMsg = '';
+    
+    document.querySelectorAll('.quiz-question').forEach((questionDiv, index) => {
+        const typeSelect = questionDiv.querySelector('.question-type');
+        if (!typeSelect || typeSelect.value !== 'drag_drop') return;
+        
+        const pairsList = questionDiv.querySelector('.drag-drop-pairs-list');
+        if (!pairsList) return;
+        
+        const pairs = pairsList.querySelectorAll('.drag-drop-pair');
+        if (pairs.length < 2) {
+            isValid = false;
+            errorMsg = `Question ${index + 1} (Drag and Drop) needs at least 2 pairs. Currently has ${pairs.length}.`;
+            // Highlight the question
+            questionDiv.style.borderColor = '#EF4444';
+            questionDiv.style.borderWidth = '2px';
+        } else {
+            questionDiv.style.borderColor = '#E5EAF2';
+            questionDiv.style.borderWidth = '1.5px';
+        }
+    });
+    
+    return { isValid, errorMsg };
+}
 
 function handleQuestionTypeChange(select) {
     const questionDiv = select.closest('.quiz-question');
@@ -1305,11 +1471,18 @@ function handleQuestionTypeChange(select) {
         if (addOptionBtn) addOptionBtn.style.display = 'none';
         if (optionsList) optionsList.closest('.options-container')?.classList.remove('hidden');
         
-    } else if (select.value === 'drag_drop') {
+    }  else if (select.value === 'drag_drop') {
         // Show drag-drop container, hide options
         if (dragDropContainer) dragDropContainer.classList.remove('hidden');
         if (optionsList) optionsList.closest('.options-container')?.classList.add('hidden');
         
+        // Auto-add first pair if none exist
+        const pairsList = dragDropContainer.querySelector('.drag-drop-pairs-list');
+        if (pairsList && pairsList.querySelectorAll('.drag-drop-pair').length === 0) {
+            // Find the add pair button and click it
+            const addBtn = dragDropContainer.querySelector('button[onclick*="addDragDropPair"]');
+            if (addBtn) addBtn.click();
+        }
     } else if (select.value === 'gesture') {
     // Show gesture container, hide options
     if (gestureContainer) gestureContainer.classList.remove('hidden');
