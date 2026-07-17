@@ -7,13 +7,14 @@ use App\Models\Module;
 use App\Models\Student;
 use App\Models\LessonAssignment;
 use App\Models\StudentLessonProgress;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user    = Auth::user();
         $teacher = $user->teacher;
@@ -33,6 +34,16 @@ class DashboardController extends Controller
             $firstName = $teacher->first_name;
         } else {
             $firstName = $user->name ?? 'Teacher';
+        }
+
+        // Calendar month selector
+        $calendarMonth = $request->query('month');
+        try {
+            $calendarDate = $calendarMonth
+                ? Carbon::createFromFormat('Y-m', $calendarMonth)->startOfMonth()
+                : Carbon::now()->startOfMonth();
+        } catch (\Exception $e) {
+            $calendarDate = Carbon::now()->startOfMonth();
         }
 
         // Default stats (fallback if no teacher record)
@@ -256,6 +267,7 @@ class DashboardController extends Controller
             'firstName',
             'user',
             'teacher',
+            'calendarDate',
             'totalStudents',
             'newStudentsThisWeek',
             'activeToday',

@@ -11,23 +11,22 @@
         <!-- Welcome Banner + Calendar -->
         @php
             $today = \Carbon\Carbon::now();
-            $weekDays = [];
-            $startOfWeek = $today->copy()->startOfWeek(\Carbon\Carbon::MONDAY);
-            for ($i = 0; $i < 7; $i++) {
-                $weekDays[] = $startOfWeek->copy()->addDays($i);
-            }
+           $startOfWeek = $today->copy()->startOfWeek(\Carbon\Carbon::MONDAY);
+           $weekDays = [];
+           for ($i = 0; $i < 21; $i++) {
+               $weekDays[] = $startOfWeek->copy()->addDays($i);
+           }
         @endphp
         <div class="flex gap-5">
-            <!-- Welcome Banner -->
-            <div class="flex-1 rounded-[28px] relative overflow-hidden min-h-[160px] flex items-center"
-                 style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%)">
+           <!-- Welcome Banner -->
+           <div class="flex-1 rounded-[28px] relative overflow-hidden min-h-[160px] flex items-center"
+                style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%)">
                 <!-- Decorative circles -->
                 <div class="absolute top-0 right-48 w-48 h-48 rounded-full opacity-10" style="background:white"></div>
                 <div class="absolute -bottom-10 left-1/3 w-36 h-36 rounded-full opacity-10" style="background:white"></div>
-
+ 
                 <!-- Text content -->
                 <div class="relative z-10 px-10 py-8 flex-1">
-                    <p class="text-[13px] font-semibold text-white/60 uppercase tracking-[0.15em] mb-2">{{ $today->format('l, F j') }}</p>
                     <h2 class="text-[28px] font-black text-white leading-tight mb-2">{{ $greeting }}, Teacher {{ $firstName }}!</h2>
                     <p class="text-[13px] text-white/70 font-medium leading-relaxed mb-5">Here is a summary of your classroom's<br>archival progress today.</p>
                     <a href="{{ route('lessons.index') }}" class="inline-flex items-center space-x-2 text-[12px] font-black text-white/80 uppercase tracking-[0.1em] hover:text-white transition-colors">
@@ -35,23 +34,23 @@
                         <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                     </a>
                 </div>
-
+ 
                 <!-- Senya mascot -->
                 <div class="relative z-10 flex-shrink-0 pr-4 flex items-end self-end">
                     <img src="{{ asset('images/wavingSenya.png') }}" alt="Senya" class="h-[170px] w-auto object-contain drop-shadow-lg" style="filter: drop-shadow(0 8px 24px rgba(0,0,0,0.3))"/>
                 </div>
             </div>
-
+ 
             <!-- Calendar Widget -->
             <div class="bg-white rounded-[28px] px-6 py-5 shadow-sm border border-slate-100 flex-shrink-0 w-[260px] flex flex-col">
-                <!-- Month nav -->
+                <!-- Week nav -->
                 <div class="flex items-center justify-between mb-4">
-                    <span class="text-[13px] font-black text-[#0d326b]">{{ $today->format('F Y') }}</span>
+                    <span id="week-label" class="text-[13px] font-black text-[#0d326b]">{{ $today->format('l, d F') }}</span>
                     <div class="flex items-center space-x-1">
-                        <button class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400">
+                        <button id="week-prev" type="button" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400">
                             <span class="material-symbols-outlined text-[16px]">chevron_left</span>
                         </button>
-                        <button class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400">
+                        <button id="week-next" type="button" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400">
                             <span class="material-symbols-outlined text-[16px]">chevron_right</span>
                         </button>
                     </div>
@@ -65,28 +64,55 @@
                 </div>
 
                 <!-- Week dates -->
-                <div class="grid grid-cols-7 gap-y-1">
+                <div id="week-days" class="grid grid-cols-7 gap-y-1">
                     @foreach($weekDays as $day)
                     <div class="flex items-center justify-center">
-                        @if($day->isToday())
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black text-white" style="background: linear-gradient(135deg,#0d326b,#1a6fd4)">
+                        <div data-date="{{ $day->format('Y-m-d') }}" class="week-day w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-medium {{ $day->isToday() ? 'bg-[#1C3D7A] text-white' : 'text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors' }}">
                             {{ $day->format('d') }}
                         </div>
-                        @else
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-medium text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors">
-                            {{ $day->format('d') }}
-                        </div>
-                        @endif
                     </div>
                     @endforeach
                 </div>
-
-                <div class="mt-auto pt-4 border-t border-slate-100">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Today</p>
-                    <p class="text-[13px] font-bold text-[#0d326b]">{{ $today->format('l, d F') }}</p>
-                </div>
+ 
             </div>
         </div>
+ 
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const weekLabel = document.getElementById('week-label');
+                const prevButton = document.getElementById('week-prev');
+                const nextButton = document.getElementById('week-next');
+                const weekDays = Array.from(document.querySelectorAll('.week-day'));
+                const today = new Date('{{ $today->format('Y-m-d') }}');
+ 
+                function updateWeek(startDate) {
+                    const start = new Date(startDate);
+ 
+                    weekDays.forEach((cell, index) => {
+                        const date = new Date(start);
+                        date.setDate(start.getDate() + index);
+                        cell.dataset.date = date.toISOString().slice(0, 10);
+                        cell.textContent = date.getDate();
+                        const isToday = date.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+                        cell.classList.toggle('bg-[#1C3D7A]', isToday);
+                        cell.classList.toggle('text-white', isToday);
+                        cell.classList.toggle('text-slate-600', !isToday);
+                        cell.classList.toggle('hover:bg-slate-100', !isToday);
+                        cell.classList.toggle('cursor-pointer', !isToday);
+                    });
+                }
+ 
+                let currentStart = new Date('{{ $startOfWeek->format('Y-m-d') }}');
+                prevButton.addEventListener('click', function() {
+                    currentStart.setDate(currentStart.getDate() - 7);
+                    updateWeek(currentStart);
+                });
+                nextButton.addEventListener('click', function() {
+                    currentStart.setDate(currentStart.getDate() + 7);
+                    updateWeek(currentStart);
+                });
+            });
+        </script>
 
         @php
             $kpiSparkline = function (array $data, string $color, int $width = 240, int $height = 44): string {

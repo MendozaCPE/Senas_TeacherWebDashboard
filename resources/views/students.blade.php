@@ -3,12 +3,12 @@
 @section('content')
 
 <style>
-/* ── Level color tokens ───────────────────────────── */
+/* ── Level color tokens — navy scale only ─────────── */
 :root {
-    --clr-beginner:     #f59e0b;
+    --clr-beginner:     #93c5fd;
     --clr-intermediate: #3b82f6;
-    --clr-advanced:     #10b981;
-    --clr-completed:    #a855f7;
+    --clr-advanced:     #1e4b8f;
+    --clr-completed:    #0d326b;
     --clr-navy:         #0d326b;
 }
 
@@ -16,25 +16,25 @@
 .stat-card { border-radius: 20px; padding: 20px; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(13,50,107,.12); }
 
-/* ── Level badge pill ─────────────────────────────── */
+/* ── Level badge pill — light to dark navy by tier ── */
 .lvl-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.lvl-badge.beginner     { background: #fef3c7; color: #b45309; }
-.lvl-badge.intermediate { background: #dbeafe; color: #1d4ed8; }
-.lvl-badge.advanced     { background: #d1fae5; color: #047857; }
-.lvl-badge.completed    { background: #f3e8ff; color: #7e22ce; }
+.lvl-badge.beginner     { background: #eff6ff; color: #1e4b8f; }
+.lvl-badge.intermediate { background: #dbeafe; color: #0d326b; }
+.lvl-badge.advanced     { background: #93c5fd; color: #0d326b; }
+.lvl-badge.completed    { background: #0d326b; color: #ffffff; }
 
 /* ── XP Progress bar ──────────────────────────────── */
 .xp-bar-wrap { border-radius: 9999px; background: #f1f5f9; overflow: hidden; height: 10px; }
-.xp-bar-fill { height: 100%; border-radius: 9999px; transition: width .7s cubic-bezier(.4,0,.2,1); }
-.xp-eligible-chip { display: inline-flex; align-items: center; gap: 3px; background: #d1fae5; color: #065f46; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; letter-spacing: .05em; animation: pulse-chip 2s infinite; }
+.xp-bar-fill { height: 100%; border-radius: 9999px; transition: width .7s cubic-bezier(.4,0,.2,1); background: linear-gradient(90deg, #93c5fd 0%, #1e4b8f 100%); }
+.xp-eligible-chip { display: inline-flex; align-items: center; gap: 3px; background: #dbeafe; color: #0d326b; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; letter-spacing: .05em; animation: pulse-chip 2s infinite; }
 @keyframes pulse-chip { 0%,100%{opacity:1} 50%{opacity:.7} }
 
 /* ── Promote button ───────────────────────────────── */
-.promo-btn-eligible  { background: linear-gradient(135deg,#10b981,#059669); color:#fff; border: none; }
-.promo-btn-eligible:hover  { box-shadow: 0 4px 16px rgba(16,185,129,.35); transform: scale(1.04); }
+.promo-btn-eligible  { background: linear-gradient(135deg,#1a6fd4,#0d326b); color:#fff; border: none; }
+.promo-btn-eligible:hover  { box-shadow: 0 4px 16px rgba(13,50,107,.35); transform: scale(1.04); }
 .promo-btn-locked    { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
 .promo-btn-locked:hover    { background: #f1f5f9; border-color: #cbd5e1; }
-.promo-btn-completed { background: #f3e8ff; color: #7e22ce; border: none; }
+.promo-btn-completed { background: #eff6ff; color: #0d326b; border: none; }
 
 .promo-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s; white-space: nowrap; }
 
@@ -145,7 +145,11 @@
 
             {{-- Filter Toolbar --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center gap-3 flex-wrap">
-                <div class="bg-[#f1f5f9] p-1 rounded-full flex items-center shadow-inner shrink-0">
+                <div class="relative shrink-0 order-1 lg:order-none">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
+                    <input id="student-search" type="text" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
+                </div>
+                <div class="bg-[#f1f5f9] p-1 rounded-full flex items-center shadow-inner shrink-0 order-2 lg:order-none">
                     <button data-filter="all" class="filter-tab px-5 py-2 bg-white text-[#0d326b] text-[12px] font-bold rounded-full shadow-sm transition-all">All Students</button>
                     <button data-filter="active" class="filter-tab px-5 py-2 text-slate-500 hover:text-[#0d326b] text-[12px] font-medium rounded-full transition-all">Active Only</button>
                 </div>
@@ -169,10 +173,6 @@
                         <option value="Inclusion">Inclusion</option>
                     </select>
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
-                </div>
-                <div class="relative shrink-0">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                    <input id="student-search" type="text" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
                 </div>
                 <span id="results-count" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0"></span>
             </div>
@@ -231,7 +231,7 @@
                             <td class="py-4 px-5">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-10 h-10 rounded-full shadow-sm shrink-0 overflow-hidden ring-2 ring-slate-100">
-                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name.'+'. $student->last_name) }}&background=random&color=fff&rounded=true&size=80" class="w-10 h-10 rounded-full" />
+                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name.'+'.$student->last_name) }}&background=0d326b&color=fff&rounded=true&size=60" class="w-9 h-9 rounded-full ring-2 ring-slate-100" />
                                     </div>
                                     <div>
                                         <p class="text-[13px] font-bold text-[#0d326b]">{{ $student->first_name }} {{ $student->last_name }}</p>
@@ -282,7 +282,7 @@
                                         @endif
                                     </div>
                                     <div class="xp-bar-wrap">
-                                        <div class="xp-bar-fill" style="width:{{ $barPct }}%;background:linear-gradient(90deg,{{ $levelMeta['barColor'] }}88,{{ $levelMeta['barColor'] }})"></div>
+                                        <div class="xp-bar-fill" style="width:{{ $barPct }}%;"></div>
                                     </div>
                                     <div class="flex justify-between mt-1">
                                         <span class="text-[9px] text-slate-300">0</span>
@@ -375,11 +375,19 @@
                 <div class="flex items-center justify-center mb-4">
                     <div class="relative w-[120px] h-[120px]">
                         <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+                            <defs>
+                                <linearGradient id="masteryGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#93c5fd" />
+                                    <stop offset="33%" stop-color="#3b82f6" />
+                                    <stop offset="66%" stop-color="#1e4b8f" />
+                                    <stop offset="100%" stop-color="#0d326b" />
+                                </linearGradient>
+                            </defs>
                             <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                            @if($begDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" stroke-width="14" stroke-dasharray="{{ $begDash }} {{ $circ-$begDash }}" stroke-dashoffset="{{ $begOff }}" stroke-linecap="butt"/>@endif
-                            @if($intDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="#3b82f6" stroke-width="14" stroke-dasharray="{{ $intDash }} {{ $circ-$intDash }}" stroke-dashoffset="{{ $intOff }}" stroke-linecap="butt"/>@endif
-                            @if($advDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="#10b981" stroke-width="14" stroke-dasharray="{{ $advDash }} {{ $circ-$advDash }}" stroke-dashoffset="{{ $advOff }}" stroke-linecap="butt"/>@endif
-                            @if($comDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="#a855f7" stroke-width="14" stroke-dasharray="{{ $comDash }} {{ $circ-$comDash }}" stroke-dashoffset="{{ $comOff }}" stroke-linecap="butt"/>@endif
+                            @if($begDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $begDash }} {{ $circ-$begDash }}" stroke-dashoffset="{{ $begOff }}" stroke-linecap="round"/>@endif
+                            @if($intDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $intDash }} {{ $circ-$intDash }}" stroke-dashoffset="{{ $intOff }}" stroke-linecap="round"/>@endif
+                            @if($advDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $advDash }} {{ $circ-$advDash }}" stroke-dashoffset="{{ $advOff }}" stroke-linecap="round"/>@endif
+                            @if($comDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $comDash }} {{ $circ-$comDash }}" stroke-dashoffset="{{ $comOff }}" stroke-linecap="round"/>@endif
                         </svg>
                         <div class="absolute inset-0 flex flex-col items-center justify-center">
                             <span class="text-[22px] font-black text-[#0d326b]">{{ $allStudents->count() }}</span>
@@ -389,10 +397,10 @@
                 </div>
                 <div class="space-y-2.5">
                     @foreach([
-                        ['color'=>'bg-amber-400', 'dot'=>'#f59e0b','label'=>'Beginner',     'pct'=>$begPct,'cnt'=>$beginnerCnt],
+                        ['color'=>'bg-blue-100',  'dot'=>'#93c5fd','label'=>'Beginner',     'pct'=>$begPct,'cnt'=>$beginnerCnt],
                         ['color'=>'bg-blue-400',  'dot'=>'#3b82f6','label'=>'Intermediate', 'pct'=>$intPct,'cnt'=>$intermCnt],
-                        ['color'=>'bg-emerald-400','dot'=>'#10b981','label'=>'Advanced',    'pct'=>$advPct,'cnt'=>$advancedCnt],
-                        ['color'=>'bg-purple-400', 'dot'=>'#a855f7','label'=>'Completed',   'pct'=>$comPct,'cnt'=>$completedCnt],
+                        ['color'=>'bg-blue-700',  'dot'=>'#1e4b8f','label'=>'Advanced',     'pct'=>$advPct,'cnt'=>$advancedCnt],
+                        ['color'=>'bg-[#0d326b]', 'dot'=>'#0d326b','label'=>'Completed',    'pct'=>$comPct,'cnt'=>$completedCnt],
                     ] as $e)
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
@@ -414,9 +422,9 @@
                 <div class="space-y-3">
                     @php
                         $milestones = [
-                            ['from'=>'Beginner','to'=>'Intermediate','xp'=>300,'bg'=>'#fffbeb','border'=>'#fde68a','iconBg'=>'#f59e0b','text'=>'#92400e','ready'=>$allStudents->where('fsl_mastery_level','Beginner')->filter(fn($s)=>($s->total_xp??0)>=300)->count()],
-                            ['from'=>'Intermediate','to'=>'Advanced','xp'=>600,'bg'=>'#eff6ff','border'=>'#bfdbfe','iconBg'=>'#3b82f6','text'=>'#1e40af','ready'=>$allStudents->where('fsl_mastery_level','Intermediate')->filter(fn($s)=>($s->total_xp??0)>=600)->count()],
-                            ['from'=>'Advanced','to'=>'Completed','xp'=>1000,'bg'=>'#ecfdf5','border'=>'#a7f3d0','iconBg'=>'#10b981','text'=>'#065f46','ready'=>$allStudents->where('fsl_mastery_level','Advanced')->filter(fn($s)=>($s->total_xp??0)>=1000)->count()],
+                            ['from'=>'Beginner','to'=>'Intermediate','xp'=>300,'bg'=>'#ebf4ff','border'=>'#c7d2fe','iconBg'=>'#3b82f6','text'=>'#1e40af','ready'=>$allStudents->where('fsl_mastery_level','Beginner')->filter(fn($s)=>($s->total_xp??0)>=300)->count()],
+                            ['from'=>'Intermediate','to'=>'Advanced','xp'=>600,'bg'=>'#dbeafe','border'=>'#93c5fd','iconBg'=>'#1d4ed8','text'=>'#1e40af','ready'=>$allStudents->where('fsl_mastery_level','Intermediate')->filter(fn($s)=>($s->total_xp??0)>=600)->count()],
+                            ['from'=>'Advanced','to'=>'Completed','xp'=>1000,'bg'=>'#c7d2fe','border'=>'#6366f1','iconBg'=>'#0d3b82','text'=>'#0d316d','ready'=>$allStudents->where('fsl_mastery_level','Advanced')->filter(fn($s)=>($s->total_xp??0)>=1000)->count()],
                         ];
                     @endphp
                     @foreach($milestones as $ms)
@@ -443,14 +451,14 @@
                     @foreach($topStudents as $idx => $ts)
                     @php
                         $rc = [
-                            ['ring'=>'ring-[#facc15]','bg'=>'bg-[#facc15]/10','badge'=>'bg-[#facc15] text-[#0d326b]'],
-                            ['ring'=>'ring-slate-200', 'bg'=>'bg-slate-50',    'badge'=>'bg-slate-200 text-slate-600'],
-                            ['ring'=>'ring-amber-200', 'bg'=>'bg-amber-50/50', 'badge'=>'bg-amber-100 text-amber-700'],
+                            ['ring'=>'ring-[#0d326b]', 'bg'=>'bg-[#eff6ff]',  'badge'=>'bg-[#0d326b] text-white'],
+                            ['ring'=>'ring-blue-200',  'bg'=>'bg-slate-50',    'badge'=>'bg-blue-100 text-[#1e4b8f]'],
+                            ['ring'=>'ring-blue-100',  'bg'=>'bg-blue-50/50',  'badge'=>'bg-blue-50 text-[#1e4b8f]'],
                         ][$idx] ?? ['ring'=>'ring-slate-200','bg'=>'bg-slate-50','badge'=>'bg-slate-200 text-slate-600'];
                     @endphp
                     <div class="flex items-center space-x-3 p-2.5 rounded-xl {{ $rc['bg'] }}">
                         <div class="relative shrink-0">
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($ts->first_name.'+'.$ts->last_name) }}&background=random&color=fff&rounded=true&size=60" class="w-9 h-9 rounded-full ring-2 {{ $rc['ring'] }}" />
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name.'+'. $student->last_name) }}&background=0d326b&color=fff&rounded=true&size=80" class="w-10 h-10 rounded-full" />
                             <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full {{ $rc['badge'] }} text-[8px] font-black flex items-center justify-center">{{ $idx+1 }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -739,10 +747,10 @@ const promoteModal=document.getElementById('promote-modal'),promoteCard=document
 let currentPromoteData=null;
 
 const lvlMeta={
-    'Beginner':     {cssClass:'beginner',     barColor:'#f59e0b'},
+    'Beginner':     {cssClass:'beginner',     barColor:'#93c5fd'},
     'Intermediate': {cssClass:'intermediate',  barColor:'#3b82f6'},
-    'Advanced':     {cssClass:'advanced',      barColor:'#10b981'},
-    'Completed':    {cssClass:'completed',     barColor:'#a855f7'},
+    'Advanced':     {cssClass:'advanced',      barColor:'#1e4b8f'},
+    'Completed':    {cssClass:'completed',     barColor:'#0d326b'},
 };
 
 function renderHistory(history){
@@ -776,7 +784,7 @@ function openPromoteModal(btn){
     const sid=btn.dataset.studentId,sname=btn.dataset.studentName,cur=btn.dataset.currentLevel,tgt=btn.dataset.targetLevel,cxp=parseInt(btn.dataset.currentXp,10),rxp=parseInt(btn.dataset.requiredXp,10),ok=btn.dataset.enough==='true';
     let history=[];try{history=JSON.parse(btn.dataset.history||'[]');}catch(e){}
     currentPromoteData={studentId:sid,targetLevel:tgt,force:!ok};
-    promoteAvatar.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(sname.replace(/ /g,'+'))}&background=random&color=fff&rounded=true&size=80`;
+    promoteAvatar.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(sname.replace(/ /g,'+'))}&background=0d326b&color=fff&rounded=true&size=80`;
     promoteStudentName.textContent=sname;
     // Badges
     const fc=lvlMeta[cur]||lvlMeta['Beginner'],tc=lvlMeta[tgt]||lvlMeta['Beginner'];

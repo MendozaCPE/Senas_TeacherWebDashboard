@@ -10,9 +10,26 @@ class PaulDummyDataSeeder extends Seeder
 {
     public function run(): void
     {
-        $teacherId = 3; // paul@gmail.com
-        $schoolId  = 1; // Nasugbu West Central School
-        $now       = Carbon::now();
+        $now = Carbon::now();
+        $teacher = DB::table('teachers')
+            ->where('first_name', 'Christian')
+            ->where('last_name', 'Paul Mendoza')
+            ->first();
+
+        if (!$teacher) {
+            $teacher = DB::table('teachers')
+                ->where('first_name', 'Christian')
+                ->where('last_name', 'like', '%Mendoza%')
+                ->first();
+        }
+
+        if (!$teacher) {
+            $this->command->error('Teacher Christian Paul Mendoza not found. Please create the teacher first or adjust the seeder.');
+            return;
+        }
+
+        $teacherId = $teacher->id;
+        $schoolId  = $teacher->school_id;
 
         // ── 1. STUDENTS ──────────────────────────────────────────────
         // 'program_type' enum: Regular | Inclusion | Transition | Self-contained
@@ -372,6 +389,79 @@ class PaulDummyDataSeeder extends Seeder
                 'reason'          => 'Completed quiz with score ' . $score . '%',
                 'created_at'      => $now->copy()->subDays(1),
                 'updated_at'      => $now->copy()->subDays(1),
+            ]);
+        }
+
+        // ── 10. GESTURE PERFORMANCES ────────────────────────────────
+        $gestureNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', '1', '2', '3', '4', '5'];
+        $gestures = DB::table('gestures')->whereIn('name', $gestureNames)->get()->keyBy('name');
+
+        $performanceTemplate = [
+            [0, 'A', 10, 6, 4, 1, 'developing'],
+            [0, 'B', 9, 5, 4, 2, 'needs_practice'],
+            [0, 'C', 12, 8, 4, 0, 'developing'],
+            [0, 'D', 11, 7, 4, 1, 'developing'],
+            [0, 'E', 10, 7, 3, 0, 'developing'],
+            [0, '1', 8, 4, 4, 1, 'needs_practice'],
+            [0, '2', 6, 3, 3, 2, 'needs_practice'],
+            [1, 'A', 12, 12, 0, 0, 'mastered'],
+            [1, 'B', 12, 11, 1, 0, 'mastered'],
+            [1, 'C', 12, 10, 2, 0, 'mastered'],
+            [1, 'D', 12, 10, 2, 0, 'mastered'],
+            [1, 'E', 12, 9, 3, 0, 'proficient'],
+            [1, '1', 10, 10, 0, 0, 'mastered'],
+            [1, '2', 10, 9, 1, 0, 'mastered'],
+            [2, 'A', 7, 4, 3, 1, 'needs_practice'],
+            [2, 'B', 6, 2, 4, 2, 'needs_practice'],
+            [2, 'C', 8, 5, 3, 1, 'developing'],
+            [2, '1', 5, 2, 3, 2, 'needs_practice'],
+            [3, 'A', 12, 12, 0, 0, 'mastered'],
+            [3, 'B', 12, 12, 0, 0, 'mastered'],
+            [3, 'C', 12, 11, 1, 0, 'mastered'],
+            [3, 'D', 12, 10, 2, 0, 'proficient'],
+            [3, 'E', 12, 11, 1, 0, 'mastered'],
+            [3, '1', 10, 10, 0, 0, 'mastered'],
+            [3, '2', 10, 9, 1, 0, 'mastered'],
+            [4, 'A', 8, 3, 5, 3, 'needs_practice'],
+            [4, 'B', 7, 2, 5, 4, 'needs_practice'],
+            [4, 'C', 8, 4, 4, 2, 'needs_practice'],
+        ];
+
+        foreach ($performanceTemplate as [$sIdx, $gestureName, $attempts, $successes, $wrongs, $consecWrong, $level]) {
+            if (!isset($studentIds[$sIdx])) {
+                continue;
+            }
+
+            $studentId = $studentIds[$sIdx];
+            if (!isset($gestures[$gestureName])) {
+                continue;
+            }
+
+            $gesture = $gestures[$gestureName];
+            $already = DB::table('gesture_performances')
+                ->where('student_id', $studentId)
+                ->where('gesture_id', $gesture->gesture_id)
+                ->exists();
+            if ($already) {
+                continue;
+            }
+
+            DB::table('gesture_performances')->insert([
+                'student_id'          => $studentId,
+                'gesture_id'          => $gesture->gesture_id,
+                'module_id'           => $gesture->module_id,
+                'attempts'            => $attempts,
+                'successful_attempts' => $successes,
+                'wrong_attempts'      => $wrongs,
+                'consecutive_wrong'   => $consecWrong,
+                'first_attempt_at'    => $now->copy()->subDays(rand(10, 20)),
+                'last_attempt_at'     => $now->copy()->subDays(rand(1, 5)),
+                'mastered_at'         => in_array($level, ['proficient','mastered']) ? $now->copy()->subDays(rand(1, 10)) : null,
+                'is_mastered'         => $level === 'mastered',
+                'mastery_level'       => $level,
+                'session_id'          => 'demo-' . $studentId . '-' . $gesture->gesture_id,
+                'created_at'          => $now,
+                'updated_at'          => $now,
             ]);
         }
 

@@ -18,16 +18,24 @@ class AnalyticsController extends Controller
 
         if (!$teacher) {
             return view('analytics', [
-                'totalAttempts'    => 0,
-                'avgPerformance'   => 0,
-                'practiceCompletion' => 0,
-                'activeStudents'   => 0,
-                'lessonCompletion' => collect(),
-                'topPerformer'     => null,
-                'weeklyData'       => [],
-                'alerts'           => collect(),
-                'displayName'      => $user->name ?? 'Teacher',
-                'teacher'          => null,
+                'totalAttempts'       => 0,
+                'avgPerformance'      => 0,
+                'practiceCompletion'  => 0,
+                'activeStudents'      => 0,
+                'totalStudents'       => 0,
+                'topPerformer'        => null,
+                'weeklyData'          => [],
+                'topLessons'          => collect(),
+                'quizBuckets'         => collect([
+                    ['label' => '0-49', 'count' => 0, 'color' => '#ef4444'],
+                    ['label' => '50-69', 'count' => 0, 'color' => '#f59e0b'],
+                    ['label' => '70-84', 'count' => 0, 'color' => '#3b82f6'],
+                    ['label' => '85-100', 'count' => 0, 'color' => '#10b981'],
+                ]),
+                'displayName'         => $user->name ?? 'Teacher',
+                'teacher'             => null,
+                'atRiskCount'         => 0,
+                'avgLessonsPerStudent' => 0,
             ]);
         }
 
@@ -35,141 +43,265 @@ class AnalyticsController extends Controller
         $studentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
         $totalStudents = $studentIds->count();
 
-        // ── Stat 1: Total Quiz Attempts ──────────────────────────────────────────
-        $totalAttempts = DB::table('quiz_attempts')
-            ->whereIn('student_id', $studentIds)
-            ->count();
+        if ($totalStudents === 0) {
+            return view('analytics', [
+                'totalStudents'       => 0,
+                'avgQuizScore'        => 0,
+                'avgMastery'          => 0,
+                'completionRate'      => 0,
+                'avgStreakDays'       => 0,
+                'activeLast7Pct'      => 0,
+                'classSummary'        => collect(),
+                'progressOverTime'    => collect(),
+                'lessonDifficulty'    => collect(),
+                'gestureHeatmap'      => collect(),
+                'masteryDistribution' => collect(),
+                'completionFunnel'    => collect(),
+                'completionTotal'     => 0,
+                'scoreBuckets'        => collect(),
+                'maxScoreBucket'      => 1,
+            ]);
+        }
 
-        // ── Stat 2: Average Performance (avg quiz percentage across attempts) ────
-        $avgPerformance = DB::table('quiz_attempts')
+        $avgQuizScore = DB::table('quiz_attempts')
             ->whereIn('student_id', $studentIds)
             ->where('status', 'completed')
             ->avg('percentage') ?? 0;
 
-        // ── Stat 3: Practice Completion (% of progress records that are complete) ─
-        $totalProgress  = StudentLessonProgress::whereIn('student_id', $studentIds)->count();
-        $totalCompleted = StudentLessonProgress::whereIn('student_id', $studentIds)
-            ->where('lesson_completed', 1)->count();
-        $practiceCompletion = $totalProgress > 0
-            ? round(($totalCompleted / $totalProgress) * 100, 1)
+        $totalGesturesAttempted = DB::table('gesture_performances')
+            ->whereIn('student_id', $studentIds)
+            ->where('attempts', '>', 0)
+            ->count();
+
+        $masteredGestures = DB::table('gesture_performances')
+            ->whereIn('student_id', $studentIds)
+            ->where('is_mastered', 1)
+            ->count();
+
+        $avgMastery = $totalGesturesAttempted > 0
+            ? round(($masteredGestures / $totalGesturesAttempted) * 100, 1)
             : 0;
 
-        // Active students (any progress in last 7 days)
-        $activeStudents = StudentLessonProgress::whereIn('student_id', $studentIds)
-            ->where('last_accessed_at', '>=', Carbon::now()->subDays(7))
-            ->distinct('student_id')
-            ->count('student_id');
-
-        // ── Lesson Completion Rates ──────────────────────────────────────────────
-        $lessonCompletion = Lesson::where('teacher_id', $teacherId)
-            ->orderBy('module_order')
-            ->get()
-            ->map(function ($lesson) use ($studentIds, $totalStudents) {
-                $enrolled = StudentLessonProgress::whereIn('student_id', $studentIds)
-                    ->where('lesson_id', $lesson->lesson_id)
-                    ->distinct('student_id')
-                    ->count('student_id');
-
-                $completed = StudentLessonProgress::whereIn('student_id', $studentIds)
-                    ->where('lesson_id', $lesson->lesson_id)
-                    ->where('lesson_completed', 1)
-                    ->count();
-
-                $pct = $totalStudents > 0 ? round(($completed / $totalStudents) * 100) : 0;
-
-                $lesson->enrolledCount  = $enrolled;
-                $lesson->completedCount = $completed;
-                $lesson->completionPct  = $pct;
-                return $lesson;
-            });
-
-        // ── Weekly Progress Data (last 7 days, completions per day) ─────────────
-        $weeklyData = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date  = Carbon::now()->subDays($i);
-            $label = $date->format('D'); // Mon, Tue…
-            $count = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->whereDate('last_accessed_at', $date->toDateString())
-                ->count();
-            $weeklyData[] = ['label' => $label, 'count' => $count, 'date' => $date->format('M d')];
-        }
-
-        // ── Top Performer ────────────────────────────────────────────────────────
-        $topPerformer = Student::where('teacher_id', $teacherId)
-            ->get()
-            ->map(function ($student) {
-                $progress  = $student->progress;
-                $completed = $progress->where('lesson_completed', 1)->count();
-                $avgScore  = $progress->whereNotNull('quiz_score')->avg('quiz_score') ?? 0;
-                $student->completedLessons = $completed;
-                $student->avgScore = round($avgScore);
-                return $student;
-            })
-            ->sortByDesc('completedLessons')
+        $assignmentTotals = DB::table('lesson_assignments')
+            ->whereIn('student_id', $studentIds)
+            ->selectRaw('count(*) as total')
+            ->selectRaw('sum(case when status = "completed" then 1 else 0 end) as completed')
             ->first();
 
-        // ── Alerts: students who haven't accessed anything in 5+ days ───────────
-        $recentStudentIds = StudentLessonProgress::whereIn('student_id', $studentIds)
-            ->where('last_accessed_at', '>=', Carbon::now()->subDays(5))
-            ->distinct('student_id')
-            ->pluck('student_id');
+        $completionRate = $assignmentTotals->total > 0
+            ? round(($assignmentTotals->completed / $assignmentTotals->total) * 100, 1)
+            : 0;
 
-        $inactiveStudents = Student::where('teacher_id', $teacherId)
+        $avgStreakDays = Student::where('teacher_id', $teacherId)
+            ->avg('streak_days') ?? 0;
+        $avgStreakDays = round($avgStreakDays, 1);
+
+        $activeLast7Days = Student::where('teacher_id', $teacherId)
+            ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
+            ->count();
+
+        $activeLast7Pct = $totalStudents > 0
+            ? round(($activeLast7Days / $totalStudents) * 100, 1)
+            : 0;
+
+        $classSummary = collect([
+            [
+                'title' => 'Avg Quiz Score',
+                'value' => number_format($avgQuizScore, 1) . '%',
+                'detail' => 'From completed quizzes',
+                'icon' => 'insights',
+                'accent' => '#dbeafe',
+                'iconColor' => '#1e3a8a',
+            ],
+            [
+                'title' => 'Avg Mastery',
+                'value' => number_format($avgMastery, 1) . '%',
+                'detail' => 'Gestures marked mastered',
+                'icon' => 'school',
+                'accent' => '#ecfdf5',
+                'iconColor' => '#15803d',
+            ],
+            [
+                'title' => 'Completion Rate',
+                'value' => number_format($completionRate, 1) . '%',
+                'detail' => 'Lessons completed vs assigned',
+                'icon' => 'menu_book',
+                'accent' => '#eff6ff',
+                'iconColor' => '#1e3a8a',
+            ],
+            [
+                'title' => 'Avg Engagement',
+                'value' => number_format($avgStreakDays, 1) . 'd',
+                'detail' => $activeLast7Pct . '% active last 7 days',
+                'icon' => 'bolt',
+                'accent' => '#fef3c7',
+                'iconColor' => '#92400e',
+            ],
+        ]);
+
+        $progressOverTime = [];
+        for ($weeksAgo = 7; $weeksAgo >= 0; $weeksAgo--) {
+            $weekStart = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks($weeksAgo);
+            $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
+            $value = DB::table('quiz_attempts')
+                ->whereIn('student_id', $studentIds)
+                ->where('status', 'completed')
+                ->whereBetween('completed_at', [$weekStart->startOfDay(), $weekEnd->endOfDay()])
+                ->avg('percentage') ?: 0;
+            $progressOverTime[] = [
+                'label' => $weekStart->format('M d'),
+                'value' => round($value, 1),
+            ];
+        }
+
+        $lessonDifficulty = DB::table('lesson_assignments')
+            ->whereIn('lesson_assignments.student_id', $studentIds)
+            ->whereNotNull('lesson_assignments.score')
+            ->join('lessons', 'lesson_assignments.lesson_id', '=', 'lessons.lesson_id')
+            ->select('lesson_assignments.lesson_id', 'lessons.title', DB::raw('avg(lesson_assignments.score) as avg_score'), DB::raw('count(*) as attempts'))
+            ->groupBy('lesson_assignments.lesson_id', 'lessons.title')
+            ->orderBy('avg_score')
+            ->limit(8)
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'title' => $row->title,
+                    'avg_score' => round($row->avg_score, 1),
+                    'attempts' => $row->attempts,
+                ];
+            });
+
+        $heatColor = function (float $rate) {
+            $rate = max(0, min(100, $rate));
+            if ($rate <= 50) {
+                $r = 255;
+                $g = (int) round(5.1 * $rate);
+                $b = 0;
+            } else {
+                $r = (int) round(510 - 5.1 * $rate);
+                $g = 255;
+                $b = 0;
+            }
+            return sprintf('#%02x%02x%02x', $r, $g, $b);
+        };
+
+        $gestureHeatmap = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
-            ->whereNotIn('student_id', $recentStudentIds)
-            ->get();
+            ->where('attempts', '>', 0)
+            ->join('gestures', 'gesture_performances.gesture_id', '=', 'gestures.gesture_id')
+            ->select('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name', DB::raw('sum(gesture_performances.successful_attempts) as successes'), DB::raw('sum(gesture_performances.attempts) as attempts'))
+            ->groupBy('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name')
+            ->orderBy('gestures.name')
+            ->get()
+            ->map(function ($row) use ($heatColor) {
+                $attempts = $row->attempts ?: 0;
+                $rate = $attempts > 0 ? round(($row->successes / $attempts) * 100, 1) : 0;
+                return [
+                    'label' => $row->display_name ?: $row->name,
+                    'rate' => $rate,
+                    'color' => $heatColor($rate),
+                ];
+            });
 
-        $quizFailStudents = Student::where('teacher_id', $teacherId)
-            ->whereIn('student_id',
-                StudentLessonProgress::whereIn('student_id', $studentIds)
-                    ->whereNotNull('quiz_score')
-                    ->where('quiz_score', '<', 3)
-                    ->pluck('student_id')
-            )->get();
+        $masteryCountsRaw = DB::table('gesture_performances')
+            ->whereIn('student_id', $studentIds)
+            ->selectRaw('mastery_level, count(*) as count')
+            ->groupBy('mastery_level')
+            ->pluck('count', 'mastery_level')
+            ->all();
 
-        $alerts = collect();
-        foreach ($inactiveStudents as $s) {
-            $alerts->push([
-                'type'    => 'inactive',
-                'color'   => 'yellow',
-                'title'   => $s->first_name . ' ' . $s->last_name . ' hasn\'t practiced recently',
-                'sub'     => 'No activity in the last 5 days',
-                'time'    => 'Needs attention',
-            ]);
-        }
-        foreach ($quizFailStudents as $s) {
-            $alerts->push([
-                'type'    => 'quiz_fail',
-                'color'   => 'red',
-                'title'   => $s->first_name . ' ' . $s->last_name . ' has a low quiz score',
-                'sub'     => 'Quiz score below 60% — may need review',
-                'time'    => 'Performance drop',
-            ]);
-        }
-        if ($alerts->isEmpty()) {
-            $alerts->push([
-                'type'  => 'positive',
-                'color' => 'green',
-                'title' => 'All students are on track!',
-                'sub'   => 'No alerts at this time.',
-                'time'  => 'Just now',
-            ]);
-        }
+        $masteryDistribution = collect([
+            ['label' => 'Needs Practice', 'key' => 'needs_practice', 'color' => '#ef4444', 'count' => $masteryCountsRaw['needs_practice'] ?? 0],
+            ['label' => 'Developing', 'key' => 'developing', 'color' => '#f59e0b', 'count' => $masteryCountsRaw['developing'] ?? 0],
+            ['label' => 'Proficient', 'key' => 'proficient', 'color' => '#3b82f6', 'count' => $masteryCountsRaw['proficient'] ?? 0],
+            ['label' => 'Mastered', 'key' => 'mastered', 'color' => '#10b981', 'count' => $masteryCountsRaw['mastered'] ?? 0],
+        ]);
 
-        $displayName = $teacher->first_name . ' ' . $teacher->last_name;
+        $masteryTotal = $masteryDistribution->sum('count');
+        $masteryDistribution = $masteryDistribution->map(function ($item) use ($masteryTotal) {
+            $item['pct'] = $masteryTotal > 0 ? round(($item['count'] / $masteryTotal) * 100, 1) : 0;
+            return $item;
+        });
 
+        $completionFunnelRaw = DB::table('lesson_assignments')
+            ->whereIn('student_id', $studentIds)
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->all();
+
+        $completionFunnel = collect([
+            ['label' => 'Pending', 'status' => 'pending', 'color' => '#facc15', 'count' => $completionFunnelRaw['pending'] ?? 0],
+            ['label' => 'In Progress', 'status' => 'in_progress', 'color' => '#3b82f6', 'count' => $completionFunnelRaw['in_progress'] ?? 0],
+            ['label' => 'Completed', 'status' => 'completed', 'color' => '#10b981', 'count' => $completionFunnelRaw['completed'] ?? 0],
+            ['label' => 'Failed', 'status' => 'failed', 'color' => '#ef4444', 'count' => $completionFunnelRaw['failed'] ?? 0],
+        ]);
+
+        $completionTotal = $completionFunnel->sum('count');
+
+        $scoreBucketsRaw = DB::table('quiz_attempts')
+            ->whereIn('student_id', $studentIds)
+            ->where('status', 'completed')
+            ->selectRaw("CASE
+                WHEN percentage <= 20 THEN '0-20'
+                WHEN percentage <= 40 THEN '21-40'
+                WHEN percentage <= 60 THEN '41-60'
+                WHEN percentage <= 80 THEN '61-80'
+                ELSE '81-100'
+            END AS bucket")
+            ->selectRaw('count(*) as count')
+            ->groupBy('bucket')
+            ->pluck('count', 'bucket')
+            ->all();
+
+        $scoreBuckets = collect([
+            ['label' => '0-20', 'count' => $scoreBucketsRaw['0-20'] ?? 0],
+            ['label' => '21-40', 'count' => $scoreBucketsRaw['21-40'] ?? 0],
+            ['label' => '41-60', 'count' => $scoreBucketsRaw['41-60'] ?? 0],
+            ['label' => '61-80', 'count' => $scoreBucketsRaw['61-80'] ?? 0],
+            ['label' => '81-100', 'count' => $scoreBucketsRaw['81-100'] ?? 0],
+        ]);
+ 
+        $maxScoreBucket = max(1, $scoreBuckets->max('count'));
+ 
+        $studentRanking = Student::where('teacher_id', $teacherId)
+            ->withCount(['quizAttempts as attempts' => function ($q) {
+                $q->where('status', 'completed');
+            }])
+            ->with(['quizAttempts' => function ($q) {
+                $q->where('status', 'completed')->select('attempt_id', 'student_id', 'percentage');
+            }])
+            ->get()
+            ->map(function ($student) {
+                $avg = $student->quizAttempts->avg('percentage');
+                return [
+                    'name'      => trim($student->first_name . ' ' . $student->last_name),
+                    'avg_score' => $avg ? round($avg) : 0,
+                    'attempts'  => $student->attempts,
+                ];
+            })
+            ->filter(fn ($s) => $s['attempts'] > 0)
+            ->sortByDesc('avg_score')
+            ->values();
+ 
         return view('analytics', compact(
-            'totalAttempts',
-            'avgPerformance',
-            'practiceCompletion',
-            'activeStudents',
-            'lessonCompletion',
-            'topPerformer',
-            'weeklyData',
-            'alerts',
-            'displayName',
-            'teacher',
-            'totalStudents'
+            'totalStudents',
+            'avgQuizScore',
+            'avgMastery',
+            'completionRate',
+            'avgStreakDays',
+            'activeLast7Pct',
+            'classSummary',
+            'progressOverTime',
+            'lessonDifficulty',
+            'gestureHeatmap',
+            'masteryDistribution',
+            'completionFunnel',
+            'completionTotal',
+            'scoreBuckets',
+            'maxScoreBucket',
+            'masteryTotal',
+            'studentRanking'
         ));
     }
 }
