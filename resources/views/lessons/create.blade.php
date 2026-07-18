@@ -1319,20 +1319,22 @@ function loadGesturesForModule(select, questionIndex) {
                 // Store display name for preview
                 checkbox.dataset.displayName = gesture.display_name || gesture.name;
                 
-                // On change - toggle selected state
                 checkbox.onchange = function() {
+                    const currentQIndex = getQuizQuestionIndex(this.closest('.quiz-question'));
                     if (this.checked) {
                         label.classList.add('selected');
                         label.style.borderColor = '#10B981';
                         label.style.background = '#ecfdf5';
                         label.style.color = '#065F46';
+                        checkIcon.style.display = 'inline';
                     } else {
                         label.classList.remove('selected');
                         label.style.borderColor = '#E5EAF2';
                         label.style.background = 'white';
                         label.style.color = '#475569';
+                        checkIcon.style.display = 'none';
                     }
-                    updateGesturePreview(questionIndex);
+                    updateGesturePreview(currentQIndex);
                 };
                 
                 const span = document.createElement('span');
@@ -1348,25 +1350,6 @@ function loadGesturesForModule(select, questionIndex) {
                     font-weight: 800;
                     font-size: 14px;
                 `;
-                
-                // Override the checkbox change to show/hide check icon
-                const originalOnChange = checkbox.onchange;
-                checkbox.onchange = function() {
-                    if (this.checked) {
-                        label.classList.add('selected');
-                        label.style.borderColor = '#10B981';
-                        label.style.background = '#ecfdf5';
-                        label.style.color = '#065F46';
-                        checkIcon.style.display = 'inline';
-                    } else {
-                        label.classList.remove('selected');
-                        label.style.borderColor = '#E5EAF2';
-                        label.style.background = 'white';
-                        label.style.color = '#475569';
-                        checkIcon.style.display = 'none';
-                    }
-                    updateGesturePreview(questionIndex);
-                };
                 
                 label.appendChild(checkbox);
                 label.appendChild(span);
@@ -1769,10 +1752,12 @@ function closeAiQuizModal() {
 async function submitAiQuizGenerate() {
     const numMc = parseInt(document.getElementById('aqm_num_mc').value) || 0;
     const numTf = parseInt(document.getElementById('aqm_num_tf').value) || 0;
+    const numDd = parseInt(document.getElementById('aqm_num_dd').value) || 0;
+    const numGt = parseInt(document.getElementById('aqm_num_gt').value) || 0;
     const errorEl = document.getElementById('aqm_error');
     errorEl.style.display = 'none';
 
-    if (numMc + numTf < 1) {
+    if (numMc + numTf + numDd + numGt < 1) {
         errorEl.textContent = '⚠️ Please request at least 1 question.';
         errorEl.style.display = 'block';
         return;
@@ -1789,7 +1774,7 @@ async function submitAiQuizGenerate() {
         const resp = await fetch('{{ route("lessons.ai-generate-quiz") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-            body: JSON.stringify({ content_text: contentText, num_mc: numMc, num_tf: numTf })
+            body: JSON.stringify({ content_text: contentText, num_mc: numMc, num_tf: numTf, num_dd: numDd, num_gt: numGt })
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.message || 'AI generation failed.');
@@ -1802,6 +1787,17 @@ async function submitAiQuizGenerate() {
             const qCard = buildAiQuizCard(q, idx);
             quizContainer.insertAdjacentHTML('beforeend', qCard);
             quizIndex = idx + 1;
+        });
+
+        // Auto-load gestures for AI generated gesture questions
+        quizContainer.querySelectorAll('.gesture-module-select').forEach((select) => {
+            if (select.value) {
+                const match = select.name.match(/quiz\[(\d+)\]/);
+                if (match) {
+                    const index = match[1];
+                    loadGesturesForModule(select, index);
+                }
+            }
         });
 
         closeAiQuizModal();
@@ -1859,13 +1855,25 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
-                <input id="aqm_num_mc" type="number" min="0" max="15" value="3"
+                <input id="aqm_num_mc" type="number" min="0" max="15" value="2"
                        style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
                        onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
             </div>
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
-                <input id="aqm_num_tf" type="number" min="0" max="15" value="2"
+                <input id="aqm_num_tf" type="number" min="0" max="15" value="1"
+                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+            </div>
+            <div>
+                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Drag & Drop Qs</label>
+                <input id="aqm_num_dd" type="number" min="0" max="15" value="1"
+                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+            </div>
+            <div>
+                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Gesture Qs</label>
+                <input id="aqm_num_gt" type="number" min="0" max="15" value="1"
                        style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
                        onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
             </div>

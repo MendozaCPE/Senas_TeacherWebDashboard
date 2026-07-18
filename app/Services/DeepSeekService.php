@@ -85,7 +85,9 @@ class DeepSeekService
     {
         $numMc = isset($params['num_mc']) ? (int) $params['num_mc'] : 3;
         $numTf = isset($params['num_tf']) ? (int) $params['num_tf'] : 2;
-        $totalQuestions = $numMc + $numTf;
+        $numDd = isset($params['num_dd']) ? (int) $params['num_dd'] : 0;
+        $numGt = isset($params['num_gt']) ? (int) $params['num_gt'] : 0;
+        $totalQuestions = $numMc + $numTf + $numDd + $numGt;
 
         return <<<PROMPT
 You are an expert Filipino Sign Language (FSL) curriculum designer for the SENAS learning app. Generate complete, structured FSL lesson plans for children.
@@ -113,9 +115,16 @@ Schema:
   "quiz": [
     {
       "question": string,
-      "type": "multiple_choice"|"true_false",
+      "type": "multiple_choice"|"true_false"|"drag_drop"|"gesture",
       "options": [string, string, string, string],
-      "correct_index": number
+      "correct_index": number,
+      "drag_drop_pairs": [
+        {
+          "left_text": string,
+          "right_text": string
+        }
+      ],
+      "gesture_names": [string]
     }
   ]
 }
@@ -126,8 +135,10 @@ Rules:
 - difficulty: beginner = alphabet/numbers/basic signs, intermediate = common phrases, advanced = full sentences/conversations
 - Generate EXACTLY the number of content steps requested.
 - Generate EXACTLY {$totalQuestions} quiz questions:
-  - Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options)
+  - Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options, and correct_index must be the 0-based index of correct option)
   - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True", "False"], and correct_index must be 0 or 1)
+  - Generate EXACTLY {$numDd} of type "drag_drop" (each must have a "drag_drop_pairs" array with at least 2 pairs and up to 5 pairs, mapping left items to right match items. Options/correct_index must be null/empty)
+  - Generate EXACTLY {$numGt} of type "gesture" (each must have a "gesture_names" array containing FSL letters A-Z or numbers 1-10 that students need to perform, e.g. ["A", "B"] or ["5"]. Options/correct_index must be null/empty)
 - Make quizzes fun and age-appropriate for school children learning FSL
 PROMPT;
     }
@@ -175,9 +186,9 @@ PROMPT;
      * @param  int     $numTf        Number of true/false questions
      * @return array   Array of quiz question objects
      */
-    public function generateQuizOnly(string $contentText, int $numMc, int $numTf): array
+    public function generateQuizOnly(string $contentText, int $numMc, int $numTf, int $numDd = 0, int $numGt = 0): array
     {
-        $total = $numMc + $numTf;
+        $total = $numMc + $numTf + $numDd + $numGt;
 
         $systemPrompt = <<<PROMPT
 You are an expert Filipino Sign Language (FSL) quiz designer for the SENAS learning app.
@@ -194,21 +205,30 @@ Output schema:
   "quiz": [
     {
       "question": string,
-      "type": "multiple_choice"|"true_false",
+      "type": "multiple_choice"|"true_false"|"drag_drop"|"gesture",
       "options": [string, ...],
-      "correct_index": number
+      "correct_index": number,
+      "drag_drop_pairs": [
+        {
+          "left_text": string,
+          "right_text": string
+        }
+      ],
+      "gesture_names": [string]
     }
   ]
 }
 
 Rules:
 - Generate EXACTLY {$total} quiz questions.
-- Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options).
+- Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options, correct_index must be 0-3).
 - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True","False"], correct_index must be 0 or 1).
+- Generate EXACTLY {$numDd} of type "drag_drop" (each must have a "drag_drop_pairs" array with at least 2 pairs and up to 5 pairs, mapping left items to right match items).
+- Generate EXACTLY {$numGt} of type "gesture" (each must have a "gesture_names" array containing FSL letters A-Z or numbers 1-10 that students need to perform, e.g. ["A", "B"] or ["5"]). Options/correct_index must be null/empty
 - Make questions test understanding of the lesson content, not just memorization.
 PROMPT;
 
-        $userPrompt = "Generate {$total} quiz questions ({$numMc} multiple choice, {$numTf} true/false) based on the following lesson content:\n\n---\n{$contentText}\n---";
+        $userPrompt = "Generate {$total} quiz questions ({$numMc} multiple choice, {$numTf} true/false, {$numDd} drag/drop, {$numGt} gesture) based on the following lesson content:\n\n---\n{$contentText}\n---";
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey,
@@ -269,6 +289,12 @@ PROMPT;
 
         $extra = !empty($params['instructions']) ? $params['instructions'] : 'None';
 
+        $numMc = (int) ($params['num_mc'] ?? 3);
+        $numTf = (int) ($params['num_tf'] ?? 2);
+        $numDd = (int) ($params['num_dd'] ?? 0);
+        $numGt = (int) ($params['num_gt'] ?? 0);
+        $totalQuestions = $numMc + $numTf + $numDd + $numGt;
+
         $userPrompt = <<<TEXT
 Generate a complete FSL lesson from the following document content.
 Adapt it for children learning Filipino Sign Language — keep language simple, friendly, and encouraging.
@@ -282,7 +308,7 @@ Additional instructions: {$extra}
 {$pdfText}
 --- DOCUMENT CONTENT END ---
 
-Capture the key ideas from the document and turn them into engaging FSL lesson slides and 5 quiz questions.
+Capture the key ideas from the document and turn them into engaging FSL lesson slides and {$totalQuestions} quiz questions.
 TEXT;
 
         $response = Http::withHeaders([

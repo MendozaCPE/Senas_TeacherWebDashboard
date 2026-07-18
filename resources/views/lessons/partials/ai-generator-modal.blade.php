@@ -105,13 +105,25 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
-                        <input id="ai_num_mc" type="number" min="0" max="15" value="3"
+                        <input id="ai_num_mc" type="number" min="0" max="15" value="2"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
                                onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
-                        <input id="ai_num_tf" type="number" min="0" max="15" value="2"
+                        <input id="ai_num_tf" type="number" min="0" max="15" value="1"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Drag & Drop Qs</label>
+                        <input id="ai_num_dd" type="number" min="0" max="15" value="1"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Gesture Qs</label>
+                        <input id="ai_num_gt" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
                                onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
@@ -205,13 +217,25 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
-                        <input id="pdf_num_mc" type="number" min="0" max="15" value="3"
+                        <input id="pdf_num_mc" type="number" min="0" max="15" value="2"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
                                onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
-                        <input id="pdf_num_tf" type="number" min="0" max="15" value="2"
+                        <input id="pdf_num_tf" type="number" min="0" max="15" value="1"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Drag & Drop Qs</label>
+                        <input id="pdf_num_dd" type="number" min="0" max="15" value="1"
+                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Gesture Qs</label>
+                        <input id="pdf_num_gt" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
                                onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
@@ -303,7 +327,9 @@ function submitPdfGenerate() {
     if (isNaN(numSlides) || numSlides < 3 || numSlides > 30) { showAiError('Slides must be between 3 and 30.'); return; }
     const numMc = parseInt(document.getElementById('pdf_num_mc').value) || 0;
     const numTf = parseInt(document.getElementById('pdf_num_tf').value) || 0;
-    if (numMc + numTf < 1) { showAiError('Please request at least 1 quiz question (Multiple Choice or True/False).'); return; }
+    const numDd = parseInt(document.getElementById('pdf_num_dd').value) || 0;
+    const numGt = parseInt(document.getElementById('pdf_num_gt').value) || 0;
+    if (numMc + numTf + numDd + numGt < 1) { showAiError('Please request at least 1 quiz question.'); return; }
     hideAiError();
     setAiLoading(true, '📖 Reading your PDF...', 'AI is scanning the document and building<br>your lesson. This may take 30–60 seconds.');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
@@ -314,6 +340,8 @@ function submitPdfGenerate() {
     fd.append('num_slides',   numSlides);
     fd.append('num_mc',       numMc);
     fd.append('num_tf',       numTf);
+    fd.append('num_dd',       numDd);
+    fd.append('num_gt',       numGt);
     fd.append('instructions', document.getElementById('pdf_instructions').value.trim());
     fetch('{{ route("lessons.ai-generate-pdf") }}', { method:'POST', headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}, body:fd })
         .then(r => r.json().then(d => ({ok:r.ok,d})))
@@ -329,14 +357,16 @@ function submitAiGenerate() {
     if (isNaN(numSlides) || numSlides < 3 || numSlides > 30) { showAiError('Slides must be between 3 and 30.'); return; }
     const numMc = parseInt(document.getElementById('ai_num_mc').value) || 0;
     const numTf = parseInt(document.getElementById('ai_num_tf').value) || 0;
-    if (numMc + numTf < 1) { showAiError('Please request at least 1 quiz question (Multiple Choice or True/False).'); return; }
+    const numDd = parseInt(document.getElementById('ai_num_dd').value) || 0;
+    const numGt = parseInt(document.getElementById('ai_num_gt').value) || 0;
+    if (numMc + numTf + numDd + numGt < 1) { showAiError('Please request at least 1 quiz question.'); return; }
     hideAiError();
     setAiLoading(true, 'Generating your lesson...', 'DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
     fetch('{{ route("lessons.ai-generate") }}', {
         method:'POST',
         headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
-        body:JSON.stringify({ topic, difficulty:document.getElementById('ai_difficulty').value, lesson_type:document.getElementById('ai_lesson_type').value, num_slides:numSlides, num_mc:numMc, num_tf:numTf, special_instructions:document.getElementById('ai_special_instructions').value.trim()||null }),
+        body:JSON.stringify({ topic, difficulty:document.getElementById('ai_difficulty').value, lesson_type:document.getElementById('ai_lesson_type').value, num_slides:numSlides, num_mc:numMc, num_tf:numTf, num_dd:numDd, num_gt:numGt, special_instructions:document.getElementById('ai_special_instructions').value.trim()||null }),
     })
     .then(r => r.json().then(d => ({ok:r.ok,d})))
     .then(({ok,d}) => { if (!ok) throw new Error(d.message||'AI generation failed.'); closeAiModalDirect(); populateLessonForm(d); })
@@ -437,6 +467,17 @@ function populateLessonForm(lesson) {
             quizContainer.insertAdjacentHTML('beforeend', qCard);
             quizIndex = idx + 1;
         });
+
+        // Auto-load gestures for AI generated gesture questions
+        quizContainer.querySelectorAll('.gesture-module-select').forEach((select) => {
+            if (select.value) {
+                const match = select.name.match(/quiz\[(\d+)\]/);
+                if (match) {
+                    const index = match[1];
+                    loadGesturesForModule(select, index);
+                }
+            }
+        });
     }
 
     // Show success toast
@@ -511,77 +552,189 @@ function buildAiContentCard(slide, idx) {
     </div>`;
 }
 
+function buildAiDragDropPairHtml(qIndex, pairIndex, leftText = '', rightText = '') {
+    return `
+    <div class="drag-drop-pair" style="display:flex;gap:12px;align-items:center;background:white;border:1.5px solid #E5EAF2;border-radius:14px;padding:12px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:120px;">
+            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Left Item</label>
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_text]" value="${escapeHtml(leftText)}" class="field-input" placeholder="e.g., Letter A" style="padding:8px 12px;font-size:13px;width:100%;">
+            <div style="margin-top:4px;">
+                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_image]" value="" class="drag-drop-image-path left-image-path">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                    <div class="upload-trigger" style="gap:6px;">
+                        <input type="file" accept="image/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label" style="font-size:11px;">Add image</span>
+                    </div>
+                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:0 4px;color:#94a3b8;">
+            <span class="material-symbols-outlined">arrow_forward</span>
+        </div>
+        <div style="flex:1;min-width:120px;">
+            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Right Match</label>
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_text]" value="${escapeHtml(rightText)}" class="field-input" placeholder="e.g., Hand sign for A" style="padding:8px 12px;font-size:13px;width:100%;">
+            <div style="margin-top:4px;">
+                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_image]" value="" class="drag-drop-image-path right-image-path">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                    <div class="upload-trigger" style="gap:6px;">
+                        <input type="file" accept="image/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label" style="font-size:11px;">Add image</span>
+                    </div>
+                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
+                </div>
+            </div>
+        </div>
+        <button type="button" onclick="removeDragDropPair(this)" class="option-remove-btn" style="margin-top:16px;">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+    </div>`;
+}
+
 function buildAiQuizCard(q, idx) {
     const isTrueFalse = (q.type === 'true_false');
-    // For true_false AI may send options:[] empty or ["True","False"]
-    let options = Array.isArray(q.options) && q.options.length >= 2
-        ? q.options
-        : (isTrueFalse ? ['True', 'False'] : ['', '', '', '']);
-    const correct = typeof q.correct_index === 'number' ? q.correct_index : 0;
-    const letters  = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const isDragDrop = (q.type === 'drag_drop');
+    const isGesture = (q.type === 'gesture');
 
-    const optionsHtml = options.map((opt, optIdx) => `
-        <div class="option-row">
-            <div class="option-letter">${letters[optIdx] || optIdx}</div>
-            <div class="option-body">
-                <input type="text" name="quiz[${idx}][options][${optIdx}][text]"
-                       value="${escapeHtml(typeof opt === 'object' ? (opt.text || '') : opt)}"
-                       class="option-text-input"
-                       placeholder="Option ${letters[optIdx] || optIdx} text"
-                       ${isTrueFalse ? 'readonly style="background:#F8FAFC;color:#64748b;"' : ''}>
-                ${isTrueFalse ? '' : `
-                <div class="option-image-row">
-                    <input type="file" name="quiz[${idx}][options][${optIdx}][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
-                    <img class="option-image-preview" src="" alt="">
-                </div>`}
-            </div>
-            <div class="option-correct-row">
-                <input type="radio" name="quiz[${idx}][correct]" value="${optIdx}" ${correct === optIdx ? 'checked' : ''}>
-                <label>Correct</label>
-            </div>
-            ${isTrueFalse ? '<div style="width:24px;"></div>' : `
-            <button type="button" class="option-remove-btn" onclick="removeOption(this)">
-                <span class="material-symbols-outlined text-sm">close</span>
-            </button>`}
-        </div>`).join('');
+    // Build optionsHtml only for multiple_choice/true_false
+    let optionsHtml = '';
+    if (!isDragDrop && !isGesture) {
+        let options = Array.isArray(q.options) && q.options.length >= 2
+            ? q.options
+            : (isTrueFalse ? ['True', 'False'] : ['', '', '', '']);
+        const correct = typeof q.correct_index === 'number' ? q.correct_index : 0;
+        const letters  = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-    const selectedType = isTrueFalse ? 'true_false' : 'multiple_choice';
+        optionsHtml = options.map((opt, optIdx) => `
+            <div class="option-row">
+                <div class="option-letter">${letters[optIdx] || optIdx}</div>
+                <div class="option-body">
+                    <input type="text" name="quiz[${idx}][options][${optIdx}][text]"
+                           value="${escapeHtml(typeof opt === 'object' ? (opt.text || '') : opt)}"
+                           class="option-text-input"
+                           placeholder="Option ${letters[optIdx] || optIdx} text"
+                           ${isTrueFalse ? 'readonly style="background:#F8FAFC;color:#64748b;"' : ''}>
+                    ${isTrueFalse ? '' : `
+                    <div class="option-image-row">
+                        <input type="file" name="quiz[${idx}][options][${optIdx}][image]" accept="image/*" class="option-image-input" onchange="previewOptionImage(this)">
+                        <img class="option-image-preview" src="" alt="">
+                    </div>`}
+                </div>
+                <div class="option-correct-row">
+                    <input type="radio" name="quiz[${idx}][correct]" value="${optIdx}" ${correct === optIdx ? 'checked' : ''}>
+                    <label>Correct</label>
+                </div>
+                ${isTrueFalse ? '<div style="width:24px;"></div>' : `
+                <button type="button" class="option-remove-btn" onclick="removeOption(this)">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>`}
+            </div>`).join('');
+    }
+
+    // Build drag drop pairs HTML
+    let dragDropPairsHtml = '';
+    if (isDragDrop) {
+        const pairs = Array.isArray(q.drag_drop_pairs) ? q.drag_drop_pairs : [{}, {}];
+        dragDropPairsHtml = pairs.map((pair, pIdx) => {
+            const left = pair.left_text || pair.left || '';
+            const right = pair.right_text || pair.right || '';
+            return buildAiDragDropPairHtml(idx, pIdx, left, right);
+        }).join('');
+    }
 
     return `
-    <div class="quiz-question">
+    <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
-                <div class="step-circle" style="background:#D97706;">${idx + 1}</div>
+                <div class="step-circle" style="background:#D97706;width:24px;height:24px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${idx + 1}</div>
                 <span class="text-sm font-bold text-slate-500 question-label">Question ${idx + 1}</span>
                 ${isTrueFalse ? '<span style="background:#FEF3C7;color:#D97706;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">True/False</span>' : ''}
+                ${isDragDrop ? '<span style="background:#E0F2FE;color:#0369A1;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">Drag & Drop</span>' : ''}
+                ${isGesture ? '<span style="background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">Gesture Recognition</span>' : ''}
             </div>
-            <button type="button" onclick="removeQuizQuestion(this)" class="icon-btn-remove">
+            <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
                 <span class="material-symbols-outlined text-sm">close</span>
             </button>
         </div>
         <div class="space-y-3">
             <div>
-                <label class="field-label">Question</label>
-                <input type="text" name="quiz[${idx}][question]" value="${escapeHtml(q.question || '')}" class="field-input" placeholder="Question text">
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question</label>
+                <input type="text" name="quiz[${idx}][question]" value="${escapeHtml(q.question || '')}" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Question text">
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="field-label">Question Type</label>
-                    <select name="quiz[${idx}][type]" onchange="handleQuestionTypeChange(this)" class="field-select question-type">
-                        <option value="multiple_choice" ${!isTrueFalse ? 'selected' : ''}>Multiple Choice</option>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Type</label>
+                    <select name="quiz[${idx}][type]" onchange="handleQuestionTypeChange(this)" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all question-type">
+                        <option value="multiple_choice" ${q.type === 'multiple_choice' ? 'selected' : ''}>Multiple Choice</option>
                         <option value="true_false" ${isTrueFalse ? 'selected' : ''}>True / False</option>
+                        <option value="drag_drop" ${isDragDrop ? 'selected' : ''}>Drag and Drop</option>
+                        <option value="gesture" ${isGesture ? 'selected' : ''}>Gesture Recognition</option>
                     </select>
                 </div>
                 <div>
-                    <label class="field-label">Question Media (Optional)</label>
-                    <input type="file" name="quiz[${idx}][media]" accept="image/*" class="field-input">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Image (Optional)</label>
+                    <input type="hidden" name="quiz[${idx}][existing_media]" value="" class="media-path-input">
+                    <div class="media-upload-widget" data-context="quiz_media">
+                        <div class="upload-trigger">
+                            <input type="file" accept="image/*" class="ajax-file-input" onchange="handleAjaxUpload(this, 'quiz_media')">
+                            <span class="upload-icon material-symbols-outlined text-slate-400" style="font-size:20px;">cloud_upload</span>
+                            <div class="upload-spinner"></div>
+                            <span class="upload-label">Upload question image (optional)</span>
+                        </div>
+                        <div class="media-thumb-wrap"></div>
+                        <div class="media-upload-error"></div>
+                    </div>
                 </div>
             </div>
-            <div class="options-container">
-                <label class="field-label">Answer Options</label>
+            
+            <div class="options-container ${(!isDragDrop && !isGesture) ? '' : 'hidden'}">
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Options</label>
                 <p class="text-xs text-slate-400 mb-2">${isTrueFalse ? 'Select the correct answer.' : 'Each option can have text and/or an image.'}</p>
                 <div class="space-y-2 options-list">${optionsHtml}</div>
-                ${isTrueFalse ? '' : '<button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">+ Add Option</button>'}
+                ${isTrueFalse ? '' : '<button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">+ Add Option</button>'}
+            </div>
+
+            <!-- Drag and Drop Pairs -->
+            <div class="drag-drop-container ${isDragDrop ? '' : 'hidden'}">
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Drag and Drop Pairs</label>
+                <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
+                <div class="space-y-2 drag-drop-pairs-list">${dragDropPairsHtml}</div>
+                <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">
+                    + Add Pair
+                </button>
+            </div>
+            
+            <!-- Gesture Recognition Fields -->
+            <div class="gesture-quiz-container ${isGesture ? '' : 'hidden'}">
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Recognition Settings</label>
+                <p class="text-xs text-slate-400 mb-2">Select a gesture module and the specific gestures students need to perform.</p>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Module</label>
+                        <select name="quiz[${idx}][gesture_module_id]" class="field-select gesture-module-select w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" data-selected-ids="${escapeHtml(JSON.stringify(q.gesture_ids || []))}" onchange="loadGesturesForModule(this, ${idx})">
+                            <option value="">Select a module...</option>
+                            @foreach($gestureModules as $module)
+                                <option value="{{ $module->module_id }}" ${q.gesture_module_id == {{ $module->module_id }} ? 'selected' : ''}>{{ $module->display_name ?? $module->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Select Gestures to Recognize</label>
+                        <p class="text-xs text-slate-400 mb-2">Click to select gestures. Students will need to perform all selected gestures.</p>
+                        <div id="gestureCheckboxes_${idx}" class="flex flex-wrap gap-2 mt-2" style="min-height:60px;">
+                            <span class="text-sm text-slate-400">Select a module first</span>
+                        </div>
+                    </div>
+                    <div class="selected-gestures-preview" style="display:none;">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Selected Gestures</label>
+                        <div class="flex flex-wrap gap-2" id="selectedGestureTags_${idx}"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>`;

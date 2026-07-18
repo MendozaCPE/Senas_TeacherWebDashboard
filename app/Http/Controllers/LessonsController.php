@@ -88,10 +88,13 @@ class LessonsController extends Controller
             'num_slides'   => 'required|integer|min:3|max:30',
             'num_mc'       => 'required|integer|min:0|max:15',
             'num_tf'       => 'required|integer|min:0|max:15',
+            'num_dd'       => 'nullable|integer|min:0|max:15',
+            'num_gt'       => 'nullable|integer|min:0|max:15',
             'instructions' => 'nullable|string|max:1000',
         ]);
 
-        if ((int)$request->input('num_mc') + (int)$request->input('num_tf') < 1) {
+        $totalQuestions = (int)$request->input('num_mc') + (int)$request->input('num_tf') + (int)$request->input('num_dd', 0) + (int)$request->input('num_gt', 0);
+        if ($totalQuestions < 1) {
             return response()->json(['message' => 'Please generate at least 1 quiz question.'], 422);
         }
 
@@ -112,8 +115,14 @@ class LessonsController extends Controller
                 'num_slides'   => (int) $request->input('num_slides'),
                 'num_mc'       => (int) $request->input('num_mc', 3),
                 'num_tf'       => (int) $request->input('num_tf', 2),
+                'num_dd'       => (int) $request->input('num_dd', 0),
+                'num_gt'       => (int) $request->input('num_gt', 0),
                 'instructions' => $request->input('instructions', ''),
             ]);
+
+            if (isset($lesson['quiz'])) {
+                $lesson['quiz'] = $this->resolveGestureQuestions($lesson['quiz']);
+            }
 
             $resolver = new GestureMediaResolver();
             $lesson   = $resolver->resolve($lesson);
@@ -201,16 +210,22 @@ class LessonsController extends Controller
             'num_slides'           => 'required|integer|min:3|max:30',
             'num_mc'               => 'required|integer|min:0|max:15',
             'num_tf'               => 'required|integer|min:0|max:15',
+            'num_dd'               => 'required|integer|min:0|max:15',
+            'num_gt'               => 'required|integer|min:0|max:15',
             'special_instructions' => 'nullable|string|max:500',
         ]);
 
-        if ((int)$validated['num_mc'] + (int)$validated['num_tf'] < 1) {
+        if ((int)$validated['num_mc'] + (int)$validated['num_tf'] + (int)$validated['num_dd'] + (int)$validated['num_gt'] < 1) {
             return response()->json(['message' => 'Please generate at least 1 quiz question.'], 422);
         }
 
         try {
             $deepSeek = new DeepSeekService();
             $lesson   = $deepSeek->generate($validated);
+
+            if (isset($lesson['quiz'])) {
+                $lesson['quiz'] = $this->resolveGestureQuestions($lesson['quiz']);
+            }
 
             $resolver = new GestureMediaResolver();
             $lesson   = $resolver->resolve($lesson);
@@ -237,9 +252,11 @@ class LessonsController extends Controller
             'content_text' => 'required|string|min:20|max:10000',
             'num_mc'       => 'required|integer|min:0|max:15',
             'num_tf'       => 'required|integer|min:0|max:15',
+            'num_dd'       => 'required|integer|min:0|max:15',
+            'num_gt'       => 'required|integer|min:0|max:15',
         ]);
 
-        if ((int)$validated['num_mc'] + (int)$validated['num_tf'] < 1) {
+        if ((int)$validated['num_mc'] + (int)$validated['num_tf'] + (int)$validated['num_dd'] + (int)$validated['num_gt'] < 1) {
             return response()->json(['message' => 'Please request at least 1 quiz question.'], 422);
         }
 
@@ -248,8 +265,12 @@ class LessonsController extends Controller
             $questions = $deepSeek->generateQuizOnly(
                 $validated['content_text'],
                 (int) $validated['num_mc'],
-                (int) $validated['num_tf']
+                (int) $validated['num_tf'],
+                (int) $validated['num_dd'],
+                (int) $validated['num_gt']
             );
+
+            $questions = $this->resolveGestureQuestions($questions);
 
             return response()->json(['quiz' => $questions]);
         } catch (\Throwable $e) {
@@ -541,6 +562,10 @@ public function edit($id)
         ->orderBy('module_order')
         ->get();
 
+    $gestureModules = GestureModule::where('is_active', true)
+        ->orderBy('order')
+        ->get();
+
     // Format data for the edit form
     $lessonData = [
         'lesson_id' => $lesson->lesson_id,
@@ -579,11 +604,14 @@ public function edit($id)
                     ];
                 })->toArray(),
                 'correct' => $question->options->search(fn ($opt) => $opt->is_correct),
+                'drag_drop_pairs' => $question->drag_drop_pairs ?? [],
+                'gesture_module_id' => $question->gesture_data['module_id'] ?? null,
+                'gesture_ids' => $question->gesture_data['gesture_ids'] ?? [],
             ];
         }
     }
 
-   return view('lessons.edit', compact('lessonData', 'modules'));
+   return view('lessons.edit', compact('lessonData', 'modules', 'gestureModules'));
 }
 
 /**
@@ -1212,12 +1240,70 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
             }
 
             QuizOption::create([
-                'question_id' => $question->question_id,
-                'option_text' => $optText,
+                'question_id'      => $question->question_id,
+                'option_text'      => $optText,
                 'option_media_url' => $optImagePath,
-                'is_correct' => (int) $idx === $correctIndex,
+                'is_correct'       => (int) $idx === $correctIndex,
             ]);
         }
     }
 }
+
+    /**
+     * Fetch all gesture names available in the database.
+     * Used to constrain the AI so it only recommends gestures that actually exist.
+     */
+    private function getAvailableGestureNames(): array
+    {
+        return DB::table('gestures')
+            ->pluck('name')
+            ->map(fn($name) => strtoupper(trim($name)))
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+    }
+
+    private function resolveGestureQuestions(array $quiz): array
+    {
+        foreach ($quiz as &$question) {
+            if (isset($question['type']) && $question['type'] === 'gesture') {
+                $question['gesture_warning'] = false;
+                if (!empty($question['gesture_names'])) {
+                    $names      = array_map('trim', $question['gesture_names']);
+                    $namesUpper = array_map('strtoupper', $names);
+
+                    $gestures = DB::table('gestures')
+                        ->whereIn(DB::raw('UPPER(name)'), $namesUpper)
+                        ->get();
+
+                    if ($gestures->isNotEmpty()) {
+                        $moduleId   = $gestures->first()->module_id;
+                        $gestureIds = $gestures->pluck('gesture_id')->toArray();
+
+                        $question['gesture_module_id'] = $moduleId;
+                        $question['gesture_ids']        = $gestureIds;
+                        $question['gesture_names']      = $gestures->pluck('name')->toArray();
+                        $question['gesture_data']       = [
+                            'module_id'   => $moduleId,
+                            'gesture_ids' => $gestureIds,
+                        ];
+                    } else {
+                        // Warn user there is no matching gesture module/data in DB
+                        $question['gesture_module_id'] = null;
+                        $question['gesture_ids']        = [];
+                        $question['gesture_data']       = null;
+                        $question['gesture_warning']   = true;
+                    }
+                } else {
+                    $question['gesture_module_id'] = null;
+                    $question['gesture_ids']        = [];
+                    $question['gesture_data']       = null;
+                    $question['gesture_warning']   = true;
+                }
+            }
+        }
+
+        return $quiz;
+    }
 }
