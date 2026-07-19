@@ -1259,16 +1259,16 @@ public function saveGesturePerformance(Request $request)
             return response()->json(['error' => 'Student not found'], 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'module_name' => 'required|string|in:alphabet_part1,alphabet_part2,numbers',
-            'letter_performances' => 'required|array',
-            'letter_performances.*.letter' => 'required|string',
-            'letter_performances.*.attempts' => 'required|integer|min:0',
-            'letter_performances.*.wrong_attempts' => 'required|integer|min:0',
-            'letter_performances.*.success_count' => 'required|integer|min:0',
-            'letter_performances.*.consecutive_wrong' => 'nullable|integer|min:0',
-            'session_id' => 'nullable|string',
-        ]);
+      $validator = Validator::make($request->all(), [
+    'module_name' => 'required|string|in:alphabet_part1,alphabet_part2,numbers,level1_numbers,level2_greetings,level3_survival',
+    'letter_performances' => 'required|array',
+    'letter_performances.*.letter' => 'required|string',
+    'letter_performances.*.attempts' => 'required|integer|min:0',
+    'letter_performances.*.wrong_attempts' => 'required|integer|min:0',
+    'letter_performances.*.success_count' => 'required|integer|min:0',
+    'letter_performances.*.consecutive_wrong' => 'nullable|integer|min:0',
+    'session_id' => 'nullable|string',
+]);
 
         if ($validator->fails()) {
             return response()->json([
