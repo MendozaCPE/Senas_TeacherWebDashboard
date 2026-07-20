@@ -3,96 +3,150 @@
 @section('title', 'Reports')
 @section('content')
 
-<div class="w-full">
+<style>
+.stat-card { border-radius: 20px; padding: 20px; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(13,50,107,.12); }
+.filter-tab-r { transition: all .2s; }
+</style>
 
-    {{-- Header --}}
-    <div class="mb-8">
-        <h3 class="text-[11px] font-bold text-[#0d326b] tracking-[0.15em] uppercase mb-2">REPORTS</h3>
-        <h2 class="text-[36px] font-medium text-[#0d326b] leading-tight">Academic Reports</h2>
+<div class="space-y-6">
+
+    {{-- ══════════ HEADER ══════════ --}}
+    <div class="flex items-start justify-between">
+        <div>
+            <p class="text-[11px] font-bold text-[#0d326b] tracking-[0.15em] uppercase mb-1">Reports</p>
+            <h2 class="text-[32px] font-semibold text-[#0d326b] leading-tight">Academic Reports</h2>
+        </div>
+        <a href="{{ route('reports.export-pdf', request()->query()) }}"
+            class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-5 py-3 rounded-xl text-[14px] font-bold transition-all flex items-center space-x-2 shadow-md mt-1 border border-[#0d326b]/20">
+            <span class="material-symbols-outlined icon-outline text-[20px]">picture_as_pdf</span>
+            <span>Export PDF</span>
+        </a>
     </div>
 
     {{-- Flash messages --}}
     @if(session('success'))
-        <div class="mb-6 bg-green-50 border border-green-200 text-green-800 px-5 py-3.5 rounded-xl text-[13px] font-medium flex items-center space-x-2">
+        <div class="bg-green-50 border border-green-200 text-green-800 px-5 py-3.5 rounded-xl text-[13px] font-medium flex items-center space-x-2">
             <span class="material-symbols-outlined text-[18px]">check_circle</span>
             <span>{{ session('success') }}</span>
         </div>
     @endif
 
-    {{-- Filters --}}
-    <form method="GET" action="{{ route('reports') }}" id="filterForm">
-        <div class="bg-[#f1f5f9] rounded-[32px] p-8 mb-10 shadow-inner">
-            <div class="grid grid-cols-2 gap-8 mb-6">
-                {{-- Student Filter --}}
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 tracking-[0.1em] uppercase mb-2">Student</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-4 flex items-center text-slate-400">
-                            <span class="material-symbols-outlined icon-outline text-[18px]">person</span>
-                        </span>
-                        <select name="student_id"
-                                class="appearance-none w-full bg-white text-slate-700 text-[14px] font-medium py-3.5 pl-12 pr-10 rounded-xl outline-none focus:ring-2 focus:ring-[#0d326b]/20 cursor-pointer shadow-sm">
-                            <option value="all" {{ request('student_id','all')==='all'?'selected':'' }}>All Students</option>
-                            @foreach($students as $s)
-                                <option value="{{ $s->student_id }}" {{ request('student_id')==$s->student_id?'selected':'' }}>
-                                    {{ $s->first_name }} {{ $s->last_name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[18px] text-slate-400 pointer-events-none">expand_more</span>
-                    </div>
-                </div>
+    {{-- ══════════ STAT CARDS (TOP) ══════════ --}}
+    @php
+        $totalStudentsShown = $studentReports->count();
+        $fullyCompleted     = $studentReports->where('overallPct', 100)->count();
+        $totalQuizzesTaken  = $studentReports->sum('quizzesTaken');
+        $scoredReports      = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
+        $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
+    @endphp
 
-                {{-- Lesson Filter --}}
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 tracking-[0.1em] uppercase mb-2">Lesson / Module</label>
-                    <div class="relative">
-                        <select name="lesson_id"
-                                class="appearance-none w-full bg-white text-slate-700 text-[14px] font-medium py-3.5 pl-6 pr-10 rounded-xl outline-none focus:ring-2 focus:ring-[#0d326b]/20 cursor-pointer shadow-sm">
-                            <option value="all" {{ request('lesson_id','all')==='all'?'selected':'' }}>All Lessons</option>
-                            @foreach($lessons as $l)
-                                <option value="{{ $l->lesson_id }}" {{ request('lesson_id')==$l->lesson_id?'selected':'' }}>
-                                    {{ $l->title }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[18px] text-slate-400 pointer-events-none">expand_more</span>
-                    </div>
-                </div>
-            </div>
+    <div class="grid grid-cols-4 gap-4">
 
-            <div class="flex items-center justify-between">
-                <p class="text-[13px] text-slate-500 font-medium">
-                    Showing <span class="font-bold text-[#0d326b]">{{ $studentReports->count() }}</span> student(s)
-                </p>
-                <div class="flex items-center space-x-3">
-                    <a href="{{ route('reports') }}" class="px-5 py-3 rounded-xl border border-slate-200 text-slate-600 text-[13px] font-bold hover:bg-white transition-colors">
-                        Clear
-                    </a>
-                    <button type="submit"
-                            class="text-white px-8 py-3 rounded-xl text-[14px] font-bold transition-all duration-300 flex items-center space-x-2 shadow-sm hover:shadow-md"
-                            style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
-                        <span class="material-symbols-outlined icon-outline text-[18px]">filter_alt</span>
-                        <span>Apply Filter</span>
-                    </button>
+        {{-- Total Students (hero card) --}}
+        <div class="stat-card text-white" style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
+            <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
+            <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
+            <div class="relative z-10 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-1.5 mb-2">
+                        <span class="material-symbols-outlined text-white/50 text-[15px]">group</span>
+                        <p class="text-[10px] font-bold text-white/50 uppercase tracking-widest">Total Students</p>
+                    </div>
+                    <p class="text-[46px] font-black text-white leading-none">{{ $totalStudentsShown }}</p>
+                    <p class="text-[11px] font-semibold text-[#facc15] mt-2">in current view</p>
+                </div>
+                <div class="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-white text-[28px]">school</span>
                 </div>
             </div>
         </div>
+
+        {{-- Fully Completed --}}
+        <div class="stat-card bg-white border border-slate-100 shadow-sm">
+            <div class="flex items-center gap-1.5 mb-2">
+                <span class="material-symbols-outlined text-emerald-400 text-[16px]">check_circle</span>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fully Completed</p>
+            </div>
+            <p class="text-[40px] font-black text-[#22c55e] leading-none">{{ $fullyCompleted }}</p>
+            <p class="text-[10px] text-slate-400 font-medium mt-0.5">student{{ $fullyCompleted !== 1 ? 's' : '' }} at 100%</p>
+        </div>
+
+        {{-- Quizzes Taken --}}
+        <div class="stat-card bg-white border border-slate-100 shadow-sm">
+            <div class="flex items-center gap-1.5 mb-2">
+                <span class="material-symbols-outlined text-blue-400 text-[16px]">quiz</span>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quizzes Taken</p>
+            </div>
+            <p class="text-[40px] font-black text-[#3b82f6] leading-none">{{ $totalQuizzesTaken }}</p>
+            <p class="text-[10px] text-slate-400 font-medium mt-0.5">total attempts</p>
+        </div>
+
+        {{-- Avg Quiz Score --}}
+        <div class="stat-card relative" style="background:linear-gradient(135deg,#fef3c7,#fde68a)">
+            <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
+            <div class="relative z-10">
+                <div class="flex items-center gap-1.5 mb-2">
+                    <span class="material-symbols-outlined text-amber-600/60 text-[15px]">trending_up</span>
+                    <p class="text-[10px] font-bold text-amber-700/70 uppercase tracking-widest">Avg Quiz Score</p>
+                </div>
+                <p class="text-[40px] font-black text-[#92400e] leading-none">{{ number_format($avgScoreOverall, 1) }}</p>
+                <p class="text-[11px] font-semibold text-amber-700 mt-2">points per attempt</p>
+            </div>
+        </div>
+    </div>
+
+    {{-- ══════════ FILTERS ══════════ --}}
+    <form method="GET" action="{{ route('reports') }}" id="filterForm">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 flex items-center gap-3 flex-wrap">
+            <div class="relative shrink-0">
+                <select name="student_id"
+                        class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
+                    <option value="all" {{ request('student_id','all')==='all'?'selected':'' }}>All Students</option>
+                    @foreach($students as $s)
+                        <option value="{{ $s->student_id }}" {{ request('student_id')==$s->student_id?'selected':'' }}>
+                            {{ $s->first_name }} {{ $s->last_name }}
+                        </option>
+                    @endforeach
+                </select>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+            </div>
+
+            <div class="relative shrink-0">
+                <select name="lesson_id"
+                        class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
+                    <option value="all" {{ request('lesson_id','all')==='all'?'selected':'' }}>All Lessons</option>
+                    @foreach($lessons as $l)
+                        <option value="{{ $l->lesson_id }}" {{ request('lesson_id')==$l->lesson_id?'selected':'' }}>
+                            {{ $l->title }}
+                        </option>
+                    @endforeach
+                </select>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+            </div>
+
+            <div class="flex-1"></div>
+
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                {{ $studentReports->count() }} student{{ $studentReports->count() !== 1 ? 's' : '' }}
+            </span>
+
+            <a href="{{ route('reports') }}" class="px-5 py-2.5 rounded-full border border-slate-200 text-slate-600 text-[12px] font-bold hover:bg-slate-50 transition-colors">
+                Clear
+            </a>
+            <button type="submit"
+                    class="text-white px-6 py-2.5 rounded-full text-[12px] font-bold transition-all duration-300 flex items-center space-x-1.5 shadow-sm hover:shadow-md"
+                    style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
+                <span class="material-symbols-outlined icon-outline text-[16px]">filter_alt</span>
+                <span>Apply Filter</span>
+            </button>
+        </div>
     </form>
 
-    {{-- Report Table --}}
-    <div class="bg-white rounded-[32px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
-        <div class="flex items-center justify-between px-8 py-6 border-b border-slate-100 bg-[#f8fafc]">
-            <h3 class="text-[18px] font-bold text-[#1e293b]">Student Progress Report</h3>
-            <div class="flex items-center space-x-3">
-                {{-- Export PDF button --}}
-                <a href="{{ route('reports.export-pdf', request()->query()) }}"
-   class="text-white px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-300 flex items-center space-x-1.5 shadow-sm hover:shadow-md"
-   style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
-    <span class="material-symbols-outlined icon-outline text-[18px]">picture_as_pdf</span>
-    <span>Export PDF</span>
-</a>
-            </div>
+    {{-- ══════════ REPORT TABLE ══════════ --}}
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+            <h3 class="text-[14px] font-bold text-[#0d326b]">Student Progress Report</h3>
         </div>
 
         @if($studentReports->isEmpty())
@@ -103,35 +157,33 @@
             </div>
         @else
             <table class="w-full text-left border-collapse">
-                <thead class="bg-[#f8fafc]">
-                    <tr class="border-b border-slate-100">
-                        <th class="py-4 px-8 text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student</th>
-                        <th class="py-4 px-6 text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase">Overall Progress</th>
-                        <th class="py-4 px-6 text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase w-32">Lessons</th>
-                        <th class="py-4 px-6 text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase w-28">Quizzes</th>
-                        <th class="py-4 px-6 text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase w-28">Avg Score</th>
-                        <th class="py-4 px-6 text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase w-36">Last Active</th>
-                        <th class="py-4 px-6 w-10"></th>
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/60">
+                        <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student</th>
+                        <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Overall Progress</th>
+                        <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase w-32">Lessons</th>
+                        <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase w-28">Quizzes</th>
+                        <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase w-28">Avg Score</th>
+                        <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase w-36">Last Active</th>
+                        <th class="py-4 px-5 w-10"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-slate-50">
                     @foreach($studentReports as $index => $row)
-                        <tr class="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                        <tr class="hover:bg-slate-50/60 transition-colors cursor-pointer"
                             onclick="openStudentModal({{ $index }})">
-                            {{-- Student --}}
-                            <td class="py-5 px-8">
+                            <td class="py-4 px-5">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-9 h-9 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[11px] font-bold flex-shrink-0">
                                         {{ $row['initials'] }}
                                     </div>
                                     <div>
-                                        <p class="text-[14px] font-bold text-[#1e293b] leading-tight">{{ $row['studentName'] }}</p>
-                                        <p class="text-[11px] text-slate-400 font-medium">{{ $row['gradeLevel'] }}</p>
+                                        <p class="text-[13px] font-bold text-[#0d326b] leading-tight">{{ $row['studentName'] }}</p>
+                                        <p class="text-[10px] text-slate-400 font-medium">{{ $row['gradeLevel'] }}</p>
                                     </div>
                                 </div>
                             </td>
-                            {{-- Overall Progress --}}
-                            <td class="py-5 px-6">
+                            <td class="py-4 px-5">
                                 <div class="flex items-center space-x-2">
                                     <div class="w-28 h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
                                         <div class="h-full rounded-full {{ $row['overallPct'] >= 100 ? 'bg-green-500' : 'bg-[#3b82f6]' }}"
@@ -140,30 +192,25 @@
                                     <span class="text-[11px] font-bold text-slate-500">{{ $row['overallPct'] }}%</span>
                                 </div>
                             </td>
-                            {{-- Lessons --}}
-                            <td class="py-5 px-6">
+                            <td class="py-4 px-5">
                                 <span class="text-[13px] font-bold text-[#1e293b]">{{ $row['completedLessons'] }}</span>
                                 <span class="text-[12px] text-slate-400 font-medium">/ {{ $row['totalLessons'] }} done</span>
                             </td>
-                            {{-- Quizzes --}}
-                            <td class="py-5 px-6">
+                            <td class="py-4 px-5">
                                 <span class="text-[13px] font-bold text-[#1e293b]">{{ $row['quizzesTaken'] }}</span>
                                 <span class="text-[12px] text-slate-400 font-medium">taken</span>
                             </td>
-                            {{-- Avg Score --}}
-                            <td class="py-5 px-6">
+                            <td class="py-4 px-5">
                                 @if($row['quizzesTaken'] > 0)
                                     <span class="text-[13px] font-bold text-[#0d326b]">{{ $row['avgScore'] }} pts</span>
                                 @else
                                     <span class="text-[12px] text-slate-400 font-medium">—</span>
                                 @endif
                             </td>
-                            {{-- Last Active --}}
-                            <td class="py-5 px-6">
+                            <td class="py-4 px-5">
                                 <span class="text-[12px] font-medium text-slate-500">{{ $row['lastAccessed'] }}</span>
                             </td>
-                            {{-- Chevron --}}
-                            <td class="py-5 px-6 text-right">
+                            <td class="py-4 px-5 text-right">
                                 <span class="material-symbols-outlined icon-outline text-[18px] text-slate-300">chevron_right</span>
                             </td>
                         </tr>
@@ -172,49 +219,19 @@
             </table>
         @endif
     </div>
-
-    {{-- Summary Cards --}}
-    @if($studentReports->isNotEmpty())
-        @php
-            $totalStudentsShown = $studentReports->count();
-            $fullyCompleted     = $studentReports->where('overallPct', 100)->count();
-            $totalQuizzesTaken  = $studentReports->sum('quizzesTaken');
-            $scoredReports      = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
-            $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
-        @endphp
-        <div class="grid grid-cols-4 gap-5 mt-6">
-            <div class="bg-white rounded-[20px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                <p class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-2">Total Students</p>
-                <p class="text-[28px] font-bold text-[#0d326b]">{{ $totalStudentsShown }}</p>
-            </div>
-            <div class="bg-white rounded-[20px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                <p class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-2">Fully Completed</p>
-                <p class="text-[28px] font-bold text-[#22c55e]">{{ $fullyCompleted }}</p>
-            </div>
-            <div class="bg-white rounded-[20px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                <p class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-2">Quizzes Taken</p>
-                <p class="text-[28px] font-bold text-[#3b82f6]">{{ $totalQuizzesTaken }}</p>
-            </div>
-            <div class="bg-white rounded-[20px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                <p class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-2">Avg Quiz Score</p>
-                <p class="text-[28px] font-bold text-[#f59e0b]">{{ number_format($avgScoreOverall, 1) }}</p>
-            </div>
-        </div>
-    @endif
 </div>
 
 {{-- ================= Student Performance Modal ================= --}}
 <div id="studentModalOverlay"
-     class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden items-center justify-center p-6"
+     class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 hidden items-center justify-center p-6"
      onclick="if(event.target===this) closeStudentModal()">
     <div class="bg-white rounded-[28px] w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
 
-        {{-- Modal Header --}}
-        <div class="flex items-start justify-between px-8 py-6 border-b border-slate-100 bg-[#f8fafc]">
+        <div class="flex items-start justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/60">
             <div class="flex items-center space-x-4">
                 <div id="modalInitials" class="w-12 h-12 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[14px] font-bold flex-shrink-0"></div>
                 <div>
-                    <p id="modalStudentName" class="text-[18px] font-bold text-[#1e293b] leading-tight"></p>
+                    <p id="modalStudentName" class="text-[18px] font-bold text-[#0d326b] leading-tight"></p>
                     <p id="modalGradeLevel" class="text-[12px] text-slate-400 font-medium"></p>
                 </div>
             </div>
@@ -223,28 +240,26 @@
             </button>
         </div>
 
-        {{-- Modal Body --}}
         <div class="overflow-y-auto px-8 py-6 space-y-6">
 
-            {{-- Overall performance summary --}}
             <div>
-                <h4 class="text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Overall Performance</h4>
+                <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Overall Performance</h4>
                 <div class="grid grid-cols-4 gap-4">
                     <div class="bg-[#f1f5f9] rounded-2xl p-4">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Progress</p>
-                        <p id="modalOverallPct" class="text-[22px] font-bold text-[#0d326b]"></p>
+                        <p id="modalOverallPct" class="text-[22px] font-black text-[#0d326b]"></p>
                     </div>
                     <div class="bg-[#f1f5f9] rounded-2xl p-4">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Lessons</p>
-                        <p id="modalLessonsCount" class="text-[22px] font-bold text-[#1e293b]"></p>
+                        <p id="modalLessonsCount" class="text-[22px] font-black text-[#1e293b]"></p>
                     </div>
                     <div class="bg-[#f1f5f9] rounded-2xl p-4">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Quizzes</p>
-                        <p id="modalQuizzesCount" class="text-[22px] font-bold text-[#3b82f6]"></p>
+                        <p id="modalQuizzesCount" class="text-[22px] font-black text-[#3b82f6]"></p>
                     </div>
                     <div class="bg-[#f1f5f9] rounded-2xl p-4">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Avg Score</p>
-                        <p id="modalAvgScore" class="text-[22px] font-bold text-[#f59e0b]"></p>
+                        <p id="modalAvgScore" class="text-[22px] font-black text-[#f59e0b]"></p>
                     </div>
                 </div>
                 <div class="mt-3 flex items-center space-x-2">
@@ -255,9 +270,8 @@
                 </div>
             </div>
 
-            {{-- Per-lesson breakdown --}}
             <div>
-                <h4 class="text-[11px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Lesson Breakdown</h4>
+                <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Lesson Breakdown</h4>
                 <div id="modalLessonList" class="space-y-2"></div>
             </div>
 
@@ -266,7 +280,6 @@
 </div>
 
 <script>
-    // Embed the per-student report data (built server-side) for instant modal rendering — no extra requests.
     const studentReportData = @json($studentReports->values());
 
     function openStudentModal(index) {
