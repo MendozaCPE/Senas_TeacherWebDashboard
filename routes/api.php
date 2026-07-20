@@ -59,4 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/module/{moduleId}/quiz', [StudentAuthController::class, 'getModuleQuiz']);
     Route::post('/student/module/{moduleId}/quiz/submit', [StudentAuthController::class, 'submitModuleQuiz']);
    
-});
+
+    Route::get('/student/weak-signs', [StudentAuthController::class, 'getWeakSigns']);
+    Route::post('/student/award-challenge-xp', [StudentAuthController::class, 'awardChallengeXp']);
+});

@@ -1997,4 +1997,145 @@ private function isModuleLocked($student, $module)
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+ * Get weak signs for a student (mastery_level != 'mastered')
+ */
+public function getWeakSigns(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $moduleName = $request->query('module_name', 'alphabet_part1');
+        
+        // Find the module
+        $module = GestureModule::where('name', $moduleName)->first();
+        if (!$module) {
+            return response()->json(['error' => 'Module not found'], 404);
+        }
+
+        // Get all gestures in this module
+        $gestureIds = $module->gestures->pluck('gesture_id');
+        
+        // Get performances where mastery_level is NOT 'mastered'
+        $weakPerformances = GesturePerformance::where('student_id', $student->student_id)
+            ->whereIn('gesture_id', $gestureIds)
+            ->where('mastery_level', '!=', 'mastered')
+            ->get();
+
+        // Get the gesture names for these IDs
+        $weakSigns = [];
+        foreach ($weakPerformances as $perf) {
+            $gesture = Gesture::find($perf->gesture_id);
+            if ($gesture) {
+                $weakSigns[] = [
+                    'gesture_id' => $perf->gesture_id,
+                    'name' => $gesture->name,
+                    'display_name' => $gesture->display_name,
+                    'mastery_level' => $perf->mastery_level,
+                    'is_mastered' => $perf->is_mastered,
+                    'attempts' => $perf->attempts,
+                    'successful_attempts' => $perf->successful_attempts,
+                    'wrong_attempts' => $perf->wrong_attempts,
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'module' => [
+                'module_id' => $module->module_id,
+                'name' => $module->name,
+                'display_name' => $module->display_name,
+            ],
+            'weak_signs' => $weakSigns,
+            'count' => count($weakSigns),
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Award XP for challenge mode (no cap)
+ */
+public function awardChallengeXp(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'module_name' => 'required|string|exists:gesture_modules,name',
+            'xp_earned' => 'required|integer|min:0',
+            'star_rating' => 'required|integer|in:1,2,3',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $module = GestureModule::where('name', $request->module_name)->first();
+        $xpEarned = $request->xp_earned;
+        $starRating = $request->star_rating;
+
+        // 🔥 NO CAP FOR CHALLENGE MODE - award full XP
+        $xpService = new XPService();
+        
+        // Create reason message
+        $starEmojis = $starRating === 3 ? '⭐⭐⭐' : ($starRating === 2 ? '⭐⭐' : '⭐');
+        $reason = "🏆 Challenge Mode: {$starEmojis} {$module->display_name} - +{$xpEarned} XP";
+        
+        // Award XP with no cap
+        $xpService->awardXp(
+            $student,
+            $xpEarned,
+            'challenge_completed',
+            null,
+            null,
+            $reason
+        );
+
+        $student->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Challenge XP awarded successfully! 🎉',
+            'module' => [
+                'name' => $module->name,
+                'display_name' => $module->display_name,
+            ],
+            'star_rating' => $starRating,
+            'xp_earned' => $xpEarned,
+            'total_xp' => $student->total_xp,
+            'level' => $student->level,
+            'xp_message' => $reason,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+
 }
