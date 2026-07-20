@@ -47,12 +47,17 @@
 
     <!-- User Profile -->
     <div class="px-6 mb-8 mt-4">
-        <div class="flex items-center space-x-4 bg-white/10 px-4 py-3.5 rounded-[24px] shadow-sm">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ Auth::user()->name }}&backgroundColor=e2e8f0" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white/30 shadow-sm"/>
+        <a href="{{ route('settings') }}" class="flex items-center space-x-4 bg-white/10 hover:bg-white/20 px-4 py-3.5 rounded-[24px] shadow-sm transition-all duration-200 group">
+            <img src="{{ Auth::user()->avatarUrl() }}"
+                 alt="Profile Photo"
+                 class="w-10 h-10 rounded-full border-2 border-white/30 shadow-sm object-cover flex-shrink-0"
+                 style="width:40px;height:40px;object-fit:cover;"
+                 onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
             <div class="flex-1 overflow-hidden">
                 <p class="text-[13px] font-bold text-white truncate">{{ Auth::user()->name }}</p>
                 <p class="text-[11px] font-medium text-white/60 truncate">{{ Auth::user()->teacher->specialization ?? 'Teacher' }}</p>
             </div>
-        </div>
+            <span class="material-symbols-outlined text-white/40 group-hover:text-white/70 text-[16px] transition-colors">settings</span>
+        </a>
     </div>
 </aside>

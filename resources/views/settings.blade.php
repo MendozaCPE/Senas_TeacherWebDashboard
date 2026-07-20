@@ -41,20 +41,53 @@
     <div>
         <h2 class="text-[20px] font-semibold text-[#1e4b8f] leading-tight mb-4">Personal Information</h2>
         <div class="bg-white rounded-[32px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-            <form method="POST" action="{{ route('settings.profile') }}">
+            <form method="POST" action="{{ route('settings.profile') }}" enctype="multipart/form-data" id="profileForm">
                 @csrf
                 @method('PATCH')
                 <div class="flex items-start space-x-10">
-                    {{-- Avatar --}}
-                    <div class="flex flex-col items-center flex-shrink-0">
-                        @php
-                            $seed = $teacher ? $teacher->first_name : ($user->name ?? 'T');
-                        @endphp
-                        <div class="w-24 h-24 rounded-full border-4 border-white shadow-sm overflow-hidden bg-[#e2e8f0] mb-4">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed={{ urlencode($seed) }}&backgroundColor=e2e8f0"
-                                 alt="Avatar" class="w-full h-full object-cover"/>
+
+                    {{-- Avatar Upload --}}
+                    <div class="flex flex-col items-center flex-shrink-0" style="min-width:96px;">
+                        {{-- Current avatar --}}
+                        <div class="relative group mb-3" style="width:96px;height:96px;">
+                            <img id="avatarPreview"
+                                 src="{{ Auth::user()->avatarUrl() }}"
+                                 alt="Profile Photo"
+                                 class="w-24 h-24 rounded-full border-4 border-white shadow-md object-cover bg-slate-100"
+                                 style="width:96px;height:96px;object-fit:cover;">
+
+                            {{-- Hover overlay --}}
+                            <label for="profilePhotoInput"
+                                   class="absolute inset-0 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200"
+                                   style="background:rgba(13,50,107,0);transition:background 0.2s;"
+                                   onmouseover="this.style.background='rgba(13,50,107,0.55)'; this.querySelector('.cam-icon').style.opacity='1';"
+                                   onmouseout="this.style.background='rgba(13,50,107,0)'; this.querySelector('.cam-icon').style.opacity='0';">
+                                <span class="cam-icon material-symbols-outlined text-white text-2xl" style="opacity:0;transition:opacity 0.2s;">photo_camera</span>
+                            </label>
+                            <input type="file" id="profilePhotoInput" name="profile_photo"
+                                   accept="image/jpeg,image/png,image/gif,image/webp"
+                                   class="hidden"
+                                   onchange="previewProfilePhoto(this)">
                         </div>
-                        <span class="text-[11px] font-medium text-slate-400">Auto-generated</span>
+
+                        <button type="button"
+                                onclick="document.getElementById('profilePhotoInput').click()"
+                                class="text-[11px] font-bold text-[#0d326b] hover:underline mb-1">
+                            Change Photo
+                        </button>
+
+                        @if(Auth::user()->profile_photo)
+                        <form method="POST" action="{{ route('settings.profile-photo.remove') }}" class="inline">
+                            @csrf @method('DELETE')
+                            <button type="submit"
+                                    onclick="return confirm('Remove profile photo?')"
+                                    class="text-[11px] font-medium text-red-400 hover:text-red-600 hover:underline">
+                                Remove
+                            </button>
+                        </form>
+                        @endif
+
+                        <span class="text-[10px] text-slate-400 mt-1 text-center leading-tight">JPG, PNG, GIF<br>Max 5MB</span>
                     </div>
 
                     {{-- Fields --}}
@@ -108,6 +141,24 @@
             </form>
         </div>
     </div>
+
+    <script>
+    function previewProfilePhoto(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image must be under 5MB.');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('avatarPreview').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    </script>
 
     {{-- ══ INSTITUTION ══ --}}
     @if($school)

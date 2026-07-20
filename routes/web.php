@@ -77,6 +77,7 @@ Route::middleware('auth')->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+    Route::delete('/settings/profile-photo', [SettingsController::class, 'removeProfilePhoto'])->name('settings.profile-photo.remove');
     Route::patch('/settings/school', [SettingsController::class, 'updateSchool'])->name('settings.school');
     Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
 

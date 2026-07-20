@@ -30,7 +30,21 @@ class SettingsController extends Controller
             'last_name'      => 'required|string|max:100',
             'email'          => 'nullable|email|max:255|unique:users,email,' . $user->id,
             'specialization' => 'sometimes|in:SNED,Regular',
+            'profile_photo'  => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:5120',
         ]);
+
+        // Handle profile photo upload
+        if ($request->hasFile('profile_photo') && $request->file('profile_photo')->isValid()) {
+            // Delete old photo if exists
+            if ($user->profile_photo) {
+                \Storage::disk('public')->delete($user->profile_photo);
+            }
+            $file     = $request->file('profile_photo');
+            $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+            $filename = 'profile_' . $user->id . '_' . time() . '_' . $safeName;
+            $path     = $file->storeAs('profile_photos', $filename, 'public');
+            $user->profile_photo = $path;
+        }
 
         // Update user
         $user->name  = $validated['first_name'] . ' ' . $validated['last_name'];
@@ -39,8 +53,8 @@ class SettingsController extends Controller
 
         // Update teacher
         if ($teacher) {
-            $teacher->first_name      = $validated['first_name'];
-            $teacher->last_name       = $validated['last_name'];
+            $teacher->first_name = $validated['first_name'];
+            $teacher->last_name  = $validated['last_name'];
             if (isset($validated['specialization'])) {
                 $teacher->specialization = $validated['specialization'];
             }
@@ -48,6 +62,20 @@ class SettingsController extends Controller
         }
 
         return back()->with('success', 'Profile updated successfully.');
+    }
+
+    /**
+     * Remove the profile photo and revert to the generated avatar.
+     */
+    public function removeProfilePhoto(Request $request)
+    {
+        $user = Auth::user();
+        if ($user->profile_photo) {
+            \Storage::disk('public')->delete($user->profile_photo);
+            $user->profile_photo = null;
+            $user->save();
+        }
+        return back()->with('success', 'Profile photo removed.');
     }
 
     public function updateSchool(Request $request)

@@ -20,6 +20,7 @@ class User extends Authenticatable
         'role',
         'status',
         'google_id',
+        'profile_photo',
     ];
 
     protected $hidden = [
@@ -30,6 +31,20 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    /**
+     * Returns the URL to the user's avatar.
+     * Uses the uploaded profile photo if set, otherwise generates initials-based fallback.
+     */
+    public function avatarUrl(): string
+    {
+        if (!empty($this->profile_photo)) {
+            return asset('storage/' . $this->profile_photo);
+        }
+        // Initials fallback using UI Avatars (no external DiceBear — works offline too)
+        $name = urlencode($this->name ?? 'T');
+        return "https://ui-avatars.com/api/?name={$name}&background=0d326b&color=fff&size=128&font-size=0.45&bold=true&rounded=true";
+    }
 
     public function sendPasswordResetNotification($token)
     {
