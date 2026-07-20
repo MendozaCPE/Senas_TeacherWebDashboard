@@ -31,7 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/learning-path', [StudentAuthController::class, 'getLearningPath']);
 
     // Student Lessons
-        Route::get('/student/all-lessons', [StudentAuthController::class, 'getAllLessons']);
+    Route::get('/student/all-lessons', [StudentAuthController::class, 'getAllLessons']);
     Route::get('/student/lessons', [StudentAuthController::class, 'getLessons']);
 
     // Lesson viewing routes
@@ -41,25 +41,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/lesson/{lessonId}/slide-xp', [StudentAuthController::class, 'awardSlideXp']);
     Route::get('/student/lesson/{lessonId}/attempts', [StudentAuthController::class, 'getAttempts']);
     
-    
     // ✅ FIXED: Match the frontend URL pattern
     Route::get('/student/lesson/{lessonId}/leaderboard', [StudentAuthController::class, 'getLessonLeaderboard']);
-
 
     // ─── GESTURE PERFORMANCE ROUTES ──────────────────────────────
     Route::post('/student/gesture-performance', [StudentAuthController::class, 'saveGesturePerformance']);
     Route::get('/student/gesture-performance', [StudentAuthController::class, 'getGesturePerformance']);
     Route::get('/student/struggling-letters', [StudentAuthController::class, 'getStrugglingLetters']);
 
-        // ─── GESTURE PROGRESS ROUTES (NEW) ───────────────────────────
+    // ─── GESTURE PROGRESS ROUTES (NEW) ───────────────────────────
     Route::get('/student/gesture-progress', [StudentAuthController::class, 'getGestureProgress']);
-     Route::post('/student/award-module-xp', [StudentAuthController::class, 'awardModuleXp']);
+    Route::post('/student/award-module-xp', [StudentAuthController::class, 'awardModuleXp']);
 
     // ─── MODULE CHECKPOINT QUIZ ───────────────────────────────────
     Route::get('/student/module/{moduleId}/quiz', [StudentAuthController::class, 'getModuleQuiz']);
     Route::post('/student/module/{moduleId}/quiz/submit', [StudentAuthController::class, 'submitModuleQuiz']);
-   
 
     Route::get('/student/weak-signs', [StudentAuthController::class, 'getWeakSigns']);
     Route::post('/student/award-challenge-xp', [StudentAuthController::class, 'awardChallengeXp']);
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🎯 PROMOTION ROUTES (for mobile app)
+    // ═══════════════════════════════════════════════════════════════
+    Route::get('/student/promotion', [StudentAuthController::class, 'checkPromotion']);
+    Route::post('/student/promotion/{id}/viewed', [StudentAuthController::class, 'markPromotionViewed']);
+    Route::get('/student/promotion/history', [StudentAuthController::class, 'getPromotionHistory']);
+    Route::get('/student/promotion/status', [StudentAuthController::class, 'hasPendingPromotion']);
 });

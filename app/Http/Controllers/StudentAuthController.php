@@ -6,6 +6,7 @@ use App\Models\LearningPath;
 use App\Models\Lesson;
 use App\Models\LessonAssignment;
 use App\Models\Student;
+use App\Models\StudentPromotion; 
 use App\Models\User;
 use App\Services\XPService;  
 use App\Models\Gesture;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+
 
 class StudentAuthController extends Controller
 {
@@ -2136,6 +2138,268 @@ public function awardChallengeXp(Request $request)
     }
 }
 
+/**
+     * Check if student has a pending promotion (for mobile app)
+     * GET /api/student/promotion
+     */
+    public function checkPromotion(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $student = Student::where('user_id', $user->id)->first();
 
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
 
+            // Check for unviewed promotion
+            $promotion = StudentPromotion::where('student_id', $student->student_id)
+                ->where('is_viewed', false)
+                ->orderBy('promoted_at', 'desc')
+                ->first();
+
+            if (!$promotion) {
+                return response()->json([
+                    'has_promotion' => false,
+                ]);
+            }
+
+            // Get the promotion data with celebration messages
+            $fromLevel = $promotion->from_level;
+            $toLevel = $promotion->to_level;
+            $promotionDate = $promotion->promoted_at;
+
+            // Celebration messages based on promotion path
+            $celebrationMessages = [
+                'Beginner' => [
+                    'Intermediate' => [
+                        'title' => '🎉 You\'ve been promoted!',
+                        'subtitle' => 'Beginner → Intermediate',
+                        'message' => "Congratulations! You've mastered the basics and are now an Intermediate signer! Keep up the great work! 🌟",
+                        'badge_icon' => '📚',
+                        'gradient' => ['#0f3172', '#1a4f8a', '#2563eb'],
+                    ],
+                ],
+                'Intermediate' => [
+                    'Advanced' => [
+                        'title' => '🚀 Outstanding Achievement!',
+                        'subtitle' => 'Intermediate → Advanced',
+                        'message' => "Your hard work has paid off! You're now an Advanced signer! You're becoming fluent in FSL! 💪",
+                        'badge_icon' => '⭐',
+                        'gradient' => ['#1a1a2e', '#16213e', '#0f3460'],
+                    ],
+                    'Graduated' => [
+                        'title' => '🎓 GRADUATION DAY! 🎓',
+                        'subtitle' => 'Intermediate → Graduated',
+                        'message' => "CONGRATULATIONS, GRADUATE! You've completed your FSL journey! You're now officially a certified FSL signer! 🌟🎉🎊",
+                        'badge_icon' => '🎓',
+                        'gradient' => ['#1a1a2e', '#16213e', '#0f3460'],
+                    ],
+                ],
+                'Advanced' => [
+                    'Graduated' => [
+                        'title' => '🏅 YOU DID IT! 🏅',
+                        'subtitle' => 'Advanced → Graduated',
+                        'message' => "AMAZING! You've reached the pinnacle of FSL mastery! You're now officially GRADUATED! Your certificate awaits! 🎓🌟",
+                        'badge_icon' => '🏅',
+                        'gradient' => ['#1a1a2e', '#16213e', '#0f3460'],
+                    ],
+                ],
+            ];
+
+            // Get message for this promotion
+            $messages = $celebrationMessages[$fromLevel] ?? [];
+            $promotionData = $messages[$toLevel] ?? [
+                'title' => '🎉 Congratulations!',
+                'subtitle' => "{$fromLevel} → {$toLevel}",
+                'message' => "You've been promoted! Keep up the great work! 🌟",
+                'badge_icon' => '🌟',
+                'gradient' => ['#0f3172', '#1a4f8a', '#2563eb'],
+            ];
+
+            // Get performance summary
+            $summary = $this->getPerformanceSummary($student);
+
+            return response()->json([
+                'has_promotion' => true,
+                'promotion' => [
+                    'id' => $promotion->id,
+                    'from_level' => $fromLevel,
+                    'to_level' => $toLevel,
+                    'promotion_date' => $promotionDate,
+                    'title' => $promotionData['title'],
+                    'subtitle' => $promotionData['subtitle'],
+                    'message' => $promotionData['message'],
+                    'badge_icon' => $promotionData['badge_icon'],
+                    'gradient' => $promotionData['gradient'] ?? ['#0f3172', '#1a4f8a', '#2563eb'],
+                    'was_forced' => (bool) $promotion->was_forced,
+                    'summary' => $summary,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark promotion as viewed (for mobile app)
+     * POST /api/student/promotion/{id}/viewed
+     */
+    public function markPromotionViewed(Request $request, $promotionId)
+    {
+        try {
+            $user = Auth::user();
+            $student = Student::where('user_id', $user->id)->first();
+
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
+
+            $promotion = StudentPromotion::where('id', $promotionId)
+                ->where('student_id', $student->student_id)
+                ->first();
+
+            if (!$promotion) {
+                return response()->json(['error' => 'Promotion not found'], 404);
+            }
+
+            $promotion->is_viewed = true;
+            $promotion->viewed_at = now();
+            $promotion->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Promotion marked as viewed',
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get performance summary for promotion
+     */
+    private function getPerformanceSummary($student)
+    {
+        // Get quiz performance
+        $quizStats = DB::table('quiz_attempts')
+            ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+            ->where('quiz_attempts.student_id', $student->student_id)
+            ->where('quiz_attempts.status', 'completed')
+            ->select(
+                DB::raw('COUNT(DISTINCT quiz_attempts.quiz_id) as quizzes_taken'),
+                DB::raw('AVG(quiz_attempts.percentage) as avg_score'),
+                DB::raw('COUNT(DISTINCT CASE WHEN quiz_attempts.percentage >= 60 THEN quiz_attempts.quiz_id END) as quizzes_passed')
+            )
+            ->first();
+
+        // Get gesture practice stats
+        $gestureStats = DB::table('gesture_performances')
+            ->where('student_id', $student->student_id)
+            ->select(
+                DB::raw('COUNT(DISTINCT gesture_id) as gestures_attempted'),
+                DB::raw('SUM(attempts) as total_attempts'),
+                DB::raw('SUM(successful_attempts) as total_successful')
+            )
+            ->first();
+
+        // Get lessons completed
+        $lessonsCompleted = DB::table('student_lesson_progress')
+            ->where('student_id', $student->student_id)
+            ->where('lesson_completed', true)
+            ->count();
+
+        // Get total XP
+        $totalXp = $student->total_xp ?? 0;
+
+        return [
+            'quizzes_taken' => (int) ($quizStats->quizzes_taken ?? 0),
+            'quizzes_passed' => (int) ($quizStats->quizzes_passed ?? 0),
+            'avg_quiz_score' => round($quizStats->avg_score ?? 0, 1),
+            'lessons_completed' => (int) $lessonsCompleted,
+            'gestures_attempted' => (int) ($gestureStats->gestures_attempted ?? 0),
+            'total_xp' => (int) $totalXp,
+            'accuracy' => ($gestureStats->total_attempts ?? 0) > 0 
+                ? round((($gestureStats->total_successful ?? 0) / ($gestureStats->total_attempts ?? 1)) * 100, 1)
+                : 0,
+        ];
+    }
+
+    /**
+     * Check if student has pending promotion (lightweight version for dashboard)
+     * This can be called alongside getAllLessons
+     */
+    public function hasPendingPromotion(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $student = Student::where('user_id', $user->id)->first();
+
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
+
+            $hasPending = StudentPromotion::where('student_id', $student->student_id)
+                ->where('is_viewed', false)
+                ->exists();
+
+            return response()->json([
+                'has_pending_promotion' => $hasPending,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get promotion history (for achievement section)
+     */
+    public function getPromotionHistory(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $student = Student::where('user_id', $user->id)->first();
+
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
+
+            $history = StudentPromotion::where('student_id', $student->student_id)
+                ->orderBy('promoted_at', 'desc')
+                ->get()
+                ->map(function ($promotion) {
+                    return [
+                        'id' => $promotion->id,
+                        'from_level' => $promotion->from_level,
+                        'to_level' => $promotion->to_level,
+                        'xp_at_promotion' => $promotion->xp_at_promotion,
+                        'promoted_at' => $promotion->promoted_at,
+                        'was_forced' => (bool) $promotion->was_forced,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'history' => $history,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
