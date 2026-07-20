@@ -1769,6 +1769,7 @@ async function submitAiQuizGenerate() {
     const genBtn = document.getElementById('aqm_generateBtn');
     genBtn.disabled = true;
     genBtn.textContent = '✨ Generating...';
+    setAqmLoading(true);
 
     try {
         const resp = await fetch('{{ route("lessons.ai-generate-quiz") }}', {
@@ -1778,6 +1779,8 @@ async function submitAiQuizGenerate() {
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.message || 'AI generation failed.');
+
+        finishAiProgress();
 
         // Populate quiz
         const quizContainer = document.getElementById('quizQuestions');
@@ -1814,8 +1817,22 @@ async function submitAiQuizGenerate() {
         errorEl.textContent = '⚠️ ' + (err.message || 'Something went wrong.');
         errorEl.style.display = 'block';
     } finally {
+        setAqmLoading(false);
         genBtn.disabled = false;
         genBtn.textContent = '✨ Generate Questions';
+    }
+}
+
+function setAqmLoading(loading) {
+    const form = document.getElementById('aqm_form');
+    const loadingEl = document.getElementById('aqm_loading');
+    if (form) form.style.display = loading ? 'none' : 'block';
+    if (loadingEl) loadingEl.style.display = loading ? 'block' : 'none';
+    if (loading) {
+        startAiProgress(92);
+    } else {
+        stopAiProgress();
+        updateAiProgressDisplay(0);
     }
 }
 
@@ -1852,6 +1869,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <div id="aqm_error" style="display:none;background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:12px;padding:10px 14px;margin-bottom:16px;color:#B91C1C;font-size:13px;font-weight:600;"></div>
 
+        <div id="aqm_loading" style="display:none;text-align:center;padding:24px 8px 8px;">
+            <div style="display:inline-block;width:40px;height:40px;border:4px solid rgba(109,40,217,0.2);border-top-color:#6d28d9;border-radius:50%;animation:aiSpin 0.8s linear infinite;"></div>
+            <p style="color:#6d28d9;font-weight:700;font-size:14px;margin:14px 0 4px;">Generating quiz questions...</p>
+            <p style="color:#94a3b8;font-size:12px;margin:0 0 16px;">AI is reading your lesson content.<br>This may take up to 30 seconds.</p>
+            <div style="max-width:260px;margin:0 auto;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <span style="font-size:12px;font-weight:600;color:#64748b;">Progress</span>
+                    <span id="aqm_progressPct" style="font-size:13px;font-weight:800;color:#6d28d9;">0%</span>
+                </div>
+                <div style="background:#E5EAF2;border-radius:99px;height:8px;overflow:hidden;">
+                    <div id="aqm_progressBar" style="background:linear-gradient(90deg,#6d28d9,#4f46e5);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="aqm_form">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
@@ -1889,6 +1922,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <button onclick="closeAiQuizModal()" type="button"
                     style="background:white;color:#64748b;padding:13px 24px;border-radius:14px;font-weight:700;font-size:14px;border:1.5px solid #E5EAF2;cursor:pointer;width:100%;transition:all 0.2s;"
                     onmouseover="this.style.background='#F8FAFC';" onmouseout="this.style.background='white';">Cancel</button>
+        </div>
         </div>
     </div>
 </div>

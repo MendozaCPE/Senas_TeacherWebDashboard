@@ -50,7 +50,16 @@
             <div id="aiLoadingState" style="display:none; text-align:center; padding:40px 20px;">
                 <div style="display:inline-block; width:48px; height:48px; border:4px solid rgba(109,40,217,0.2); border-top-color:#6d28d9; border-radius:50%; animation:aiSpin 0.8s linear infinite;"></div>
                 <p style="color:#6d28d9; font-weight:700; font-size:15px; margin:18px 0 6px;" id="aiLoadingText">Generating your lesson...</p>
-                <p style="color:#94a3b8; font-size:13px;" id="aiLoadingSubtext">DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.</p>
+                <p style="color:#94a3b8; font-size:13px; margin:0 0 16px;" id="aiLoadingSubtext">DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.</p>
+                <div style="max-width:280px;margin:0 auto;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <span style="font-size:12px;font-weight:600;color:#64748b;">Progress</span>
+                        <span id="aiProgressPct" style="font-size:13px;font-weight:800;color:#6d28d9;">0%</span>
+                    </div>
+                    <div style="background:#E5EAF2;border-radius:99px;height:8px;overflow:hidden;">
+                        <div id="aiProgressBar" style="background:linear-gradient(90deg,#6d28d9,#4f46e5);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
+                    </div>
+                </div>
             </div>
 
             {{-- ── TOPIC FORM ── --}}
@@ -277,6 +286,44 @@
 
 <script>
 let _selectedPdfFile = null;
+let _aiProgressTimer = null;
+
+function updateAiProgressDisplay(pct) {
+    [
+        ['aiProgressBar', 'aiProgressPct'],
+        ['aqm_progressBar', 'aqm_progressPct'],
+    ].forEach(([barId, labelId]) => {
+        const bar = document.getElementById(barId);
+        const label = document.getElementById(labelId);
+        if (bar) bar.style.width = pct + '%';
+        if (label) label.textContent = pct + '%';
+    });
+}
+
+function startAiProgress(maxPct = 92) {
+    stopAiProgress();
+    updateAiProgressDisplay(0);
+    _aiProgressTimer = setInterval(() => {
+        const label = document.getElementById('aiProgressPct') || document.getElementById('aqm_progressPct');
+        if (!label) { stopAiProgress(); return; }
+        const current = parseInt(label.textContent, 10) || 0;
+        if (current >= maxPct) return;
+        const increment = Math.max(1, Math.round((maxPct - current) * 0.06));
+        updateAiProgressDisplay(Math.min(maxPct, current + increment));
+    }, 450);
+}
+
+function finishAiProgress() {
+    stopAiProgress();
+    updateAiProgressDisplay(100);
+}
+
+function stopAiProgress() {
+    if (_aiProgressTimer) {
+        clearInterval(_aiProgressTimer);
+        _aiProgressTimer = null;
+    }
+}
 
 /* ── Tab switching ───────────────────────────────────────────────── */
 function switchAiTab(tab) {
@@ -345,7 +392,7 @@ function submitPdfGenerate() {
     fd.append('instructions', document.getElementById('pdf_instructions').value.trim());
     fetch('{{ route("lessons.ai-generate-pdf") }}', { method:'POST', headers:{'X-CSRF-TOKEN':csrf,'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}, body:fd })
         .then(r => r.json().then(d => ({ok:r.ok,d})))
-        .then(({ok,d}) => { if (!ok) throw new Error(d.message||'PDF generation failed.'); closeAiModalDirect(); populateLessonForm(d); })
+        .then(({ok,d}) => { if (!ok) throw new Error(d.message||'PDF generation failed.'); finishAiProgress(); closeAiModalDirect(); populateLessonForm(d); })
         .catch(err => { showAiError(err.message||'Something went wrong.'); setAiLoading(false); });
 }
 
@@ -369,7 +416,7 @@ function submitAiGenerate() {
         body:JSON.stringify({ topic, difficulty:document.getElementById('ai_difficulty').value, lesson_type:document.getElementById('ai_lesson_type').value, num_slides:numSlides, num_mc:numMc, num_tf:numTf, num_dd:numDd, num_gt:numGt, special_instructions:document.getElementById('ai_special_instructions').value.trim()||null }),
     })
     .then(r => r.json().then(d => ({ok:r.ok,d})))
-    .then(({ok,d}) => { if (!ok) throw new Error(d.message||'AI generation failed.'); closeAiModalDirect(); populateLessonForm(d); })
+    .then(({ok,d}) => { if (!ok) throw new Error(d.message||'AI generation failed.'); finishAiProgress(); closeAiModalDirect(); populateLessonForm(d); })
     .catch(err => { showAiError(err.message||'Something went wrong.'); setAiLoading(false); });
 }
 
@@ -410,6 +457,12 @@ function setAiLoading(loading, title, sub) {
     document.getElementById('aiFormPdf').style.display   = loading ? 'none' : (!isTopicActive ? 'block' : 'none');
     document.getElementById('aiGenerateBtn').disabled    = loading;
     document.getElementById('aiPdfGenerateBtn').disabled = loading;
+    if (loading) {
+        startAiProgress(isTopicActive ? 92 : 90);
+    } else {
+        stopAiProgress();
+        updateAiProgressDisplay(0);
+    }
 }
 function showAiError(msg) { const b=document.getElementById('aiErrorBanner'); b.textContent='⚠️ '+msg; b.style.display='block'; }
 function hideAiError()     { document.getElementById('aiErrorBanner').style.display='none'; }
@@ -647,6 +700,21 @@ function buildAiQuizCard(q, idx) {
         }).join('');
     }
 
+    const gestureIds = Array.isArray(q.gesture_ids) ? q.gesture_ids : [];
+    const gestureWarning = isGesture && (
+        q.gesture_warning === true ||
+        !q.gesture_module_id ||
+        gestureIds.length === 0
+    );
+    const gestureWarningBadge = gestureWarning ? `
+        <div class="gesture-warning-badge" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;margin-top:12px;">
+            <span style="font-size:16px;flex-shrink:0;line-height:1.5;">⚠️</span>
+            <div>
+                <p style="font-size:12px;font-weight:800;color:#92400E;margin:0 0 2px;">No Gesture Available</p>
+                <p style="font-size:11px;color:#A16207;margin:0;">No gesture found in the database. Use the gesture module selector above to choose gestures manually.</p>
+            </div>
+        </div>` : '';
+
     return `
     <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
         <div class="flex items-center justify-between mb-3">
@@ -656,6 +724,7 @@ function buildAiQuizCard(q, idx) {
                 ${isTrueFalse ? '<span style="background:#FEF3C7;color:#D97706;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">True/False</span>' : ''}
                 ${isDragDrop ? '<span style="background:#E0F2FE;color:#0369A1;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">Drag & Drop</span>' : ''}
                 ${isGesture ? '<span style="background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">Gesture Recognition</span>' : ''}
+                ${gestureWarning ? '<span style="background:#FEF9C3;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid #FDE047;">⚠ No Gesture</span>' : ''}
             </div>
             <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
                 <span class="material-symbols-outlined text-sm">close</span>
@@ -734,6 +803,7 @@ function buildAiQuizCard(q, idx) {
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Selected Gestures</label>
                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_${idx}"></div>
                     </div>
+                    ${gestureWarningBadge}
                 </div>
             </div>
         </div>
