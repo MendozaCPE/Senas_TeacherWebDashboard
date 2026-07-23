@@ -7,6 +7,8 @@ use App\Models\Module;
 use App\Models\Student;
 use App\Models\LessonAssignment;
 use App\Models\StudentLessonProgress;
+use App\Models\Gesture;
+use App\Models\GesturePerformance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -254,6 +256,91 @@ class DashboardController extends Controller
             $allStudents = Student::where('teacher_id', $teacherId)
                 ->orderBy('first_name')
                 ->get(['student_id', 'first_name', 'last_name', 'level', 'grade_level', 'fsl_mastery_level', 'total_xp']);
+
+            // ── Dynamic Senya Tips ───────────────────────────────────────────────
+            $senyaTips = [];
+
+            // 1. Struggling student insight
+            $strugglingStudent = Student::where('teacher_id', $teacherId)
+                ->with('progress')
+                ->get()
+                ->map(function ($s) {
+                    $scores = $s->progress->pluck('quiz_score')->filter(function($v) { return !is_null($v); });
+                    $s->avg_score = $scores->count() > 0 ? (int) round($scores->avg()) : null;
+                    return $s;
+                })
+                ->filter(function($s) { return !is_null($s->avg_score) && $s->avg_score < 75; })
+                ->sortBy('avg_score')
+                ->first();
+
+            if ($strugglingStudent) {
+                $studentName = e($strugglingStudent->first_name . ' ' . $strugglingStudent->last_name);
+                $senyaTips[] = "Your student <span class=\"font-black text-[#0d326b]\">{$studentName}</span> is not doing well in recent quizzes ({$strugglingStudent->avg_score}% accuracy). Extra guidance might help!";
+            }
+
+            // 2. Low-performing lesson insight
+            $weakProgress = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereNotNull('quiz_score')
+                ->select('lesson_id', DB::raw('AVG(quiz_score) as avg_score'))
+                ->groupBy('lesson_id')
+                ->having('avg_score', '<', 75)
+                ->orderBy('avg_score', 'asc')
+                ->first();
+
+            if ($weakProgress) {
+                $weakLesson = Lesson::find($weakProgress->lesson_id);
+                if ($weakLesson) {
+                    $lessonTitle = e($weakLesson->title);
+                    $score = (int) round($weakProgress->avg_score);
+                    $senyaTips[] = "This lesson <span class=\"font-black text-[#0d326b]\">\"{$lessonTitle}\"</span> is not performed well by your students (avg {$score}% score). Consider reviewing key signs together.";
+                }
+            }
+
+            // 3. Difficult gesture insight
+            try {
+                $hardPerf = GesturePerformance::whereIn('student_id', $studentIds)
+                    ->where('wrong_attempts', '>', 0)
+                    ->select('gesture_id', DB::raw('SUM(wrong_attempts) as total_wrong'))
+                    ->groupBy('gesture_id')
+                    ->orderBy('total_wrong', 'desc')
+                    ->first();
+
+                if ($hardPerf) {
+                    $gesture = Gesture::find($hardPerf->gesture_id);
+                    if ($gesture) {
+                        $gestureName = e($gesture->display_name ?? $gesture->name);
+                        $senyaTips[] = "This gesture <span class=\"font-black text-[#0d326b]\">\"{$gestureName}\"</span> is hard to do for your students based on recent practice attempts.";
+                    }
+                }
+            } catch (\Exception $e) {
+                // Safe fallback if gesture performance table isn't populated
+            }
+        } else {
+            $senyaTips = [];
+        }
+
+        // Add general dynamic fallbacks for variety & when teacher has no specific warnings
+        if ($totalStudents > 0) {
+            $senyaTips[] = "You have <span class=\"font-black text-[#0d326b]\">{$totalStudents} student" . ($totalStudents === 1 ? '' : 's') . "</span> enrolled. Consistent practice yields the best learning retention!";
+        }
+        if ($lessonsCompleted > 0) {
+            $senyaTips[] = "Great job! Your class has completed <span class=\"font-black text-[#0d326b]\">{$lessonsCompleted} lessons</span> so far.";
+        }
+        $senyaTips[] = "Short, 10-minute daily practice sessions boost student sign language memory by over 40%!";
+        $senyaTips[] = "Encourage students to practice hand movements in front of visual feedback for faster gesture mastery.";
+        $senyaTips[] = "Check the My Students section below to review individual student mastery levels and progress.";
+
+        $senyaTips = array_values(array_unique($senyaTips));
+
+        // Select next tip sequentially per request session so every refresh changes the tip
+        $tipCount = count($senyaTips);
+        if ($tipCount > 0) {
+            $prevIndex = session('senya_tip_index', -1);
+            $nextIndex = ($prevIndex + 1) % $tipCount;
+            session(['senya_tip_index' => $nextIndex]);
+            $selectedTip = $senyaTips[$nextIndex];
+        } else {
+            $selectedTip = 'Keep your students engaged with regular lesson assignments!';
         }
 
         // Circumference for SVG circle stroke: 2 * pi * r = 2 * 3.14159 * 64 ≈ 402
@@ -286,7 +373,9 @@ class DashboardController extends Controller
             'lessonMastery',
             'classRate',
             'circleDashOffset',
-            'allStudents'
+            'allStudents',
+            'senyaTips',
+            'selectedTip'
         ));
     }
 }
