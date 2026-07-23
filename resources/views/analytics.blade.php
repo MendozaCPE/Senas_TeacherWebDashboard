@@ -17,56 +17,250 @@
     --analytics-slate: #64748b;
 }
 
-/* ── Stat cards (matches Students tab) ───────────────────────────── */
+/* ── Stat cards ───────────────────────────────────────────── */
 .stat-card { border-radius: 20px; padding: 20px; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(13,50,107,.12); }
 
-/* ── Panels (matches Students tab white cards) ───────────────────── */
+/* ── Panels ───────────────────────────────────── */
 .panel { background: #fff; border-radius: 20px; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(13,50,107,.04); padding: 24px; }
 .panel:hover { box-shadow: 0 12px 32px rgba(13,50,107,.08); }
 
-.heatmap-cell {
+/* ── Filter styles (matching Reports page) ──────────────────────── */
+.filter-container {
+    background: #fff;
     border-radius: 16px;
-    min-height: 84px;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 1px 2px rgba(13,50,107,.04);
+    padding: 14px 18px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    transition: transform .15s;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
 }
-.heatmap-cell:hover { transform: translateY(-2px); }
 
-.donut-chart {
-    width: 132px;
-    height: 132px;
-    border-radius: 9999px;
-    background: #f1f5f9;
-    display: grid;
-    place-items: center;
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
-.donut-chart span { display: block; font-size: 1rem; font-weight: 800; color: var(--navy-900); }
+
+.filter-select {
+    appearance: none;
+    background: #f1f5f9;
+    color: #1e293b;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 32px 8px 14px;
+    border-radius: 9999px;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+}
+.filter-select:hover { background: #e2e8f0; }
+.filter-select:focus { ring: 2px solid #0d326b; }
+
+.filter-wrap {
+    position: relative;
+    display: inline-block;
+}
+.filter-wrap .material-symbols-outlined {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.filter-btn {
+    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.filter-btn:hover { opacity: .9; box-shadow: 0 4px 12px rgba(13,50,107,.25); }
+
+.filter-reset {
+    padding: 8px 16px;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    text-decoration: none;
+    display: inline-block;
+}
+.filter-reset:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+.export-btn {
+    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(13,50,107,.15);
+}
+.export-btn:hover { opacity: .9; box-shadow: 0 4px 16px rgba(13,50,107,.25); }
+
+/* ── Chart tooltip ──────────────────────────────────────────────────── */
+.chart-tooltip {
+    pointer-events: none;
+    position: absolute;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity .15s;
+    background: #0d326b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(13,50,107,.25);
+    white-space: nowrap;
+    transform: translateX(-50%) translateY(-100%);
+}
+.chart-tooltip::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 10px;
+    background: #0d326b;
+    border-radius: 2px;
+    transform: translateX(-50%) rotate(45deg);
+}
+.chart-tooltip.visible { opacity: 1; }
+
+/* ── Chart wrapper ──────────────────────────────────────────────────── */
+.chart-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #fafcff;
+    padding: 12px 8px 4px 8px;
+    width: 100%;
+}
+
+.chart-svg-container {
+    width: 100%;
+    height: 300px;
+}
+
+.chart-svg-container svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* ── Difficulty list with scroll - shows 5 items, scroll for more ── */
+.difficulty-list {
+    max-height: 260px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.difficulty-list::-webkit-scrollbar {
+    width: 4px;
+}
+.difficulty-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+.difficulty-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.difficulty-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.difficulty-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #f8fafc;
+}
+.difficulty-item:last-child {
+    border-bottom: none;
+}
 </style>
 
 <div class="space-y-6">
 
-    {{-- ══════════ HEADER (matches Students tab) ══════════ --}}
-    <div class="flex items-start justify-between">
-        <div>
-            <p class="text-[11px] font-bold text-[#0d326b] tracking-[0.15em] uppercase mb-1">Analytics</p>
-            <h2 class="text-[32px] font-semibold text-[#0d326b] leading-tight">Class Performance Summary</h2>
-            <p class="text-[13px] text-slate-400 font-medium mt-1 max-w-2xl">Review scores, mastery, progress, and completion for your class at a glance.</p>
+    {{-- ══════════ FILTER + EXPORT (matching Reports page) ══════════ --}}
+    <form method="GET" action="{{ route('analytics') }}" id="filterForm">
+        <div class="filter-container">
+            <div class="filter-group">
+                <div class="filter-wrap">
+                    <select name="period" class="filter-select">
+                        <option value="weekly" {{ request('period', 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly</option>
+                        <option value="monthly" {{ request('period') === 'monthly' ? 'selected' : '' }}>Monthly</option>
+                        <option value="quarterly" {{ request('period') === 'quarterly' ? 'selected' : '' }}>Quarterly</option>
+                        <option value="yearly" {{ request('period') === 'yearly' ? 'selected' : '' }}>Yearly</option>
+                    </select>
+                    <span class="material-symbols-outlined">expand_more</span>
+                </div>
+
+                <div class="filter-wrap">
+                    <select name="year" class="filter-select">
+                        @php $currentYear = date('Y'); @endphp
+                        @for($y = $currentYear; $y >= $currentYear - 5; $y--)
+                        <option value="{{ $y }}" {{ request('year', $currentYear) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endfor
+                    </select>
+                    <span class="material-symbols-outlined">expand_more</span>
+                </div>
+
+                @if(request('period') === 'monthly' || request('period') === 'quarterly')
+                <div class="filter-wrap">
+                    <select name="month" class="filter-select">
+                        @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m => $name)
+                        <option value="{{ $m + 1 }}" {{ request('month', date('n')) == ($m + 1) ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined">expand_more</span>
+                </div>
+                @endif
+
+
+                <a href="{{ route('analytics') }}" class="filter-reset">Clear</a>
+                <button type="submit" class="filter-btn">
+                    <span class="material-symbols-outlined text-[16px]">filter_alt</span>
+                    Apply Filter
+                </button>
+            </div>
+
+            <a href="{{ route('analytics.export-pdf', request()->query()) }}" class="export-btn">
+                <span class="material-symbols-outlined text-[18px]">download</span>
+                Export PDF
+            </a>
         </div>
-        <a href="{{ route('analytics.export-pdf') }}"
-            class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-5 py-3 rounded-xl text-[14px] font-bold transition-all flex items-center space-x-2 shadow-md mt-1 border border-[#0d326b]/20 shrink-0">
-            <span class="material-symbols-outlined text-[20px]">download</span>
-            <span>Export PDF Report</span>
-        </a>
-    </div>
+    </form>
 
     {{-- ══════════ STAT CARDS ══════════ --}}
     @php
-        // Fixed navy palette applied in-view only — backend values for accent/iconColor are ignored
-        // so every card reads as a shade of navy regardless of what the controller sends.
         $statShades = [
             ['bg' => 'linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)', 'text' => 'white',  'iconBg' => 'bg-white/10', 'iconColor' => 'text-white'],
             ['bg' => '#ffffff', 'text' => 'navy', 'iconBg' => 'bg-[#e8eef8]', 'iconColor' => 'text-[#1e4b8f]'],
@@ -100,38 +294,49 @@
     {{-- ══════════ ROW 2: Progress line chart + Module difficulty ══════════ --}}
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
 
-        {{-- Class Progress Over Time — soft curved line chart --}}
+        {{-- Class Progress Over Time — smooth line chart with tooltips --}}
         <div class="panel">
-            <div class="flex items-start justify-between gap-3 mb-6">
+            <div class="flex items-start justify-between gap-3 mb-3">
                 <div>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Trend</p>
                     <h3 class="text-[16px] font-bold text-[#0d326b]">Class Progress Over Time</h3>
-                    <p class="text-[12px] text-slate-400 mt-0.5">Weekly average quiz score for your class</p>
+                    <p class="text-[12px] text-slate-400 mt-0.5">
+                        {{ ucfirst(request('period', 'weekly')) }} average quiz score
+                        @if(request('period') === 'monthly' || request('period') === 'quarterly')
+                            for {{ date('F', mktime(0,0,0, request('month', date('n')), 1)) }}
+                        @endif
+                        {{ request('year', date('Y')) }}
+                    </p>
                 </div>
-                <span class="text-[11px] font-bold text-slate-400 bg-[#f1f5f9] px-3 py-1.5 rounded-full shrink-0">Last 8 weeks</span>
+                <span class="text-[11px] font-bold text-slate-400 bg-[#f1f5f9] px-3 py-1.5 rounded-full shrink-0">
+                    {{ count($progressOverTime) }} {{ request('period', 'weekly') }}
+                </span>
             </div>
 
             @php
-                $lineWidth  = 320;
-                $lineHeight = 180;
-                $padTop     = 16;
-                $padBottom  = 16;
-                $count      = count($progressOverTime);
-                $lineMax    = max(1, collect($progressOverTime)->max('value'));
-                $lineMin    = min(0, collect($progressOverTime)->min('value'));
-                $range      = max(1, $lineMax - $lineMin);
+                // Fixed dimensions for consistent rendering
+                $chartW = 600;
+                $chartH = 200;
+                $padL = 32;
+                $padR = 8;
+                $padT = 24;
+                $padB = 28;
+                $plotW = $chartW - $padL - $padR;
+                $plotH = $chartH - $padT - $padB;
+                $count = count($progressOverTime);
+                $maxVal = 100;
+                $minVal = 0;
 
                 $pts = [];
                 foreach ($progressOverTime as $index => $week) {
-                    $x = $count > 1 ? ($index / ($count - 1)) * $lineWidth : $lineWidth / 2;
-                    $y = $lineHeight - $padBottom - ((($week['value'] - $lineMin) / $range) * ($lineHeight - $padTop - $padBottom));
-                    $pts[] = ['x' => round($x, 2), 'y' => round($y, 2)];
+                    $x = $count > 1 ? $padL + ($index / ($count - 1)) * $plotW : $padL + $plotW / 2;
+                    $y = $padT + $plotH - (($week['value'] - $minVal) / max($maxVal - $minVal, 1)) * $plotH;
+                    $pts[] = ['x' => round($x, 2), 'y' => round($y, 2), 'value' => $week['value'], 'label' => $week['label']];
                 }
 
-                // Build a soft, curvy cubic-bezier path through the points (no overshoot,
-                // horizontal-tangent smoothing) instead of a straight polyline.
+                // Build smooth curve path
                 $curvePath = '';
-                $areaPath  = '';
+                $areaPath = '';
                 if (count($pts) > 0) {
                     $curvePath = "M {$pts[0]['x']},{$pts[0]['y']}";
                     for ($i = 0; $i < count($pts) - 1; $i++) {
@@ -142,43 +347,78 @@
                         $c2x = $p1['x'] - $dx; $c2y = $p1['y'];
                         $curvePath .= " C {$c1x},{$c1y} {$c2x},{$c2y} {$p1['x']},{$p1['y']}";
                     }
-                    $areaPath = $curvePath . " L {$pts[count($pts)-1]['x']},{$lineHeight} L {$pts[0]['x']},{$lineHeight} Z";
+                    $areaPath = $curvePath . " L " . ($padL + $plotW) . "," . ($padT + $plotH) . " L " . $padL . "," . ($padT + $plotH) . " Z";
                 }
             @endphp
 
-            <div class="relative overflow-hidden rounded-2xl bg-[#f8fafc] p-6">
-                <div class="absolute inset-x-6 top-6 h-px bg-slate-200"></div>
-                <div class="absolute inset-x-6 top-[92px] h-px bg-slate-200"></div>
+            <div class="chart-wrapper">
+                <div id="lineChartTooltip" class="chart-tooltip">
+                    <span id="lineTooltipLabel"></span>: <span id="lineTooltipValue"></span>%
+                </div>
 
                 @if(empty($pts))
-                    <p class="text-slate-400 text-[13px] text-center py-16">No progress data available yet.</p>
+                    <p class="text-slate-400 text-[13px] text-center py-12">No progress data available yet.</p>
                 @else
-                    <svg viewBox="0 0 {{ $lineWidth }} {{ $lineHeight }}" class="w-full h-[200px]" preserveAspectRatio="none">
-                        <defs>
-                            <linearGradient id="progressFill" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#0d326b" stop-opacity="0.22" />
-                                <stop offset="100%" stop-color="#0d326b" stop-opacity="0" />
-                            </linearGradient>
-                        </defs>
-                        <path d="{{ $areaPath }}" fill="url(#progressFill)" stroke="none" />
-                        <path d="{{ $curvePath }}" fill="none" stroke="#0d326b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                        @foreach($pts as $p)
-                            <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="4" fill="#ffffff" stroke="#0d326b" stroke-width="2.5" />
-                        @endforeach
-                    </svg>
-                @endif
+                    <div class="chart-svg-container">
+                        <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" preserveAspectRatio="xMidYMid meet">
+                            <defs>
+                                <linearGradient id="progressFill" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#1a6fd4" stop-opacity="0.20" />
+                                    <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0" />
+                                </linearGradient>
+                                <linearGradient id="progressLine" x1="0" y1="0" x2="100%" y2="0">
+                                    <stop offset="0%" stop-color="#1e4b8f" />
+                                    <stop offset="100%" stop-color="#0d326b" />
+                                </linearGradient>
+                            </defs>
 
-                <div class="grid gap-2 text-[10px] font-semibold text-slate-400 mt-4" style="grid-template-columns: repeat({{ max(1, $count) }}, minmax(0,1fr));">
-                    @foreach($progressOverTime as $week)
-                        <div class="text-center">{{ $week['label'] }}</div>
-                    @endforeach
-                </div>
+                            <!-- Gridlines + Y labels -->
+                            @foreach([0, 25, 50, 75, 100] as $gv)
+                            @php $gy = round($padT + $plotH - ($gv / 100) * $plotH, 1); @endphp
+                            <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $padL + $plotW }}" y2="{{ $gy }}" stroke="#e8ecf0" stroke-width="0.8" stroke-dasharray="4,4"/>
+                            <text x="2" y="{{ $gy + 4 }}" font-size="9" fill="#94a3b8" font-weight="600">{{ $gv }}%</text>
+                            @endforeach
+
+                            <!-- Area fill -->
+                            <path d="{{ $areaPath }}" fill="url(#progressFill)"/>
+
+                            <!-- Line (smooth curve) -->
+                            <path d="{{ $curvePath }}" fill="none" stroke="url(#progressLine)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+                            <!-- Points with hover hit areas -->
+                            @foreach($pts as $i => $p)
+                            <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="{{ $i === count($pts) - 1 ? 5 : 4 }}" fill="{{ $i === count($pts) - 1 ? '#1a6fd4' : '#0d326b' }}" stroke="white" stroke-width="2.5"/>
+
+                            <!-- Invisible larger hit area for tooltip -->
+                            <circle class="line-point-hit" cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="14" fill="transparent" style="cursor:pointer"
+                                    data-label="{{ $p['label'] }}" data-value="{{ $p['value'] }}"></circle>
+                            @endforeach
+
+                            <!-- X labels -->
+                            @php
+                                $labelStep = max(1, floor(count($pts) / 10));
+                            @endphp
+                            @foreach($pts as $i => $p)
+                                @if($i % $labelStep === 0 || $i === count($pts) - 1)
+                                <text x="{{ $p['x'] }}" y="{{ $chartH - 4 }}" font-size="9" fill="#94a3b8" font-weight="500" text-anchor="middle">{{ $p['label'] }}</text>
+                                @endif
+                            @endforeach
+                        </svg>
+                    </div>
+
+                    <!-- Current value bubble -->
+                    @if(!empty($pts))
+                    <div class="absolute top-2 right-2 bg-white border border-slate-100 shadow-sm rounded-full px-3 py-0.5">
+                        <span class="text-[12px] font-black text-[#0d326b]">{{ end($pts)['value'] }}%</span>
+                    </div>
+                    @endif
+                @endif
             </div>
         </div>
 
-        {{-- Module Difficulty Ranking — navy gradient bars --}}
+        {{-- Module Difficulty Ranking — navy gradient bars with scroll (shows 5, scroll for more) --}}
         <div class="panel">
-            <div class="flex items-start justify-between gap-3 mb-6">
+            <div class="flex items-start justify-between gap-3 mb-4">
                 <div>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Focus areas</p>
                     <h3 class="text-[16px] font-bold text-[#0d326b]">Module Difficulty Ranking</h3>
@@ -190,24 +430,31 @@
             @if($lessonDifficulty->isEmpty())
                 <p class="text-slate-400 text-[13px] text-center py-16">No lesson score data available yet.</p>
             @else
-                <div class="space-y-4">
+                <div class="difficulty-list">
                     @foreach($lessonDifficulty as $lesson)
-                        <div class="space-y-2">
+                        <div class="difficulty-item">
                             <div class="flex items-center justify-between gap-3">
                                 <span class="text-[12.5px] font-semibold text-[#0d326b] truncate">{{ $lesson['title'] }}</span>
-                                <span class="text-[11px] font-bold text-slate-400">{{ $lesson['avg_score'] }}%</span>
+                                <span class="text-[11px] font-bold text-slate-400 shrink-0">{{ $lesson['avg_score'] }}%</span>
                             </div>
-                            <div class="h-2.5 rounded-full bg-[#eef2f7] overflow-hidden">
+                            <div class="h-2 rounded-full bg-[#eef2f7] overflow-hidden mt-1.5">
                                 <div class="h-full rounded-full" style="width: {{ max(4, $lesson['avg_score']) }}%; background: linear-gradient(90deg, #93c5fd, #1e4b8f);"></div>
                             </div>
                         </div>
                     @endforeach
                 </div>
+
+                {{-- Show count if there are many --}}
+                @if($lessonDifficulty->count() > 5)
+                <div class="text-center text-[10px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-100">
+                    Showing {{ $lessonDifficulty->count() }} lessons · Scroll for more
+                </div>
+                @endif
             @endif
         </div>
     </div>
 
-    {{-- ══════════ ROW 3: Heatmap + sidebar charts ══════════ --}}
+    {{-- ══════════ ROW 3: Student Ranking + sidebar charts ══════════ --}}
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
         {{-- Student Ranking — leaderboard by average quiz score --}}
@@ -225,7 +472,7 @@
                 <p class="text-slate-400 text-[13px] text-center py-16">No quiz attempt data available yet.</p>
             @else
                 @php
-                    $rankShades = ['#0d326b', '#1e4b8f', '#3b82f6']; // top 3 get distinct navy shades
+                    $rankShades = ['#0d326b', '#1e4b8f', '#3b82f6'];
                 @endphp
                 <div class="space-y-2.5">
                     @foreach($studentRanking as $i => $s)
@@ -260,7 +507,7 @@
 
         <div class="space-y-5">
 
-            {{-- Mastery Level Distribution — navy donut --}}
+            {{-- Mastery Level Distribution — navy donut with tooltips --}}
             <div class="panel !p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Mastery Level Distribution</p>
                 @php
@@ -271,23 +518,29 @@
                     foreach ($masteryDistribution as $i => $seg) {
                         $shade = $navyScale[$i % count($navyScale)];
                         $dash = round(($seg['pct'] / 100) * $circ, 1);
-                        $segments[] = ['color' => $shade, 'dash' => $dash, 'offset' => -$off, 'label' => $seg['label'], 'pct' => $seg['pct']];
+                        $segments[] = ['color' => $shade, 'dash' => $dash, 'offset' => -$off, 'label' => $seg['label'], 'pct' => $seg['pct'], 'count' => $seg['count'] ?? 0];
                         $off += $dash;
                     }
                 @endphp
                 <div class="flex items-center gap-5">
                     <div class="relative w-[120px] h-[120px] shrink-0">
+                        <div id="masteryDonutTooltip" class="chart-tooltip" style="transform:translateX(-50%) translateY(-130%);">
+                            <span id="masteryDonutLabel"></span>: <span id="masteryDonutValue"></span>
+                        </div>
                         <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
                             <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
                             @foreach($segments as $seg)
                                 @if($seg['dash'] > 0)
-                                <circle cx="50" cy="50" r="40" fill="none" stroke="{{ $seg['color'] }}" stroke-width="14"
+                                <circle class="mastery-donut-hit" cx="50" cy="50" r="40" fill="none" stroke="{{ $seg['color'] }}" stroke-width="14"
                                     stroke-dasharray="{{ $seg['dash'] }} {{ $circ - $seg['dash'] }}"
-                                    stroke-dashoffset="{{ $seg['offset'] }}" stroke-linecap="butt"/>
+                                    stroke-dashoffset="{{ $seg['offset'] }}" stroke-linecap="butt"
+                                    style="cursor:pointer"
+                                    data-label="{{ $seg['label'] }}"
+                                    data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"/>
                                 @endif
                             @endforeach
                         </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                             <span class="text-[20px] font-black text-[#0d326b]">{{ $masteryTotal ?? 0 }}</span>
                             <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Total</span>
                         </div>
@@ -333,7 +586,7 @@
                 @endif
             </div>
 
-            {{-- Score Distribution — was a histogram, now a donut (same data, more meaningful at a glance) --}}
+            {{-- Score Distribution — donut with tooltips --}}
             <div class="panel !p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Score Distribution</p>
                 <p class="text-[11px] text-slate-400 mb-4">Share of quiz attempts by score range</p>
@@ -358,17 +611,23 @@
                     @endphp
                     <div class="flex items-center gap-5">
                         <div class="relative w-[120px] h-[120px] shrink-0">
+                            <div id="scoreDonutTooltip" class="chart-tooltip" style="transform:translateX(-50%) translateY(-130%);">
+                                <span id="scoreDonutLabel"></span>: <span id="scoreDonutValue"></span>
+                            </div>
                             <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
                                 <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
                                 @foreach($sSegments as $seg)
                                     @if($seg['dash'] > 0)
-                                    <circle cx="50" cy="50" r="40" fill="none" stroke="{{ $seg['color'] }}" stroke-width="14"
+                                    <circle class="score-donut-hit" cx="50" cy="50" r="40" fill="none" stroke="{{ $seg['color'] }}" stroke-width="14"
                                         stroke-dasharray="{{ $seg['dash'] }} {{ $sCirc - $seg['dash'] }}"
-                                        stroke-dashoffset="{{ $seg['offset'] }}" stroke-linecap="butt"/>
+                                        stroke-dashoffset="{{ $seg['offset'] }}" stroke-linecap="butt"
+                                        style="cursor:pointer"
+                                        data-label="{{ $seg['label'] }}"
+                                        data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"/>
                                     @endif
                                 @endforeach
                             </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 <span class="text-[20px] font-black text-[#0d326b]">{{ $scoreTotal }}</span>
                                 <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Attempts</span>
                             </div>
@@ -390,5 +649,83 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ── Line Chart Tooltip ──────────────────────────────────────────────────
+    (function() {
+        const wrap = document.querySelector('.chart-wrapper');
+        const tip = document.getElementById('lineChartTooltip');
+        if (!wrap || !tip) return;
+        const tipLabel = document.getElementById('lineTooltipLabel');
+        const tipValue = document.getElementById('lineTooltipValue');
+
+        wrap.querySelectorAll('.line-point-hit').forEach(function(hit) {
+            hit.addEventListener('mouseenter', function(e) {
+                const rect = hit.getBoundingClientRect();
+                const wrapRect = wrap.getBoundingClientRect();
+                tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
+                tip.style.top = (rect.top - wrapRect.top - 6) + 'px';
+                tipLabel.textContent = hit.dataset.label;
+                tipValue.textContent = hit.dataset.value;
+                tip.classList.add('visible');
+            });
+            hit.addEventListener('mouseleave', function() {
+                tip.classList.remove('visible');
+            });
+        });
+    })();
+
+    // ── Mastery Donut Tooltip ──────────────────────────────────────────────
+    (function() {
+        const wrap = document.querySelector('.panel:has(.mastery-donut-hit)');
+        if (!wrap) return;
+        const tip = wrap.querySelector('#masteryDonutTooltip');
+        if (!tip) return;
+        const tipLabel = tip.querySelector('#masteryDonutLabel');
+        const tipValue = tip.querySelector('#masteryDonutValue');
+
+        wrap.querySelectorAll('.mastery-donut-hit').forEach(function(seg) {
+            seg.addEventListener('mouseenter', function(e) {
+                const rect = seg.getBoundingClientRect();
+                const wrapRect = wrap.getBoundingClientRect();
+                tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
+                tip.style.top = (rect.top - wrapRect.top - 8) + 'px';
+                tipLabel.textContent = seg.dataset.label;
+                tipValue.textContent = seg.dataset.value;
+                tip.classList.add('visible');
+            });
+            seg.addEventListener('mouseleave', function() {
+                tip.classList.remove('visible');
+            });
+        });
+    })();
+
+    // ── Score Donut Tooltip ────────────────────────────────────────────────
+    (function() {
+        const wrap = document.querySelector('.panel:has(.score-donut-hit)');
+        if (!wrap) return;
+        const tip = wrap.querySelector('#scoreDonutTooltip');
+        if (!tip) return;
+        const tipLabel = tip.querySelector('#scoreDonutLabel');
+        const tipValue = tip.querySelector('#scoreDonutValue');
+
+        wrap.querySelectorAll('.score-donut-hit').forEach(function(seg) {
+            seg.addEventListener('mouseenter', function(e) {
+                const rect = seg.getBoundingClientRect();
+                const wrapRect = wrap.getBoundingClientRect();
+                tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
+                tip.style.top = (rect.top - wrapRect.top - 8) + 'px';
+                tipLabel.textContent = seg.dataset.label;
+                tipValue.textContent = seg.dataset.value;
+                tip.classList.add('visible');
+            });
+            seg.addEventListener('mouseleave', function() {
+                tip.classList.remove('visible');
+            });
+        });
+    })();
+});
+</script>
 
 @endsection

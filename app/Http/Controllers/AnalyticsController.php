@@ -11,7 +11,7 @@ use Carbon\Carbon;
 
 class AnalyticsController extends Controller
 {
-    public function index()
+    public function index(\Illuminate\Http\Request $request)
     {
         $user    = Auth::user();
         $teacher = $user->teacher;
@@ -63,9 +63,36 @@ class AnalyticsController extends Controller
             ]);
         }
 
-        $avgQuizScore = DB::table('quiz_attempts')
+        // Filter parameters
+        $period = $request->get('period', 'weekly');
+        $year   = (int) $request->get('year', date('Y'));
+        $month  = (int) $request->get('month', date('n'));
+
+        // Base quiz attempt query for top stats
+        $quizQuery = DB::table('quiz_attempts')
             ->whereIn('student_id', $studentIds)
-            ->where('status', 'completed')
+            ->where('status', 'completed');
+
+        if ($period === 'weekly') {
+            $startDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks(7)->startOfDay();
+            $endDate   = Carbon::now()->endOfWeek(Carbon::SUNDAY)->endOfDay();
+        } elseif ($period === 'monthly') {
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth()->startOfDay();
+            $endDate   = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
+        } elseif ($period === 'quarterly') {
+            $qStartMonth = (ceil($month / 3) - 1) * 3 + 1;
+            $startDate   = Carbon::create($year, $qStartMonth, 1)->startOfMonth()->startOfDay();
+            $endDate     = Carbon::create($year, $qStartMonth + 2, 1)->endOfMonth()->endOfDay();
+        } elseif ($period === 'yearly') {
+            $startDate = Carbon::create($year, 1, 1)->startOfYear()->startOfDay();
+            $endDate   = Carbon::create($year, 12, 31)->endOfYear()->endOfDay();
+        } else {
+            $startDate = Carbon::now()->subMonths(6)->startOfDay();
+            $endDate   = Carbon::now()->endOfDay();
+        }
+
+        $avgQuizScore = (clone $quizQuery)
+            ->whereBetween('completed_at', [$startDate, $endDate])
             ->avg('percentage') ?? 0;
 
         $totalGesturesAttempted = DB::table('gesture_performances')
@@ -140,18 +167,64 @@ class AnalyticsController extends Controller
         ]);
 
         $progressOverTime = [];
-        for ($weeksAgo = 7; $weeksAgo >= 0; $weeksAgo--) {
-            $weekStart = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks($weeksAgo);
-            $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
-            $value = DB::table('quiz_attempts')
-                ->whereIn('student_id', $studentIds)
-                ->where('status', 'completed')
-                ->whereBetween('completed_at', [$weekStart->startOfDay(), $weekEnd->endOfDay()])
-                ->avg('percentage') ?: 0;
-            $progressOverTime[] = [
-                'label' => $weekStart->format('M d'),
-                'value' => round($value, 1),
-            ];
+        if ($period === 'weekly') {
+            for ($weeksAgo = 7; $weeksAgo >= 0; $weeksAgo--) {
+                $wStart = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks($weeksAgo);
+                $wEnd   = $wStart->copy()->endOfWeek(Carbon::SUNDAY);
+                $val    = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'completed')
+                    ->whereBetween('completed_at', [$wStart->startOfDay(), $wEnd->endOfDay()])
+                    ->avg('percentage') ?: 0;
+                $progressOverTime[] = [
+                    'label' => $wStart->format('M d'),
+                    'value' => round($val, 1),
+                ];
+            }
+        } elseif ($period === 'monthly') {
+            $mStart = Carbon::create($year, $month, 1)->startOfMonth();
+            $daysInMonth = $mStart->daysInMonth;
+            // 4 intervals (weeks of the month)
+            for ($i = 0; $i < 4; $i++) {
+                $dStart = $mStart->copy()->addDays($i * 7);
+                $dEnd   = ($i === 3) ? $mStart->copy()->endOfMonth() : $mStart->copy()->addDays(($i + 1) * 7 - 1);
+                $val    = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'completed')
+                    ->whereBetween('completed_at', [$dStart->startOfDay(), $dEnd->endOfDay()])
+                    ->avg('percentage') ?: 0;
+                $progressOverTime[] = [
+                    'label' => $dStart->format('M d'),
+                    'value' => round($val, 1),
+                ];
+            }
+        } elseif ($period === 'quarterly') {
+            $qStartMonth = (ceil($month / 3) - 1) * 3 + 1;
+            for ($m = 0; $m < 3; $m++) {
+                $curM = Carbon::create($year, $qStartMonth + $m, 1);
+                $val  = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'completed')
+                    ->whereBetween('completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
+                    ->avg('percentage') ?: 0;
+                $progressOverTime[] = [
+                    'label' => $curM->format('M Y'),
+                    'value' => round($val, 1),
+                ];
+            }
+        } elseif ($period === 'yearly') {
+            for ($m = 1; $m <= 12; $m++) {
+                $curM = Carbon::create($year, $m, 1);
+                $val  = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'completed')
+                    ->whereBetween('completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
+                    ->avg('percentage') ?: 0;
+                $progressOverTime[] = [
+                    'label' => $curM->format('M'),
+                    'value' => round($val, 1),
+                ];
+            }
         }
 
         $lessonDifficulty = DB::table('lesson_assignments')
@@ -280,7 +353,6 @@ class AnalyticsController extends Controller
                     'attempts'  => $student->attempts,
                 ];
             })
-            ->filter(fn ($s) => $s['attempts'] > 0)
             ->sortByDesc('avg_score')
             ->values();
  
