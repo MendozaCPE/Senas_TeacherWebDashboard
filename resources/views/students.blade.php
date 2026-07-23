@@ -872,7 +872,7 @@ function applyServerFilters(overrides = {}) {
     if (levelVal) url.searchParams.set('level', levelVal); else url.searchParams.delete('level');
     if (programVal) url.searchParams.set('program', programVal); else url.searchParams.delete('program');
     if (statusVal && statusVal !== 'all') url.searchParams.set('status', statusVal); else url.searchParams.delete('status');
-    url.searchParams.delete('page'); // Reset to page 1 on new filter
+    url.searchParams.delete('page');
 
     window.location.href = url.toString();
 }
