@@ -29,8 +29,8 @@
 .xp-eligible-chip { display: inline-flex; align-items: center; gap: 3px; background: #dbeafe; color: #0d326b; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; letter-spacing: .05em; animation: pulse-chip 2s infinite; }
 @keyframes pulse-chip { 0%,100%{opacity:1} 50%{opacity:.7} }
 
-/* ── Promote button ───────────────────────────────── */
-.promo-btn-eligible  { background: linear-gradient(135deg,#1a6fd4,#0d326b); color:#fff; border: none; }
+/* ── Promote/Demote buttons ───────────────────────── */
+.promo-btn-eligible  { background: linear-gradient(135deg, #1a6fd4, #0d326b); color:#fff; border: none; }
 .promo-btn-eligible:hover  { box-shadow: 0 4px 16px rgba(13,50,107,.35); transform: scale(1.04); }
 .promo-btn-locked    { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
 .promo-btn-locked:hover    { background: #f1f5f9; border-color: #cbd5e1; }
@@ -38,25 +38,21 @@
 
 .promo-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s; white-space: nowrap; }
 
-/* ── Promotion history item ───────────────────────── */
+/* ── Demote button ────────────────────────────────── */
+.demote-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s; white-space: nowrap; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.demote-btn:hover { background: #fee2e2; border-color: #fca5a5; transform: scale(1.04); }
+
+/* ── Promotion/demotion history item ──────────────── */
 .hist-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; margin-bottom: 8px; }
 .hist-dot  { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+
+/* ── Ready to Promote KPI (golden gradient like Senya tip) ── */
+.kpi-ready-promote {
+    background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
+}
 </style>
 
 <div class="space-y-6">
-
-    {{-- ══════════ HEADER ══════════ --}}
-    <div class="flex items-start justify-between">
-        <div>
-            <p class="text-[11px] font-bold text-[#0d326b] tracking-[0.15em] uppercase mb-1">Management</p>
-            <h2 class="text-[32px] font-semibold text-[#0d326b] leading-tight">Student Overview</h2>
-        </div>
-        <button id="open-modal-btn"
-            class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-5 py-3 rounded-xl text-[14px] font-bold transition-all flex items-center space-x-2 shadow-md mt-1 border border-[#0d326b]/20">
-            <span class="material-symbols-outlined icon-outline text-[20px]">person_add</span>
-            <span>Add New Student</span>
-        </button>
-    </div>
 
     {{-- ══════════ STAT CARDS ══════════ --}}
     @php
@@ -73,7 +69,6 @@
         })->count();
     @endphp
 
-    {{-- Row 1: Total + Avg XP + Ready to Promote --}}
     <div class="grid grid-cols-3 gap-4">
 
         {{-- Total Students --}}
@@ -115,17 +110,17 @@
             </div>
         </div>
 
-        {{-- Ready to Promote --}}
-        <div class="stat-card relative" style="background:linear-gradient(135deg,#fef3c7,#fde68a)">
+        {{-- Ready to Promote — golden gradient like Senya tip --}}
+        <div class="stat-card kpi-ready-promote">
             <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
             <div class="flex items-center justify-between relative z-10">
                 <div>
                     <div class="flex items-center gap-1.5 mb-2">
-                        <span class="material-symbols-outlined text-amber-600/60 text-[15px]">workspace_premium</span>
-                        <p class="text-[10px] font-bold text-amber-700/70 uppercase tracking-widest">Ready to Promote</p>
+                        <span class="material-symbols-outlined text-amber-700/60 text-[15px]">workspace_premium</span>
+                        <p class="text-[10px] font-bold text-amber-800/70 uppercase tracking-widest">Ready to Promote</p>
                     </div>
                     <p class="text-[46px] font-black text-[#92400e] leading-none">{{ $readyToPromote }}</p>
-                    <p class="text-[11px] font-semibold text-amber-700 mt-2">
+                    <p class="text-[11px] font-semibold text-amber-800 mt-2">
                         student{{ $readyToPromote !== 1 ? 's' : '' }} eligible for next level
                     </p>
                 </div>
@@ -143,38 +138,43 @@
         {{-- ── LEFT: Table Panel ── --}}
         <div class="flex-1 min-w-0">
 
-            {{-- Filter Toolbar --}}
+            {{-- Filter Toolbar with Add Student button integrated --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center gap-3 flex-wrap">
                 <div class="relative shrink-0 order-1 lg:order-none">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                    <input id="student-search" type="text" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
+                    <input id="student-search" type="text" value="{{ request('search') }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
                 </div>
                 <div class="bg-[#f1f5f9] p-1 rounded-full flex items-center shadow-inner shrink-0 order-2 lg:order-none">
-                    <button data-filter="all" class="filter-tab px-5 py-2 bg-white text-[#0d326b] text-[12px] font-bold rounded-full shadow-sm transition-all">All Students</button>
-                    <button data-filter="active" class="filter-tab px-5 py-2 text-slate-500 hover:text-[#0d326b] text-[12px] font-medium rounded-full transition-all">Active Only</button>
+                    <button data-filter="all" class="filter-tab px-5 py-2 {{ request('status', 'all') === 'all' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">All Students</button>
+                    <button data-filter="active" class="filter-tab px-5 py-2 {{ request('status') === 'active' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">Active Only</button>
                 </div>
                 <div class="flex-1"></div>
                 <div class="relative shrink-0">
                     <select id="filter-level" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
                         <option value="">Filter: Level</option>
-                        <option value="Beginner">Beginner</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                        <option value="Completed">Completed</option>
+                        <option value="Beginner" {{ request('level') === 'Beginner' ? 'selected' : '' }}>Beginner</option>
+                        <option value="Intermediate" {{ request('level') === 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
+                        <option value="Advanced" {{ request('level') === 'Advanced' ? 'selected' : '' }}>Advanced</option>
+                        <option value="Completed" {{ request('level') === 'Completed' ? 'selected' : '' }}>Completed</option>
                     </select>
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
                 </div>
                 <div class="relative shrink-0">
                     <select id="filter-program" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
                         <option value="">Filter: Program Type</option>
-                        <option value="Regular">Regular</option>
-                        <option value="Self-contained">Self-Contained</option>
-                        <option value="Transition">Transition</option>
-                        <option value="Inclusion">Inclusion</option>
+                        <option value="Regular" {{ request('program') === 'Regular' ? 'selected' : '' }}>Regular</option>
+                        <option value="Self-contained" {{ request('program') === 'Self-contained' ? 'selected' : '' }}>Self-Contained</option>
+                        <option value="Transition" {{ request('program') === 'Transition' ? 'selected' : '' }}>Transition</option>
+                        <option value="Inclusion" {{ request('program') === 'Inclusion' ? 'selected' : '' }}>Inclusion</option>
                     </select>
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
                 </div>
-                <span id="results-count" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0"></span>
+                {{-- Add Student Button moved here --}}
+                <button id="open-modal-btn"
+                    class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center space-x-2 shadow-sm border border-[#0d326b]/20 shrink-0">
+                    <span class="material-symbols-outlined icon-outline text-[18px]">person_add</span>
+                    <span>Add Student</span>
+                </button>
             </div>
 
             {{-- Student Table --}}
@@ -200,6 +200,15 @@
                             elseif  ($lvl==='Intermediate') { $promoteTo='Advanced';     $promoteXp=$m2; $enoughXp=$xp>=$m2; }
                             elseif  ($lvl==='Advanced')     { $promoteTo='Completed';    $promoteXp=$m3; $enoughXp=$xp>=$m3; }
 
+                            // Demotion: can demote from any level except Beginner
+                            $canDemote = $lvl !== 'Beginner';
+                            $demoteTo = match($lvl) {
+                                'Intermediate' => 'Beginner',
+                                'Advanced' => 'Intermediate',
+                                'Completed' => 'Advanced',
+                                default => null
+                            };
+
                             // Bar calculations (relative to next threshold)
                             if      ($lvl==='Beginner')     { $barMax=$m1; $barXp=min($xp,$m1); }
                             elseif  ($lvl==='Intermediate') { $barMax=$m2; $barXp=min($xp,$m2); }
@@ -218,7 +227,7 @@
                                 'inactive' => ['dot'=>'bg-slate-300',  'text'=>'text-slate-400'],
                                 default    => ['dot'=>'bg-red-300',    'text'=>'text-red-400'],
                             };
-                            // Promotion history for this student (already eager-loaded)
+                            // Promotion/demotion history for this student (already eager-loaded)
                             $promoHistory = $student->promotions ?? collect();
                         @endphp
                         <tr class="hover:bg-slate-50/60 transition-colors group student-row"
@@ -301,26 +310,42 @@
 
                             {{-- Actions --}}
                             <td class="py-4 px-5 text-right">
-                                @if($promoteTo)
-                                <button class="promote-btn promo-btn {{ $enoughXp ? 'promo-btn-eligible' : 'promo-btn-locked' }}"
-                                    data-student-id="{{ $student->student_id }}"
-                                    data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
-                                    data-current-level="{{ $lvl }}"
-                                    data-target-level="{{ $promoteTo }}"
-                                    data-current-xp="{{ $xp }}"
-                                    data-required-xp="{{ $promoteXp }}"
-                                    data-enough="{{ $enoughXp ? 'true' : 'false' }}"
-                                    data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
-                                    title="{{ $enoughXp ? 'Promote to '.$promoteTo : 'Force promote (XP insufficient)' }}">
-                                    <span class="material-symbols-outlined text-[13px]">{{ $enoughXp ? 'arrow_upward' : 'lock' }}</span>
-                                    <span>{{ $enoughXp ? 'Promote' : 'Promote' }}</span>
-                                </button>
-                                @else
-                                <span class="promo-btn promo-btn-completed">
-                                    <span class="material-symbols-outlined text-[13px]">verified</span>
-                                    <span>Completed</span>
-                                </span>
-                                @endif
+                                <div class="flex items-center justify-end gap-1.5">
+                                    @if($canDemote)
+                                    <button class="demote-btn"
+                                        data-student-id="{{ $student->student_id }}"
+                                        data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
+                                        data-current-level="{{ $lvl }}"
+                                        data-target-level="{{ $demoteTo }}"
+                                        data-current-xp="{{ $xp }}"
+                                        data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
+                                        title="Demote to {{ $demoteTo }}">
+                                        <span class="material-symbols-outlined text-[13px]">arrow_downward</span>
+                                        <span>Demote</span>
+                                    </button>
+                                    @endif
+
+                                    @if($promoteTo)
+                                    <button class="promote-btn promo-btn {{ $enoughXp ? 'promo-btn-eligible' : 'promo-btn-locked' }}"
+                                        data-student-id="{{ $student->student_id }}"
+                                        data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
+                                        data-current-level="{{ $lvl }}"
+                                        data-target-level="{{ $promoteTo }}"
+                                        data-current-xp="{{ $xp }}"
+                                        data-required-xp="{{ $promoteXp }}"
+                                        data-enough="{{ $enoughXp ? 'true' : 'false' }}"
+                                        data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
+                                        title="{{ $enoughXp ? 'Promote to '.$promoteTo : 'Force promote (XP insufficient)' }}">
+                                        <span class="material-symbols-outlined text-[13px]">{{ $enoughXp ? 'arrow_upward' : 'lock' }}</span>
+                                        <span>{{ $enoughXp ? 'Promote' : 'Promote' }}</span>
+                                    </button>
+                                    @else
+                                    <span class="promo-btn promo-btn-completed">
+                                        <span class="material-symbols-outlined text-[13px]">verified</span>
+                                        <span>Completed</span>
+                                    </span>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                         @empty
@@ -354,7 +379,7 @@
         {{-- ── RIGHT SIDEBAR ── --}}
         <div class="w-[260px] shrink-0 space-y-4">
 
-            {{-- FSL Mastery Donut --}}
+            {{-- FSL Mastery Donut (updated with gradients & tooltips like dashboard) --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">FSL Mastery Distribution</p>
                 @php
@@ -371,40 +396,68 @@
                     $begOff  = 0; $intOff = -$begDash;
                     $advOff  = -($begDash + $intDash);
                     $comOff  = -($begDash + $intDash + $advDash);
+
+                    $donutSegments = [
+                        ['count' => $beginnerCnt, 'pct' => $begPct, 'dash' => $begDash, 'offset' => $begOff, 'label' => 'Beginner', 'grad_id' => 'masteryGradBeginner', 'grad_from' => '#93c5fd', 'grad_to' => '#3b82f6'],
+                        ['count' => $intermCnt, 'pct' => $intPct, 'dash' => $intDash, 'offset' => $intOff, 'label' => 'Intermediate', 'grad_id' => 'masteryGradIntermediate', 'grad_from' => '#3b82f6', 'grad_to' => '#1e4b8f'],
+                        ['count' => $advancedCnt, 'pct' => $advPct, 'dash' => $advDash, 'offset' => $advOff, 'label' => 'Advanced', 'grad_id' => 'masteryGradAdvanced', 'grad_from' => '#1e4b8f', 'grad_to' => '#0d326b'],
+                        ['count' => $completedCnt, 'pct' => $comPct, 'dash' => $comDash, 'offset' => $comOff, 'label' => 'Completed', 'grad_id' => 'masteryGradCompleted', 'grad_from' => '#0d326b', 'grad_to' => '#071c3f'],
+                    ];
                 @endphp
                 <div class="flex items-center justify-center mb-4">
                     <div class="relative w-[120px] h-[120px]">
+                        <div id="masteryDonutTooltip" class="pointer-events-none absolute z-20 opacity-0 transition-opacity duration-150 left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%] bg-[#0d326b] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                            <span id="masteryDonutTooltipLabel"></span>: <span id="masteryDonutTooltipValue"></span>
+                            <div class="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45"></div>
+                        </div>
                         <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
                             <defs>
-                                <linearGradient id="masteryGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" stop-color="#93c5fd" />
-                                    <stop offset="33%" stop-color="#3b82f6" />
-                                    <stop offset="66%" stop-color="#1e4b8f" />
-                                    <stop offset="100%" stop-color="#0d326b" />
+                                @foreach($donutSegments as $seg)
+                                <linearGradient id="{{ $seg['grad_id'] }}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="{{ $seg['grad_from'] }}"/>
+                                    <stop offset="100%" stop-color="{{ $seg['grad_to'] }}"/>
                                 </linearGradient>
+                                @endforeach
                             </defs>
                             <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                            @if($begDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $begDash }} {{ $circ-$begDash }}" stroke-dashoffset="{{ $begOff }}" stroke-linecap="round"/>@endif
-                            @if($intDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $intDash }} {{ $circ-$intDash }}" stroke-dashoffset="{{ $intOff }}" stroke-linecap="round"/>@endif
-                            @if($advDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $advDash }} {{ $circ-$advDash }}" stroke-dashoffset="{{ $advOff }}" stroke-linecap="round"/>@endif
-                            @if($comDash>0)<circle cx="50" cy="50" r="40" fill="none" stroke="url(#masteryGradient)" stroke-width="14" stroke-dasharray="{{ $comDash }} {{ $circ-$comDash }}" stroke-dashoffset="{{ $comOff }}" stroke-linecap="round"/>@endif
+                            @foreach($donutSegments as $seg)
+                                @if($seg['dash'] > 0)
+                                <circle class="mastery-donut-hit" cx="50" cy="50" r="40" fill="transparent"
+                                        stroke="url(#{{ $seg['grad_id'] }})"
+                                        stroke-width="14"
+                                        stroke-dasharray="{{ $seg['dash'] }} {{ $circ - $seg['dash'] }}"
+                                        stroke-dashoffset="{{ $seg['offset'] }}"
+                                        stroke-linecap="round"
+                                        style="cursor:pointer"
+                                        data-label="{{ $seg['label'] }}"
+                                        data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"></circle>
+                                @endif
+                            @endforeach
                         </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                             <span class="text-[22px] font-black text-[#0d326b]">{{ $allStudents->count() }}</span>
                             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Students</span>
                         </div>
                     </div>
                 </div>
+
+                {{-- Legend with gradient bars --}}
                 <div class="space-y-2.5">
                     @foreach([
-                        ['color'=>'bg-blue-100',  'dot'=>'#93c5fd','label'=>'Beginner',     'pct'=>$begPct,'cnt'=>$beginnerCnt],
-                        ['color'=>'bg-blue-400',  'dot'=>'#3b82f6','label'=>'Intermediate', 'pct'=>$intPct,'cnt'=>$intermCnt],
-                        ['color'=>'bg-blue-700',  'dot'=>'#1e4b8f','label'=>'Advanced',     'pct'=>$advPct,'cnt'=>$advancedCnt],
-                        ['color'=>'bg-[#0d326b]', 'dot'=>'#0d326b','label'=>'Completed',    'pct'=>$comPct,'cnt'=>$completedCnt],
+                        ['label'=>'Beginner', 'pct'=>$begPct, 'cnt'=>$beginnerCnt, 'grad'=>'masteryGradBeginner'],
+                        ['label'=>'Intermediate', 'pct'=>$intPct, 'cnt'=>$intermCnt, 'grad'=>'masteryGradIntermediate'],
+                        ['label'=>'Advanced', 'pct'=>$advPct, 'cnt'=>$advancedCnt, 'grad'=>'masteryGradAdvanced'],
+                        ['label'=>'Completed', 'pct'=>$comPct, 'cnt'=>$completedCnt, 'grad'=>'masteryGradCompleted'],
                     ] as $e)
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full {{ $e['color'] }} shrink-0"></span>
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ match($e['label']) {
+                                'Beginner' => '#93c5fd',
+                                'Intermediate' => '#3b82f6',
+                                'Advanced' => '#1e4b8f',
+                                'Completed' => '#0d326b',
+                                default => '#cbd5e1'
+                            } }}"></span>
                             <span class="text-[11px] font-medium text-slate-600">{{ $e['label'] }}</span>
                         </div>
                         <div class="flex items-center space-x-2">
@@ -458,7 +511,7 @@
                     @endphp
                     <div class="flex items-center space-x-3 p-2.5 rounded-xl {{ $rc['bg'] }}">
                         <div class="relative shrink-0">
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name.'+'. $student->last_name) }}&background=0d326b&color=fff&rounded=true&size=80" class="w-10 h-10 rounded-full" />
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode($ts->first_name.'+'.$ts->last_name) }}&background=0d326b&color=fff&rounded=true&size=80" class="w-10 h-10 rounded-full" />
                             <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full {{ $rc['badge'] }} text-[8px] font-black flex items-center justify-center">{{ $idx+1 }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -569,7 +622,76 @@
     </div>
 </div>
 
-{{-- ══════════ ADD STUDENT MODAL ══════════ --}}
+{{-- ══════════ DEMOTE STUDENT MODAL ══════════ --}}
+<div id="demote-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div id="demote-card" class="bg-white rounded-[28px] w-[520px] max-w-full mx-4 shadow-2xl relative transform scale-95 transition-transform duration-300 overflow-hidden flex flex-col" style="max-height:92vh">
+
+        {{-- Colored top bar (red for demotion) --}}
+        <div class="h-1.5 w-full bg-gradient-to-r from-red-400 to-red-600 shrink-0"></div>
+
+        {{-- Scrollable body --}}
+        <div class="overflow-y-auto flex-1 px-7 pt-6 pb-3">
+
+            {{-- Header --}}
+            <div class="flex items-start space-x-4 mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-red-600 text-[24px]">arrow_downward</span>
+                </div>
+                <div>
+                    <h3 class="text-[20px] font-black text-[#0d326b]">Demote Student</h3>
+                    <p class="text-[13px] text-slate-400 font-medium mt-0.5">Move down one mastery level</p>
+                </div>
+            </div>
+
+            {{-- Student info + level transition --}}
+            <div class="bg-slate-50 rounded-2xl p-4 mb-4 flex items-center space-x-3">
+                <img id="demote-avatar" src="" class="w-12 h-12 rounded-full ring-2 ring-slate-200" />
+                <div class="flex-1 min-w-0">
+                    <p id="demote-student-name" class="text-[14px] font-black text-[#0d326b] truncate"></p>
+                    <div class="flex items-center space-x-2 mt-1.5">
+                        <span id="demote-from-badge" class="lvl-badge"></span>
+                        <span class="material-symbols-outlined text-slate-400 text-[16px]">arrow_forward</span>
+                        <span id="demote-to-badge" class="lvl-badge"></span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- ⚠️ Warning --}}
+            <div class="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start space-x-3">
+                <span class="material-symbols-outlined text-red-500 text-[22px] shrink-0 mt-0.5">warning</span>
+                <div>
+                    <p class="text-[13px] font-bold text-red-800">Confirm Demotion</p>
+                    <p id="demote-warning-detail" class="text-[12px] text-red-600 mt-0.5"></p>
+                    <p class="text-[12px] text-red-700 font-semibold mt-2">This will move the student down one level. Are you sure?</p>
+                </div>
+            </div>
+
+            {{-- ── Promotion/Demotion History ── --}}
+            <div id="demote-history-wrap" class="mb-2">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Promotion History</p>
+                <div id="demote-history-list">
+                    {{-- filled by JS --}}
+                </div>
+                <div id="demote-history-empty" class="hidden text-center py-4">
+                    <span class="material-symbols-outlined text-slate-200 text-[32px] block mb-1">history</span>
+                    <p class="text-[11px] text-slate-400">No promotions yet</p>
+                </div>
+            </div>
+        </div>
+
+        {{-- Sticky footer buttons --}}
+        <div class="flex items-center justify-end space-x-3 px-7 py-4 border-t border-slate-100 shrink-0 bg-white">
+            <button id="demote-cancel-btn" class="px-6 py-2.5 text-slate-500 hover:text-slate-800 font-semibold text-[14px] transition-colors rounded-xl hover:bg-slate-100">Cancel</button>
+            <button id="demote-confirm-btn" class="flex items-center space-x-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-lg hover:shadow-red-200">
+                <span class="material-symbols-outlined text-[18px]">arrow_downward</span>
+                <span>Confirm Demotion</span>
+            </button>
+        </div>
+
+    </div>
+</div>
+
+{{-- ══════════ ADD STUDENT MODAL (same as before) ══════════ --}}
 <div id="add-student-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white rounded-[32px] w-[620px] max-w-full p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
         <button id="close-modal-btn" class="absolute top-7 right-7 text-slate-400 hover:text-slate-600 outline-none">
@@ -735,12 +857,48 @@ function mapExcelData(rows){if(!rows||rows.length<2)return[];const h=rows[0].map
 async function submitSingleStudent(event){event.preventDefault();hideAlert();const btn=document.getElementById('btn-single-submit'),nameVal=formSingle.querySelector('input[name="full_name"]').value;if(!nameVal.includes(',')){showAlert('Full Name must be "Last Name, First Name" (comma-separated).');return;}if(inputLrn.value.replace(/\D/g,'').length!==12){showAlert('LRN must be exactly 12 digits.');return;}await checkLrnUnique();if(lrnExists)return;const orig=btn.innerText;btn.innerText='Saving...';btn.disabled=true;const fd=new FormData(formSingle),showGS=['Regular','Inclusion'].includes(fd.get('program_type')),payload={lrn:fd.get('lrn'),full_name:fd.get('full_name'),program_type:fd.get('program_type'),age:fd.get('age'),fsl_mastery_level:fd.get('fsl_mastery_level')};if(showGS){payload.grade_level=fd.get('grade_level');payload.section=fd.get('section');}const token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.store') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message,'success');setTimeout(()=>window.location.reload(),1500);}else{showAlert(res.data.message||'An error occurred.');btn.innerText=orig;btn.disabled=false;}}catch(err){let msg='An error occurred while saving.';if(err.response?.data?.errors){const errors=err.response.data.errors;if(errors.lrn){showLrnError();msg=errors.lrn[0];}else{msg=Object.values(errors).flat().join('<br>');}}else if(err.response?.data?.message)msg=err.response.data.message;else if(err.request)msg=`Network error: ${err.message}`;showAlert(msg);btn.innerText=orig;btn.disabled=false;}}
 btnImport.addEventListener('click',async()=>{hideAlert();const orig=btnImport.innerText;btnImport.innerText='Importing...';btnImport.disabled=true;const payload={students:parsedStudents,auto_pin:document.getElementById('bulk-auto-pin').checked?1:0},token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.import') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message,'success');setTimeout(()=>window.location.reload(),1500);}else{showAlert(res.data.message||'Import error.');btnImport.innerText=orig;btnImport.disabled=false;}}catch(err){let msg='An error occurred during import.';if(err.response?.data?.errors)msg=Object.values(err.response.data.errors).flat().join('<br>');else if(err.response?.data?.message)msg=err.response.data.message;showAlert(msg);btnImport.innerText=orig;btnImport.disabled=false;}});
 
-// ─── Client-side Filtering ────────────────────────────────────────────────────
-const searchInput=document.getElementById('student-search'),filterLevel=document.getElementById('filter-level'),filterProgram=document.getElementById('filter-program'),filterTabs=document.querySelectorAll('.filter-tab'),noResults=document.getElementById('no-filter-results'),resultsCount=document.getElementById('results-count');
-let activeStatus='all';
-filterTabs.forEach(tab=>{tab.addEventListener('click',()=>{filterTabs.forEach(t=>{t.className='filter-tab px-5 py-2 text-slate-500 hover:text-[#0d326b] text-[12px] font-medium rounded-full transition-all';});tab.className='filter-tab px-5 py-2 bg-white text-[#0d326b] text-[12px] font-bold rounded-full shadow-sm transition-all';activeStatus=tab.dataset.filter;applyFilters();});});
-searchInput.addEventListener('input',applyFilters);filterLevel.addEventListener('change',applyFilters);filterProgram.addEventListener('change',applyFilters);
-function applyFilters(){const search=searchInput.value.toLowerCase().trim(),level=filterLevel.value,program=filterProgram.value,rows=document.querySelectorAll('.student-row');let visible=0;rows.forEach(row=>{const show=(activeStatus==='all'||row.dataset.status===activeStatus)&&(!search||row.dataset.name.includes(search))&&(!level||row.dataset.mastery===level)&&(!program||row.dataset.program===program);row.classList.toggle('hidden',!show);if(show)visible++;});noResults.classList.toggle('hidden',visible>0||rows.length===0);resultsCount.textContent=rows.length?`${visible} student${visible!==1?'s':''}`:'';} applyFilters();
+// ─── Server-side Filtering Navigation ──────────────────────────────────────────
+const searchInput=document.getElementById('student-search'),filterLevel=document.getElementById('filter-level'),filterProgram=document.getElementById('filter-program'),filterTabs=document.querySelectorAll('.filter-tab');
+let searchDebounceTimer = null;
+
+function applyServerFilters(overrides = {}) {
+    const url = new URL(window.location.href);
+    const searchVal = overrides.hasOwnProperty('search') ? overrides.search : searchInput.value.trim();
+    const levelVal = overrides.hasOwnProperty('level') ? overrides.level : filterLevel.value;
+    const programVal = overrides.hasOwnProperty('program') ? overrides.program : filterProgram.value;
+    const statusVal = overrides.hasOwnProperty('status') ? overrides.status : (document.querySelector('.filter-tab.font-bold')?.dataset.filter || 'all');
+
+    if (searchVal) url.searchParams.set('search', searchVal); else url.searchParams.delete('search');
+    if (levelVal) url.searchParams.set('level', levelVal); else url.searchParams.delete('level');
+    if (programVal) url.searchParams.set('program', programVal); else url.searchParams.delete('program');
+    if (statusVal && statusVal !== 'all') url.searchParams.set('status', statusVal); else url.searchParams.delete('status');
+    url.searchParams.delete('page'); // Reset to page 1 on new filter
+
+    window.location.href = url.toString();
+}
+
+filterTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        applyServerFilters({ status: tab.dataset.filter });
+    });
+});
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        applyServerFilters();
+    }, 500);
+});
+
+searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        clearTimeout(searchDebounceTimer);
+        applyServerFilters();
+    }
+});
+
+filterLevel.addEventListener('change', () => applyServerFilters());
+filterProgram.addEventListener('change', () => applyServerFilters());
 
 // ─── Promote Modal ────────────────────────────────────────────────────────────
 const promoteModal=document.getElementById('promote-modal'),promoteCard=document.getElementById('promote-card'),promoteTitle=document.getElementById('promote-title'),promoteSubtitle=document.getElementById('promote-subtitle'),promoteAvatar=document.getElementById('promote-avatar'),promoteStudentName=document.getElementById('promote-student-name'),promoteFromBadge=document.getElementById('promote-from-badge'),promoteToBadge=document.getElementById('promote-to-badge'),promoteXpWarning=document.getElementById('promote-xp-warning'),promoteXpDetail=document.getElementById('promote-xp-detail'),promoteXpOk=document.getElementById('promote-xp-ok'),promoteXpOkDetail=document.getElementById('promote-xp-ok-detail'),promoteHeaderBar=document.getElementById('promote-header-bar'),promoteIconWrap=document.getElementById('promote-icon-wrap'),promoteIcon=document.getElementById('promote-icon'),promoteCancelBtn=document.getElementById('promote-cancel-btn'),promoteConfirmBtn=document.getElementById('promote-confirm-btn'),promoteConfirmLabel=document.getElementById('promote-confirm-label'),promoteXpBar=document.getElementById('promote-xp-bar'),promoteXpFraction=document.getElementById('promote-xp-fraction'),promoteXpTargetLabel=document.getElementById('promote-xp-target-label'),promoteHistoryList=document.getElementById('promote-history-list'),promoteHistoryEmpty=document.getElementById('promote-history-empty');
@@ -753,15 +911,18 @@ const lvlMeta={
     'Completed':    {cssClass:'completed',     barColor:'#0d326b'},
 };
 
-function renderHistory(history){
-    promoteHistoryList.innerHTML='';
-    if(!history||!history.length){promoteHistoryEmpty.classList.remove('hidden');return;}
-    promoteHistoryEmpty.classList.add('hidden');
+function renderHistory(history, containerId, emptyId){
+    const list = document.getElementById(containerId);
+    const empty = document.getElementById(emptyId);
+    if(!list) return;
+    list.innerHTML='';
+    if(!history||!history.length){if(empty) empty.classList.remove('hidden');return;}
+    if(empty) empty.classList.add('hidden');
     history.forEach(h=>{
         const fromMeta=lvlMeta[h.from]||lvlMeta['Beginner'];
         const toMeta=lvlMeta[h.to]||lvlMeta['Beginner'];
         const forcedBadge=h.forced?`<span style="background:#fef3c7;color:#92400e;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9999px;margin-left:6px">forced</span>`:'';
-        promoteHistoryList.innerHTML+=`
+        list.innerHTML+=`
         <div class="hist-item">
             <div class="hist-dot" style="background:${toMeta.barColor}"></div>
             <div class="flex-1 min-w-0">
@@ -786,17 +947,14 @@ function openPromoteModal(btn){
     currentPromoteData={studentId:sid,targetLevel:tgt,force:!ok};
     promoteAvatar.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(sname.replace(/ /g,'+'))}&background=0d326b&color=fff&rounded=true&size=80`;
     promoteStudentName.textContent=sname;
-    // Badges
     const fc=lvlMeta[cur]||lvlMeta['Beginner'],tc=lvlMeta[tgt]||lvlMeta['Beginner'];
     promoteFromBadge.className=`lvl-badge ${fc.cssClass}`;promoteFromBadge.textContent=cur;
     promoteToBadge.className=`lvl-badge ${tc.cssClass}`;promoteToBadge.textContent=tgt;
-    // XP bar
     const pct=rxp>0?Math.min(100,Math.round(cxp/rxp*100)):100;
     promoteXpBar.style.width=pct+'%';
     promoteXpBar.style.background=ok?`linear-gradient(90deg,${tc.barColor}88,${tc.barColor})`:`linear-gradient(90deg,#f59e0b88,#f59e0b)`;
     promoteXpFraction.textContent=`${cxp.toLocaleString()} / ${rxp.toLocaleString()} XP`;
     promoteXpTargetLabel.textContent=`${rxp.toLocaleString()} XP required`;
-    // Status panels
     promoteXpWarning.classList.add('hidden');promoteXpOk.classList.add('hidden');
     if(ok){
         promoteXpOk.classList.remove('hidden');
@@ -817,8 +975,7 @@ function openPromoteModal(btn){
         promoteConfirmBtn.className='flex items-center space-x-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:shadow-lg hover:shadow-amber-200';
         promoteConfirmLabel.textContent='Promote Anyway';
     }
-    // Render history
-    renderHistory(history);
+    renderHistory(history, 'promote-history-list', 'promote-history-empty');
     promoteModal.classList.remove('hidden');
     requestAnimationFrame(()=>{promoteModal.classList.remove('opacity-0');promoteCard.classList.remove('scale-95');});
 }
@@ -826,6 +983,48 @@ function closePromoteModal(){promoteModal.classList.add('opacity-0');promoteCard
 document.querySelectorAll('.promote-btn').forEach(btn=>{btn.addEventListener('click',()=>openPromoteModal(btn));});
 promoteCancelBtn.addEventListener('click',closePromoteModal);promoteModal.addEventListener('click',e=>{if(e.target===promoteModal)closePromoteModal();});
 promoteConfirmBtn.addEventListener('click',async()=>{if(!currentPromoteData)return;const origInner=promoteConfirmBtn.innerHTML;promoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Promoting...</span>';promoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentPromoteData.studentId}/promote`;try{const res=await axios.post(url,{target_level:currentPromoteData.targetLevel,force:currentPromoteData.force?1:0},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){promoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-emerald-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Promoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>window.location.reload(),1400);}else{promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;}}catch(err){promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
+
+// ─── Demote Modal ─────────────────────────────────────────────────────────────
+const demoteModal=document.getElementById('demote-modal'),demoteCard=document.getElementById('demote-card'),demoteAvatar=document.getElementById('demote-avatar'),demoteStudentName=document.getElementById('demote-student-name'),demoteFromBadge=document.getElementById('demote-from-badge'),demoteToBadge=document.getElementById('demote-to-badge'),demoteWarningDetail=document.getElementById('demote-warning-detail'),demoteCancelBtn=document.getElementById('demote-cancel-btn'),demoteConfirmBtn=document.getElementById('demote-confirm-btn');
+let currentDemoteData=null;
+
+function openDemoteModal(btn){
+    const sid=btn.dataset.studentId,sname=btn.dataset.studentName,cur=btn.dataset.currentLevel,tgt=btn.dataset.targetLevel;
+    let history=[];try{history=JSON.parse(btn.dataset.history||'[]');}catch(e){}
+    currentDemoteData={studentId:sid,targetLevel:tgt};
+    demoteAvatar.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(sname.replace(/ /g,'+'))}&background=0d326b&color=fff&rounded=true&size=80`;
+    demoteStudentName.textContent=sname;
+    const fc=lvlMeta[cur]||lvlMeta['Beginner'],tc=lvlMeta[tgt]||lvlMeta['Beginner'];
+    demoteFromBadge.className=`lvl-badge ${fc.cssClass}`;demoteFromBadge.textContent=cur;
+    demoteToBadge.className=`lvl-badge ${tc.cssClass}`;demoteToBadge.textContent=tgt;
+    demoteWarningDetail.textContent=`This will move ${sname} from ${cur} down to ${tgt}. They will lose their current level status.`;
+    renderHistory(history, 'demote-history-list', 'demote-history-empty');
+    demoteModal.classList.remove('hidden');
+    requestAnimationFrame(()=>{demoteModal.classList.remove('opacity-0');demoteCard.classList.remove('scale-95');});
+}
+function closeDemoteModal(){demoteModal.classList.add('opacity-0');demoteCard.classList.add('scale-95');setTimeout(()=>demoteModal.classList.add('hidden'),300);currentDemoteData=null;}
+document.querySelectorAll('.demote-btn').forEach(btn=>{btn.addEventListener('click',()=>openDemoteModal(btn));});
+demoteCancelBtn.addEventListener('click',closeDemoteModal);demoteModal.addEventListener('click',e=>{if(e.target===demoteModal)closeDemoteModal();});
+demoteConfirmBtn.addEventListener('click',async()=>{if(!currentDemoteData)return;const origInner=demoteConfirmBtn.innerHTML;demoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Demoting...</span>';demoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentDemoteData.studentId}/demote`;try{const res=await axios.post(url,{target_level:currentDemoteData.targetLevel},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){demoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-red-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Demoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>window.location.reload(),1400);}else{demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;}}catch(err){demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
+
+// ─── Mastery Donut Tooltip ──────────────────────────────────────────────────
+document.querySelectorAll('.mastery-donut-hit').forEach(function(seg){
+    const donutWrap=seg.closest('.relative.w-\\[120px\\]');
+    const tip=donutWrap?.querySelector('#masteryDonutTooltip');
+    if(!tip)return;
+    const tipLabel=tip.querySelector('#masteryDonutTooltipLabel');
+    const tipValue=tip.querySelector('#masteryDonutTooltipValue');
+    seg.addEventListener('mouseenter',function(){
+        tipLabel.textContent=seg.dataset.label;
+        tipValue.textContent=seg.dataset.value;
+        tip.classList.remove('opacity-0');
+        tip.classList.add('opacity-100');
+    });
+    seg.addEventListener('mouseleave',function(){
+        tip.classList.remove('opacity-100');
+        tip.classList.add('opacity-0');
+    });
+});
 </script>
 
 @endsection

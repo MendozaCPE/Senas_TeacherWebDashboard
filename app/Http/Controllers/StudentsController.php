@@ -13,7 +13,7 @@ use Carbon\Carbon;
 
 class StudentsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $teacher = Auth::user()->teacher;
         
@@ -27,11 +27,38 @@ class StudentsController extends Controller
                                   ->where('created_at', '>=', Carbon::now()->subWeek())
                                   ->count();
                                   
-            // Get all students for this teacher, ideally paginate them
-            $students = Student::where('teacher_id', $teacher->id)
-                               ->with('promotions')
-                               ->orderBy('created_at', 'desc')
-                               ->paginate(10);
+            $query = Student::where('teacher_id', $teacher->id)
+                            ->with('promotions');
+
+            // Search filter (Name or LRN)
+            if ($request->filled('search')) {
+                $search = trim($request->search);
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$search}%")
+                      ->orWhere('lrn', 'like', "%{$search}%");
+                });
+            }
+
+            // Level filter
+            if ($request->filled('level')) {
+                $query->where('fsl_mastery_level', $request->level);
+            }
+
+            // Program Type filter
+            if ($request->filled('program')) {
+                $query->where('program_type', $request->program);
+            }
+
+            // Status filter (active/inactive)
+            if ($request->filled('status') && $request->status !== 'all') {
+                $query->where('status', $request->status);
+            }
+
+            $students = $query->orderBy('created_at', 'desc')
+                              ->paginate(10)
+                              ->appends($request->query());
         }
         
         return view('students', compact('totalStudents', 'newThisWeek', 'students'));
@@ -337,6 +364,73 @@ class StudentsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Promotion failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Demote a student to the previous FSL mastery level.
+     */
+    public function demote(Request $request, $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'target_level' => 'required|in:Beginner,Intermediate,Advanced',
+        ]);
+
+        $student = Student::where('student_id', $id)
+                          ->where('teacher_id', $teacher->id)
+                          ->firstOrFail();
+
+        $xp         = $student->total_xp ?? 0;
+        $currentLvl = $student->fsl_mastery_level;
+        $targetLvl  = $request->target_level;
+
+        $allowedDemotions = [
+            'Intermediate' => 'Beginner',
+            'Advanced'     => 'Intermediate',
+            'Completed'    => 'Advanced',
+        ];
+
+        if (!isset($allowedDemotions[$currentLvl]) || $allowedDemotions[$currentLvl] !== $targetLvl) {
+            return response()->json([
+                'success' => false,
+                'message' => "Invalid demotion path: {$currentLvl} → {$targetLvl}."
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Update mastery level
+            $student->update(['fsl_mastery_level' => $targetLvl]);
+
+            // Record promotion/demotion history
+            StudentPromotion::create([
+                'student_id'      => $student->student_id,
+                'from_level'      => $currentLvl,
+                'to_level'        => $targetLvl,
+                'xp_at_promotion' => $xp,
+                'promoted_by'     => Auth::id(),
+                'was_forced'      => true,
+                'promoted_at'     => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$student->first_name} {$student->last_name} has been demoted to {$targetLvl}.",
+                'new_level' => $targetLvl,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Demotion failed: ' . $e->getMessage()
             ], 500);
         }
     }

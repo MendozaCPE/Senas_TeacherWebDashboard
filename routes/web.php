@@ -43,6 +43,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
     Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
     Route::post('/students/{id}/promote', [App\Http\Controllers\StudentsController::class, 'promote'])->name('students.promote');
+    Route::post('/students/{id}/demote', [App\Http\Controllers\StudentsController::class, 'demote'])->name('students.demote');
 
     // Lessons - ALL using LessonsController (plural)
     Route::get('/lessons', [LessonsController::class, 'index'])->name('lessons.index');

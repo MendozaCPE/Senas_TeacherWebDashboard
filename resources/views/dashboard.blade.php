@@ -783,6 +783,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 tip.classList.remove('opacity-100');
                 tip.classList.add('opacity-0');
             });
+        });
+    })();
+
     // ── Dynamic Senya Tip Rotator (for cache / bfcache restore) ──
     (function () {
         const tips = @json($senyaTips ?? []);
