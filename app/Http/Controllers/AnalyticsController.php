@@ -17,34 +17,49 @@ class AnalyticsController extends Controller
         $teacher = $user->teacher;
 
         if (!$teacher) {
-            return view('analytics', [
-                'totalAttempts'       => 0,
-                'avgPerformance'      => 0,
-                'practiceCompletion'  => 0,
-                'activeStudents'      => 0,
-                'totalStudents'       => 0,
-                'topPerformer'        => null,
-                'weeklyData'          => [],
-                'topLessons'          => collect(),
-                'quizBuckets'         => collect([
-                    ['label' => '0-49', 'count' => 0, 'color' => '#ef4444'],
-                    ['label' => '50-69', 'count' => 0, 'color' => '#f59e0b'],
-                    ['label' => '70-84', 'count' => 0, 'color' => '#3b82f6'],
-                    ['label' => '85-100', 'count' => 0, 'color' => '#10b981'],
-                ]),
-                'displayName'         => $user->name ?? 'Teacher',
-                'teacher'             => null,
-                'atRiskCount'         => 0,
-                'avgLessonsPerStudent' => 0,
-            ]);
+            return view('analytics', $this->emptyTeacherData($user));
         }
 
+        $data = $this->buildAnalyticsData($teacher, $request);
+
+        return view('analytics', $data);
+    }
+
+    public function exportPdf(\Illuminate\Http\Request $request)
+    {
+        $user    = Auth::user();
+        $teacher = $user->teacher;
+
+        if (!$teacher) {
+            abort(404, 'No teacher profile found.');
+        }
+
+        $data = $this->buildAnalyticsData($teacher, $request);
+
+        $data['teacher']     = $teacher;
+        $data['teacherName'] = trim($teacher->first_name . ' ' . $teacher->last_name);
+        $data['schoolName']  = $teacher->school->name ?? 'N/A';
+        $data['generatedAt'] = now()->format('F j, Y \a\t g:i A');
+
+        $pdf = \PDF::loadView('pdf.analytics', $data);
+
+        return $pdf->stream('senas-analytics-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Builds every value the analytics view (web or PDF) needs, given a
+     * teacher and the current request's filters (period/year/month).
+     * Both index() and exportPdf() call this so the two outputs can
+     * never show different numbers.
+     */
+    public function buildAnalyticsData($teacher, \Illuminate\Http\Request $request): array
+    {
         $teacherId  = $teacher->id;
         $studentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
         $totalStudents = $studentIds->count();
 
         if ($totalStudents === 0) {
-            return view('analytics', [
+            return [
                 'totalStudents'       => 0,
                 'avgQuizScore'        => 0,
                 'avgMastery'          => 0,
@@ -60,7 +75,9 @@ class AnalyticsController extends Controller
                 'completionTotal'     => 0,
                 'scoreBuckets'        => collect(),
                 'maxScoreBucket'      => 1,
-            ]);
+                'masteryTotal'        => 0,
+                'studentRanking'      => collect(),
+            ];
         }
 
         // Filter parameters
@@ -174,7 +191,7 @@ class AnalyticsController extends Controller
                 $val    = DB::table('quiz_attempts')
                     ->whereIn('student_id', $studentIds)
                     ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$wStart->startOfDay(), $wEnd->endOfDay()])
+                    ->whereBetween('completed_at', [$wStart->copy()->startOfDay(), $wEnd->copy()->endOfDay()])
                     ->avg('percentage') ?: 0;
                 $progressOverTime[] = [
                     'label' => $wStart->format('M d'),
@@ -183,7 +200,6 @@ class AnalyticsController extends Controller
             }
         } elseif ($period === 'monthly') {
             $mStart = Carbon::create($year, $month, 1)->startOfMonth();
-            $daysInMonth = $mStart->daysInMonth;
             // 4 intervals (weeks of the month)
             for ($i = 0; $i < 4; $i++) {
                 $dStart = $mStart->copy()->addDays($i * 7);
@@ -191,7 +207,7 @@ class AnalyticsController extends Controller
                 $val    = DB::table('quiz_attempts')
                     ->whereIn('student_id', $studentIds)
                     ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$dStart->startOfDay(), $dEnd->endOfDay()])
+                    ->whereBetween('completed_at', [$dStart->copy()->startOfDay(), $dEnd->copy()->endOfDay()])
                     ->avg('percentage') ?: 0;
                 $progressOverTime[] = [
                     'label' => $dStart->format('M d'),
@@ -334,9 +350,9 @@ class AnalyticsController extends Controller
             ['label' => '61-80', 'count' => $scoreBucketsRaw['61-80'] ?? 0],
             ['label' => '81-100', 'count' => $scoreBucketsRaw['81-100'] ?? 0],
         ]);
- 
+
         $maxScoreBucket = max(1, $scoreBuckets->max('count'));
- 
+
         $studentRanking = Student::where('teacher_id', $teacherId)
             ->withCount(['quizAttempts as attempts' => function ($q) {
                 $q->where('status', 'completed');
@@ -355,25 +371,49 @@ class AnalyticsController extends Controller
             })
             ->sortByDesc('avg_score')
             ->values();
- 
-        return view('analytics', compact(
-            'totalStudents',
-            'avgQuizScore',
-            'avgMastery',
-            'completionRate',
-            'avgStreakDays',
-            'activeLast7Pct',
-            'classSummary',
-            'progressOverTime',
-            'lessonDifficulty',
-            'gestureHeatmap',
-            'masteryDistribution',
-            'completionFunnel',
-            'completionTotal',
-            'scoreBuckets',
-            'maxScoreBucket',
-            'masteryTotal',
-            'studentRanking'
-        ));
+
+        return [
+            'totalStudents'       => $totalStudents,
+            'avgQuizScore'        => $avgQuizScore,
+            'avgMastery'          => $avgMastery,
+            'completionRate'      => $completionRate,
+            'avgStreakDays'       => $avgStreakDays,
+            'activeLast7Pct'      => $activeLast7Pct,
+            'classSummary'        => $classSummary,
+            'progressOverTime'    => $progressOverTime,
+            'lessonDifficulty'    => $lessonDifficulty,
+            'gestureHeatmap'      => $gestureHeatmap,
+            'masteryDistribution' => $masteryDistribution,
+            'completionFunnel'    => $completionFunnel,
+            'completionTotal'     => $completionTotal,
+            'scoreBuckets'        => $scoreBuckets,
+            'maxScoreBucket'      => $maxScoreBucket,
+            'masteryTotal'        => $masteryTotal,
+            'studentRanking'      => $studentRanking,
+        ];
+    }
+
+    private function emptyTeacherData($user): array
+    {
+        return [
+            'totalAttempts'       => 0,
+            'avgPerformance'      => 0,
+            'practiceCompletion'  => 0,
+            'activeStudents'      => 0,
+            'totalStudents'       => 0,
+            'topPerformer'        => null,
+            'weeklyData'          => [],
+            'topLessons'          => collect(),
+            'quizBuckets'         => collect([
+                ['label' => '0-49', 'count' => 0, 'color' => '#ef4444'],
+                ['label' => '50-69', 'count' => 0, 'color' => '#f59e0b'],
+                ['label' => '70-84', 'count' => 0, 'color' => '#3b82f6'],
+                ['label' => '85-100', 'count' => 0, 'color' => '#10b981'],
+            ]),
+            'displayName'         => $user->name ?? 'Teacher',
+            'teacher'             => null,
+            'atRiskCount'         => 0,
+            'avgLessonsPerStudent' => 0,
+        ];
     }
 }

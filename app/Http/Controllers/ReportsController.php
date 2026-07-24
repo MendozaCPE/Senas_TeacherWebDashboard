@@ -120,7 +120,9 @@ class ReportsController extends Controller
     }
 
     /**
-     * Export a professional PDF report.
+     * Export a professional PDF report — grouped by STUDENT (one clean
+     * band per student with their lessons nested underneath), instead
+     * of a flat table that repeats the student name on every row.
      */
     public function exportPdf(Request $request)
     {
@@ -144,24 +146,64 @@ class ReportsController extends Controller
         if ($filterStudent !== 'all') $query->where('student_id', $filterStudent);
         if ($filterLesson  !== 'all') $query->where('lesson_id', $filterLesson);
 
-        $reportRows = $query->orderBy('student_id')->orderBy('lesson_id')->get()->map(function ($row) {
-            $row->studentName  = optional($row->student)->first_name . ' ' . optional($row->student)->last_name;
-            $row->lessonTitle  = optional($row->lesson)->title ?? '—';
-            $row->difficulty   = optional($row->lesson)->difficulty ?? '—';
-            $row->statusLabel  = $row->lesson_completed ? 'Completed' : 'In Progress';
-            $row->quizLabel    = $row->quiz_completed
-                ? ($row->quiz_score . ' pts')
-                : ($row->quiz_completed === 0 && $row->lesson_completed === 1 ? 'Not taken' : 'Pending');
-            $row->lastAccessed = Carbon::parse($row->last_accessed_at)->format('M d, Y');
-            return $row;
-        });
+        $allRows = $query->orderBy('student_id')->orderBy('lesson_id')->get();
 
-        // Summary stats
-        $totalStudents  = $students->count();
-        $totalCompleted = $reportRows->where('lesson_completed', 1)->count();
-        $totalProgress  = $reportRows->count();
+        $totalSteps = 7;
+
+        // Group into one clean block per student — same shape the web
+        // Reports page already uses, so the PDF reads the same way.
+        $studentReports = $allRows
+            ->groupBy('student_id')
+            ->map(function ($rows, $studentId) use ($totalSteps) {
+                $student = $rows->first()->student;
+
+                $lessonBreakdown = $rows->map(function ($row) use ($totalSteps) {
+                    return [
+                        'lessonTitle'   => optional($row->lesson)->title ?? '—',
+                        'difficulty'    => optional($row->lesson)->difficulty ?? '—',
+                        'completed'     => (bool) $row->lesson_completed,
+                        'quizCompleted' => (bool) $row->quiz_completed,
+                        'quizScore'     => $row->quiz_score,
+                        'currentStep'   => $row->current_step,
+                        'totalSteps'    => $totalSteps,
+                        'lastAccessed'  => $row->last_accessed_at
+                            ? Carbon::parse($row->last_accessed_at)->format('M d, Y')
+                            : '—',
+                    ];
+                })->values();
+
+                $totalLessons     = $rows->count();
+                $completedLessons = $rows->where('lesson_completed', 1)->count();
+                $quizzesTaken     = $rows->where('quiz_completed', 1)->count();
+                $avgScore         = $rows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
+                $overallPct       = $totalLessons > 0
+                    ? round(($completedLessons / $totalLessons) * 100)
+                    : 0;
+                $lastActiveRaw    = $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at;
+
+                return [
+                    'studentName'      => trim(optional($student)->first_name . ' ' . optional($student)->last_name) ?: 'Unknown Student',
+                    'gradeLevel'       => optional($student)->grade_level ?? 'N/A',
+                    'totalLessons'     => $totalLessons,
+                    'completedLessons' => $completedLessons,
+                    'quizzesTaken'     => $quizzesTaken,
+                    'avgScore'         => round($avgScore, 1),
+                    'overallPct'       => $overallPct,
+                    'lastAccessed'     => $lastActiveRaw
+                        ? Carbon::parse($lastActiveRaw)->format('M d, Y')
+                        : '—',
+                    'lessons'          => $lessonBreakdown,
+                ];
+            })
+            ->sortBy('studentName')
+            ->values();
+
+        // Overall summary stats (top strip) — computed across all filtered rows/students.
+        $totalStudents  = $studentReports->count();
+        $totalProgress  = $allRows->count();
+        $totalCompleted = $allRows->where('lesson_completed', 1)->count();
         $completionPct  = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
-        $avgScore       = $reportRows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
+        $avgScore       = $allRows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
 
         $generatedAt   = Carbon::now()->format('F d, Y · g:i A');
         $schoolName    = optional($teacher->school)->name ?? 'School';
@@ -179,7 +221,7 @@ class ReportsController extends Controller
         }
 
         $pdf = Pdf::loadView('pdf.report', compact(
-            'reportRows',
+            'studentReports',
             'teacher',
             'teacherName',
             'schoolName',
@@ -190,8 +232,7 @@ class ReportsController extends Controller
             'completionPct',
             'avgScore',
             'selectedStudentName',
-            'selectedLessonName',
-            'lessons'
+            'selectedLessonName'
         ))->setPaper('a4', 'portrait');
 
         $filename = 'senas-report-' . now()->format('Y-m-d') . '.pdf';
@@ -201,55 +242,24 @@ class ReportsController extends Controller
     /**
      * Export Analytics PDF
      */
-    public function exportAnalyticsPdf()
+    public function exportAnalyticsPdf(Request $request)
     {
         $user    = Auth::user();
         $teacher = $user->teacher;
 
         if (!$teacher) abort(403);
 
-        $teacherId  = $teacher->id;
-        $studentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
-        $totalStudents = $studentIds->count();
+        // Reuse the exact same data-building logic as the web Analytics
+        // page (AnalyticsController@index), so the PDF and the web page
+        // always show matching numbers and charts.
+        $data = (new AnalyticsController())->buildAnalyticsData($teacher, $request);
 
-        $lessonCompletion = Lesson::where('teacher_id', $teacherId)
-            ->orderBy('module_order')
-            ->get()
-            ->map(function ($lesson) use ($studentIds, $totalStudents) {
-                $completed = StudentLessonProgress::whereIn('student_id', $studentIds)
-                    ->where('lesson_id', $lesson->lesson_id)
-                    ->where('lesson_completed', 1)->count();
-                $enrolled  = StudentLessonProgress::whereIn('student_id', $studentIds)
-                    ->where('lesson_id', $lesson->lesson_id)
-                    ->distinct('student_id')->count('student_id');
-                $lesson->completionPct  = $totalStudents > 0 ? round(($completed / $totalStudents) * 100) : 0;
-                $lesson->completedCount = $completed;
-                $lesson->enrolledCount  = $enrolled;
-                return $lesson;
-            });
+        $data['teacher']     = $teacher;
+        $data['teacherName'] = $teacher->first_name . ' ' . $teacher->last_name;
+        $data['schoolName']  = optional($teacher->school)->name ?? 'School';
+        $data['generatedAt'] = Carbon::now()->format('F d, Y · g:i A');
 
-        $studentPerformance = Student::where('teacher_id', $teacherId)->get()->map(function ($s) {
-            $prog = $s->progress;
-            $s->completedLessons = $prog->where('lesson_completed', 1)->count();
-            $s->avgScore = round($prog->whereNotNull('quiz_score')->avg('quiz_score') ?? 0);
-            return $s;
-        })->sortByDesc('completedLessons');
-
-        $totalCompleted  = StudentLessonProgress::whereIn('student_id', $studentIds)->where('lesson_completed', 1)->count();
-        $totalProgress   = StudentLessonProgress::whereIn('student_id', $studentIds)->count();
-        $completionPct   = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
-        $avgScore        = StudentLessonProgress::whereIn('student_id', $studentIds)
-            ->whereNotNull('quiz_score')->avg('quiz_score') ?? 0;
-
-        $teacherName  = $teacher->first_name . ' ' . $teacher->last_name;
-        $schoolName   = optional($teacher->school)->name ?? 'School';
-        $generatedAt  = Carbon::now()->format('F d, Y · g:i A');
-
-        $pdf = Pdf::loadView('pdf.analytics', compact(
-            'teacher', 'teacherName', 'schoolName', 'generatedAt',
-            'totalStudents', 'totalCompleted', 'totalProgress', 'completionPct',
-            'avgScore', 'lessonCompletion', 'studentPerformance'
-        ))->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView('pdf.analytics', $data)->setPaper('a4', 'portrait');
 
         return $pdf->download('senas-analytics-' . now()->format('Y-m-d') . '.pdf');
     }

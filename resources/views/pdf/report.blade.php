@@ -7,207 +7,221 @@
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    /* Uniform page margin on ALL pages (this is what actually gives page 2+
+       breathing room at the top in dompdf — the ":first" pseudo-class is
+       unreliable there). The header then cancels it out with a negative
+       top margin so it still sits flush with the edge on page 1. */
+    @page {
+        margin: 30px 0 24px 0;
+    }
+
     body {
         font-family: DejaVu Sans, Arial, sans-serif;
         font-size: 10px;
-        color: #1e293b;
+        color: #334155;
         background: #ffffff;
         line-height: 1.5;
     }
 
-    /* ── COVER HEADER ── */
+    /* ── HEADER (brand + stacked meta on row 1, centered title on row 2) ── */
     .header {
         background: #0d326b;
-        padding: 32px 40px 28px;
+        padding: 48px 40px 16px;
+        margin-top: -30px;
         color: #ffffff;
     }
-    .header-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 20px;
+    table.header-row {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    table.header-row td {
+        vertical-align: top;
+        padding: 0;
+        border: none;
+    }
+    table.brand-block {
+        border-collapse: collapse;
+    }
+    table.brand-block td {
+        vertical-align: middle;
+        padding: 0;
+        border: none;
+        white-space: nowrap;
+    }
+    .brand-mascot-cell { padding-right: 16px; }
+    .brand-mascot {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        margin-right: 5px;
     }
     .brand {
-        font-size: 22px;
+        font-size: 14px;
         font-weight: 700;
-        letter-spacing: 1px;
-        color: #facc15;
+        letter-spacing: 1.2px;
+        color: #ffffff;
     }
     .brand-sub {
-        font-size: 10px;
-        color: rgba(255,255,255,0.6);
-        margin-top: 2px;
+        font-size: 7px;
+        color: rgba(255,255,255,0.5);
         letter-spacing: 1px;
         text-transform: uppercase;
+        margin-top: 2px;
     }
-    .report-meta {
+    .header-meta-cell {
         text-align: right;
-        font-size: 9px;
-        color: rgba(255,255,255,0.65);
-        line-height: 1.8;
+        font-size: 8.5px;
+        color: rgba(255,255,255,0.85);
+        line-height: 1.6;
     }
-    .report-title {
-        font-size: 18px;
-        font-weight: 700;
+    .header-meta-cell strong {
         color: #ffffff;
-        margin-top: 10px;
+        font-weight: 700;
     }
-    .report-subtitle {
-        font-size: 10px;
-        color: rgba(255,255,255,0.7);
-        margin-top: 4px;
+    .header-subrow {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 9px;
+        color: rgba(255,255,255,0.75);
+    }
+    .header-title-inline {
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 15px;
+    }
+    .header-divider {
+        color: rgba(255,255,255,0.3);
+        margin: 0 6px;
     }
 
-    /* ── SUMMARY STRIP ── */
-    .summary-strip {
-        background: #facc15;
-        padding: 14px 40px;
-        display: flex;
-        gap: 0;
+    /* ── SUMMARY STRIP — a real <table> so the 5 columns always sit in
+         one row regardless of the PDF engine's flexbox support ── */
+    table.summary-strip {
+        width: 100%;
+        border-collapse: collapse;
+        border-bottom: 1px solid #e2e8f0;
+        table-layout: fixed;
     }
-    .summary-item {
-        flex: 1;
+    table.summary-strip td.summary-item {
+        width: 20%;
         text-align: center;
-        border-right: 1px solid rgba(0,0,0,0.1);
-        padding: 0 12px;
+        padding: 14px 8px;
+        border-right: 1px solid #f1f5f9;
+        border-bottom: none;
     }
-    .summary-item:last-child { border-right: none; }
+    table.summary-strip td.summary-item.last { border-right: none; }
     .summary-val {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 700;
         color: #0d326b;
         display: block;
+        letter-spacing: -0.3px;
     }
     .summary-label {
-        font-size: 8px;
+        font-size: 7.5px;
         font-weight: 700;
-        color: rgba(0,0,0,0.55);
+        color: #94a3b8;
         text-transform: uppercase;
         letter-spacing: 0.8px;
+        margin-top: 3px;
+        display: block;
     }
 
     /* ── BODY CONTENT ── */
-    .content { padding: 28px 40px; }
+    .content { padding: 22px 40px 10px; }
 
-    /* Section label */
     .section-label {
         font-size: 8px;
         font-weight: 700;
         color: #94a3b8;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 1.3px;
         margin-bottom: 10px;
         padding-bottom: 6px;
         border-bottom: 1px solid #f1f5f9;
     }
 
-    /* ── TEACHER INFO ── */
-    .teacher-info {
-        background: #f8fafc;
-        border-left: 3px solid #0d326b;
-        padding: 12px 16px;
-        border-radius: 6px;
-        margin-bottom: 24px;
-        font-size: 10px;
-        color: #475569;
-    }
-    .teacher-info strong { color: #0d326b; }
-
-    /* ── TABLE ── */
+    /* ── STUDENT-GROUPED TABLE ── */
     table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
     thead {
         background: #0d326b;
         color: #ffffff;
     }
     thead th {
-        padding: 10px 12px;
-        font-size: 8px;
+        padding: 8px 12px;
+        font-size: 7.5px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.7px;
         text-align: left;
     }
-    tbody tr:nth-child(odd)  { background: #f8fafc; }
-    tbody tr:nth-child(even) { background: #ffffff; }
     tbody td {
-        padding: 9px 12px;
-        font-size: 9.5px;
+        padding: 7px 12px;
+        font-size: 9px;
         color: #334155;
         border-bottom: 1px solid #f1f5f9;
         vertical-align: middle;
     }
+    tbody tr.lesson-row:nth-child(even) { background: #fafcff; }
 
-    /* Status badges */
-    .badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 20px;
+    /* Student divider row — groups lessons under one clean band, no repeated name per row */
+    tr.student-divider-row { page-break-inside: avoid; }
+    tr.student-divider-row td {
+        background: #eef3fb;
+        padding: 7px 12px;
+        border-bottom: 1px solid #dbe6f5;
+    }
+    .student-divider {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .student-divider-name {
+        font-size: 10px;
+        font-weight: 700;
+        color: #0d326b;
+    }
+    .student-divider-grade {
+        font-size: 8px;
+        font-weight: 400;
+        color: #7d93b8;
+        margin-left: 6px;
+    }
+    .student-divider-stats {
+        display: flex;
+        gap: 12px;
         font-size: 7.5px;
         font-weight: 700;
+        color: #4a6fa5;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
     }
-    .badge-green  { background: #dcfce7; color: #166534; }
-    .badge-blue   { background: #dbeafe; color: #1d4ed8; }
-    .badge-yellow { background: #fef9c3; color: #854d0e; }
 
-    /* Progress bar */
-    .progress-wrap {
-        background: #e2e8f0;
-        border-radius: 10px;
-        height: 6px;
-        width: 80px;
-        overflow: hidden;
+    /* Status badges — navy scale only */
+    .badge {
         display: inline-block;
-        vertical-align: middle;
-        margin-right: 4px;
-    }
-    .progress-fill {
-        height: 100%;
-        border-radius: 10px;
-        background: #0d326b;
-    }
-    .progress-fill.done { background: #22c55e; }
-
-    /* ── LESSON BREAKDOWN ── */
-    .lesson-grid { margin-bottom: 24px; }
-    .lesson-row {
-        display: flex;
-        align-items: center;
-        padding: 10px 14px;
-        background: #f8fafc;
-        border-radius: 8px;
-        margin-bottom: 6px;
-    }
-    .lesson-order {
-        width: 28px;
-        height: 28px;
-        background: #0d326b;
-        color: #ffffff;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 9px;
+        padding: 2px 9px;
+        border-radius: 20px;
+        font-size: 7px;
         font-weight: 700;
-        flex-shrink: 0;
-        margin-right: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
     }
-    .lesson-title { flex: 1; font-size: 10px; font-weight: 700; color: #1e293b; }
-    .lesson-pct   { font-size: 10px; font-weight: 700; color: #0d326b; margin-left: 12px; }
+    .badge-completed   { background: #0d326b; color: #ffffff; }
+    .badge-in-progress { background: #dbeafe; color: #0d326b; }
 
     /* ── FOOTER ── */
     .footer {
-        margin-top: 30px;
-        padding-top: 16px;
-        border-top: 2px solid #f1f5f9;
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 1px solid #f1f5f9;
         display: flex;
         justify-content: space-between;
-        font-size: 8px;
+        font-size: 7.5px;
         color: #94a3b8;
     }
     .footer-brand { color: #0d326b; font-weight: 700; }
@@ -218,127 +232,124 @@
 
 {{-- ══ HEADER ══ --}}
 <div class="header">
-    <div class="header-top">
-        <div>
-            <div class="brand">SEÑAS</div>
-            <div class="brand-sub">Teacher Web Dashboard</div>
-        </div>
-        <div class="report-meta">
-            <div><strong>Generated:</strong> {{ $generatedAt }}</div>
-            <div><strong>Teacher:</strong> {{ $teacherName }}</div>
-            <div><strong>School:</strong> {{ $schoolName }}</div>
-        </div>
-    </div>
-    <div class="report-title">Student Progress Report</div>
-    <div class="report-subtitle">
-        Filter: {{ $selectedStudentName }} &nbsp;·&nbsp; {{ $selectedLessonName }}
+    <table class="header-row">
+        <tr>
+            <td style="width:1%;">
+                <table class="brand-block">
+                    <tr>
+                        <td class="brand-mascot-cell">
+                            <img src="{{ public_path('images/wavingSenya.png') }}" class="brand-mascot" alt="Senya"/>
+                        </td>
+                        <td>
+                            <div class="brand">SEÑAS</div>
+                            <div class="brand-sub">Teacher Web Dashboard</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td class="header-meta-cell">
+                <div><strong>Generated</strong> {{ $generatedAt }}</div>
+                <div><strong>Teacher</strong> {{ $teacherName }}</div>
+                <div><strong>School</strong> {{ $schoolName }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="header-subrow">
+        <span class="header-title-inline">Student Progress Report</span>
+        <span class="header-divider">|</span>
+        <span>{{ $selectedStudentName }} &middot; {{ $selectedLessonName }}</span>
     </div>
 </div>
 
 {{-- ══ SUMMARY STRIP ══ --}}
-<div class="summary-strip">
-    <div class="summary-item">
-        <span class="summary-val">{{ $totalStudents }}</span>
-        <span class="summary-label">Total Students</span>
-    </div>
-    <div class="summary-item">
-        <span class="summary-val">{{ $totalProgress }}</span>
-        <span class="summary-label">Progress Records</span>
-    </div>
-    <div class="summary-item">
-        <span class="summary-val">{{ $totalCompleted }}</span>
-        <span class="summary-label">Lessons Completed</span>
-    </div>
-    <div class="summary-item">
-        <span class="summary-val">{{ $completionPct }}%</span>
-        <span class="summary-label">Completion Rate</span>
-    </div>
-    <div class="summary-item">
-        <span class="summary-val">{{ number_format($avgScore, 1) }}</span>
-        <span class="summary-label">Avg Quiz Score</span>
-    </div>
-</div>
+<table class="summary-strip">
+    <tr>
+        <td class="summary-item">
+            <span class="summary-val">{{ $totalStudents }}</span>
+            <span class="summary-label">Total Students</span>
+        </td>
+        <td class="summary-item">
+            <span class="summary-val">{{ $totalProgress }}</span>
+            <span class="summary-label">Progress Records</span>
+        </td>
+        <td class="summary-item">
+            <span class="summary-val">{{ $totalCompleted }}</span>
+            <span class="summary-label">Lessons Completed</span>
+        </td>
+        <td class="summary-item">
+            <span class="summary-val">{{ $completionPct }}%</span>
+            <span class="summary-label">Completion Rate</span>
+        </td>
+        <td class="summary-item last">
+            <span class="summary-val">{{ number_format($avgScore, 1) }}</span>
+            <span class="summary-label">Avg Quiz Score</span>
+        </td>
+    </tr>
+</table>
 
 {{-- ══ MAIN CONTENT ══ --}}
 <div class="content">
 
-    {{-- Teacher info --}}
-    <div class="teacher-info">
-        <strong>Prepared by:</strong> {{ $teacherName }} &nbsp;·&nbsp;
-        <strong>School:</strong> {{ $schoolName }} &nbsp;·&nbsp;
-        <strong>Report Period:</strong> {{ now()->format('F Y') }}
-    </div>
+    {{-- Student-grouped breakdown — one clean band per student, lessons nested under it --}}
+    <div class="section-label">Student Progress Breakdown</div>
 
-    {{-- Lesson Breakdown --}}
-    @if($lessons->isNotEmpty())
-    <div class="section-label">Lesson Overview</div>
-    <div class="lesson-grid">
-        @foreach($lessons as $lesson)
-            @php
-                $completed = $reportRows->where('lesson_id', $lesson->lesson_id)->where('lesson_completed', 1)->count();
-                $total     = $reportRows->where('lesson_id', $lesson->lesson_id)->count();
-                $pct       = $total > 0 ? round(($completed / $total) * 100) : 0;
-            @endphp
-            <div class="lesson-row">
-                <div class="lesson-order">{{ str_pad($lesson->module_order, 2, '0', STR_PAD_LEFT) }}</div>
-                <div class="lesson-title">{{ $lesson->title }}</div>
-                <div style="width:120px; background:#e2e8f0; border-radius:10px; height:6px; overflow:hidden; margin-right:10px;">
-                    <div style="width:{{ $pct }}%; background:#0d326b; height:100%; border-radius:10px;"></div>
-                </div>
-                <div class="lesson-pct">{{ $pct }}%</div>
-            </div>
-        @endforeach
-    </div>
-    @endif
-
-    {{-- Progress Table --}}
-    <div class="section-label">Detailed Progress Records</div>
-    @if($reportRows->isEmpty())
+    @if($studentReports->isEmpty())
         <p style="color:#94a3b8; font-size:10px; text-align:center; padding:24px;">No records match the selected filters.</p>
     @else
     <table>
         <thead>
             <tr>
-                <th>#</th>
-                <th>Student</th>
                 <th>Lesson</th>
-                <th>Difficulty</th>
-                <th>Status</th>
-                <th>Quiz Score</th>
-                <th>Current Step</th>
-                <th>Last Active</th>
+                <th style="width:90px;">Difficulty</th>
+                <th style="width:100px;">Status</th>
+                <th style="width:80px;">Quiz Score</th>
+                <th style="width:90px;">Last Active</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($reportRows as $i => $row)
-            <tr>
-                <td style="color:#94a3b8; font-weight:700;">{{ str_pad($i+1, 2, '0', STR_PAD_LEFT) }}</td>
-                <td style="font-weight:700;">{{ $row->studentName }}</td>
-                <td>{{ Str::limit($row->lessonTitle, 28) }}</td>
-                <td style="text-transform:capitalize;">{{ $row->difficulty }}</td>
+            @foreach($studentReports as $student)
+            <tr class="student-divider-row">
+                <td colspan="5">
+                    <div class="student-divider">
+                        <div>
+                            <span class="student-divider-name">{{ $student['studentName'] }}</span>
+                            <span class="student-divider-grade">{{ $student['gradeLevel'] }}</span>
+                        </div>
+                        <div class="student-divider-stats">
+                            <span>{{ $student['completedLessons'] }}/{{ $student['totalLessons'] }} Lessons</span>
+                            <span>{{ $student['overallPct'] }}% Complete</span>
+                            <span>{{ $student['quizzesTaken'] }} Quiz{{ $student['quizzesTaken'] === 1 ? '' : 'zes' }}</span>
+                            <span>Avg {{ $student['avgScore'] }} pts</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            @forelse($student['lessons'] as $lesson)
+            <tr class="lesson-row">
+                <td style="font-weight:700; color:#1e293b;">{{ $lesson['lessonTitle'] }}</td>
+                <td style="text-transform:capitalize; color:#64748b;">{{ $lesson['difficulty'] }}</td>
                 <td>
-                    @if($row->lesson_completed)
-                        <span class="badge badge-green">Completed</span>
+                    @if($lesson['completed'])
+                        <span class="badge badge-completed">Completed</span>
                     @else
-                        <span class="badge badge-blue">In Progress</span>
+                        <span class="badge badge-in-progress">In Progress</span>
                     @endif
                 </td>
                 <td style="font-weight:700; color:#0d326b;">
-                    @if($row->quiz_completed)
-                        {{ $row->quiz_score }} pts
+                    @if($lesson['quizCompleted'])
+                        {{ $lesson['quizScore'] }} pts
                     @else
-                        <span style="color:#94a3b8;">Pending</span>
+                        <span style="color:#94a3b8; font-weight:400;">Pending</span>
                     @endif
                 </td>
-                <td>
-                    <div class="progress-wrap">
-                        <div class="progress-fill {{ $row->lesson_completed ? 'done' : '' }}"
-                             style="width: {{ min(100, round(($row->current_step / 7) * 100)) }}%"></div>
-                    </div>
-                    Step {{ $row->current_step }}/7
-                </td>
-                <td>{{ $row->lastAccessed }}</td>
+                <td style="color:#64748b;">{{ $lesson['lastAccessed'] }}</td>
             </tr>
+            @empty
+            <tr class="lesson-row">
+                <td colspan="5" style="color:#94a3b8; font-style:italic; text-align:center;">No lesson activity recorded.</td>
+            </tr>
+            @endforelse
             @endforeach
         </tbody>
     </table>
