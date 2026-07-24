@@ -253,14 +253,16 @@
     </div>
 
     {{-- ══════════ FILTERS (matching Analytics/Students) ══════════ --}}
-    <form method="GET" action="{{ route('reports') }}" id="filterForm">
+    @php $rf = session('reports_filters', []); @endphp
+    <form method="POST" action="{{ route('reports.filter') }}" id="filterForm">
+        @csrf
         <div class="filter-container">
             <div class="filter-group">
                 <div class="filter-wrap">
                     <select name="student_id" class="filter-select">
-                        <option value="all" {{ request('student_id','all')==='all'?'selected':'' }}>All Students</option>
+                        <option value="all" {{ ($rf['student_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Students</option>
                         @foreach($students as $s)
-                            <option value="{{ $s->student_id }}" {{ request('student_id')==$s->student_id?'selected':'' }}>
+                            <option value="{{ $s->student_id }}" {{ ($rf['student_id'] ?? '') == $s->student_id ? 'selected' : '' }}>
                                 {{ $s->first_name }} {{ $s->last_name }}
                             </option>
                         @endforeach
@@ -270,9 +272,9 @@
 
                 <div class="filter-wrap">
                     <select name="lesson_id" class="filter-select">
-                        <option value="all" {{ request('lesson_id','all')==='all'?'selected':'' }}>All Lessons</option>
+                        <option value="all" {{ ($rf['lesson_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Lessons</option>
                         @foreach($lessons as $l)
-                            <option value="{{ $l->lesson_id }}" {{ request('lesson_id')==$l->lesson_id?'selected':'' }}>
+                            <option value="{{ $l->lesson_id }}" {{ ($rf['lesson_id'] ?? '') == $l->lesson_id ? 'selected' : '' }}>
                                 {{ $l->title }}
                             </option>
                         @endforeach
@@ -284,14 +286,14 @@
                     {{ $studentReports->count() }} student{{ $studentReports->count() !== 1 ? 's' : '' }}
                 </span>
 
-                <a href="{{ route('reports') }}" class="filter-reset">Clear</a>
+                <a href="{{ route('reports') }}" onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all'})}).then(()=>window.location.href='{{ route('reports') }}')" class="filter-reset">Clear</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">filter_alt</span>
                     Apply Filter
                 </button>
             </div>
 
-            <a href="{{ route('reports.export-pdf', request()->query()) }}" class="export-btn">
+            <a href="{{ route('reports.export-pdf') }}" class="export-btn">
                 <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
                 Export PDF
             </a>

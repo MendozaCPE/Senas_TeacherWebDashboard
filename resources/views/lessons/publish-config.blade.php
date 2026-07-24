@@ -37,7 +37,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('lessons.publish', $lesson->lesson_id) }}" method="POST" id="publishForm">
+            <form action="{{ route('lessons.publish', $lesson->hash_id) }}" method="POST" id="publishForm">
                 @csrf
 
                 <div class="mb-6 pb-6 border-b">

@@ -39,6 +39,7 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
 
     // Students
     Route::get('/students', [App\Http\Controllers\StudentsController::class, 'index'])->name('students');
+    Route::post('/students/filter', [App\Http\Controllers\StudentsController::class, 'applyFilter'])->name('students.filter');
     Route::get('/students/check-lrn', [App\Http\Controllers\StudentsController::class, 'checkLrn'])->name('students.check-lrn');
     Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
     Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
@@ -69,10 +70,12 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::post('/lessons/{id}/students', [LessonsController::class, 'updateStudents'])->name('lessons.students.update');
     // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
+    Route::post('/analytics/filter', [AnalyticsController::class, 'applyFilter'])->name('analytics.filter');
     Route::get('/analytics/export-pdf', [ReportsController::class, 'exportAnalyticsPdf'])->name('analytics.export-pdf');
 
     // Reports
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
+    Route::post('/reports/filter', [ReportsController::class, 'applyFilter'])->name('reports.filter');
     Route::get('/reports/export-pdf', [ReportsController::class, 'exportPdf'])->name('reports.export-pdf');
 
     // Settings

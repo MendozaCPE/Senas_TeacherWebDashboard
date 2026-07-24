@@ -140,35 +140,43 @@
 
             {{-- Filter Toolbar with Add Student button integrated --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center gap-3 flex-wrap">
+                @php $sf = session('students_filters', []); @endphp
                 <div class="relative shrink-0 order-1 lg:order-none">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                    <input id="student-search" type="text" value="{{ request('search') }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
+                    <input id="student-search" type="text" value="{{ $sf['search'] ?? '' }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
                 </div>
                 <div class="bg-[#f1f5f9] p-1 rounded-full flex items-center shadow-inner shrink-0 order-2 lg:order-none">
-                    <button data-filter="all" class="filter-tab px-5 py-2 {{ request('status', 'all') === 'all' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">All Students</button>
-                    <button data-filter="active" class="filter-tab px-5 py-2 {{ request('status') === 'active' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">Active Only</button>
+                    <button data-filter="all" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? 'all') === 'all' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">All Students</button>
+                    <button data-filter="active" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? '') === 'active' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">Active Only</button>
                 </div>
                 <div class="flex-1"></div>
                 <div class="relative shrink-0">
                     <select id="filter-level" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
                         <option value="">Filter: Level</option>
-                        <option value="Beginner" {{ request('level') === 'Beginner' ? 'selected' : '' }}>Beginner</option>
-                        <option value="Intermediate" {{ request('level') === 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
-                        <option value="Advanced" {{ request('level') === 'Advanced' ? 'selected' : '' }}>Advanced</option>
-                        <option value="Completed" {{ request('level') === 'Completed' ? 'selected' : '' }}>Completed</option>
+                        <option value="Beginner" {{ ($sf['level'] ?? '') === 'Beginner' ? 'selected' : '' }}>Beginner</option>
+                        <option value="Intermediate" {{ ($sf['level'] ?? '') === 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
+                        <option value="Advanced" {{ ($sf['level'] ?? '') === 'Advanced' ? 'selected' : '' }}>Advanced</option>
+                        <option value="Completed" {{ ($sf['level'] ?? '') === 'Completed' ? 'selected' : '' }}>Completed</option>
                     </select>
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
                 </div>
                 <div class="relative shrink-0">
                     <select id="filter-program" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
                         <option value="">Filter: Program Type</option>
-                        <option value="Regular" {{ request('program') === 'Regular' ? 'selected' : '' }}>Regular</option>
-                        <option value="Self-contained" {{ request('program') === 'Self-contained' ? 'selected' : '' }}>Self-Contained</option>
-                        <option value="Transition" {{ request('program') === 'Transition' ? 'selected' : '' }}>Transition</option>
-                        <option value="Inclusion" {{ request('program') === 'Inclusion' ? 'selected' : '' }}>Inclusion</option>
+                        <option value="Regular" {{ ($sf['program'] ?? '') === 'Regular' ? 'selected' : '' }}>Regular</option>
+                        <option value="Self-contained" {{ ($sf['program'] ?? '') === 'Self-contained' ? 'selected' : '' }}>Self-Contained</option>
+                        <option value="Transition" {{ ($sf['program'] ?? '') === 'Transition' ? 'selected' : '' }}>Transition</option>
+                        <option value="Inclusion" {{ ($sf['program'] ?? '') === 'Inclusion' ? 'selected' : '' }}>Inclusion</option>
                     </select>
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
                 </div>
+                {{-- Clear filter --}}
+                @if(!empty($sf))
+                <form method="POST" action="{{ route('students.filter') }}" class="inline">
+                    @csrf
+                    <button type="submit" class="text-[11px] text-slate-400 hover:text-slate-600 font-medium underline-offset-2 hover:underline">Clear</button>
+                </form>
+                @endif
                 {{-- Add Student Button moved here --}}
                 <button id="open-modal-btn"
                     class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center space-x-2 shadow-sm border border-[#0d326b]/20 shrink-0">
@@ -176,6 +184,15 @@
                     <span>Add Student</span>
                 </button>
             </div>
+
+            {{-- Hidden POST form used by JS to submit filters --}}
+            <form id="studentFilterForm" method="POST" action="{{ route('students.filter') }}" style="display:none">
+                @csrf
+                <input type="hidden" name="search"  id="sf-search">
+                <input type="hidden" name="level"   id="sf-level">
+                <input type="hidden" name="program" id="sf-program">
+                <input type="hidden" name="status"  id="sf-status">
+            </form>
 
             {{-- Student Table --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -862,19 +879,17 @@ const searchInput=document.getElementById('student-search'),filterLevel=document
 let searchDebounceTimer = null;
 
 function applyServerFilters(overrides = {}) {
-    const url = new URL(window.location.href);
-    const searchVal = overrides.hasOwnProperty('search') ? overrides.search : searchInput.value.trim();
-    const levelVal = overrides.hasOwnProperty('level') ? overrides.level : filterLevel.value;
+    const searchVal  = overrides.hasOwnProperty('search')  ? overrides.search  : searchInput.value.trim();
+    const levelVal   = overrides.hasOwnProperty('level')   ? overrides.level   : filterLevel.value;
     const programVal = overrides.hasOwnProperty('program') ? overrides.program : filterProgram.value;
-    const statusVal = overrides.hasOwnProperty('status') ? overrides.status : (document.querySelector('.filter-tab.font-bold')?.dataset.filter || 'all');
+    const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : (document.querySelector('.filter-tab.font-bold')?.dataset.filter || 'all');
 
-    if (searchVal) url.searchParams.set('search', searchVal); else url.searchParams.delete('search');
-    if (levelVal) url.searchParams.set('level', levelVal); else url.searchParams.delete('level');
-    if (programVal) url.searchParams.set('program', programVal); else url.searchParams.delete('program');
-    if (statusVal && statusVal !== 'all') url.searchParams.set('status', statusVal); else url.searchParams.delete('status');
-    url.searchParams.delete('page');
-
-    window.location.href = url.toString();
+    // Populate the hidden POST form and submit — no params visible in the URL
+    document.getElementById('sf-search').value  = searchVal;
+    document.getElementById('sf-level').value   = levelVal;
+    document.getElementById('sf-program').value = programVal;
+    document.getElementById('sf-status').value  = statusVal;
+    document.getElementById('studentFilterForm').submit();
 }
 
 filterTabs.forEach(tab => {

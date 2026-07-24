@@ -943,9 +943,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.content-type').forEach(toggleFields);
     toggleModuleFields();
 
-    // Auto-open AI modal if redirected from the index with ?ai=1
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('ai') === '1') {
+    // Auto-open AI modal if coming from the index page via the AI button.
+    // Uses sessionStorage so the flag never appears in the URL.
+    if (sessionStorage.getItem('lessons_open_ai') === '1') {
+        sessionStorage.removeItem('lessons_open_ai'); // consume the flag
         setTimeout(() => openAiModal(), 300);
     }
 

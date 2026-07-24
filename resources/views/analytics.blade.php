@@ -210,15 +210,17 @@
 <div class="space-y-6">
 
     {{-- ══════════ FILTER + EXPORT (matching Reports page) ══════════ --}}
-    <form method="GET" action="{{ route('analytics') }}" id="filterForm">
+    @php $af = session('analytics_filters', []); @endphp
+    <form method="POST" action="{{ route('analytics.filter') }}" id="filterForm">
+        @csrf
         <div class="filter-container">
             <div class="filter-group">
                 <div class="filter-wrap">
                     <select name="period" class="filter-select">
-                        <option value="weekly" {{ request('period', 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly</option>
-                        <option value="monthly" {{ request('period') === 'monthly' ? 'selected' : '' }}>Monthly</option>
-                        <option value="quarterly" {{ request('period') === 'quarterly' ? 'selected' : '' }}>Quarterly</option>
-                        <option value="yearly" {{ request('period') === 'yearly' ? 'selected' : '' }}>Yearly</option>
+                        <option value="weekly" {{ ($af['period'] ?? 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly</option>
+                        <option value="monthly" {{ ($af['period'] ?? '') === 'monthly' ? 'selected' : '' }}>Monthly</option>
+                        <option value="quarterly" {{ ($af['period'] ?? '') === 'quarterly' ? 'selected' : '' }}>Quarterly</option>
+                        <option value="yearly" {{ ($af['period'] ?? '') === 'yearly' ? 'selected' : '' }}>Yearly</option>
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
@@ -227,23 +229,22 @@
                     <select name="year" class="filter-select">
                         @php $currentYear = date('Y'); @endphp
                         @for($y = $currentYear; $y >= $currentYear - 5; $y--)
-                        <option value="{{ $y }}" {{ request('year', $currentYear) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        <option value="{{ $y }}" {{ ($af['year'] ?? $currentYear) == $y ? 'selected' : '' }}>{{ $y }}</option>
                         @endfor
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
 
-                @if(request('period') === 'monthly' || request('period') === 'quarterly')
+                @if(($af['period'] ?? '') === 'monthly' || ($af['period'] ?? '') === 'quarterly')
                 <div class="filter-wrap">
                     <select name="month" class="filter-select">
                         @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m => $name)
-                        <option value="{{ $m + 1 }}" {{ request('month', date('n')) == ($m + 1) ? 'selected' : '' }}>{{ $name }}</option>
+                        <option value="{{ $m + 1 }}" {{ ($af['month'] ?? date('n')) == ($m + 1) ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 @endif
-
 
                 <a href="{{ route('analytics') }}" class="filter-reset">Clear</a>
                 <button type="submit" class="filter-btn">

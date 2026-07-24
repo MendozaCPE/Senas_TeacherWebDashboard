@@ -505,6 +505,7 @@ public function store(Request $request)
 
 public function view($id)
 {
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
     $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($id);
 
     // Format data for preview
@@ -553,7 +554,9 @@ public function view($id)
  */
 public function edit($id)
 {
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
     $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($id);
+
     
     // Get modules for the dropdown
     $user = Auth::user();
@@ -569,6 +572,7 @@ public function edit($id)
     // Format data for the edit form
     $lessonData = [
         'lesson_id' => $lesson->lesson_id,
+        'hash_id' => $lesson->hash_id,
         'title' => $lesson->title,
         'description' => $lesson->description,
         'lesson_type' => $lesson->lesson_type,
@@ -619,6 +623,7 @@ public function edit($id)
  */
 public function update(Request $request, $id)
 {
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
     $validated = $request->validate([
         'title'                       => 'required|string|max:255',
         'description'                 => 'nullable|string',
@@ -688,6 +693,7 @@ public function update(Request $request, $id)
  */
 public function showPublishConfig($id)
 {
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
     $lesson = Lesson::findOrFail($id);
 
     $teacherId = $this->resolveTeacherId();
@@ -720,6 +726,7 @@ public function showPublishConfig($id)
  */
 public function publishLesson(Request $request, $id)
 {
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
     $validated = $request->validate([
         'module_action' => 'required|in:existing,new',
         'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
@@ -832,6 +839,7 @@ foreach ($studentIds as $studentId) {
      */
     public function destroy($id)
     {
+        $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
         $lesson = Lesson::findOrFail($id);
 
         DB::transaction(function () use ($lesson) {
@@ -860,6 +868,7 @@ foreach ($studentIds as $studentId) {
      */
     public function manageStudents($id)
     {
+        $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
         $lesson = Lesson::findOrFail($id);
 
         $assignedIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
@@ -893,6 +902,7 @@ foreach ($studentIds as $studentId) {
      */
     public function updateStudents(Request $request, $id)
     {
+        $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
         $lesson = Lesson::findOrFail($id);
 
         $validated = $request->validate([

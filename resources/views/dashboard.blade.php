@@ -290,7 +290,7 @@
 
                             <div class="flex-1 overflow-y-auto space-y-1.5 pr-1 -mr-1">
                                 @forelse($module->lessons as $lesson)
-                                <a href="{{ route('lessons.view', $lesson->lesson_id) }}"
+                                <a href="{{ route('lessons.view', $lesson->hash_id) }}"
                                    class="flex items-center justify-between px-3 py-2 rounded-lg bg-white/60 hover:bg-white transition-colors">
                                     <span class="text-[12px] font-semibold truncate pr-2" style="color: {{ $p['title'] }}">{{ $lesson->title }}</span>
                                     <span class="material-symbols-outlined text-[14px] flex-shrink-0" style="color: {{ $p['sub'] }}">chevron_right</span>

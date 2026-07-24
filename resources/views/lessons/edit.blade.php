@@ -138,7 +138,7 @@
         </button>
     </div>
 
-    <form action="{{ route('lessons.update', $lessonData['lesson_id']) }}" method="POST" id="lessonForm" enctype="multipart/form-data">
+    <form action="{{ route('lessons.update', $lessonData['hash_id']) }}" method="POST" id="lessonForm" enctype="multipart/form-data">
         @csrf
         @method('PUT')
 

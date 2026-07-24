@@ -27,6 +27,25 @@ class Lesson extends Model
         'ai_prompt',
     ];
 
+    protected $appends = ['hash_id'];
+
+    public function getHashIdAttribute(): string
+    {
+        return \App\Support\UrlObfuscator::encode($this->lesson_id);
+    }
+
+    public function getRouteKey()
+    {
+        return \App\Support\UrlObfuscator::encode($this->getKey());
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $id = \App\Support\UrlObfuscator::decode($value) ?? $value;
+        return $this->where($field ?? $this->getKeyName(), $id)->first();
+    }
+
+
     public function teacher()
 {
     // Make sure this is using 'id' from teachers table

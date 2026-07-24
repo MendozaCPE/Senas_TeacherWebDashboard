@@ -16,23 +16,27 @@ class StudentsController extends Controller
     public function index(Request $request)
     {
         $teacher = Auth::user()->teacher;
-        
+
         $totalStudents = 0;
-        $newThisWeek = 0;
-        $students = collect();
-        
+        $newThisWeek   = 0;
+        $students      = collect();
+
         if ($teacher) {
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
-            $newThisWeek = Student::where('teacher_id', $teacher->id)
-                                  ->where('created_at', '>=', Carbon::now()->subWeek())
-                                  ->count();
-                                  
-            $query = Student::where('teacher_id', $teacher->id)
-                            ->with('promotions');
+            $newThisWeek   = Student::where('teacher_id', $teacher->id)
+                                    ->where('created_at', '>=', Carbon::now()->subWeek())
+                                    ->count();
 
-            // Search filter (Name or LRN)
-            if ($request->filled('search')) {
-                $search = trim($request->search);
+            $query = Student::where('teacher_id', $teacher->id)->with('promotions');
+
+            // Read filters from session (set by applyFilter POST, never from the URL)
+            $filters = session('students_filters', []);
+            $search  = $filters['search']  ?? '';
+            $level   = $filters['level']   ?? '';
+            $program = $filters['program'] ?? '';
+            $status  = $filters['status']  ?? 'all';
+
+            if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
                       ->orWhere('last_name', 'like', "%{$search}%")
@@ -41,27 +45,49 @@ class StudentsController extends Controller
                 });
             }
 
-            // Level filter
-            if ($request->filled('level')) {
-                $query->where('fsl_mastery_level', $request->level);
+            if (!empty($level)) {
+                $query->where('fsl_mastery_level', $level);
             }
 
-            // Program Type filter
-            if ($request->filled('program')) {
-                $query->where('program_type', $request->program);
+            if (!empty($program)) {
+                $query->where('program_type', $program);
             }
 
-            // Status filter (active/inactive)
-            if ($request->filled('status') && $request->status !== 'all') {
-                $query->where('status', $request->status);
+            if (!empty($status) && $status !== 'all') {
+                $query->where('status', $status);
             }
 
-            $students = $query->orderBy('created_at', 'desc')
-                              ->paginate(10)
-                              ->appends($request->query());
+            $students = $query->orderBy('created_at', 'desc')->paginate(10);
         }
-        
+
         return view('students', compact('totalStudents', 'newThisWeek', 'students'));
+    }
+
+    /**
+     * Accept filters via POST, store them in the session, then redirect to
+     * the clean /students URL (no visible query string in the browser).
+     */
+    public function applyFilter(Request $request)
+    {
+        $validated = $request->validate([
+            'search'  => ['nullable', 'string', 'max:100'],
+            'level'   => ['nullable', 'string', 'in:Beginner,Intermediate,Advanced,Completed,'],
+            'program' => ['nullable', 'string', 'in:Regular,Inclusion,SPED,'],
+            'status'  => ['nullable', 'string', 'in:active,inactive,all,'],
+        ]);
+
+        // Clear filter if user submitted an empty/reset form
+        if (($validated['search'] ?? '') === ''
+            && ($validated['level'] ?? '') === ''
+            && ($validated['program'] ?? '') === ''
+            && (($validated['status'] ?? 'all') === 'all')
+        ) {
+            session()->forget('students_filters');
+        } else {
+            session(['students_filters' => $validated]);
+        }
+
+        return redirect()->route('students');
     }
 
     /**

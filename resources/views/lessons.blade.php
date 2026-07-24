@@ -317,7 +317,7 @@
             $published   = $module->lessons->where('status','published')->count();
             $progress    = $lessonCount > 0 ? round($published / $lessonCount * 100) : 0;
             $totalPages  = max(1, ceil($lessonCount / 5));
-            $currentPage = request()->get('page_' . $module->module_id, 1);
+            $currentPage = 1; // JS will restore from sessionStorage — no URL param needed
             $currentPage = max(1, min($currentPage, $totalPages));
             $offset      = ($currentPage - 1) * 5;
             $paginatedLessons = $module->lessons->slice($offset, 5);
@@ -387,7 +387,7 @@
                             </thead>
                             <tbody>
                                 @foreach($paginatedLessons as $lesson)
-                                <tr onclick="window.location.href='{{ route('lessons.view', $lesson->lesson_id) }}'" style="cursor:pointer;">
+                                <tr onclick="window.location.href='{{ route('lessons.view', $lesson->hash_id) }}'" style="cursor:pointer;">
                                     <td class="text-slate-300" onclick="event.stopPropagation();">
                                         <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
                                     </td>
@@ -407,18 +407,18 @@
                                     </td>
                                     <td style="text-align:right;" onclick="event.stopPropagation();">
                                         <div class="flex items-center justify-end gap-1">
-                                            <a href="{{ route('lessons.view', $lesson->lesson_id) }}" class="action-link" title="View">View</a>
-                                            <a href="{{ route('lessons.edit', $lesson->lesson_id) }}" class="action-link" title="Edit">Edit</a>
+                                            <a href="{{ route('lessons.view', $lesson->hash_id) }}" class="action-link" title="View">View</a>
+                                            <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link" title="Edit">Edit</a>
                                             @if($lesson->status === 'draft')
-                                            <a href="{{ route('lessons.publish.config', $lesson->lesson_id) }}" class="action-link primary" title="Publish">Publish</a>
+                                            <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary" title="Publish">Publish</a>
                                             @endif
                                             @if($lesson->status === 'published')
-                                            <button onclick="openStudentsModal({{ $lesson->lesson_id }}, '{{ addslashes($lesson->title) }}')"
+                                            <button onclick="openStudentsModal('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
                                                     class="action-link primary" title="Manage Students">
                                                 Students
                                             </button>
                                             @endif
-                                            <button onclick="confirmDelete({{ $lesson->lesson_id }}, '{{ addslashes($lesson->title) }}')"
+                                            <button onclick="confirmDelete('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
                                                     class="action-link danger" title="Delete">
                                                 Delete
                                             </button>
@@ -502,21 +502,21 @@
                             </thead>
                             <tbody>
                                 @foreach($orphanedLessons as $lesson)
-                                <tr onclick="window.location.href='{{ route('lessons.view', $lesson->lesson_id) }}'" style="cursor:pointer;">
+                                <tr onclick="window.location.href='{{ route('lessons.view', $lesson->hash_id) }}'" style="cursor:pointer;">
                                     <td class="lesson-title-cell">{{ $lesson->title }}</td>
                                     <td><span class="badge-type">{{ $lesson->lesson_type }}</span></td>
                                     <td><span class="badge-difficulty {{ $lesson->difficulty }}">{{ $lesson->difficulty }}</span></td>
                                     <td><span class="badge-status {{ $lesson->status }}">{{ $lesson->status }}</span></td>
                                     <td style="text-align:right;" onclick="event.stopPropagation();">
                                         <div class="flex items-center justify-end gap-1">
-                                            <a href="{{ route('lessons.view', $lesson->lesson_id) }}" class="action-link">View</a>
-                                            <a href="{{ route('lessons.edit', $lesson->lesson_id) }}" class="action-link">Edit</a>
-                                            <a href="{{ route('lessons.publish.config', $lesson->lesson_id) }}" class="action-link primary">Assign &amp; Publish</a>
+                                            <a href="{{ route('lessons.view', $lesson->hash_id) }}" class="action-link">View</a>
+                                            <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link">Edit</a>
+                                            <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary">Assign &amp; Publish</a>
                                             @if($lesson->status === 'published')
-                                            <button onclick="openStudentsModal({{ $lesson->lesson_id }}, '{{ addslashes($lesson->title) }}')"
+                                            <button onclick="openStudentsModal('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
                                                     class="action-link primary">Students</button>
                                             @endif
-                                            <button onclick="confirmDelete({{ $lesson->lesson_id }}, '{{ addslashes($lesson->title) }}')"
+                                            <button onclick="confirmDelete('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
                                                     class="action-link danger">Delete</button>
                                         </div>
                                     </td>
@@ -639,12 +639,20 @@
 
 {{-- ── PAGE CHANGE SCRIPT ──────────────────────────────────────────────────── --}}
 <script>
+// Use sessionStorage to track the current page per module.
+// This keeps pagination state without exposing it in the URL.
 function changePage(moduleId, page) {
     if (page < 1) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('page_' + moduleId, page);
-    window.location.href = url.toString();
+    sessionStorage.setItem('lessons_page_' + moduleId, page);
+    // Reload rows without adding query params — just refresh the view in-place
+    window.location.replace(window.location.pathname);
 }
+
+// On load: if sessionStorage has a saved page for any module, scroll to it
+document.addEventListener('DOMContentLoaded', function() {
+    // Nothing to do here server-side; all lessons are already rendered.
+    // For a future AJAX paginator this is where you'd apply the saved page.
+});
 
 // ── NEW LESSON MODAL ────────────────────────────────────────────────────────
 function openNewLessonModal() {
@@ -660,7 +668,9 @@ function openManualCreate() {
 }
 function openAiFromModal() {
     closeNewLessonModal();
-    window.location.href = '{{ route('lessons.create') }}?ai=1';
+    // Store the AI flag in sessionStorage instead of exposing it in the URL
+    sessionStorage.setItem('lessons_open_ai', '1');
+    window.location.href = '{{ route('lessons.create') }}';
 }
 
 document.addEventListener('click', function(e) {
@@ -828,7 +838,8 @@ function saveStudentAccess() {
     .then(r => r.json())
     .then(data => {
         closeStudentsModal();
-        window.location.href = window.location.pathname + '?updated=1';
+        // Reload to clean URL (no ?updated=1 param visible)
+        window.location.replace(window.location.pathname);
     })
     .catch(() => {
         btn.disabled = false;

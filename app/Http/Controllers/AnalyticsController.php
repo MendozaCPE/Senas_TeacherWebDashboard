@@ -20,9 +20,33 @@ class AnalyticsController extends Controller
             return view('analytics', $this->emptyTeacherData($user));
         }
 
+        // Merge session filters into request so buildAnalyticsData() works unchanged
+        $filters = session('analytics_filters', []);
+        $request->merge($filters);
+
         $data = $this->buildAnalyticsData($teacher, $request);
 
         return view('analytics', $data);
+    }
+
+    /**
+     * Accept filter POST → store in session → redirect to clean /analytics URL
+     */
+    public function applyFilter(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'period' => ['nullable', 'string', 'in:weekly,monthly,quarterly,yearly'],
+            'year'   => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month'  => ['nullable', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        if (empty(array_filter($validated))) {
+            session()->forget('analytics_filters');
+        } else {
+            session(['analytics_filters' => $validated]);
+        }
+
+        return redirect()->route('analytics');
     }
 
     public function exportPdf(\Illuminate\Http\Request $request)

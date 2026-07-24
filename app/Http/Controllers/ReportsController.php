@@ -38,21 +38,23 @@ class ReportsController extends Controller
                 ->orderBy('module_order')
                 ->get();
 
-            // Filters
-            $filterStudent = $request->get('student_id', 'all');
-            $filterLesson  = $request->get('lesson_id', 'all');
+            // Read filters from session (set via POST, never from URL)
+            $filters       = session('reports_filters', []);
+            $filterStudent = $filters['student_id'] ?? 'all';
+            $filterLesson  = $filters['lesson_id']  ?? 'all';
 
             $query = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->with(['student', 'lesson']);
 
             if ($filterStudent !== 'all') {
-                $query->where('student_id', $filterStudent);
+                $query->where('student_id', (int) $filterStudent);
             }
             if ($filterLesson !== 'all') {
-                $query->where('lesson_id', $filterLesson);
+                $query->where('lesson_id', (int) $filterLesson);
             }
 
             $allRows = $query->orderBy('last_accessed_at', 'desc')->get();
+
 
             $totalSteps = 7; // avg lesson steps, used for step-progress %
 
@@ -117,6 +119,33 @@ class ReportsController extends Controller
             'studentReports',
             'teacher'
         ));
+    }
+
+    /**
+     * Accept filter POST → validate → store in session → redirect to clean /reports URL.
+     * Using integer-only validation for IDs prevents any injection via those fields.
+     */
+    public function applyFilter(Request $request)
+    {
+        $validated = $request->validate([
+            'student_id' => ['nullable', 'string'],
+            'lesson_id'  => ['nullable', 'string'],
+        ]);
+
+        // Normalise 'all' as empty
+        $studentId = ($validated['student_id'] ?? 'all') === 'all' ? 'all' : (int) $validated['student_id'];
+        $lessonId  = ($validated['lesson_id']  ?? 'all') === 'all' ? 'all' : (int) $validated['lesson_id'];
+
+        if ($studentId === 'all' && $lessonId === 'all') {
+            session()->forget('reports_filters');
+        } else {
+            session(['reports_filters' => [
+                'student_id' => $studentId,
+                'lesson_id'  => $lessonId,
+            ]]);
+        }
+
+        return redirect()->route('reports');
     }
 
     /**
