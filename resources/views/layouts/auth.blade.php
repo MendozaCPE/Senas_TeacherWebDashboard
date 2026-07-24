@@ -4,6 +4,17 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>SEÑAS Teacher Portal – @yield('title', 'Auth')</title>
+    <!-- No-cache: login page should never be stored -->
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <meta http-equiv="Expires" content="0"/>
+    <!-- Clear forward-history so the Back/Forward buttons can't reach protected pages -->
+    <script>
+        // Replace the login page in the history stack so there is no "forward"
+        // entry pointing to a protected route. Also wipe any sentinel states
+        // left by the app layout guard.
+        history.replaceState(null, '', window.location.href);
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>

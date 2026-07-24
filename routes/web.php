@@ -30,7 +30,7 @@ Route::get('/terms', [AuthController::class, 'showTerms'])->name('terms');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // ── Protected Routes (must be logged in) ─────────────────────────────────────
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'no.cache'])->group(function () {
     // Redirect / to /dashboard
     Route::get('/', fn () => redirect()->route('dashboard'));
 

@@ -253,7 +253,7 @@
             </div>
 
             <a href="{{ route('analytics.export-pdf', request()->query()) }}" class="export-btn">
-                <span class="material-symbols-outlined text-[18px]">download</span>
+                <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
                 Export PDF
             </a>
         </div>

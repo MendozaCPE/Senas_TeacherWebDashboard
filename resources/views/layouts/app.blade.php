@@ -5,6 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <title>SEÑAS Teacher Portal - @yield('title', 'Dashboard')</title>
+    <!-- ── BFCACHE / SESSION GUARD (must run first, before page renders) ── -->
+    <script>
+        // 1. If browser restores this page from bfcache after logout,
+        //    immediately redirect to login before the user sees anything.
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) {
+                // Page is being served from bfcache — session may be dead.
+                // Force a hard server-round-trip to let auth middleware decide.
+                window.location.replace(window.location.href);
+            }
+        });
+
+        // 2. Intercept the browser Back button via the History API.
+        //    Every authenticated page pushes a sentinel state on load.
+        //    If the user presses Back, we push the state again (trapping them)
+        //    and then verify the session. If expired → login.
+        (function() {
+            history.pushState({ _authGuard: true }, '', window.location.href);
+
+            window.addEventListener('popstate', function(e) {
+                if (!e.state || !e.state._authGuard) {
+                    // Pushback to keep the URL in history
+                    history.pushState({ _authGuard: true }, '', window.location.href);
+                }
+                // Always verify session on any back/forward navigation
+                fetch(window.location.href, {
+                    method: 'HEAD',
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    redirect: 'manual',
+                }).then(function(res) {
+                    if (res.type === 'opaqueredirect' || res.status === 401 || res.status === 403) {
+                        window.location.replace('/login');
+                    }
+                }).catch(function() {
+                    window.location.replace('/login');
+                });
+            });
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>

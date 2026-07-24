@@ -36,13 +36,10 @@
             <span class="material-symbols-outlined {{ request()->is('settings') ? '' : 'icon-outline' }} text-[22px]">settings</span>
             <span>Settings</span>
         </a>
-        <form method="POST" action="{{ route('logout') }}" class="w-full">
-            @csrf
-            <button type="submit" class="w-full flex items-center space-x-4 px-6 py-4 {{ $inactiveClass }}">
-                <span class="material-symbols-outlined icon-outline text-[22px]">logout</span>
-                <span>Logout</span>
-            </button>
-        </form>
+        <button type="button" onclick="openLogoutModal()" class="w-full flex items-center space-x-4 px-6 py-4 {{ $inactiveClass }}">
+            <span class="material-symbols-outlined icon-outline text-[22px]">logout</span>
+            <span>Logout</span>
+        </button>
     </nav>
 
     <!-- User Profile -->
@@ -61,3 +58,85 @@
         </a>
     </div>
 </aside>
+
+{{-- ── LOGOUT CONFIRMATION MODAL ────────────────────────────────────────── --}}
+<div id="logoutModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-[999] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl relative transform scale-95 transition-transform duration-300" id="logoutModalBox">
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
+                <span class="material-symbols-outlined text-[#0d326b] text-3xl">logout</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Confirm Logout</h3>
+            <p class="text-slate-500 text-sm leading-relaxed">
+                Are you sure you want to logout? You will be redirected to the login page.
+            </p>
+        </div>
+        <form method="POST" action="{{ route('logout') }}" id="logoutForm">
+            @csrf
+            <div class="flex gap-3">
+                <button type="button" onclick="closeLogoutModal()"
+                        class="flex-1 py-3 border border-slate-200 rounded-2xl text-slate-600 font-semibold hover:bg-slate-50 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="flex-1 py-3 text-white font-semibold rounded-2xl transition-colors"
+                        style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 100%);">
+                    Yes, Logout
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openLogoutModal() {
+        const modal = document.getElementById('logoutModal');
+        const box = document.getElementById('logoutModalBox');
+        modal.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            modal.classList.remove('opacity-0');
+            box.classList.remove('scale-95');
+        });
+    }
+    function closeLogoutModal() {
+        const modal = document.getElementById('logoutModal');
+        const box = document.getElementById('logoutModalBox');
+        modal.classList.add('opacity-0');
+        box.classList.add('scale-95');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+    document.getElementById('logoutModal').addEventListener('click', function(e) {
+        if (e.target === this) closeLogoutModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeLogoutModal();
+    });
+
+    // ── SESSION GUARD ─────────────────────────────────────────────────────────
+    // 1. Force hard reload when the browser restores this page from the
+    //    back/forward cache (bfcache). The server will then check auth and
+    //    redirect to /login if the session is gone.
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+
+    // 2. Periodic server ping (every 60 s). If the server returns 401/403
+    //    (session expired / unauthenticated), redirect immediately to login.
+    (function startSessionWatch() {
+        setInterval(function() {
+            fetch('/dashboard', {
+                method: 'HEAD',
+                credentials: 'same-origin',
+                cache: 'no-store',
+            }).then(function(res) {
+                if (res.status === 401 || res.status === 403 || res.redirected) {
+                    window.location.replace('/login');
+                }
+            }).catch(function() {
+                // Network error – ignore silently
+            });
+        }, 60000);
+    })();
+</script>
