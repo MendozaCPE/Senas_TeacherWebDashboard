@@ -60,11 +60,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/weak-signs', [StudentAuthController::class, 'getWeakSigns']);
     Route::post('/student/award-challenge-xp', [StudentAuthController::class, 'awardChallengeXp']);
 
-    // ═══════════════════════════════════════════════════════════════
-    // 🎯 PROMOTION ROUTES (for mobile app)
-    // ═══════════════════════════════════════════════════════════════
-    Route::get('/student/promotion', [StudentAuthController::class, 'checkPromotion']);
-    Route::post('/student/promotion/{id}/viewed', [StudentAuthController::class, 'markPromotionViewed']);
-    Route::get('/student/promotion/history', [StudentAuthController::class, 'getPromotionHistory']);
-    Route::get('/student/promotion/status', [StudentAuthController::class, 'hasPendingPromotion']);
+ // ═══════════════════════════════════════════════════════════════
+// 🎯 PROMOTION ROUTES (for mobile app)
+// ═══════════════════════════════════════════════════════════════
+Route::get('/student/promotion', [StudentAuthController::class, 'checkPromotion']);
+Route::post('/student/promotion/{id}/viewed', [StudentAuthController::class, 'markPromotionViewed']);
+Route::get('/student/promotion/history', [StudentAuthController::class, 'getPromotionHistory']);
+Route::get('/student/promotion/status', [StudentAuthController::class, 'hasPendingPromotion']);
+Route::get('/student/promotion/{id}', [StudentAuthController::class, 'getPromotionDetails']); 
+
 });

@@ -2402,4 +2402,105 @@ public function awardChallengeXp(Request $request)
             ], 500);
         }
     }
+
+    /**
+ * Get promotion details by ID (for viewing historical promotions)
+ * GET /api/student/promotion/{id}
+ */
+public function getPromotionDetails(Request $request, $promotionId)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $promotion = StudentPromotion::where('id', $promotionId)
+            ->where('student_id', $student->student_id)
+            ->first();
+
+        if (!$promotion) {
+            return response()->json(['error' => 'Promotion not found'], 404);
+        }
+
+        // Get performance summary for this student
+        $summary = $this->getPerformanceSummary($student);
+
+        // Get celebration messages
+        $fromLevel = $promotion->from_level;
+        $toLevel = $promotion->to_level;
+        
+        $celebrationMessages = [
+            'Beginner' => [
+                'Intermediate' => [
+                    'title' => '🎉 You\'ve been promoted!',
+                    'subtitle' => 'Beginner → Intermediate',
+                    'message' => "Congratulations! You've mastered the basics and are now an Intermediate signer! Keep up the great work! 🌟",
+                    'badge_icon' => '📚',
+                    'gradient' => ['#0f3172', '#1a4f8a', '#2563eb'],
+                ],
+            ],
+            'Intermediate' => [
+                'Advanced' => [
+                    'title' => '🚀 Outstanding Achievement!',
+                    'subtitle' => 'Intermediate → Advanced',
+                    'message' => "Your hard work has paid off! You're now an Advanced signer! You're becoming fluent in FSL! 💪",
+                    'badge_icon' => '⭐',
+                    'gradient' => ['#1a1a2e', '#16213e', '#0f3460'],
+                ],
+                'Graduated' => [
+                    'title' => '🎓 GRADUATION DAY! 🎓',
+                    'subtitle' => 'Intermediate → Graduated',
+                    'message' => "CONGRATULATIONS, GRADUATE! You've completed your FSL journey! You're now officially a certified FSL signer! 🌟🎉🎊",
+                    'badge_icon' => '🎓',
+                    'gradient' => ['#1a1a2e', '#16213e', '#0f3460'],
+                ],
+            ],
+            'Advanced' => [
+                'Graduated' => [
+                    'title' => '🏅 YOU DID IT! 🏅',
+                    'subtitle' => 'Advanced → Graduated',
+                    'message' => "AMAZING! You've reached the pinnacle of FSL mastery! You're now officially GRADUATED! Your certificate awaits! 🎓🌟",
+                    'badge_icon' => '🏅',
+                    'gradient' => ['#1a1a2e', '#16213e', '#0f3460'],
+                ],
+            ],
+        ];
+
+        $messages = $celebrationMessages[$fromLevel] ?? [];
+        $promotionData = $messages[$toLevel] ?? [
+            'title' => '🎉 Congratulations!',
+            'subtitle' => "{$fromLevel} → {$toLevel}",
+            'message' => "You've been promoted! Keep up the great work! 🌟",
+            'badge_icon' => '🌟',
+            'gradient' => ['#0f3172', '#1a4f8a', '#2563eb'],
+        ];
+
+        return response()->json([
+            'success' => true,
+            'promotion' => [
+                'id' => $promotion->id,
+                'from_level' => $fromLevel,
+                'to_level' => $toLevel,
+                'promotion_date' => $promotion->promoted_at,
+                'title' => $promotionData['title'],
+                'subtitle' => $promotionData['subtitle'],
+                'message' => $promotionData['message'],
+                'badge_icon' => $promotionData['badge_icon'],
+                'gradient' => $promotionData['gradient'] ?? ['#0f3172', '#1a4f8a', '#2563eb'],
+                'was_forced' => (bool) $promotion->was_forced,
+                'summary' => $summary,
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 }

@@ -42,6 +42,29 @@
             z-index: 2;
         }
 
+        #camera-switch-btn {
+            position: absolute;
+            top: 40px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 16;
+            cursor: pointer;
+        }
+
+        #camera-switch-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #fff;
+        }
+
         #overlay {
             position: absolute;
             bottom: 30px;
@@ -357,6 +380,13 @@
     <div id="container">
         <video id="video" autoplay playsinline></video>
         <canvas id="canvas"></canvas>
+
+        <div id="camera-switch-btn" onclick="switchCamera()" title="Switch camera">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M9 3l-1.5 2H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V7a2 2 0 00-2-2h-3.5L15 3H9zm3 5a5 5 0 110 10 5 5 0 010-10zm5.5-.5l2 2-2 2v-1.5H15v-1h2.5V7.5zM6.5 15l-2-2 2-2v1.5H9v1H6.5V15z" />
+            </svg>
+        </div>
 
         <div id="level-badge">LEVEL 2 - SURVIVAL SIGNS</div>
         <div id="head-state">👤 Head: STILL</div>
@@ -947,7 +977,7 @@
             const offY = (cHeight - (vHeight * s)) / 2;
 
             const pts = landmarks.map(lm => ({
-                x: (1 - lm.x) * vWidth * s + offX,
+                x: (currentFacingMode === 'user' ? (1 - lm.x) : lm.x) * vWidth * s + offX,
                 y: lm.y * vHeight * s + offY
             }));
 
@@ -981,7 +1011,7 @@
             const offY = (cHeight - (vHeight * s)) / 2;
 
             landmarks.forEach((lm, idx) => {
-                const x = (1 - lm.x) * vWidth * s + offX;
+                const x = (currentFacingMode === 'user' ? (1 - lm.x) : lm.x) * vWidth * s + offX;
                 const y = lm.y * vHeight * s + offY;
                 ctx.beginPath();
                 ctx.arc(x, y, 1, 0, 2 * Math.PI);
@@ -991,7 +1021,7 @@
 
             if (landmarks.length > 1) {
                 const nose = landmarks[1];
-                const x = (1 - nose.x) * vWidth * s + offX;
+                const x = (currentFacingMode === 'user' ? (1 - nose.x) : nose.x) * vWidth * s + offX;
                 const y = nose.y * vHeight * s + offY;
                 ctx.beginPath();
                 ctx.arc(x, y, 4, 0, 2 * Math.PI);
@@ -1144,20 +1174,36 @@
         // ============================================================
         // CAMERA SETUP
         // ============================================================
-        async function startCamera() {
+        let currentFacingMode = 'user';
+        let switchingCamera = false;
+
+        async function startCamera(facingMode = 'user') {
             try {
                 statusText.textContent = 'Opening camera...';
+
+                // Stop any existing stream before opening a new one
+                if (videoElement.srcObject) {
+                    videoElement.srcObject.getTracks().forEach(track => track.stop());
+                    videoElement.srcObject = null;
+                }
+
+                currentFacingMode = facingMode;
+                // Only mirror the front (selfie) camera; the back camera should show normally
+                videoElement.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                    video: { facingMode: { ideal: facingMode }, width: { ideal: 640 }, height: { ideal: 480 } }
                 });
                 videoElement.srcObject = stream;
                 await videoElement.play();
 
                 updateProgressTracker();
-                initMediaPipe();
-                await loadGreetingsModel();
 
-                sendToMediaPipe();
+                if (!handsInstance) {
+                    initMediaPipe();
+                    await loadGreetingsModel();
+                    sendToMediaPipe();
+                }
             } catch (err) {
                 console.error('Camera error:', err);
                 loadingElement.innerHTML = `
@@ -1169,8 +1215,29 @@
                     type: 'model_error',
                     error: `Camera error: ${err.message}`
                 });
+            } finally {
+                switchingCamera = false;
             }
         }
+
+        async function switchCamera() {
+            if (switchingCamera) return;
+            switchingCamera = true;
+            const nextFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            await startCamera(nextFacingMode);
+        }
+
+        // Allow the React Native host app to trigger a camera switch via postMessage
+        function handleNativeMessage(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data && data.type === 'switch_camera') {
+                    switchCamera();
+                }
+            } catch (e) { /* not a JSON message meant for us, ignore */ }
+        }
+        document.addEventListener('message', handleNativeMessage);
+        window.addEventListener('message', handleNativeMessage);
 
         async function sendToMediaPipe() {
             if (!videoElement || videoElement.readyState < 2) {
