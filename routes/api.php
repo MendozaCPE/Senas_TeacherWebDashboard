@@ -30,6 +30,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/save-learning-path', [StudentAuthController::class, 'saveLearningPath']);
     Route::get('/student/learning-path', [StudentAuthController::class, 'getLearningPath']);
 
+    Route::post('/student/update-profile-picture', [StudentAuthController::class, 'updateProfilePicture']);
+
+
     // Student Lessons
     Route::get('/student/all-lessons', [StudentAuthController::class, 'getAllLessons']);
     Route::get('/student/lessons', [StudentAuthController::class, 'getLessons']);

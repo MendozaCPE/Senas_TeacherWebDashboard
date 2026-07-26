@@ -70,15 +70,16 @@ class StudentAuthController extends Controller
                 'name' => $user->name,
                 'role' => $user->role,
                 'student' => [
-                    'id' => $student->student_id,
-                    'lrn' => $student->lrn,
-                    'first_name' => $student->first_name,
-                    'last_name' => $student->last_name,
-                    'program_type' => $student->program_type,
-                    'grade_level' => $student->grade_level,
-                    'section' => $student->section,
-                    'fsl_mastery_level' => $student->fsl_mastery_level,
-                ],
+    'id' => $student->student_id,
+    'lrn' => $student->lrn,
+    'first_name' => $student->first_name,
+    'last_name' => $student->last_name,
+    'program_type' => $student->program_type,
+    'grade_level' => $student->grade_level,
+    'section' => $student->section,
+    'fsl_mastery_level' => $student->fsl_mastery_level,
+    'profile_picture' => $student->profile_picture ?? 'senya', // ← ADD THIS
+],
             ],
         ]);
     }
@@ -2695,6 +2696,49 @@ public function getStreak(Request $request)
         ], 500);
     }
 }
+
+/**
+ * Update student's profile picture
+ * POST /api/student/update-profile-picture
+ */
+public function updateProfilePicture(Request $request)
+{
+    try {
+        $user = $request->user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'profile_picture' => 'required|string|in:senya,boy,girl,catto',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid profile picture',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $student->profile_picture = $request->profile_picture;
+        $student->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile picture updated successfully',
+            'profile_picture' => $student->profile_picture,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 
 
 }

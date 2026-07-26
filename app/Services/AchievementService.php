@@ -123,22 +123,23 @@ class AchievementService
     /**
      * Get the value for a specific criterion type
      */
-    public function getCriterionValue(Student $student, string $type, array $filters = []): int
-    {
-        return match($type) {
-            'xp' => $this->getXpValue($student),
-            'lessons_completed' => $this->getLessonsCompleted($student, $filters),
-            'quizzes_passed' => $this->getQuizzesPassed($student, $filters),
-            'perfect_scores' => $this->getPerfectScores($student, $filters),
-            'gesture_mastered' => $this->getGestureMastered($student, $filters),
-            'streak_days' => $this->getStreakDays($student),
-            'gesture_attempts' => $this->getGestureAttempts($student, $filters),
-            'leaderboard_top' => $this->getLeaderboardTop($student, $filters),
-            'level' => $this->getLevelValue($student, $filters),
-            'modules_completed' => $this->getModulesCompleted($student, $filters),
-            default => 0,
-        };
-    }
+  public function getCriterionValue(Student $student, string $type, array $filters = []): int
+{
+    return match($type) {
+        'xp' => $this->getXpValue($student),
+        'lessons_completed' => $this->getLessonsCompleted($student, $filters),
+        'quizzes_passed' => $this->getQuizzesPassed($student, $filters),
+        'perfect_scores' => $this->getPerfectScores($student, $filters),
+        'gesture_mastered' => $this->getGestureMastered($student, $filters),
+        'gesture_mastered_percentage' => $this->getGestureMasteredPercentage($student, $filters), // ← ADD THIS
+        'streak_days' => $this->getStreakDays($student),
+        'gesture_attempts' => $this->getGestureAttempts($student, $filters),
+        'leaderboard_top' => $this->getLeaderboardTop($student, $filters),
+        'level' => $this->getLevelValue($student, $filters),
+        'modules_completed' => $this->getModulesCompleted($student, $filters),
+        default => 0,
+    };
+}
 
     // ─── CRITERIA VALUE GETTERS ──────────────────────────────
 
@@ -316,4 +317,81 @@ class AchievementService
         
         return $bonusMap[$achievement->code] ?? 10;
     }
+
+    // 2. Add this new method after getModulesCompleted():
+/**
+ * Get percentage of gestures mastered in a module (returns percentage as integer)
+ * e.g., 50% mastery = returns 50
+ */
+protected function getGestureMasteredPercentage(Student $student, array $filters = []): int
+{
+    $moduleName = $filters['module_name'] ?? null;
+    
+    if (!$moduleName) {
+        return 0;
+    }
+    
+    // Handle special case for 'alphabet' (combine both parts)
+    if ($moduleName === 'alphabet') {
+        // Get all alphabet modules
+        $modules = DB::table('gesture_modules')
+            ->where('name', 'LIKE', 'alphabet_part%')
+            ->pluck('module_id')
+            ->toArray();
+        
+        if (empty($modules)) {
+            return 0;
+        }
+        
+        // Get all gestures in alphabet modules
+        $gestureIds = DB::table('gestures')
+            ->whereIn('module_id', $modules)
+            ->pluck('gesture_id')
+            ->toArray();
+        
+        $totalGestures = count($gestureIds);
+        if ($totalGestures === 0) {
+            return 0;
+        }
+        
+        // Count mastered + proficient
+        $masteredCount = DB::table('gesture_performances')
+            ->where('student_id', $student->student_id)
+            ->whereIn('gesture_id', $gestureIds)
+            ->whereIn('mastery_level', ['mastered', 'proficient'])
+            ->count();
+        
+        return (int) round(($masteredCount / $totalGestures) * 100);
+    }
+    
+    // Get module ID by name
+    $module = DB::table('gesture_modules')
+        ->where('name', $moduleName)
+        ->first();
+    
+    if (!$module) {
+        return 0;
+    }
+    
+    // Get all gestures in this module
+    $gestureIds = DB::table('gestures')
+        ->where('module_id', $module->module_id)
+        ->pluck('gesture_id')
+        ->toArray();
+    
+    $totalGestures = count($gestureIds);
+    if ($totalGestures === 0) {
+        return 0;
+    }
+    
+    // Count mastered + proficient
+    $masteredCount = DB::table('gesture_performances')
+        ->where('student_id', $student->student_id)
+        ->whereIn('gesture_id', $gestureIds)
+        ->whereIn('mastery_level', ['mastered', 'proficient'])
+        ->count();
+    
+    return (int) round(($masteredCount / $totalGestures) * 100);
+}
+
 }
