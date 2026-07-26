@@ -399,9 +399,18 @@
             <div class="absolute -bottom-16 -right-16 text-[#eab308] opacity-50 transform rotate-45 pointer-events-none">
                 <svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/></svg>
             </div>
-            <div class="flex items-center space-x-2.5 mb-4 relative z-10">
-                <span class="material-symbols-outlined text-[24px] text-black">lightbulb</span>
-                <span class="text-[11px] font-black uppercase tracking-[0.15em] text-[#1e293b]">Senya Tip</span>
+            <div class="flex items-center justify-between mb-4 relative z-10">
+                <div class="flex items-center space-x-2.5">
+                    <span class="material-symbols-outlined text-[24px] text-black">lightbulb</span>
+                    <span class="text-[11px] font-black uppercase tracking-[0.15em] text-[#1e293b]">Senya Tip</span>
+                </div>
+                <button type="button" 
+                        id="refreshSenyaTipBtn" 
+                        title="Refresh tip"
+                        aria-label="Refresh Senya Tip"
+                        class="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 text-[#1e293b] flex items-center justify-center transition-all duration-200 active:scale-90 focus:outline-none cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px] transition-transform duration-500 ease-in-out select-none" id="refreshSenyaTipIcon">refresh</span>
+                </button>
             </div>
             <p id="senyaTipText" class="text-[14px] font-bold text-[#1e293b] leading-[1.6] relative z-10 transition-opacity duration-300 min-h-[48px]">
                 {!! $selectedTip ?? ($senyaTips[0] ?? 'Keep your students engaged with regular lesson assignments!') !!}
@@ -786,16 +795,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     })();
 
-    // ── Dynamic Senya Tip Rotator (for cache / bfcache restore) ──
+    // ── Dynamic Senya Tip Rotator (Refresh button & bfcache restore) ──
     (function () {
         const tips = @json($senyaTips ?? []);
         const tipEl = document.getElementById('senyaTipText');
-        if (!tips.length || !tipEl || tips.length <= 1) return;
+        const refreshBtn = document.getElementById('refreshSenyaTipBtn');
+        const refreshIcon = document.getElementById('refreshSenyaTipIcon');
+        if (!tipEl) return;
+
+        let currentIndex = 0;
+        let currentRotation = 0;
+
+        if (tips.length > 0) {
+            const currentContent = tipEl.innerHTML.trim();
+            const foundIdx = tips.findIndex(t => t.trim() === currentContent);
+            if (foundIdx !== -1) currentIndex = foundIdx;
+        }
+
+        function rotateTip() {
+            if (refreshIcon) {
+                currentRotation += 360;
+                refreshIcon.style.transform = `rotate(${currentRotation}deg)`;
+            }
+
+            if (!tips.length || tips.length <= 1) return;
+
+            tipEl.classList.add('opacity-0');
+
+            setTimeout(() => {
+                currentIndex = (currentIndex + 1) % tips.length;
+                tipEl.innerHTML = tips[currentIndex];
+                tipEl.classList.remove('opacity-0');
+            }, 180);
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', rotateTip);
+        }
 
         window.addEventListener('pageshow', function (e) {
             if (e.persisted) {
-                const newIndex = Math.floor(Math.random() * tips.length);
-                tipEl.innerHTML = tips[newIndex];
+                rotateTip();
             }
         });
     })();

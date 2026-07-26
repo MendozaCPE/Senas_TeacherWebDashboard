@@ -63,8 +63,8 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::get('/lessons/{lesson}/edit', [LessonsController::class, 'edit'])->name('lessons.edit');
     Route::put('/lessons/{lesson}', [LessonsController::class, 'update'])->name('lessons.update');
 
-    Route::get('/lessons/{id}/publish-config', [LessonsController::class, 'showPublishConfig'])->name('lessons.publish.config');
-    Route::post('/lessons/{id}/publish', [LessonsController::class, 'publishLesson'])->name('lessons.publish');
+    Route::get('/lessons/{lesson}/publish-config', [LessonsController::class, 'showPublishConfig'])->name('lessons.publish.config');
+    Route::post('/lessons/{lesson}/publish', [LessonsController::class, 'publishLesson'])->name('lessons.publish');
     Route::delete('/lessons/{id}', [LessonsController::class, 'destroy'])->name('lessons.destroy');
     Route::get('/lessons/{id}/students', [LessonsController::class, 'manageStudents'])->name('lessons.students');
     Route::post('/lessons/{id}/students', [LessonsController::class, 'updateStudents'])->name('lessons.students.update');

@@ -36,10 +36,10 @@
 .promo-btn-locked:hover    { background: #f1f5f9; border-color: #cbd5e1; }
 .promo-btn-completed { background: #eff6ff; color: #0d326b; border: none; }
 
-.promo-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.promo-btn { display: inline-flex; align-items: center; gap: 5px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s; white-space: nowrap; }
 
 /* ── Demote button ────────────────────────────────── */
-.demote-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s; white-space: nowrap; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.demote-btn { display: inline-flex; align-items: center; gap: 5px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s; white-space: nowrap; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 .demote-btn:hover { background: #fee2e2; border-color: #fca5a5; transform: scale(1.04); }
 
 /* ── Promotion/demotion history item ──────────────── */
@@ -49,6 +49,13 @@
 /* ── Ready to Promote KPI (golden gradient like Senya tip) ── */
 .kpi-ready-promote {
     background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
+}
+
+/* ── Results loading state (used while AJAX-fetching filtered/paginated data) ── */
+#students-results.is-loading {
+    opacity: .5;
+    pointer-events: none;
+    transition: opacity .15s;
 }
 </style>
 
@@ -69,7 +76,7 @@
         })->count();
     @endphp
 
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
         {{-- Total Students --}}
         <div class="stat-card text-white" style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
@@ -133,10 +140,10 @@
 
 
     {{-- ══════════ MAIN CONTENT ══════════ --}}
-    <div class="flex gap-5 items-start">
+    <div class="flex flex-col lg:flex-row gap-5 items-start">
 
         {{-- ── LEFT: Table Panel ── --}}
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 w-full">
 
             {{-- Filter Toolbar with Add Student button integrated --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center gap-3 flex-wrap">
@@ -146,8 +153,8 @@
                     <input id="student-search" type="text" value="{{ $sf['search'] ?? '' }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
                 </div>
                 <div class="bg-[#f1f5f9] p-1 rounded-full flex items-center shadow-inner shrink-0 order-2 lg:order-none">
-                    <button data-filter="all" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? 'all') === 'all' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">All Students</button>
-                    <button data-filter="active" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? '') === 'active' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 hover:text-[#0d326b] font-medium' }} text-[12px] rounded-full transition-all">Active Only</button>
+                    <button type="button" data-filter="all" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? 'all') === 'all' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 font-medium' }} text-[12px] rounded-full transition-all hover:text-[#0d326b]">All Students</button>
+                    <button type="button" data-filter="active" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? '') === 'active' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 font-medium' }} text-[12px] rounded-full transition-all hover:text-[#0d326b]">Active Only</button>
                 </div>
                 <div class="flex-1"></div>
                 <div class="relative shrink-0">
@@ -170,231 +177,234 @@
                     </select>
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
                 </div>
-                {{-- Clear filter --}}
-                @if(!empty($sf))
-                <form method="POST" action="{{ route('students.filter') }}" class="inline">
-                    @csrf
-                    <button type="submit" class="text-[11px] text-slate-400 hover:text-slate-600 font-medium underline-offset-2 hover:underline">Clear</button>
-                </form>
-                @endif
+                {{-- Clear filter (client-side toggled, AJAX-cleared — no page reload) --}}
+                <span id="clear-filters-wrap" class="{{ empty($sf) ? 'hidden' : '' }}">
+                    <button type="button" id="clear-filters-btn" class="text-[11px] text-slate-400 hover:text-slate-600 font-medium underline-offset-2 hover:underline">Clear</button>
+                </span>
                 {{-- Add Student Button moved here --}}
-                <button id="open-modal-btn"
-                    class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center space-x-2 shadow-sm border border-[#0d326b]/20 shrink-0">
+                <button id="open-modal-btn" title="Add Student"
+                    class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-3 lg:px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2 shadow-sm border border-[#0d326b]/20 shrink-0">
                     <span class="material-symbols-outlined icon-outline text-[18px]">person_add</span>
-                    <span>Add Student</span>
+                    <span class="hidden lg:inline">Add Student</span>
                 </button>
             </div>
 
-            {{-- Hidden POST form used by JS to submit filters --}}
-            <form id="studentFilterForm" method="POST" action="{{ route('students.filter') }}" style="display:none">
+            {{-- Hidden form: only used to carry the CSRF token for AJAX requests below --}}
+            <form id="studentFilterForm" style="display:none">
                 @csrf
-                <input type="hidden" name="search"  id="sf-search">
-                <input type="hidden" name="level"   id="sf-level">
-                <input type="hidden" name="program" id="sf-program">
-                <input type="hidden" name="status"  id="sf-status">
             </form>
 
-            {{-- Student Table --}}
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <table class="w-full text-left border-collapse" id="students-table">
-                    <thead>
-                        <tr class="border-b border-slate-100 bg-slate-50/60">
-                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student</th>
-                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Level & Status</th>
-                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">XP Progress</th>
-                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Enrolled</th>
-                            <th class="py-4 px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-50" id="student-tbody">
-                        @forelse($students as $student)
-                        @php
-                            $xp    = $student->total_xp ?? 0;
-                            $lvl   = $student->fsl_mastery_level;
-                            $m1=300; $m2=600; $m3=1000;
-                            $promoteTo=null; $promoteXp=null; $enoughXp=false;
-                            if      ($lvl==='Beginner')     { $promoteTo='Intermediate'; $promoteXp=$m1; $enoughXp=$xp>=$m1; }
-                            elseif  ($lvl==='Intermediate') { $promoteTo='Advanced';     $promoteXp=$m2; $enoughXp=$xp>=$m2; }
-                            elseif  ($lvl==='Advanced')     { $promoteTo='Completed';    $promoteXp=$m3; $enoughXp=$xp>=$m3; }
+            {{-- ══════════ RESULTS (table + pagination) — this whole block gets
+                 swapped in place by JS on filter/search/pagination changes,
+                 so the page never reloads. ══════════ --}}
+            <div id="students-results">
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <table class="w-full text-left border-collapse" style="table-layout:fixed" id="students-table">
+                        <colgroup>
+                            <col style="width:30%">
+                            <col style="width:18%">
+                            <col style="width:28%">
+                            <col style="width:13%">
+                            <col style="width:11%">
+                        </colgroup>
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/60">
+                                <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">Student</th>
+                                <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">Level & Status</th>
+                                <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">XP Progress</th>
+                                <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">Enrolled</th>
+                                <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase text-right truncate">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50" id="student-tbody">
+                            @forelse($students as $student)
+                            @php
+                                $xp    = $student->total_xp ?? 0;
+                                $lvl   = $student->fsl_mastery_level;
+                                $m1=300; $m2=600; $m3=1000;
+                                $promoteTo=null; $promoteXp=null; $enoughXp=false;
+                                if      ($lvl==='Beginner')     { $promoteTo='Intermediate'; $promoteXp=$m1; $enoughXp=$xp>=$m1; }
+                                elseif  ($lvl==='Intermediate') { $promoteTo='Advanced';     $promoteXp=$m2; $enoughXp=$xp>=$m2; }
+                                elseif  ($lvl==='Advanced')     { $promoteTo='Completed';    $promoteXp=$m3; $enoughXp=$xp>=$m3; }
 
-                            // Demotion: can demote from any level except Beginner
-                            $canDemote = $lvl !== 'Beginner';
-                            $demoteTo = match($lvl) {
-                                'Intermediate' => 'Beginner',
-                                'Advanced' => 'Intermediate',
-                                'Completed' => 'Advanced',
-                                default => null
-                            };
+                                // Demotion: can demote from any level except Beginner
+                                $canDemote = $lvl !== 'Beginner';
+                                $demoteTo = match($lvl) {
+                                    'Intermediate' => 'Beginner',
+                                    'Advanced' => 'Intermediate',
+                                    'Completed' => 'Advanced',
+                                    default => null
+                                };
 
-                            // Bar calculations (relative to next threshold)
-                            if      ($lvl==='Beginner')     { $barMax=$m1; $barXp=min($xp,$m1); }
-                            elseif  ($lvl==='Intermediate') { $barMax=$m2; $barXp=min($xp,$m2); }
-                            elseif  ($lvl==='Advanced')     { $barMax=$m3; $barXp=min($xp,$m3); }
-                            else                            { $barMax=$m3; $barXp=$m3; }
-                            $barPct = $barMax>0 ? min(100,round($barXp/$barMax*100)) : 100;
+                                // Bar calculations (relative to next threshold)
+                                if      ($lvl==='Beginner')     { $barMax=$m1; $barXp=min($xp,$m1); }
+                                elseif  ($lvl==='Intermediate') { $barMax=$m2; $barXp=min($xp,$m2); }
+                                elseif  ($lvl==='Advanced')     { $barMax=$m3; $barXp=min($xp,$m3); }
+                                else                            { $barMax=$m3; $barXp=$m3; }
+                                $barPct = $barMax>0 ? min(100,round($barXp/$barMax*100)) : 100;
 
-                            $levelMeta = match($lvl) {
-                                'Intermediate' => ['barColor'=>'#3b82f6','class'=>'intermediate','icon'=>'bolt'],
-                                'Advanced'     => ['barColor'=>'#10b981','class'=>'advanced',    'icon'=>'military_tech'],
-                                'Completed'    => ['barColor'=>'#a855f7','class'=>'completed',   'icon'=>'verified'],
-                                default        => ['barColor'=>'#f59e0b','class'=>'beginner',    'icon'=>'person'],
-                            };
-                            $statusColor = match($student->status) {
-                                'active'   => ['dot'=>'bg-emerald-400','text'=>'text-emerald-600'],
-                                'inactive' => ['dot'=>'bg-slate-300',  'text'=>'text-slate-400'],
-                                default    => ['dot'=>'bg-red-300',    'text'=>'text-red-400'],
-                            };
-                            // Promotion/demotion history for this student (already eager-loaded)
-                            $promoHistory = $student->promotions ?? collect();
-                        @endphp
-                        <tr class="hover:bg-slate-50/60 transition-colors group student-row"
-                            data-status="{{ $student->status }}"
-                            data-program="{{ $student->program_type ?? '' }}"
-                            data-mastery="{{ $lvl }}"
-                            data-name="{{ strtolower($student->first_name . ' ' . $student->last_name) }}">
+                                $levelMeta = match($lvl) {
+                                    'Intermediate' => ['barColor'=>'#3b82f6','class'=>'intermediate','icon'=>'bolt'],
+                                    'Advanced'     => ['barColor'=>'#10b981','class'=>'advanced',    'icon'=>'military_tech'],
+                                    'Completed'    => ['barColor'=>'#a855f7','class'=>'completed',   'icon'=>'verified'],
+                                    default        => ['barColor'=>'#f59e0b','class'=>'beginner',    'icon'=>'person'],
+                                };
+                                $statusColor = match($student->status) {
+                                    'active'   => ['dot'=>'bg-emerald-400','text'=>'text-emerald-600'],
+                                    'inactive' => ['dot'=>'bg-slate-300',  'text'=>'text-slate-400'],
+                                    default    => ['dot'=>'bg-red-300',    'text'=>'text-red-400'],
+                                };
+                                // Promotion/demotion history for this student (already eager-loaded)
+                                $promoHistory = $student->promotions ?? collect();
+                            @endphp
+                            <tr class="hover:bg-slate-50/60 transition-colors group student-row"
+                                data-status="{{ $student->status }}"
+                                data-program="{{ $student->program_type ?? '' }}"
+                                data-mastery="{{ $lvl }}"
+                                data-name="{{ strtolower($student->first_name . ' ' . $student->last_name) }}">
 
-                            {{-- Student Profile --}}
-                            <td class="py-4 px-5">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-full shadow-sm shrink-0 overflow-hidden ring-2 ring-slate-100">
-                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name.'+'.$student->last_name) }}&background=0d326b&color=fff&rounded=true&size=60" class="w-9 h-9 rounded-full ring-2 ring-slate-100" />
-                                    </div>
-                                    <div>
-                                        <p class="text-[13px] font-bold text-[#0d326b]">{{ $student->first_name }} {{ $student->last_name }}</p>
-                                        <p class="text-[10px] text-slate-400 font-medium mt-0.5">LRN: {{ $student->lrn ?? 'N/A' }}@if($student->grade_level) &middot; {{ $student->grade_level }}@endif</p>
-                                        <div class="flex items-center space-x-1 mt-0.5">
-                                            <span class="w-1.5 h-1.5 rounded-full {{ $statusColor['dot'] }}"></span>
-                                            <span class="text-[10px] font-semibold {{ $statusColor['text'] }} uppercase">{{ $student->status }}</span>
+                                {{-- Student Profile --}}
+                                <td class="py-4 px-3 md:px-5 overflow-hidden">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-10 h-10 rounded-full shadow-sm shrink-0 overflow-hidden ring-2 ring-slate-100">
+                                            <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name.'+'.$student->last_name) }}&background=0d326b&color=fff&rounded=true&size=60" class="w-9 h-9 rounded-full ring-2 ring-slate-100" />
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-[13px] font-bold text-[#0d326b] truncate" title="{{ $student->first_name }} {{ $student->last_name }}">{{ $student->first_name }} {{ $student->last_name }}</p>
+                                            <p class="text-[10px] text-slate-400 font-medium mt-0.5 truncate">LRN: {{ $student->lrn ?? 'N/A' }}@if($student->grade_level) &middot; {{ $student->grade_level }}@endif</p>
+                                            <div class="flex items-center gap-1 mt-0.5">
+                                                <span class="w-1.5 h-1.5 rounded-full shrink-0 {{ $statusColor['dot'] }}"></span>
+                                                <span class="text-[10px] font-semibold {{ $statusColor['text'] }} uppercase truncate">{{ $student->status }}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </td>
+                                </td>
 
-                            {{-- Level & Promo status --}}
-                            <td class="py-4 px-5">
-                                <div class="flex flex-col gap-1.5">
-                                    <span class="lvl-badge {{ $levelMeta['class'] }}">
-                                        <span class="material-symbols-outlined text-[11px]">{{ $levelMeta['icon'] }}</span>
-                                        <span>{{ $lvl }}</span>
-                                    </span>
-                                    @if($enoughXp && $promoteTo)
-                                        <span class="xp-eligible-chip">
-                                            <span class="material-symbols-outlined text-[9px]">arrow_upward</span>
-                                            Eligible for {{ $promoteTo }}
+                                {{-- Level & Promo status --}}
+                                <td class="py-4 px-3 md:px-5 overflow-hidden">
+                                    <div class="flex flex-col gap-1.5">
+                                        <span class="lvl-badge {{ $levelMeta['class'] }}">
+                                            <span class="material-symbols-outlined text-[11px]">{{ $levelMeta['icon'] }}</span>
+                                            <span>{{ $lvl }}</span>
                                         </span>
-                                    @elseif($lvl === 'Completed')
-                                        <span style="font-size:9px;color:#7e22ce;font-weight:700">🏆 Completed</span>
-                                    @else
-                                        <span class="text-[9px] text-slate-400 font-medium">Lv.{{ $student->level ?? 1 }}</span>
-                                    @endif
-                                </div>
-                            </td>
-
-                            {{-- XP Progress --}}
-                            <td class="py-4 px-5">
-                                <div class="w-[200px]">
-                                    <div class="flex items-center justify-between mb-1.5">
-                                        <span class="text-[12px] font-black text-[#0d326b]">{{ number_format($xp) }} <span class="text-[9px] font-semibold text-slate-400">XP</span></span>
-                                        @if($promoteTo)
-                                            <span class="text-[9px] font-semibold {{ $enoughXp ? 'text-emerald-600' : 'text-slate-400' }}">
-                                                @if($enoughXp)
-                                                    ✓ {{ number_format($promoteXp) }} reached
-                                                @else
-                                                    {{ number_format($promoteXp - $xp) }} to go
-                                                @endif
+                                        @if($enoughXp && $promoteTo)
+                                            <span class="xp-eligible-chip">
+                                                <span class="material-symbols-outlined text-[9px]">arrow_upward</span>
+                                                Eligible for {{ $promoteTo }}
                                             </span>
+                                        @elseif($lvl === 'Completed')
+                                            <span style="font-size:9px;color:#7e22ce;font-weight:700">🏆 Completed</span>
                                         @else
-                                            <span class="text-[9px] text-purple-500 font-bold">MAX ★</span>
+                                            <span class="text-[9px] text-slate-400 font-medium">Lv.{{ $student->level ?? 1 }}</span>
                                         @endif
                                     </div>
-                                    <div class="xp-bar-wrap">
-                                        <div class="xp-bar-fill" style="width:{{ $barPct }}%;"></div>
+                                </td>
+
+                                {{-- XP Progress --}}
+                                <td class="py-4 px-3 md:px-5 overflow-hidden">
+                                    <div class="w-full">
+                                        <div class="flex items-center justify-between mb-1.5 gap-1 flex-wrap">
+                                            <span class="text-[12px] font-black text-[#0d326b] whitespace-nowrap">{{ number_format($xp) }} <span class="text-[9px] font-semibold text-slate-400">XP</span></span>
+                                            @if($promoteTo)
+                                                <span class="text-[9px] font-semibold whitespace-nowrap {{ $enoughXp ? 'text-emerald-600' : 'text-slate-400' }}">
+                                                    @if($enoughXp)
+                                                        ✓ {{ number_format($promoteXp) }}
+                                                    @else
+                                                        {{ number_format($promoteXp - $xp) }} to go
+                                                    @endif
+                                                </span>
+                                            @else
+                                                <span class="text-[9px] text-purple-500 font-bold whitespace-nowrap">MAX ★</span>
+                                            @endif
+                                        </div>
+                                        <div class="xp-bar-wrap">
+                                            <div class="xp-bar-fill" style="width:{{ $barPct }}%;"></div>
+                                        </div>
+                                        <div class="flex justify-between mt-1">
+                                            <span class="text-[9px] text-slate-300">0</span>
+                                            <span class="text-[9px] font-bold whitespace-nowrap {{ $enoughXp ? 'text-emerald-500' : 'text-slate-300' }}">
+                                                @if($promoteTo) {{ number_format($promoteXp) }} XP @else MAX @endif
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div class="flex justify-between mt-1">
-                                        <span class="text-[9px] text-slate-300">0</span>
-                                        <span class="text-[9px] font-bold {{ $enoughXp ? 'text-emerald-500' : 'text-slate-300' }}">
-                                            @if($promoteTo) {{ number_format($promoteXp) }} XP @else MAX @endif
+                                </td>
+
+                                {{-- Enrolled --}}
+                                <td class="py-4 px-3 md:px-5 overflow-hidden">
+                                    <p class="text-[12px] font-medium text-[#1e293b] truncate">{{ $student->created_at ? $student->created_at->diffForHumans() : 'N/A' }}</p>
+                                    <p class="text-[10px] text-slate-400 mt-0.5 truncate">{{ $student->created_at ? $student->created_at->format('M d, Y') : '' }}</p>
+                                </td>
+
+                                {{-- Actions --}}
+                                <td class="py-4 px-3 md:px-5 text-right overflow-hidden">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        @if($canDemote)
+                                        <button class="demote-btn w-9 h-9 shrink-0 flex items-center justify-center"
+                                            data-student-id="{{ $student->student_id }}"
+                                            data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
+                                            data-current-level="{{ $lvl }}"
+                                            data-target-level="{{ $demoteTo }}"
+                                            data-current-xp="{{ $xp }}"
+                                            data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
+                                            title="Demote to {{ $demoteTo }}">
+                                            <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+                                        </button>
+                                        @endif
+
+                                        @if($promoteTo)
+                                        <button class="promote-btn promo-btn w-9 h-9 shrink-0 flex items-center justify-center {{ $enoughXp ? 'promo-btn-eligible' : 'promo-btn-locked' }}"
+                                            data-student-id="{{ $student->student_id }}"
+                                            data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
+                                            data-current-level="{{ $lvl }}"
+                                            data-target-level="{{ $promoteTo }}"
+                                            data-current-xp="{{ $xp }}"
+                                            data-required-xp="{{ $promoteXp }}"
+                                            data-enough="{{ $enoughXp ? 'true' : 'false' }}"
+                                            data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
+                                            title="{{ $enoughXp ? 'Promote to '.$promoteTo : 'Force promote (XP insufficient)' }}">
+                                            <span class="material-symbols-outlined text-[16px]">{{ $enoughXp ? 'arrow_upward' : 'lock' }}</span>
+                                        </button>
+                                        @else
+                                        <span class="promo-btn promo-btn-completed w-9 h-9 shrink-0 flex items-center justify-center" title="Completed">
+                                            <span class="material-symbols-outlined text-[16px]">verified</span>
                                         </span>
+                                        @endif
                                     </div>
-                                </div>
-                            </td>
-
-                            {{-- Enrolled --}}
-                            <td class="py-4 px-5">
-                                <p class="text-[12px] font-medium text-[#1e293b]">{{ $student->created_at ? $student->created_at->diffForHumans() : 'N/A' }}</p>
-                                <p class="text-[10px] text-slate-400 mt-0.5">{{ $student->created_at ? $student->created_at->format('M d, Y') : '' }}</p>
-                            </td>
-
-                            {{-- Actions --}}
-                            <td class="py-4 px-5 text-right">
-                                <div class="flex items-center justify-end gap-1.5">
-                                    @if($canDemote)
-                                    <button class="demote-btn"
-                                        data-student-id="{{ $student->student_id }}"
-                                        data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
-                                        data-current-level="{{ $lvl }}"
-                                        data-target-level="{{ $demoteTo }}"
-                                        data-current-xp="{{ $xp }}"
-                                        data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
-                                        title="Demote to {{ $demoteTo }}">
-                                        <span class="material-symbols-outlined text-[13px]">arrow_downward</span>
-                                        <span>Demote</span>
-                                    </button>
-                                    @endif
-
-                                    @if($promoteTo)
-                                    <button class="promote-btn promo-btn {{ $enoughXp ? 'promo-btn-eligible' : 'promo-btn-locked' }}"
-                                        data-student-id="{{ $student->student_id }}"
-                                        data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
-                                        data-current-level="{{ $lvl }}"
-                                        data-target-level="{{ $promoteTo }}"
-                                        data-current-xp="{{ $xp }}"
-                                        data-required-xp="{{ $promoteXp }}"
-                                        data-enough="{{ $enoughXp ? 'true' : 'false' }}"
-                                        data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
-                                        title="{{ $enoughXp ? 'Promote to '.$promoteTo : 'Force promote (XP insufficient)' }}">
-                                        <span class="material-symbols-outlined text-[13px]">{{ $enoughXp ? 'arrow_upward' : 'lock' }}</span>
-                                        <span>{{ $enoughXp ? 'Promote' : 'Promote' }}</span>
-                                    </button>
-                                    @else
-                                    <span class="promo-btn promo-btn-completed">
-                                        <span class="material-symbols-outlined text-[13px]">verified</span>
-                                        <span>Completed</span>
-                                    </span>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr id="empty-state-row">
-                            <td colspan="5">
-                                <div class="flex flex-col items-center justify-center py-16 text-center">
-                                    <div class="w-16 h-16 rounded-2xl bg-[#e8eef8] flex items-center justify-center mb-4">
-                                        <span class="material-symbols-outlined text-[#0d326b] text-[32px]">group_off</span>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr id="empty-state-row">
+                                <td colspan="5">
+                                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                                        <div class="w-16 h-16 rounded-2xl bg-[#e8eef8] flex items-center justify-center mb-4">
+                                            <span class="material-symbols-outlined text-[#0d326b] text-[32px]">group_off</span>
+                                        </div>
+                                        <p class="text-[16px] font-bold text-[#0d326b] mb-1">No students yet</p>
+                                        <p class="text-[13px] text-slate-400 font-medium mb-5">Add your first student to get started.</p>
+                                        <button onclick="document.getElementById('open-modal-btn').click()" class="bg-[#0d326b] hover:bg-[#154188] text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors">Add Student</button>
                                     </div>
-                                    <p class="text-[16px] font-bold text-[#0d326b] mb-1">No students yet</p>
-                                    <p class="text-[13px] text-slate-400 font-medium mb-5">Add your first student to get started.</p>
-                                    <button onclick="document.getElementById('open-modal-btn').click()" class="bg-[#0d326b] hover:bg-[#154188] text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors">Add Student</button>
-                                </div>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
 
-                <div id="no-filter-results" class="hidden py-12 text-center">
-                    <p class="text-[14px] font-bold text-slate-400 mb-1">No students match your filters</p>
-                    <p class="text-[12px] text-slate-400">Try adjusting the search or filter options above.</p>
+                    <div id="no-filter-results" class="hidden py-12 text-center">
+                        <p class="text-[14px] font-bold text-slate-400 mb-1">No students match your filters</p>
+                        <p class="text-[12px] text-slate-400">Try adjusting the search or filter options above.</p>
+                    </div>
+
+                    @if($students->hasPages())
+                    <div class="px-6 py-4 border-t border-slate-100">{{ $students->links('pagination::tailwind') }}</div>
+                    @endif
                 </div>
-
-                @if($students->hasPages())
-                <div class="px-6 py-4 border-t border-slate-100">{{ $students->links('pagination::tailwind') }}</div>
-                @endif
             </div>
+            {{-- /#students-results --}}
+
         </div>
 
         {{-- ── RIGHT SIDEBAR ── --}}
-        <div class="w-[260px] shrink-0 space-y-4">
+        <div class="w-full lg:w-[260px] shrink-0 space-y-4">
 
             {{-- FSL Mastery Donut (updated with gradients & tooltips like dashboard) --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -846,7 +856,7 @@ let parsedStudents=[];
 openModalBtn.addEventListener('click',()=>{modal.classList.remove('hidden');requestAnimationFrame(()=>{modal.classList.remove('opacity-0');modalCard.classList.remove('scale-95');});});
 function closeModal(){modal.classList.add('opacity-0');modalCard.classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden');resetModal();},300);}
 closeModalBtn.addEventListener('click',closeModal);cancelBtns.forEach(b=>b.addEventListener('click',closeModal));modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
-const AT='text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all',IT='text-slate-400 border-b-2 border-transparent pb-3 hover:text-slate-600 outline-none transition-all';
+const AT='text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all',IT='text-slate-400 border-b-2 border-transparent hover:text-slate-600 outline-none transition-all';
 tabSingle.addEventListener('click',()=>{tabSingle.className=AT;tabBulk.className=IT;formSingle.classList.remove('hidden');containerBulk.classList.add('hidden');});
 tabBulk.addEventListener('click',()=>{tabBulk.className=AT;tabSingle.className=IT;containerBulk.classList.remove('hidden');formSingle.classList.add('hidden');});
 function showAlert(msg,type='error'){modalAlert.classList.remove('hidden','bg-red-50','border-red-200','text-red-800','bg-emerald-50','border-emerald-200','text-emerald-800');modalAlertIcon.innerText=type==='error'?'error':'check_circle';modalAlert.classList.add(type==='error'?'bg-red-50':'bg-emerald-50',type==='error'?'border-red-200':'border-emerald-200',type==='error'?'text-red-800':'text-emerald-800');modalAlertMsg.innerHTML=msg;}
@@ -874,46 +884,161 @@ function mapExcelData(rows){if(!rows||rows.length<2)return[];const h=rows[0].map
 async function submitSingleStudent(event){event.preventDefault();hideAlert();const btn=document.getElementById('btn-single-submit'),nameVal=formSingle.querySelector('input[name="full_name"]').value;if(!nameVal.includes(',')){showAlert('Full Name must be "Last Name, First Name" (comma-separated).');return;}if(inputLrn.value.replace(/\D/g,'').length!==12){showAlert('LRN must be exactly 12 digits.');return;}await checkLrnUnique();if(lrnExists)return;const orig=btn.innerText;btn.innerText='Saving...';btn.disabled=true;const fd=new FormData(formSingle),showGS=['Regular','Inclusion'].includes(fd.get('program_type')),payload={lrn:fd.get('lrn'),full_name:fd.get('full_name'),program_type:fd.get('program_type'),age:fd.get('age'),fsl_mastery_level:fd.get('fsl_mastery_level')};if(showGS){payload.grade_level=fd.get('grade_level');payload.section=fd.get('section');}const token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.store') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message,'success');setTimeout(()=>window.location.reload(),1500);}else{showAlert(res.data.message||'An error occurred.');btn.innerText=orig;btn.disabled=false;}}catch(err){let msg='An error occurred while saving.';if(err.response?.data?.errors){const errors=err.response.data.errors;if(errors.lrn){showLrnError();msg=errors.lrn[0];}else{msg=Object.values(errors).flat().join('<br>');}}else if(err.response?.data?.message)msg=err.response.data.message;else if(err.request)msg=`Network error: ${err.message}`;showAlert(msg);btn.innerText=orig;btn.disabled=false;}}
 btnImport.addEventListener('click',async()=>{hideAlert();const orig=btnImport.innerText;btnImport.innerText='Importing...';btnImport.disabled=true;const payload={students:parsedStudents,auto_pin:document.getElementById('bulk-auto-pin').checked?1:0},token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.import') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message,'success');setTimeout(()=>window.location.reload(),1500);}else{showAlert(res.data.message||'Import error.');btnImport.innerText=orig;btnImport.disabled=false;}}catch(err){let msg='An error occurred during import.';if(err.response?.data?.errors)msg=Object.values(err.response.data.errors).flat().join('<br>');else if(err.response?.data?.message)msg=err.response.data.message;showAlert(msg);btnImport.innerText=orig;btnImport.disabled=false;}});
 
-// ─── Server-side Filtering Navigation ──────────────────────────────────────────
-const searchInput=document.getElementById('student-search'),filterLevel=document.getElementById('filter-level'),filterProgram=document.getElementById('filter-program'),filterTabs=document.querySelectorAll('.filter-tab');
+// ─── AJAX Filtering + Pagination (no page reload) ──────────────────────────────
+// The whole "results" panel (table + pagination) below the toolbar is fetched
+// and swapped in place. Because everything inside it is handled via event
+// delegation on `document`, newly-inserted rows/pagination links/buttons work
+// immediately without re-binding listeners.
 let searchDebounceTimer = null;
+let _resultsAbortController = null;
 
-function applyServerFilters(overrides = {}) {
-    const searchVal  = overrides.hasOwnProperty('search')  ? overrides.search  : searchInput.value.trim();
-    const levelVal   = overrides.hasOwnProperty('level')   ? overrides.level   : filterLevel.value;
-    const programVal = overrides.hasOwnProperty('program') ? overrides.program : filterProgram.value;
-    const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : (document.querySelector('.filter-tab.font-bold')?.dataset.filter || 'all');
-
-    // Populate the hidden POST form and submit — no params visible in the URL
-    document.getElementById('sf-search').value  = searchVal;
-    document.getElementById('sf-level').value   = levelVal;
-    document.getElementById('sf-program').value = programVal;
-    document.getElementById('sf-status').value  = statusVal;
-    document.getElementById('studentFilterForm').submit();
+function setResultsLoading(isLoading) {
+    const el = document.getElementById('students-results');
+    if (el) el.classList.toggle('is-loading', isLoading);
 }
 
-filterTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        applyServerFilters({ status: tab.dataset.filter });
+function getActiveStatus() {
+    return document.querySelector('.filter-tab.font-bold')?.dataset.filter || 'all';
+}
+
+function setActiveTab(status) {
+    document.querySelectorAll('.filter-tab').forEach(function (tab) {
+        const isActive = tab.dataset.filter === status;
+        tab.classList.remove('bg-white', 'text-[#0d326b]', 'font-bold', 'shadow-sm', 'text-slate-500', 'font-medium');
+        if (isActive) {
+            tab.classList.add('bg-white', 'text-[#0d326b]', 'font-bold', 'shadow-sm');
+        } else {
+            tab.classList.add('text-slate-500', 'font-medium');
+        }
     });
-});
+}
 
-searchInput.addEventListener('input', () => {
-    clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = setTimeout(() => {
-        applyServerFilters();
-    }, 500);
-});
+function updateClearButtonVisibility() {
+    const search  = document.getElementById('student-search').value.trim();
+    const level   = document.getElementById('filter-level').value;
+    const program = document.getElementById('filter-program').value;
+    const status  = getActiveStatus();
+    const hasFilters = !!(search || level || program || (status && status !== 'all'));
+    const wrap = document.getElementById('clear-filters-wrap');
+    if (wrap) wrap.classList.toggle('hidden', !hasFilters);
+}
 
-searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+function fetchStudentsResults(url, fetchOptions) {
+    fetchOptions = fetchOptions || {};
+    if (_resultsAbortController) _resultsAbortController.abort();
+    _resultsAbortController = new AbortController();
+
+    setResultsLoading(true);
+
+    const headers = Object.assign({ 'X-Requested-With': 'XMLHttpRequest' }, fetchOptions.headers || {});
+
+    return fetch(url, Object.assign({}, fetchOptions, { headers: headers, signal: _resultsAbortController.signal }))
+        .then(function (res) { return res.text(); })
+        .then(function (html) {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const newResults = doc.getElementById('students-results');
+            const oldResults = document.getElementById('students-results');
+            if (newResults && oldResults) {
+                oldResults.replaceWith(newResults);
+            } else {
+                setResultsLoading(false);
+            }
+            updateClearButtonVisibility();
+        })
+        .catch(function (err) {
+            if (err.name === 'AbortError') return;
+            setResultsLoading(false);
+            alert('Something went wrong loading students. Please try again.');
+        });
+}
+
+function applyServerFilters(overrides) {
+    overrides = overrides || {};
+    const searchVal  = overrides.hasOwnProperty('search')  ? overrides.search  : document.getElementById('student-search').value.trim();
+    const levelVal   = overrides.hasOwnProperty('level')   ? overrides.level   : document.getElementById('filter-level').value;
+    const programVal = overrides.hasOwnProperty('program') ? overrides.program : document.getElementById('filter-program').value;
+    const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : getActiveStatus();
+
+    if (overrides.hasOwnProperty('status')) setActiveTab(statusVal);
+
+    const tokenInput = document.querySelector('#studentFilterForm input[name="_token"]');
+    const token = tokenInput ? tokenInput.value : '';
+
+    const body = new URLSearchParams();
+    body.set('_token', token);
+    body.set('search', searchVal);
+    body.set('level', levelVal);
+    body.set('program', programVal);
+    body.set('status', statusVal);
+
+    fetchStudentsResults("{{ route('students.filter') }}", {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': token,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body.toString(),
+    });
+}
+
+// Search box (debounced) + Enter to apply immediately
+document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'student-search') {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(function () { applyServerFilters(); }, 500);
+    }
+});
+document.addEventListener('keydown', function (e) {
+    if (e.target && e.target.id === 'student-search' && e.key === 'Enter') {
+        e.preventDefault();
         clearTimeout(searchDebounceTimer);
         applyServerFilters();
     }
 });
 
-filterLevel.addEventListener('change', () => applyServerFilters());
-filterProgram.addEventListener('change', () => applyServerFilters());
+// Level / Program dropdowns
+document.addEventListener('change', function (e) {
+    if (e.target && (e.target.id === 'filter-level' || e.target.id === 'filter-program')) {
+        applyServerFilters();
+    }
+});
+
+// Delegated clicks: filter tabs, clear button, pagination links, promote/demote
+document.addEventListener('click', function (e) {
+    const tab = e.target.closest('.filter-tab');
+    if (tab) {
+        applyServerFilters({ status: tab.dataset.filter });
+        return;
+    }
+
+    const clearBtn = e.target.closest('#clear-filters-btn');
+    if (clearBtn) {
+        document.getElementById('student-search').value = '';
+        document.getElementById('filter-level').value = '';
+        document.getElementById('filter-program').value = '';
+        applyServerFilters({ search: '', level: '', program: '', status: 'all' });
+        return;
+    }
+
+    // Pagination links rendered inside #students-results (e.g. Laravel's
+    // pagination::tailwind view) — intercept and fetch instead of navigating.
+    const pageLink = e.target.closest('#students-results a[href]');
+    if (pageLink) {
+        e.preventDefault();
+        fetchStudentsResults(pageLink.href, { method: 'GET' });
+        return;
+    }
+
+    const promoteBtn = e.target.closest('.promote-btn');
+    if (promoteBtn) { openPromoteModal(promoteBtn); return; }
+
+    const demoteBtn = e.target.closest('.demote-btn');
+    if (demoteBtn) { openDemoteModal(demoteBtn); return; }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    updateClearButtonVisibility();
+});
 
 // ─── Promote Modal ────────────────────────────────────────────────────────────
 const promoteModal=document.getElementById('promote-modal'),promoteCard=document.getElementById('promote-card'),promoteTitle=document.getElementById('promote-title'),promoteSubtitle=document.getElementById('promote-subtitle'),promoteAvatar=document.getElementById('promote-avatar'),promoteStudentName=document.getElementById('promote-student-name'),promoteFromBadge=document.getElementById('promote-from-badge'),promoteToBadge=document.getElementById('promote-to-badge'),promoteXpWarning=document.getElementById('promote-xp-warning'),promoteXpDetail=document.getElementById('promote-xp-detail'),promoteXpOk=document.getElementById('promote-xp-ok'),promoteXpOkDetail=document.getElementById('promote-xp-ok-detail'),promoteHeaderBar=document.getElementById('promote-header-bar'),promoteIconWrap=document.getElementById('promote-icon-wrap'),promoteIcon=document.getElementById('promote-icon'),promoteCancelBtn=document.getElementById('promote-cancel-btn'),promoteConfirmBtn=document.getElementById('promote-confirm-btn'),promoteConfirmLabel=document.getElementById('promote-confirm-label'),promoteXpBar=document.getElementById('promote-xp-bar'),promoteXpFraction=document.getElementById('promote-xp-fraction'),promoteXpTargetLabel=document.getElementById('promote-xp-target-label'),promoteHistoryList=document.getElementById('promote-history-list'),promoteHistoryEmpty=document.getElementById('promote-history-empty');
@@ -995,9 +1120,8 @@ function openPromoteModal(btn){
     requestAnimationFrame(()=>{promoteModal.classList.remove('opacity-0');promoteCard.classList.remove('scale-95');});
 }
 function closePromoteModal(){promoteModal.classList.add('opacity-0');promoteCard.classList.add('scale-95');setTimeout(()=>promoteModal.classList.add('hidden'),300);currentPromoteData=null;}
-document.querySelectorAll('.promote-btn').forEach(btn=>{btn.addEventListener('click',()=>openPromoteModal(btn));});
 promoteCancelBtn.addEventListener('click',closePromoteModal);promoteModal.addEventListener('click',e=>{if(e.target===promoteModal)closePromoteModal();});
-promoteConfirmBtn.addEventListener('click',async()=>{if(!currentPromoteData)return;const origInner=promoteConfirmBtn.innerHTML;promoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Promoting...</span>';promoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentPromoteData.studentId}/promote`;try{const res=await axios.post(url,{target_level:currentPromoteData.targetLevel,force:currentPromoteData.force?1:0},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){promoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-emerald-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Promoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>window.location.reload(),1400);}else{promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;}}catch(err){promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
+promoteConfirmBtn.addEventListener('click',async()=>{if(!currentPromoteData)return;const origInner=promoteConfirmBtn.innerHTML;promoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Promoting...</span>';promoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentPromoteData.studentId}/promote`;try{const res=await axios.post(url,{target_level:currentPromoteData.targetLevel,force:currentPromoteData.force?1:0},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){promoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-emerald-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Promoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>{closePromoteModal();applyServerFilters();},1400);}else{promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;}}catch(err){promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
 
 // ─── Demote Modal ─────────────────────────────────────────────────────────────
 const demoteModal=document.getElementById('demote-modal'),demoteCard=document.getElementById('demote-card'),demoteAvatar=document.getElementById('demote-avatar'),demoteStudentName=document.getElementById('demote-student-name'),demoteFromBadge=document.getElementById('demote-from-badge'),demoteToBadge=document.getElementById('demote-to-badge'),demoteWarningDetail=document.getElementById('demote-warning-detail'),demoteCancelBtn=document.getElementById('demote-cancel-btn'),demoteConfirmBtn=document.getElementById('demote-confirm-btn');
@@ -1018,9 +1142,8 @@ function openDemoteModal(btn){
     requestAnimationFrame(()=>{demoteModal.classList.remove('opacity-0');demoteCard.classList.remove('scale-95');});
 }
 function closeDemoteModal(){demoteModal.classList.add('opacity-0');demoteCard.classList.add('scale-95');setTimeout(()=>demoteModal.classList.add('hidden'),300);currentDemoteData=null;}
-document.querySelectorAll('.demote-btn').forEach(btn=>{btn.addEventListener('click',()=>openDemoteModal(btn));});
 demoteCancelBtn.addEventListener('click',closeDemoteModal);demoteModal.addEventListener('click',e=>{if(e.target===demoteModal)closeDemoteModal();});
-demoteConfirmBtn.addEventListener('click',async()=>{if(!currentDemoteData)return;const origInner=demoteConfirmBtn.innerHTML;demoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Demoting...</span>';demoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentDemoteData.studentId}/demote`;try{const res=await axios.post(url,{target_level:currentDemoteData.targetLevel},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){demoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-red-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Demoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>window.location.reload(),1400);}else{demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;}}catch(err){demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
+demoteConfirmBtn.addEventListener('click',async()=>{if(!currentDemoteData)return;const origInner=demoteConfirmBtn.innerHTML;demoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Demoting...</span>';demoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentDemoteData.studentId}/demote`;try{const res=await axios.post(url,{target_level:currentDemoteData.targetLevel},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){demoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-red-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Demoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>{closeDemoteModal();applyServerFilters();},1400);}else{demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;}}catch(err){demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
 
 // ─── Mastery Donut Tooltip ──────────────────────────────────────────────────
 document.querySelectorAll('.mastery-donut-hit').forEach(function(seg){

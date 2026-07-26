@@ -305,6 +305,7 @@
         @php
             $moduleColors = ['#0d326b','#1e4b8f','#1a6fd4','#3b82f6','#2563EB','#059669','#D97706'];
             $moduleIcons  = ['📚','📖','✏️','📝','📘','📗','📕'];
+            $pageSize     = 5;
         @endphp
 
         {{-- ── Modules with lessons ─────────────────────────────────────── --}}
@@ -316,11 +317,10 @@
             $lessonCount = $module->lessons->count();
             $published   = $module->lessons->where('status','published')->count();
             $progress    = $lessonCount > 0 ? round($published / $lessonCount * 100) : 0;
-            $totalPages  = max(1, ceil($lessonCount / 5));
-            $currentPage = 1; // JS will restore from sessionStorage — no URL param needed
-            $currentPage = max(1, min($currentPage, $totalPages));
-            $offset      = ($currentPage - 1) * 5;
-            $paginatedLessons = $module->lessons->slice($offset, 5);
+            $totalPages  = max(1, (int) ceil($lessonCount / $pageSize));
+            // Render ALL lessons up-front; pagination is handled entirely client-side
+            // (show/hide rows via JS) so "next page" never needs a server round trip.
+            $allLessons  = $module->lessons->values();
         @endphp
 
         <div class="module-card" id="module-{{ $module->module_id }}">
@@ -361,7 +361,7 @@
 
             {{-- Lessons Table --}}
             <div class="lesson-table-wrap">
-                @if($paginatedLessons->isEmpty())
+                @if($lessonCount === 0)
                     <div class="empty-state py-8">
                         <div class="w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center mb-3">
                             <span class="material-symbols-outlined text-slate-400 text-[28px]">menu_book</span>
@@ -385,9 +385,11 @@
                                     <th style="width:160px;text-align:right;">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @foreach($paginatedLessons as $lesson)
-                                <tr onclick="window.location.href='{{ route('lessons.view', $lesson->hash_id) }}'" style="cursor:pointer;">
+                            <tbody id="lesson-tbody-{{ $module->module_id }}">
+                                @foreach($allLessons as $lessonIndex => $lesson)
+                                @php $lessonPage = intdiv($lessonIndex, $pageSize) + 1; @endphp
+                                <tr class="lesson-row" data-page="{{ $lessonPage }}"
+                                    onclick="window.location.href='{{ route('lessons.view', $lesson->hash_id) }}'" style="cursor:pointer;">
                                     <td class="text-slate-300" onclick="event.stopPropagation();">
                                         <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
                                     </td>
@@ -432,20 +434,27 @@
 
                     {{-- Pagination --}}
                     @if($totalPages > 1)
-                    <div class="table-pagination">
-                        <span class="pagination-info">
-                            Showing {{ $offset + 1 }}–{{ min($offset + 5, $lessonCount) }} of {{ $lessonCount }} lessons
+                    <div class="table-pagination"
+                         id="pagination-{{ $module->module_id }}"
+                         data-total-pages="{{ $totalPages }}"
+                         data-total-count="{{ $lessonCount }}"
+                         data-page-size="{{ $pageSize }}">
+                        <span class="pagination-info" id="pagination-info-{{ $module->module_id }}">
+                            Showing 1–{{ min($pageSize, $lessonCount) }} of {{ $lessonCount }} lessons
                         </span>
                         <div class="pagination-buttons">
-                            <button class="pagination-btn" onclick="changePage({{ $module->module_id }}, {{ $currentPage - 1 }})" {{ $currentPage <= 1 ? 'disabled' : '' }}>
+                            <button class="pagination-btn" id="prev-btn-{{ $module->module_id }}"
+                                    onclick="changePage('{{ $module->module_id }}', currentPageOf('{{ $module->module_id }}') - 1)">
                                 <span class="material-symbols-outlined text-[16px]">chevron_left</span>
                             </button>
                             @for($p = 1; $p <= $totalPages; $p++)
-                            <button class="pagination-btn {{ $p == $currentPage ? 'active' : '' }}" onclick="changePage({{ $module->module_id }}, {{ $p }})">
+                            <button class="pagination-btn" id="page-btn-{{ $module->module_id }}-{{ $p }}"
+                                    onclick="changePage('{{ $module->module_id }}', {{ $p }})">
                                 {{ $p }}
                             </button>
                             @endfor
-                            <button class="pagination-btn" onclick="changePage({{ $module->module_id }}, {{ $currentPage + 1 }})" {{ $currentPage >= $totalPages ? 'disabled' : '' }}>
+                            <button class="pagination-btn" id="next-btn-{{ $module->module_id }}"
+                                    onclick="changePage('{{ $module->module_id }}', currentPageOf('{{ $module->module_id }}') + 1)">
                                 <span class="material-symbols-outlined text-[16px]">chevron_right</span>
                             </button>
                         </div>
@@ -637,21 +646,63 @@
 
 </div><!-- /flex wrapper -->
 
-{{-- ── PAGE CHANGE SCRIPT ──────────────────────────────────────────────────── --}}
+{{-- ── PAGINATION + MODAL SCRIPT ───────────────────────────────────────────── --}}
 <script>
-// Use sessionStorage to track the current page per module.
-// This keeps pagination state without exposing it in the URL.
-function changePage(moduleId, page) {
-    if (page < 1) return;
-    sessionStorage.setItem('lessons_page_' + moduleId, page);
-    // Reload rows without adding query params — just refresh the view in-place
-    window.location.replace(window.location.pathname);
+// ── CLIENT-SIDE PAGINATION (no reload) ──────────────────────────────────────
+// All lessons for a module are already in the DOM (tagged with data-page).
+// Changing page just shows/hides rows and updates the pagination controls —
+// nothing is fetched from the server and the page never reloads.
+const _currentPages = {};
+
+function currentPageOf(moduleId) {
+    return _currentPages[moduleId] || 1;
 }
 
-// On load: if sessionStorage has a saved page for any module, scroll to it
-document.addEventListener('DOMContentLoaded', function() {
-    // Nothing to do here server-side; all lessons are already rendered.
-    // For a future AJAX paginator this is where you'd apply the saved page.
+function changePage(moduleId, page) {
+    const wrapper = document.getElementById('pagination-' + moduleId);
+    if (!wrapper) return;
+
+    const totalPages = parseInt(wrapper.dataset.totalPages, 10) || 1;
+    const totalCount = parseInt(wrapper.dataset.totalCount, 10) || 0;
+    const pageSize   = parseInt(wrapper.dataset.pageSize, 10) || 5;
+
+    page = Math.max(1, Math.min(page, totalPages));
+    _currentPages[moduleId] = page;
+    sessionStorage.setItem('lessons_page_' + moduleId, page);
+
+    // Show only the rows belonging to this page
+    document.querySelectorAll('#lesson-tbody-' + moduleId + ' tr.lesson-row').forEach(function (row) {
+        row.style.display = (parseInt(row.dataset.page, 10) === page) ? '' : 'none';
+    });
+
+    // Highlight the active page button
+    for (let p = 1; p <= totalPages; p++) {
+        const btn = document.getElementById('page-btn-' + moduleId + '-' + p);
+        if (btn) btn.classList.toggle('active', p === page);
+    }
+
+    // Enable/disable prev & next
+    const prevBtn = document.getElementById('prev-btn-' + moduleId);
+    const nextBtn = document.getElementById('next-btn-' + moduleId);
+    if (prevBtn) prevBtn.disabled = (page <= 1);
+    if (nextBtn) nextBtn.disabled = (page >= totalPages);
+
+    // Update the "Showing X–Y of Z" label
+    const info = document.getElementById('pagination-info-' + moduleId);
+    if (info) {
+        const start = (page - 1) * pageSize + 1;
+        const end = Math.min(page * pageSize, totalCount);
+        info.textContent = 'Showing ' + start + '–' + end + ' of ' + totalCount + ' lessons';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize every module's table to its saved (or default) page
+    document.querySelectorAll('[id^="pagination-"]').forEach(function (wrapper) {
+        const moduleId = wrapper.id.replace('pagination-', '');
+        const saved = parseInt(sessionStorage.getItem('lessons_page_' + moduleId), 10) || 1;
+        changePage(moduleId, saved);
+    });
 });
 
 // ── NEW LESSON MODAL ────────────────────────────────────────────────────────

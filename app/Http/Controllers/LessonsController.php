@@ -338,7 +338,7 @@ public function store(Request $request)
 
     // After saving, redirect based on which button was clicked
     if ($buttonAction === 'published') {
-        return redirect()->route('lessons.publish.config', $lesson->lesson_id)
+        return redirect()->route('lessons.publish.config', $lesson->hash_id)
             ->with('success', 'Lesson saved as draft. Select a module, then choose who should receive this lesson.');
     }
 
@@ -505,8 +505,12 @@ public function store(Request $request)
 
 public function view($id)
 {
-    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
-    $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($id);
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($realId);
+
+    if ($id !== $lesson->hash_id) {
+        return redirect()->route('lessons.view', $lesson->hash_id);
+    }
 
     // Format data for preview
     $lessonData = [
@@ -554,8 +558,12 @@ public function view($id)
  */
 public function edit($id)
 {
-    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
-    $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($id);
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($realId);
+
+    if ($id !== $lesson->hash_id) {
+        return redirect()->route('lessons.edit', $lesson->hash_id);
+    }
 
     
     // Get modules for the dropdown
@@ -693,8 +701,12 @@ public function update(Request $request, $id)
  */
 public function showPublishConfig($id)
 {
-    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
-    $lesson = Lesson::findOrFail($id);
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::findOrFail($realId);
+
+    if ($id !== $lesson->hash_id) {
+        return redirect()->route('lessons.publish.config', $lesson->hash_id);
+    }
 
     $teacherId = $this->resolveTeacherId();
     $modules = Module::where('teacher_id', $teacherId)
