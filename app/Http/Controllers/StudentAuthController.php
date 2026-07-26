@@ -8,12 +8,15 @@ use App\Models\LessonAssignment;
 use App\Models\Student;
 use App\Models\StudentPromotion; 
 use App\Models\User;
-use App\Services\XPService;  
+use App\Services\XPService; 
+use App\Services\AchievementService;  
 use App\Models\Gesture;
 use App\Models\GestureModule;
 use App\Models\GesturePerformance;
 use App\Models\ModuleQuizResult;
 use App\Models\Module;
+use App\Models\Achievement;
+use App\Models\StudentAchievement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -979,6 +982,8 @@ public function awardSlideXp(Request $request, $lessonId)
             "Slide {$slideIndex} completed"
         );
 
+        $xpService->updateStreak($student);
+
         $student->refresh();
 
         return response()->json([
@@ -1246,8 +1251,7 @@ foreach ($assignments as $assignment) {
     }
 }
     }
-
-    /**
+/**
  * Save student's gesture performance from the mobile app
  * This handles practice sessions where students can practice anytime
  */
@@ -1261,16 +1265,16 @@ public function saveGesturePerformance(Request $request)
             return response()->json(['error' => 'Student not found'], 404);
         }
 
-      $validator = Validator::make($request->all(), [
-    'module_name' => 'required|string|in:alphabet_part1,alphabet_part2,numbers,level1_numbers,level2_greetings,level3_survival',
-    'letter_performances' => 'required|array',
-    'letter_performances.*.letter' => 'required|string',
-    'letter_performances.*.attempts' => 'required|integer|min:0',
-    'letter_performances.*.wrong_attempts' => 'required|integer|min:0',
-    'letter_performances.*.success_count' => 'required|integer|min:0',
-    'letter_performances.*.consecutive_wrong' => 'nullable|integer|min:0',
-    'session_id' => 'nullable|string',
-]);
+        $validator = Validator::make($request->all(), [
+            'module_name' => 'required|string|in:alphabet_part1,alphabet_part2,numbers,level1_numbers,level2_greetings,level3_survival',
+            'letter_performances' => 'required|array',
+            'letter_performances.*.letter' => 'required|string',
+            'letter_performances.*.attempts' => 'required|integer|min:0',
+            'letter_performances.*.wrong_attempts' => 'required|integer|min:0',
+            'letter_performances.*.success_count' => 'required|integer|min:0',
+            'letter_performances.*.consecutive_wrong' => 'nullable|integer|min:0',
+            'session_id' => 'nullable|string',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -1336,6 +1340,10 @@ public function saveGesturePerformance(Request $request)
             $student->student_id,
             $module->module_id
         );
+
+        // 🔥 FIX: Instantiate XPService and update streak
+        $xpService = new XPService();
+        $xpService->updateStreak($student);
 
         return response()->json([
             'success' => true,
@@ -1688,8 +1696,10 @@ public function awardModuleXp(Request $request)
                 null,
                 "{$xpMessage} - {$module->display_name} module"
             );
+            $xpService->updateStreak($student);
         }
 
+        
         $student->refresh();
 
         return response()->json([
@@ -2113,6 +2123,7 @@ public function awardChallengeXp(Request $request)
             null,
             $reason
         );
+        $xpService->updateStreak($student);
 
         $student->refresh();
 
@@ -2502,5 +2513,188 @@ public function getPromotionDetails(Request $request, $promotionId)
         ], 500);
     }
 }
+
+/**
+ * Get all achievements with unlock status for a student
+ */
+public function getAchievements(Request $request)
+{
+    try {
+        $user = $request->user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $achievementService = new AchievementService(new XPService());
+        
+        // Get all achievements
+        $achievements = Achievement::orderBy('order')->get();
+        
+        // Get student's unlocked achievements
+        $unlockedIds = StudentAchievement::where('student_id', $student->student_id)
+            ->where('is_unlocked', true)
+            ->pluck('achievement_id')
+            ->toArray();
+        
+        $result = $achievements->map(function ($achievement) use ($unlockedIds, $student, $achievementService) {
+            $isUnlocked = in_array($achievement->id, $unlockedIds);
+            
+            // Get progress if not unlocked
+            $progress = null;
+            if (!$isUnlocked) {
+                $criteria = $achievement->criteria;
+                if (!empty($criteria)) {
+                    $current = $achievementService->getCriterionValue($student, $criteria[0]['type'], $criteria[0]['filters'] ?? []);
+                    $target = $criteria[0]['threshold'] ?? 0;
+                    $progress = [
+                        'current' => $current,
+                        'target' => $target,
+                        'percentage' => $target > 0 ? min(100, round(($current / $target) * 100)) : 0,
+                    ];
+                }
+            }
+            
+            return [
+                'id' => $achievement->id,
+                'code' => $achievement->code,
+                'name' => $achievement->name,
+                'description' => $achievement->description,
+                'category' => $achievement->category,
+                'icon' => $achievement->icon,
+                'color' => $achievement->color,
+                'is_unlocked' => $isUnlocked,
+                'unlocked_at' => $isUnlocked ? StudentAchievement::where('student_id', $student->student_id)
+                    ->where('achievement_id', $achievement->id)
+                    ->value('unlocked_at') : null,
+                'progress' => $progress,
+            ];
+        });
+        
+        return response()->json([
+            'success' => true,
+            'achievements' => $result,
+            'summary' => [
+                'total' => $achievements->count(),
+                'unlocked' => count($unlockedIds),
+                'locked' => $achievements->count() - count($unlockedIds),
+            ],
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get only unlocked achievements
+ */
+public function getUnlockedAchievements(Request $request)
+{
+    try {
+        $user = $request->user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $unlocked = StudentAchievement::where('student_id', $student->student_id)
+            ->where('is_unlocked', true)
+            ->with('achievement')
+            ->orderBy('unlocked_at', 'desc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'unlocked_achievements' => $unlocked->map(function ($record) {
+                return [
+                    'id' => $record->achievement->id,
+                    'code' => $record->achievement->code,
+                    'name' => $record->achievement->name,
+                    'description' => $record->achievement->description,
+                    'icon' => $record->achievement->icon,
+                    'color' => $record->achievement->color,
+                    'unlocked_at' => $record->unlocked_at,
+                ];
+            }),
+            'count' => $unlocked->count(),
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Manually trigger achievement check (e.g., after level up)
+ */
+public function checkAchievements(Request $request)
+{
+    try {
+        $user = $request->user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $achievementService = new AchievementService(new XPService());
+        $newlyUnlocked = $achievementService->checkAndUnlockAchievements($student);
+        
+        // ✅ FIX: Convert array to collection first, or use array_map
+        $newlyUnlocked = collect($newlyUnlocked);  // Convert to Collection
+        
+        return response()->json([
+            'success' => true,
+            'newly_unlocked' => $newlyUnlocked->map(function ($achievement) {
+                return [
+                    'id' => $achievement->id,
+                    'code' => $achievement->code,
+                    'name' => $achievement->name,
+                    'icon' => $achievement->icon,
+                ];
+            }),
+            'count' => $newlyUnlocked->count(),
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function getStreak(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'streak_days' => $student->streak_days ?? 0,
+            'last_activity_date' => $student->last_activity_date,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 
 }

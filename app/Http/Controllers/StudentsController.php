@@ -481,4 +481,32 @@ class StudentsController extends Controller
 
         return $username;
     }
+
+    /**
+ * Get student's current streak
+ * GET /api/student/streak
+ */
+public function getStreak(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'streak_days' => $student->streak_days ?? 0,
+            'last_activity_date' => $student->last_activity_date,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 }

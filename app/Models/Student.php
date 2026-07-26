@@ -76,4 +76,23 @@ class Student extends Model
     {
         return $this->hasMany(QuizAttempt::class, 'student_id', 'student_id');
     }
+    // Relationship with achievements
+public function achievements()
+{
+    return $this->hasMany(StudentAchievement::class, 'student_id', 'student_id');
+}
+
+public function unlockedAchievements()
+{
+    return $this->hasMany(StudentAchievement::class, 'student_id', 'student_id')
+                ->where('is_unlocked', true);
+}
+
+public function achievementRecords()
+{
+    return $this->belongsToMany(Achievement::class, 'student_achievements', 'student_id', 'achievement_id')
+                ->withPivot('is_unlocked', 'unlocked_at', 'progress_current', 'progress_target')
+                ->withTimestamps();
+}
+
 }

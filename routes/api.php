@@ -41,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/lesson/{lessonId}/slide-xp', [StudentAuthController::class, 'awardSlideXp']);
     Route::get('/student/lesson/{lessonId}/attempts', [StudentAuthController::class, 'getAttempts']);
     
-    // ✅ FIXED: Match the frontend URL pattern
+    // Leaderboard
     Route::get('/student/lesson/{lessonId}/leaderboard', [StudentAuthController::class, 'getLessonLeaderboard']);
 
     // ─── GESTURE PERFORMANCE ROUTES ──────────────────────────────
@@ -49,7 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/gesture-performance', [StudentAuthController::class, 'getGesturePerformance']);
     Route::get('/student/struggling-letters', [StudentAuthController::class, 'getStrugglingLetters']);
 
-    // ─── GESTURE PROGRESS ROUTES (NEW) ───────────────────────────
+    // ─── GESTURE PROGRESS ROUTES ─────────────────────────────────
     Route::get('/student/gesture-progress', [StudentAuthController::class, 'getGestureProgress']);
     Route::post('/student/award-module-xp', [StudentAuthController::class, 'awardModuleXp']);
 
@@ -60,13 +60,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/weak-signs', [StudentAuthController::class, 'getWeakSigns']);
     Route::post('/student/award-challenge-xp', [StudentAuthController::class, 'awardChallengeXp']);
 
- // ═══════════════════════════════════════════════════════════════
-// 🎯 PROMOTION ROUTES (for mobile app)
-// ═══════════════════════════════════════════════════════════════
-Route::get('/student/promotion', [StudentAuthController::class, 'checkPromotion']);
-Route::post('/student/promotion/{id}/viewed', [StudentAuthController::class, 'markPromotionViewed']);
-Route::get('/student/promotion/history', [StudentAuthController::class, 'getPromotionHistory']);
-Route::get('/student/promotion/status', [StudentAuthController::class, 'hasPendingPromotion']);
-Route::get('/student/promotion/{id}', [StudentAuthController::class, 'getPromotionDetails']); 
+    // ─── STREAK ROUTE ─────────────────────────────────────────────
+    // 🔥 ADD THIS LINE - Get student's current streak
+    Route::get('/student/streak', [StudentAuthController::class, 'getStreak']);
 
+    // ═══════════════════════════════════════════════════════════════
+    // 🎯 PROMOTION ROUTES (for mobile app)
+    // ═══════════════════════════════════════════════════════════════
+    Route::get('/student/promotion', [StudentAuthController::class, 'checkPromotion']);
+    Route::post('/student/promotion/{id}/viewed', [StudentAuthController::class, 'markPromotionViewed']);
+    Route::get('/student/promotion/history', [StudentAuthController::class, 'getPromotionHistory']);
+    Route::get('/student/promotion/status', [StudentAuthController::class, 'hasPendingPromotion']);
+    Route::get('/student/promotion/{id}', [StudentAuthController::class, 'getPromotionDetails']);
+
+    // ─── STUDENT ACHIEVEMENTS ROUTES ──────────────────────────────
+    Route::get('/student/achievements', [StudentAuthController::class, 'getAchievements']);
+    Route::get('/student/achievements/unlocked', [StudentAuthController::class, 'getUnlockedAchievements']);
+    Route::post('/student/achievements/check', [StudentAuthController::class, 'checkAchievements']);
 });
