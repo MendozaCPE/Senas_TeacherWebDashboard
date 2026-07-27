@@ -6,7 +6,7 @@
 
     {{-- ── LEFT PANEL ── --}}
     <div class="hidden lg:flex lg:w-5/12 flex-col items-center justify-center"
-         style="background: linear-gradient(180deg, #62C8F8 0%, #3A9EE4 45%, #2260C4 100%);">
+         style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);">
 
         <h1 class="text-white font-black text-5xl tracking-[0.25em] mb-8 drop-shadow-lg select-none">SEÑAS</h1>
 
