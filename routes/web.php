@@ -3,6 +3,7 @@
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\ReportsController;
@@ -97,6 +98,9 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::delete('/settings/profile-photo', [SettingsController::class, 'removeProfilePhoto'])->name('settings.profile-photo.remove');
     Route::patch('/settings/school', [SettingsController::class, 'updateSchool'])->name('settings.school');
     Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+
+    // Global Search Auto-complete API
+    Route::get('/api/global-search', [GlobalSearchController::class, 'suggestions'])->name('api.global-search');
 
     Route::get('/api/gesture-modules/{moduleId}/gestures', function ($moduleId) {
     $module = App\Models\GestureModule::with('gestures')->find($moduleId);

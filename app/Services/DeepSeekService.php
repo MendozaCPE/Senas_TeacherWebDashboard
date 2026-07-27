@@ -53,9 +53,7 @@ class DeepSeekService
                 'status' => $response->status(),
                 'body'   => $response->body(),
             ]);
-            throw new \RuntimeException(
-                'DeepSeek API returned HTTP ' . $response->status() . '. Please try again.'
-            );
+            $this->handleApiError($response);
         }
 
         $responseData = $response->json();
@@ -250,7 +248,7 @@ PROMPT;
 
         if ($response->failed()) {
             Log::error('DeepSeek Quiz-Only API error', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \RuntimeException('DeepSeek API returned HTTP ' . $response->status() . '. Please try again.');
+            $this->handleApiError($response);
         }
 
         $rawContent = $response->json()['choices'][0]['message']['content'] ?? null;
@@ -331,7 +329,7 @@ TEXT;
 
         if ($response->failed()) {
             Log::error('DeepSeek PDF API error', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \RuntimeException('DeepSeek API returned HTTP ' . $response->status() . '. Please try again.');
+            $this->handleApiError($response);
         }
 
         $rawContent = $response->json()['choices'][0]['message']['content'] ?? null;
@@ -350,5 +348,30 @@ TEXT;
         $this->validateLessonStructure($lesson, (int) $params['num_slides']);
 
         return $lesson;
+    }
+
+    /**
+     * Throw user-friendly exception based on HTTP status code.
+     */
+    private function handleApiError($response): void
+    {
+        $status = $response->status();
+        $json   = $response->json();
+        $errMsg = $json['error']['message'] ?? '';
+
+        if ($status === 401) {
+            throw new \RuntimeException('DeepSeek API key is invalid or unauthorized (HTTP 401). Please check your DEEPSEEK_API_KEY in .env.');
+        }
+
+        if ($status === 402 || str_contains(strtolower($errMsg), 'insufficient balance')) {
+            throw new \RuntimeException('DeepSeek API Insufficient Balance (HTTP 402). Please top up your balance at platform.deepseek.com.');
+        }
+
+        if ($status === 429) {
+            throw new \RuntimeException('DeepSeek API rate limit reached (HTTP 429). Please wait a moment before trying again.');
+        }
+
+        $msg = !empty($errMsg) ? $errMsg : 'HTTP ' . $status;
+        throw new \RuntimeException("DeepSeek API error ({$msg}). Please try again.");
     }
 }

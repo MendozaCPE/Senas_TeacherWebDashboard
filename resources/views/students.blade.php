@@ -264,6 +264,7 @@
                                 $promoHistory = $student->promotions ?? collect();
                             @endphp
                             <tr class="hover:bg-slate-50/60 transition-colors group student-row"
+                                data-student-id="{{ $student->student_id }}"
                                 data-status="{{ $student->status }}"
                                 data-program="{{ $student->program_type ?? '' }}"
                                 data-mastery="{{ $lvl }}"

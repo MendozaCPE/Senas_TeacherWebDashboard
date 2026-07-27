@@ -31,13 +31,23 @@ class StudentsController extends Controller
 
             $query = Student::where('teacher_id', $teacher->id)->with('promotions');
 
-            // Read filters from session (set by applyFilter POST, never from the URL)
-            $filters = session('students_filters', []);
-            $search  = $filters['search']  ?? '';
-            $level   = $filters['level']   ?? '';
-            $program = $filters['program'] ?? '';
-            $status  = $filters['status']  ?? 'all';
-            $schoolYear = $filters['school_year'] ?? '';
+            // Read filters from GET query or session fallback
+            if ($request->has('search')) {
+                $search = trim($request->input('search'));
+                session(['students_filters' => array_merge(session('students_filters', []), ['search' => $search])]);
+                $filters = session('students_filters', []);
+                $level   = $filters['level']   ?? '';
+                $program = $filters['program'] ?? '';
+                $status  = $filters['status']  ?? 'all';
+                $schoolYear = $filters['school_year'] ?? '';
+            } else {
+                $filters = session('students_filters', []);
+                $search  = $filters['search']  ?? '';
+                $level   = $filters['level']   ?? '';
+                $program = $filters['program'] ?? '';
+                $status  = $filters['status']  ?? 'all';
+                $schoolYear = $filters['school_year'] ?? '';
+            }
 
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {

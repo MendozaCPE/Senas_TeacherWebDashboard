@@ -193,6 +193,7 @@
         text-decoration: none;
         padding: 4px 6px;
         border-radius: 6px;
+        white-space: nowrap; 
     }
     .action-link:hover { color: #0d326b; background: #f1f5f9; }
     .action-link.danger:hover { color: #dc2626; background: #fef2f2; }
