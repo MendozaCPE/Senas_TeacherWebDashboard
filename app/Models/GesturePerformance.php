@@ -109,13 +109,13 @@ public static function updateOrCreatePerformance(
 }
     /**
  * Update mastery level based on performance metrics
- * 🔥 FIXED: More forgiving for beginners
+ * 🔥 UPDATED: More forgiving criteria for unlocking
  */
 public function updateMasteryLevel()
 {
     // Only calculate if there are meaningful attempts
-    if ($this->attempts < 2) {
-        $this->mastery_level = 'developing';
+    if ($this->attempts < 1) {
+        $this->mastery_level = 'needs_practice';
         $this->is_mastered = false;
         return $this;
     }
@@ -124,20 +124,20 @@ public function updateMasteryLevel()
         ? $this->successful_attempts / $this->attempts 
         : 0;
 
-    // 🔥 NEW: More lenient criteria for beginners
-    // - Mastered: 50%+ success rate AND at least 3 successful attempts
-    // - Proficient: 35%+ success rate AND at least 2 successful attempts
-    // - Developing: 20%+ success rate AND at least 1 successful attempt
-    // - Needs Practice: Below 20% success rate
+    // 🎯 NEW: Much more lenient criteria
+    // - Mastered: 40%+ success rate AND at least 2 successful attempts
+    // - Proficient: 25%+ success rate AND at least 1 successful attempt  
+    // - Developing: 15%+ success rate AND at least 1 attempt
+    // - Needs Practice: Below 15% success rate OR 0 successful attempts
     
-    if ($successRate >= 0.50 && $this->successful_attempts >= 3) {
+    if ($successRate >= 0.40 && $this->successful_attempts >= 2) {
         $this->is_mastered = true;
         $this->mastered_at = $this->mastered_at ?? now();
         $this->mastery_level = 'mastered';
-    } elseif ($successRate >= 0.35 && $this->successful_attempts >= 2) {
+    } elseif ($successRate >= 0.25 && $this->successful_attempts >= 1) {
         $this->mastery_level = 'proficient';
         $this->is_mastered = false;
-    } elseif ($successRate >= 0.20 && $this->successful_attempts >= 1) {
+    } elseif ($successRate >= 0.15 && $this->attempts >= 1) {
         $this->mastery_level = 'developing';
         $this->is_mastered = false;
     } else {

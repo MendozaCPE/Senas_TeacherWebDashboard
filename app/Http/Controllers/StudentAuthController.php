@@ -199,6 +199,420 @@ class StudentAuthController extends Controller
             ], 500);
         }
     }
+/**
+ * 🎯 Get a personalized "My Learning Path" list for the student.
+ *
+ * This is a curated SUBSET of the student's assigned lessons, not a
+ * re-ranking of all of them. It builds the path in tiers:
+ *   1. Lessons already in progress (resume where they left off)
+ *   2. Lessons matching their goal + exact level (or the nearest lower
+ *      level, if nothing exists yet at their level)
+ *   3. Lessons they previously scored lowest on (retry candidates,
+ *      worst score first)
+ *   4. A small number of other goal-matching lessons to round it out
+ * A handful of their most recent completions are kept at the front so
+ * the path still reads as a progression, not just a to-do list.
+ *
+ * Like getLessons()/getAllLessons(), this does NOT read or write
+ * lesson_assignments.is_locked. Locking here is computed fresh, purely
+ * for this curated view, and never touches syncLessonLocks() or the
+ * module map's real lock state.
+ */
+public function getRecommendedLessons(Request $request)
+{
+    try {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $learningPath = LearningPath::where('student_id', $student->student_id)->first();
+        $goal = $learningPath->learning_goal ?? 'Everything';
+        $level = $learningPath->fsl_level ?? ($student->fsl_mastery_level ?? 'Beginner');
+
+        // If nothing exists yet at the student's level, fall back to the
+        // next level(s) down — never up, so we don't push them into
+        // content that's too hard just to fill the path.
+        $levelFallbackChain = [
+            'beginner' => ['beginner'],
+            'intermediate' => ['intermediate', 'beginner'],
+            'advanced' => ['advanced', 'intermediate', 'beginner'],
+        ];
+        $allowedLevels = $levelFallbackChain[strtolower($level)] ?? [strtolower($level)];
+
+        $assignments = LessonAssignment::where('student_id', $student->student_id)
+            ->with(['lesson' => function ($query) {
+                $query->where('status', 'published')->with(['contents', 'quiz.questions', 'module']);
+            }])
+            ->get();
+
+        // ── Resolve real gesture categories instead of guessing from text.
+        // lesson_contents.gesture_name (for content_type='gesture_demo')
+        // and quiz_questions.gesture_data->module_id (for question_type=
+        // 'gesture') both point at rows the teacher already tagged with
+        // a real category via the gestures/gesture_modules tables — that's
+        // a much more reliable signal than scanning free text.
+        $gestureNamesNeeded = [];
+        $gestureModuleIdsNeeded = [];
+
+        foreach ($assignments as $assignment) {
+            $lesson = $assignment->lesson;
+            if (!$lesson) {
+                continue;
+            }
+            foreach ($lesson->contents ?? [] as $content) {
+                if ($content->content_type === 'gesture_demo' && !empty($content->gesture_name)) {
+                    $gestureNamesNeeded[] = strtolower($content->gesture_name);
+                }
+            }
+            if ($lesson->quiz) {
+                foreach ($lesson->quiz->questions ?? [] as $question) {
+                    if ($question->question_type === 'gesture' && !empty($question->gesture_data)) {
+                        $gestureData = is_string($question->gesture_data)
+                            ? json_decode($question->gesture_data, true)
+                            : $question->gesture_data;
+                        if (!empty($gestureData['module_id'])) {
+                            $gestureModuleIdsNeeded[] = $gestureData['module_id'];
+                        }
+                    }
+                }
+            }
+        }
+
+        $gesturesByName = !empty($gestureNamesNeeded)
+            ? Gesture::whereIn(DB::raw('LOWER(name)'), array_unique($gestureNamesNeeded))->get()->keyBy(fn($g) => strtolower($g->name))
+            : collect();
+
+        $gestureModuleIdsNeeded = array_merge($gestureModuleIdsNeeded, $gesturesByName->pluck('module_id')->all());
+        $gestureModulesById = !empty($gestureModuleIdsNeeded)
+            ? GestureModule::whereIn('module_id', array_unique($gestureModuleIdsNeeded))->get()->keyBy('module_id')
+            : collect();
+
+        $candidates = [];
+
+        foreach ($assignments as $assignment) {
+            $lesson = $assignment->lesson;
+            if (!$lesson) {
+                continue;
+            }
+            $module = $lesson->module;
+
+            $highestScore = DB::table('quiz_attempts as qa')
+                ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                ->where('qa.student_id', $student->student_id)
+                ->where('q.lesson_id', $lesson->lesson_id)
+                ->where('qa.status', 'completed')
+                ->max('qa.percentage');
+
+            // student_lesson_progress tells us content-level progress
+            // (current_step, lesson_completed, quiz_completed) which the
+            // quiz_attempts table alone doesn't capture — e.g. a lesson
+            // the student started but never finished the quiz for.
+            $progress = DB::table('student_lesson_progress')
+                ->where('student_id', $student->student_id)
+                ->where('lesson_id', $lesson->lesson_id)
+                ->first();
+
+            if ($highestScore === null && $progress) {
+                $highestScore = $progress->quiz_score;
+            }
+
+            $isDone = $highestScore !== null && $highestScore >= 60;
+            $isFailed = $highestScore !== null && $highestScore < 60;
+            $isInProgress = !$isDone && $progress && (
+                ($progress->current_step ?? 0) > 0 || $progress->lesson_completed
+            ) && !$progress->quiz_completed;
+
+            $status = $isDone ? 'completed' : ($isFailed ? 'failed' : ($isInProgress ? 'in_progress' : 'pending'));
+
+            $matchesGoal = $this->lessonMatchesLearningGoal($goal, $lesson, $module, $gesturesByName, $gestureModulesById);
+            $lessonLevel = $lesson->difficulty ? strtolower($lesson->difficulty) : null;
+            $isExactLevel = $lessonLevel === null || $lessonLevel === strtolower($level);
+            $isFallbackLevel = $lessonLevel !== null && in_array($lessonLevel, $allowedLevels, true);
+
+            $candidates[] = [
+                'assignment_id' => $assignment->id,
+                'lesson_id' => $lesson->lesson_id,
+                'title' => $lesson->title,
+                'description' => $lesson->description,
+                'difficulty' => $lesson->difficulty,
+                'module_id' => $module ? $module->module_id : null,
+                'module_title' => $module ? $module->title : null,
+                'module_order' => $lesson->module_order ?? 0,
+                'status' => $status,
+                'score' => $highestScore,
+                'last_accessed_at' => $progress->last_accessed_at ?? null,
+                'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
+                'has_quiz' => $lesson->quiz ? true : false,
+                'done' => $isDone,
+                'in_progress' => $isInProgress,
+                'failed' => $isFailed,
+                'matches_goal' => $matchesGoal,
+                'is_exact_level' => $isExactLevel,
+                'is_fallback_level' => $isFallbackLevel,
+            ];
+        }
+
+        // ── Tier 0: a few recent completions, so the path still reads
+        // as a progression rather than just a fresh to-do list.
+        $completed = array_values(array_filter($candidates, fn($c) => $c['done'] && $c['matches_goal']));
+        usort($completed, fn($a, $b) => strcmp((string) $b['last_accessed_at'], (string) $a['last_accessed_at']));
+        $completed = array_slice($completed, 0, 3);
+        foreach ($completed as &$c) {
+            $c['recommended_reason'] = 'Already completed';
+        }
+        unset($c);
+
+        $notDone = array_values(array_filter($candidates, fn($c) => !$c['done']));
+
+        // ── Tier 1: resume anything already started
+        $inProgress = array_values(array_filter($notDone, fn($c) => $c['in_progress']));
+        usort($inProgress, fn($a, $b) => strcmp((string) $b['last_accessed_at'], (string) $a['last_accessed_at']));
+        foreach ($inProgress as &$c) {
+            $c['recommended_reason'] = 'Continue where you left off';
+        }
+        unset($c);
+
+        // ── Tier 2: matches goal + level (exact level preferred over
+        // the fallback chain), never attempted or in progress
+        $freshGoalMatches = array_values(array_filter(
+            $notDone,
+            fn($c) => !$c['in_progress'] && !$c['failed'] && $c['matches_goal'] && $c['is_fallback_level']
+        ));
+        usort($freshGoalMatches, function ($a, $b) {
+            if ($a['is_exact_level'] !== $b['is_exact_level']) {
+                return $b['is_exact_level'] <=> $a['is_exact_level']; // exact level first
+            }
+            return $a['module_order'] <=> $b['module_order'];
+        });
+        foreach ($freshGoalMatches as &$c) {
+            $c['recommended_reason'] = $c['is_exact_level']
+                ? 'Matches your ' . $level . ' goal: ' . str_replace('_', ' ', $goal)
+                : 'Closest match while you build up to ' . $level . ' ' . str_replace('_', ' ', $goal);
+        }
+        unset($c);
+
+        // ── Tier 3: lessons they scored lowest on — real retry candidates,
+        // worst score first, from student_lesson_progress / quiz_attempts
+        $needsReview = array_values(array_filter($notDone, fn($c) => $c['failed']));
+        usort($needsReview, function ($a, $b) {
+            // goal-matching retries first, then lowest score first
+            if ($a['matches_goal'] !== $b['matches_goal']) {
+                return $b['matches_goal'] <=> $a['matches_goal'];
+            }
+            return $a['score'] <=> $b['score'];
+        });
+        foreach ($needsReview as &$c) {
+            $c['recommended_reason'] = 'Needs review — scored ' . round($c['score']) . '% last time';
+        }
+        unset($c);
+
+        // Build the path: resume first, then goal-matched lessons, then
+        // retries, capped so it stays a short, purposeful list rather
+        // than every assigned lesson.
+        $upcoming = array_merge($inProgress, $freshGoalMatches, $needsReview);
+
+        // De-duplicate by lesson_id (a lesson could theoretically land in
+        // more than one tier) while preserving the first (highest-priority) tier it appeared in
+        $seen = [];
+        $deduped = [];
+        foreach ($upcoming as $item) {
+            if (isset($seen[$item['lesson_id']])) {
+                continue;
+            }
+            $seen[$item['lesson_id']] = true;
+            $deduped[] = $item;
+        }
+        $upcoming = array_slice($deduped, 0, 8);
+
+        // ── Tier 4 fallback: if the student's goal has no matching content
+        // at all yet, don't hand back an empty path — fill with the next
+        // few lessons in order so there's still something to do.
+        if (empty($upcoming)) {
+            $fallback = array_values(array_filter($notDone, fn($c) => !$c['in_progress'] && !$c['failed']));
+            usort($fallback, fn($a, $b) => $a['module_order'] <=> $b['module_order']);
+            $fallback = array_slice($fallback, 0, 5);
+            foreach ($fallback as &$c) {
+                $c['recommended_reason'] = 'Up next in your lessons';
+            }
+            unset($c);
+            $upcoming = $fallback;
+        }
+
+        $ordered = array_merge($completed, $upcoming);
+
+        // Did the student clear every lesson matching their stated goal,
+        // with nothing left pending for it? Worth telling them directly
+        // rather than just letting the path look thin.
+        $goalHasPendingWork = count(array_filter($notDone, fn($c) => $c['matches_goal'])) > 0;
+        $goalMastered = !$goalHasPendingWork && count($completed) > 0;
+
+        // ── Minimum length guard: a 2-3 lesson path reads as broken, not
+        // "you're all caught up". If the curated tiers came up short
+        // (e.g. their goal's whole content pool is already done), widen
+        // the net — drop the goal filter, keep ordering by module — so
+        // there's always something meaningful to keep practicing.
+        $MIN_PATH_LENGTH = 5;
+        if (count($ordered) < $MIN_PATH_LENGTH) {
+            $usedIds = array_column($ordered, 'lesson_id');
+            $extra = array_values(array_filter(
+                $candidates,
+                fn($c) => !in_array($c['lesson_id'], $usedIds, true) && !$c['done']
+            ));
+            usort($extra, function ($a, $b) {
+                if ($a['is_fallback_level'] !== $b['is_fallback_level']) {
+                    return $b['is_fallback_level'] <=> $a['is_fallback_level'];
+                }
+                return $a['module_order'] <=> $b['module_order'];
+            });
+            $extra = array_slice($extra, 0, $MIN_PATH_LENGTH - count($ordered));
+            foreach ($extra as &$c) {
+                $c['recommended_reason'] = 'Explore beyond your goal';
+            }
+            unset($c);
+            $ordered = array_merge($ordered, $extra);
+        }
+
+        // Sequential lock JUST for this curated list — independent of
+        // lesson_assignments.is_locked used by the module map.
+        $unlockedNext = false;
+        $result = [];
+        foreach ($ordered as $item) {
+            unset($item['matches_goal'], $item['is_exact_level'], $item['is_fallback_level'], $item['last_accessed_at']);
+
+            if ($item['done']) {
+                $item['locked'] = false;
+                $item['active'] = false;
+            } elseif (!$unlockedNext) {
+                $item['locked'] = false;
+                $item['active'] = true;
+                $unlockedNext = true; // only the first not-done item is active/unlocked
+            } else {
+                $item['locked'] = true;
+                $item['active'] = false;
+            }
+
+            $result[] = $item;
+        }
+
+        return response()->json([
+            'success' => true,
+            'learning_path' => [
+                'fsl_level' => $level,
+                'learning_goal' => $goal,
+                'goal_mastered' => $goalMastered,
+            ],
+            'lessons' => $result,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Builds the searchable text for a lesson: its own title/description,
+ * every content block's title/content_text, PLUS every quiz question's
+ * text — AND, where available, the REAL category resolved from the
+ * gestures/gesture_modules tables (via lesson_contents.gesture_name and
+ * quiz_questions.gesture_data->module_id). That resolved category is a
+ * proper tag the teacher already assigned, not a guess — so it's
+ * weighted the same as any other haystack text but is far more reliable
+ * than scanning a lesson's own (often generic) title.
+ */
+private function buildLessonSearchText($lesson, $module, $gesturesByName = null, $gestureModulesById = null): string
+{
+    $gesturesByName = $gesturesByName ?? collect();
+    $gestureModulesById = $gestureModulesById ?? collect();
+
+    $parts = [
+        $module->title ?? '',
+        $lesson->title ?? '',
+        $lesson->description ?? '',
+    ];
+
+    if ($lesson->relationLoaded('contents') && $lesson->contents) {
+        foreach ($lesson->contents as $content) {
+            $parts[] = $content->title ?? '';
+            $parts[] = $content->content_text ?? '';
+            $parts[] = $content->gesture_name ?? '';
+
+            if ($content->content_type === 'gesture_demo' && !empty($content->gesture_name)) {
+                $gesture = $gesturesByName->get(strtolower($content->gesture_name));
+                if ($gesture) {
+                    $gestureModule = $gestureModulesById->get($gesture->module_id);
+                    if ($gestureModule) {
+                        $parts[] = $gestureModule->name ?? '';
+                        $parts[] = $gestureModule->display_name ?? '';
+                    }
+                }
+            }
+        }
+    }
+
+    if ($lesson->relationLoaded('quiz') && $lesson->quiz && $lesson->quiz->relationLoaded('questions') && $lesson->quiz->questions) {
+        foreach ($lesson->quiz->questions as $question) {
+            $parts[] = $question->question_text ?? '';
+
+            if ($question->question_type === 'gesture' && !empty($question->gesture_data)) {
+                $gestureData = is_string($question->gesture_data)
+                    ? json_decode($question->gesture_data, true)
+                    : $question->gesture_data;
+                $moduleId = $gestureData['module_id'] ?? null;
+                if ($moduleId) {
+                    $gestureModule = $gestureModulesById->get($moduleId);
+                    if ($gestureModule) {
+                        $parts[] = $gestureModule->name ?? '';
+                        $parts[] = $gestureModule->display_name ?? '';
+                    }
+                }
+            }
+        }
+    }
+
+    return strtolower(implode(' ', $parts));
+}
+
+/**
+ * Loose keyword match between a student's learning_goal and everything
+ * a lesson actually contains — title, description, content blocks, quiz
+ * question text, AND the real gesture category resolved from the
+ * gestures/gesture_modules tables. Mirrors the same category-guessing
+ * convention already used on the frontend (getCategoryIcon in
+ * lessons.tsx), just with a wider, more reliable net.
+ */
+private function lessonMatchesLearningGoal($goal, $lesson, $module, $gesturesByName = null, $gestureModulesById = null): bool
+{
+    if ($goal === 'Everything' || !$goal) {
+        return true;
+    }
+
+    $haystack = $this->buildLessonSearchText($lesson, $module, $gesturesByName, $gestureModulesById);
+
+    $keywordMap = [
+        'Alphabet_Numbers' => ['alphabet', 'letter', 'number', 'count'],
+        'Greetings' => ['greet', 'hello', 'goodbye', 'good morning', 'good evening', 'welcome', 'nice to meet'],
+        'Classroom_Words' => ['classroom', 'school', 'class', 'teacher', 'student'],
+    ];
+
+    $keywords = $keywordMap[$goal] ?? [];
+    foreach ($keywords as $keyword) {
+        if (str_contains($haystack, $keyword)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 public function getLessons(Request $request)
 {
     try {
@@ -1725,6 +2139,7 @@ public function awardModuleXp(Request $request)
 
 /**
  * Check if a module is locked for a student
+ * 🔥 FIXED: Uses the stored mastery_level from the database
  */
 private function isModuleLocked($student, $module)
 {
@@ -1744,33 +2159,47 @@ private function isModuleLocked($student, $module)
 
     // Get previous module's gestures
     $gestureIds = $previousModule->gestures->pluck('gesture_id');
-    
-    // Count mastered AND proficient as "completed"
-    $completedCount = GesturePerformance::where('student_id', $student->student_id)
-                                       ->whereIn('gesture_id', $gestureIds)
-                                       ->whereIn('mastery_level', ['mastered', 'proficient'])
-                                       ->count();
-
-    // Count how many are still "developing" or "needs_practice"
-    $developingCount = GesturePerformance::where('student_id', $student->student_id)
-                                        ->whereIn('gesture_id', $gestureIds)
-                                        ->whereIn('mastery_level', ['developing', 'needs_practice'])
-                                        ->count();
-
     $totalGestures = $gestureIds->count();
-
-    // 🎯 UNLOCK when 10 out of 13 letters are mastered/proficient
-    // OR when there are 3 or fewer letters still developing
-    $unlockThreshold = 0.70; // 70%
-    $requiredCount = ceil($totalGestures * $unlockThreshold);
-    $maxDeveloping = 3; // Allow up to 3 letters that need more practice
     
-    $isUnlocked = ($completedCount >= $requiredCount) || ($developingCount <= $maxDeveloping);
+    if ($totalGestures === 0) {
+        return false;
+    }
     
-    // Module is locked if not unlocked
+    // Get all performances for these gestures
+    $performances = GesturePerformance::where('student_id', $student->student_id)
+                                     ->whereIn('gesture_id', $gestureIds)
+                                     ->get()
+                                     ->keyBy('gesture_id');
+    
+    // 🔥 USE THE STORED MASTERY LEVEL from the database
+    $completedCount = 0;
+    $needsPracticeCount = 0;
+    
+    foreach ($gestureIds as $gestureId) {
+        $perf = $performances->get($gestureId);
+        
+        if (!$perf || $perf->attempts === 0) {
+            $needsPracticeCount++;
+            continue;
+        }
+        
+        // ✅ Use the mastery_level that was already calculated and saved
+        if (in_array($perf->mastery_level, ['mastered', 'proficient'])) {
+            $completedCount++;
+        } else {
+            $needsPracticeCount++;
+        }
+    }
+    
+    // 🎯 UNLOCK when 70% of gestures are "completed" (mastered OR proficient)
+    $unlockThreshold = 0.50; // 70% - change to 0.60 if you want 60%
+    $requiredCompleted = ceil($totalGestures * $unlockThreshold);
+    $maxNeedsPractice = 3;
+    
+    $isUnlocked = ($completedCount >= $requiredCompleted) || ($needsPracticeCount <= $maxNeedsPractice);
+    
     return !$isUnlocked;
 }
-
     // ─────────────────────────────────────────────────────────────────────────
     // MODULE CHECKPOINT QUIZ
     // ─────────────────────────────────────────────────────────────────────────

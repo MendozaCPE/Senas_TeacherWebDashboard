@@ -36,6 +36,54 @@ class Student extends Model
     'streak_days',
     'last_activity_date',
 ];
+
+    // ─── AUTO-ASSIGN LESSONS ON STUDENT CREATION ────────────────────────
+    protected static function booted()
+    {
+        static::created(function ($student) {
+            // Auto-assign all published lessons to new student
+            $lessons = Lesson::where('status', 'published')
+                            ->orderBy('module_order', 'asc')
+                            ->get();
+            
+            if ($lessons->isEmpty()) {
+                return;
+            }
+
+            $assignments = [];
+            $firstLessonInModule = [];
+
+            // Track first lesson per module
+            foreach ($lessons as $lesson) {
+                $moduleId = $lesson->module_id;
+                
+                // If this is the first lesson in a module, it should be unlocked
+                if (!isset($firstLessonInModule[$moduleId])) {
+                    $firstLessonInModule[$moduleId] = $lesson->lesson_id;
+                }
+            }
+
+            foreach ($lessons as $lesson) {
+                // First lesson in each module is unlocked (is_locked = 0)
+                // All other lessons are locked (is_locked = 1)
+                $isLocked = ($firstLessonInModule[$lesson->module_id] !== $lesson->lesson_id);
+                
+                $assignments[] = [
+                    'student_id' => $student->student_id,
+                    'lesson_id' => $lesson->lesson_id,
+                    'assigned_at' => now(),
+                    'status' => 'pending',
+                    'is_locked' => $isLocked ? 1 : 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            // Batch insert for performance
+            LessonAssignment::insert($assignments);
+        });
+    }
+
     public function teacher()
     {
         return $this->belongsTo(Teacher::class);
@@ -77,23 +125,78 @@ class Student extends Model
     {
         return $this->hasMany(QuizAttempt::class, 'student_id', 'student_id');
     }
+    
     // Relationship with achievements
-public function achievements()
-{
-    return $this->hasMany(StudentAchievement::class, 'student_id', 'student_id');
-}
+    public function achievements()
+    {
+        return $this->hasMany(StudentAchievement::class, 'student_id', 'student_id');
+    }
 
-public function unlockedAchievements()
-{
-    return $this->hasMany(StudentAchievement::class, 'student_id', 'student_id')
-                ->where('is_unlocked', true);
-}
+    public function unlockedAchievements()
+    {
+        return $this->hasMany(StudentAchievement::class, 'student_id', 'student_id')
+                    ->where('is_unlocked', true);
+    }
 
-public function achievementRecords()
-{
-    return $this->belongsToMany(Achievement::class, 'student_achievements', 'student_id', 'achievement_id')
-                ->withPivot('is_unlocked', 'unlocked_at', 'progress_current', 'progress_target')
-                ->withTimestamps();
-}
+    public function achievementRecords()
+    {
+        return $this->belongsToMany(Achievement::class, 'student_achievements', 'student_id', 'achievement_id')
+                    ->withPivot('is_unlocked', 'unlocked_at', 'progress_current', 'progress_target')
+                    ->withTimestamps();
+    }
 
+    /**
+     * Manually assign lessons to a student (for existing students)
+     */
+    public function assignLessons()
+    {
+        $lessons = Lesson::where('status', 'published')
+                        ->orderBy('module_order', 'asc')
+                        ->get();
+        
+        if ($lessons->isEmpty()) {
+            return ['success' => false, 'message' => 'No published lessons found'];
+        }
+
+        $assignments = [];
+        $firstLessonInModule = [];
+
+        // Track first lesson per module
+        foreach ($lessons as $lesson) {
+            $moduleId = $lesson->module_id;
+            if (!isset($firstLessonInModule[$moduleId])) {
+                $firstLessonInModule[$moduleId] = $lesson->lesson_id;
+            }
+        }
+
+        foreach ($lessons as $lesson) {
+            // Check if already assigned
+            $exists = LessonAssignment::where('student_id', $this->student_id)
+                                     ->where('lesson_id', $lesson->lesson_id)
+                                     ->exists();
+            
+            if ($exists) {
+                continue;
+            }
+
+            $isLocked = ($firstLessonInModule[$lesson->module_id] !== $lesson->lesson_id);
+            
+            $assignments[] = [
+                'student_id' => $this->student_id,
+                'lesson_id' => $lesson->lesson_id,
+                'assigned_at' => now(),
+                'status' => 'pending',
+                'is_locked' => $isLocked ? 1 : 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        if (!empty($assignments)) {
+            LessonAssignment::insert($assignments);
+            return ['success' => true, 'message' => count($assignments) . ' lessons assigned'];
+        }
+
+        return ['success' => true, 'message' => 'No new lessons to assign'];
+    }
 }
