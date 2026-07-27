@@ -56,6 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/gesture-progress', [StudentAuthController::class, 'getGestureProgress']);
     Route::post('/student/award-module-xp', [StudentAuthController::class, 'awardModuleXp']);
 
+    Route::post('/student/award-custom-xp', [StudentAuthController::class, 'awardCustomXp']);
+    
     // ─── MODULE CHECKPOINT QUIZ ───────────────────────────────────
     Route::get('/student/module/{moduleId}/quiz', [StudentAuthController::class, 'getModuleQuiz']);
     Route::post('/student/module/{moduleId}/quiz/submit', [StudentAuthController::class, 'submitModuleQuiz']);

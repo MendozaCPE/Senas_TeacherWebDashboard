@@ -2150,6 +2150,78 @@ public function awardChallengeXp(Request $request)
     }
 }
 
+
+/**
+ * Award XP for custom/input mode (1 XP per letter, no cap)
+ */
+public function awardCustomXp(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'module_name' => 'required|string|exists:gesture_modules,name',
+            'xp_earned' => 'required|integer|min:0',
+            'star_rating' => 'required|integer|in:1,2,3',
+            'mode' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $module = GestureModule::where('name', $request->module_name)->first();
+        $xpEarned = $request->xp_earned;
+        $starRating = $request->star_rating;
+        $mode = $request->mode ?? 'custom';
+
+        // 🔥 NO CAP - award full XP (1 XP per letter)
+        $xpService = new XPService();
+        
+        $reason = "📝 Custom Words: {$xpEarned} letters signed - +{$xpEarned} XP";
+        
+        $xpService->awardXp(
+            $student,
+            $xpEarned,
+            'custom_completed',
+            null,
+            null,
+            $reason
+        );
+        $xpService->updateStreak($student);
+
+        $student->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Custom XP awarded successfully! 📝',
+            'module' => [
+                'name' => $module->name,
+                'display_name' => $module->display_name,
+            ],
+            'star_rating' => $starRating,
+            'xp_earned' => $xpEarned,
+            'total_xp' => $student->total_xp,
+            'level' => $student->level,
+            'xp_message' => $reason,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 /**
      * Check if student has a pending promotion (for mobile app)
      * GET /api/student/promotion
