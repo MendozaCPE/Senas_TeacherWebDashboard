@@ -35,23 +35,28 @@ class SettingsController extends Controller
 
         // Handle profile photo upload
         if ($request->hasFile('profile_photo') && $request->file('profile_photo')->isValid()) {
-            // Delete old photo if exists
-            if ($user->profile_photo) {
+            // Only delete from disk if old photo is a local storage file (not a Google URL)
+            if ($user->profile_photo && !str_starts_with($user->profile_photo, 'http')) {
                 \Storage::disk('public')->delete($user->profile_photo);
             }
+
             $file     = $request->file('profile_photo');
             $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
             $filename = 'profile_' . $user->id . '_' . time() . '_' . $safeName;
             $path     = $file->storeAs('profile_photos', $filename, 'public');
+
+            // Explicitly update and save only the photo field first
             $user->profile_photo = $path;
         }
 
-        // Update user
-        $user->name  = $validated['first_name'] . ' ' . $validated['last_name'];
-        $user->email = $validated['email'] ?? $user->email;
+        // Update user name and email
+        $user->name  = trim($validated['first_name'] . ' ' . $validated['last_name']);
+        if (!empty($validated['email'])) {
+            $user->email = $validated['email'];
+        }
         $user->save();
 
-        // Update teacher
+        // Update teacher record
         if ($teacher) {
             $teacher->first_name = $validated['first_name'];
             $teacher->last_name  = $validated['last_name'];
@@ -66,12 +71,16 @@ class SettingsController extends Controller
 
     /**
      * Remove the profile photo and revert to the generated avatar.
+     * Note: Google OAuth avatars are URLs, not stored files, so just clear the field.
      */
     public function removeProfilePhoto(Request $request)
     {
         $user = Auth::user();
         if ($user->profile_photo) {
-            \Storage::disk('public')->delete($user->profile_photo);
+            // Only delete from disk if it's a local storage file, not a URL
+            if (!str_starts_with($user->profile_photo, 'http')) {
+                \Storage::disk('public')->delete($user->profile_photo);
+            }
             $user->profile_photo = null;
             $user->save();
         }
@@ -110,18 +119,27 @@ class SettingsController extends Controller
     {
         $user = Auth::user();
 
+        // Google-only accounts do not have a password
+        if ($user->google_id && empty($user->password)) {
+            return back()->with('error', 'Your account uses Google Sign-In. Please manage your password through your Google account settings.');
+        }
+
         $validated = $request->validate([
             'current_password' => 'required',
             'password'         => 'required|min:8|confirmed',
         ]);
 
         if (!Hash::check($validated['current_password'], $user->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.'])->withInput();
+            return back()->withErrors(['current_password' => 'The current password you entered is incorrect. Please try again.'])->withInput();
+        }
+
+        if (Hash::check($validated['password'], $user->password)) {
+            return back()->withErrors(['password' => 'Your new password cannot be the same as your current password.'])->withInput();
         }
 
         $user->password = Hash::make($validated['password']);
         $user->save();
 
-        return back()->with('success', 'Password updated successfully.');
+        return back()->with('success', 'Password updated successfully. Please use your new password on your next login.');
     }
 }

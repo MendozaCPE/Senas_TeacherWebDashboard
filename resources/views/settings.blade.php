@@ -464,13 +464,11 @@
     <div class="account-summary-wrapper">
         <div class="account-summary">
             <div class="account-summary-avatar">
-                @if(Auth::user() && Auth::user()->avatarUrl() && Auth::user()->avatarUrl() !== 'https://ui-avatars.com/api/...')
-                    <img src="{{ Auth::user()->avatarUrl() }}" alt="Profile Photo">
-                @else
-                    <div class="avatar-placeholder">
-                        {{ $teacher?->first_name ? $teacher->first_name[0] : 'U' }}{{ $teacher?->last_name ? $teacher->last_name[0] : '' }}
-                    </div>
-                @endif
+                <img src="{{ Auth::user()->avatarUrl() }}" alt="Profile Photo"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <div class="avatar-placeholder" style="display:none">
+                    {{ $teacher?->first_name ? $teacher->first_name[0] : 'U' }}{{ $teacher?->last_name ? $teacher->last_name[0] : '' }}
+                </div>
                 <span class="status-dot"></span>
             </div>
             <div class="account-summary-info">
@@ -529,8 +527,21 @@
                     @method('PATCH')
 
                     <div class="flex items-center gap-6 mt-6">
-                        <img id="avatarPreview" src="{{ Auth::user()->avatarUrl() }}" alt="Profile Photo"
-                             class="w-20 h-20 rounded-full object-cover bg-slate-100 border-2 border-slate-200">
+
+                        {{-- Avatar preview with fallback --}}
+                        <div class="relative w-20 h-20 shrink-0">
+                            <img id="avatarPreview"
+                                 src="{{ Auth::user()->avatarUrl() }}"
+                                 alt="{{ $teacher?->first_name ?? 'U' }}"
+                                 class="w-20 h-20 rounded-full object-cover bg-slate-100 border-2 border-slate-200"
+                                 onerror="this.style.display='none';document.getElementById('avatarInitials').style.display='flex';">
+                            <div id="avatarInitials"
+                                 class="w-20 h-20 rounded-full border-2 border-slate-200 items-center justify-center text-2xl font-black text-white select-none"
+                                 style="display:none;background:linear-gradient(135deg,#0d326b,#1a6fd4);">
+                                {{ strtoupper(substr($teacher?->first_name ?? 'U', 0, 1)) }}{{ strtoupper(substr($teacher?->last_name ?? '', 0, 1)) }}
+                            </div>
+                        </div>
+
                         <div class="flex flex-col gap-2">
                             <button type="button" onclick="document.getElementById('profilePhotoInput').click()" class="set-btn-primary">
                                 <span class="material-symbols-outlined" style="font-size:18px;">photo_camera</span>
@@ -542,7 +553,14 @@
                                 Remove Photo
                             </button>
                             @endif
+                            @if(Auth::user()->google_id && Auth::user()->profile_photo && str_starts_with(Auth::user()->profile_photo, 'http'))
+                            <p class="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">info</span>
+                                Google profile photo
+                            </p>
+                            @endif
                         </div>
+
                         <input type="file" id="profilePhotoInput" name="profile_photo"
                                accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" onchange="previewProfilePhoto(this)">
                     </div>
@@ -642,24 +660,55 @@
                 <h3 class="set-section-title">Security</h3>
                 <p class="set-section-sub">Change your password and manage security settings.</p>
 
-                <form method="POST" action="{{ route('settings.password') }}">
+                @if($user->google_id)
+                <div class="mt-6 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex items-start gap-3">
+                    <span class="material-symbols-outlined text-blue-500 text-[22px] mt-0.5 shrink-0">info</span>
+                    <div>
+                        <p class="text-[13px] font-bold text-blue-800 mb-0.5">Google Account</p>
+                        <p class="text-[12px] text-blue-600">Your account is linked to Google Sign-In. To change your password, please visit your <a href="https://myaccount.google.com/security" target="_blank" class="underline font-semibold">Google Account Security settings</a>.</p>
+                    </div>
+                </div>
+                @else
+
+                <form method="POST" action="{{ route('settings.password') }}" id="passwordForm">
                     @csrf
                     @method('PATCH')
                     <div class="space-y-5 mt-6">
                         <div>
                             <label class="set-field-label">Current password</label>
-                            <input type="password" name="current_password" class="set-input" placeholder="Enter your current password"/>
+                            <div class="relative">
+                                <input type="password" id="current_password" name="current_password" class="set-input pr-12"
+                                       placeholder="Enter your current password" value="{{ old('current_password') }}"/>
+                                <button type="button" onclick="togglePwdField('current_password','eye-cur')"
+                                        class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    <span id="eye-cur" class="material-symbols-outlined text-xl">visibility</span>
+                                </button>
+                            </div>
                             @error('current_password')<p class="text-red-500 text-[12px] font-medium mt-1.5">{{ $message }}</p>@enderror
                         </div>
                         <div class="grid grid-cols-2 gap-5">
                             <div>
                                 <label class="set-field-label">New password</label>
-                                <input type="password" name="password" class="set-input" placeholder="Minimum 8 characters"/>
+                                <div class="relative">
+                                    <input type="password" id="new_password" name="password" class="set-input pr-12"
+                                           placeholder="Minimum 8 characters"/>
+                                    <button type="button" onclick="togglePwdField('new_password','eye-new')"
+                                            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        <span id="eye-new" class="material-symbols-outlined text-xl">visibility</span>
+                                    </button>
+                                </div>
                                 @error('password')<p class="text-red-500 text-[12px] font-medium mt-1.5">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label class="set-field-label">Confirm password</label>
-                                <input type="password" name="password_confirmation" class="set-input" placeholder="Re-enter new password"/>
+                                <div class="relative">
+                                    <input type="password" id="confirm_password" name="password_confirmation" class="set-input pr-12"
+                                           placeholder="Re-enter new password"/>
+                                    <button type="button" onclick="togglePwdField('confirm_password','eye-con')"
+                                            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        <span id="eye-con" class="material-symbols-outlined text-xl">visibility</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -686,6 +735,8 @@
                         </button>
                     </div>
                 </form>
+
+                @endif
             </div>
 
             {{-- ── NOTIFICATIONS TAB ───────────────────────────────────────── --}}
@@ -763,6 +814,7 @@
 </div>
 
 <script>
+// ── Tab Navigation ──────────────────────────────────────────────────────────
 document.querySelectorAll('.set-nav-item').forEach(item => {
     item.addEventListener('click', () => {
         document.querySelectorAll('.set-nav-item').forEach(i => i.classList.remove('active'));
@@ -772,6 +824,20 @@ document.querySelectorAll('.set-nav-item').forEach(item => {
     });
 });
 
+// ── Auto-switch to the right tab when there are validation errors ────────────
+@if($errors->has('current_password') || $errors->has('password'))
+    document.querySelectorAll('.set-nav-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.settings-tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="security"]')?.classList.add('active');
+    document.getElementById('tab-security')?.classList.add('active');
+@elseif($errors->any())
+    document.querySelectorAll('.set-nav-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.settings-tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="profile"]')?.classList.add('active');
+    document.getElementById('tab-profile')?.classList.add('active');
+@endif
+
+// ── Profile Photo Preview ────────────────────────────────────────────────────
 function previewProfilePhoto(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
@@ -781,11 +847,20 @@ function previewProfilePhoto(input) {
             return;
         }
         const reader = new FileReader();
-        reader.onload = e => document.getElementById('avatarPreview').src = e.target.result;
+        reader.onload = e => {
+            const img = document.getElementById('avatarPreview');
+            const initials = document.getElementById('avatarInitials');
+            if (img) {
+                img.src = e.target.result;
+                img.style.display = 'block';
+            }
+            if (initials) initials.style.display = 'none';
+        };
         reader.readAsDataURL(file);
     }
 }
 
+// ── Remove Profile Photo (AJAX) ──────────────────────────────────────────────
 function removeProfilePhoto() {
     if (!confirm('Remove your profile photo?')) return;
     const token = document.querySelector('#profileForm input[name="_token"]').value;
@@ -800,6 +875,15 @@ function removeProfilePhoto() {
     })
     .then(res => res.ok ? window.location.reload() : alert('Failed to remove photo. Please try again.'))
     .catch(() => alert('Network error while removing photo.'));
+}
+
+// ── Password Field Visibility Toggle ─────────────────────────────────────────
+function togglePwdField(inputId, iconId) {
+    const el = document.getElementById(inputId);
+    const ic = document.getElementById(iconId);
+    if (!el || !ic) return;
+    el.type = el.type === 'password' ? 'text' : 'password';
+    ic.textContent = el.type === 'password' ? 'visibility' : 'visibility_off';
 }
 </script>
 
