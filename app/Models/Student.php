@@ -27,6 +27,7 @@ class Student extends Model
     'age',
     'grade_level',
     'section',
+    'school_year',
     'program_type',
     'fsl_mastery_level',
     'status',

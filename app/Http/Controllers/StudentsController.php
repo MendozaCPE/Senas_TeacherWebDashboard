@@ -21,6 +21,8 @@ class StudentsController extends Controller
         $newThisWeek   = 0;
         $students      = collect();
 
+        $availableSchoolYears = collect();
+
         if ($teacher) {
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
             $newThisWeek   = Student::where('teacher_id', $teacher->id)
@@ -35,6 +37,7 @@ class StudentsController extends Controller
             $level   = $filters['level']   ?? '';
             $program = $filters['program'] ?? '';
             $status  = $filters['status']  ?? 'all';
+            $schoolYear = $filters['school_year'] ?? '';
 
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
@@ -57,10 +60,22 @@ class StudentsController extends Controller
                 $query->where('status', $status);
             }
 
+            if (!empty($schoolYear)) {
+                $query->where('school_year', $schoolYear);
+            }
+
             $students = $query->orderBy('created_at', 'desc')->paginate(10);
+
+            $availableSchoolYears = Student::where('teacher_id', $teacher->id)
+                                           ->whereNotNull('school_year')
+                                           ->where('school_year', '!=', '')
+                                           ->select('school_year')
+                                           ->distinct()
+                                           ->orderBy('school_year', 'desc')
+                                           ->pluck('school_year');
         }
 
-        return view('students', compact('totalStudents', 'newThisWeek', 'students'));
+        return view('students', compact('totalStudents', 'newThisWeek', 'students', 'availableSchoolYears'));
     }
 
     /**
@@ -72,14 +87,16 @@ class StudentsController extends Controller
         $validated = $request->validate([
             'search'  => ['nullable', 'string', 'max:100'],
             'level'   => ['nullable', 'string', 'in:Beginner,Intermediate,Advanced,Completed,'],
-            'program' => ['nullable', 'string', 'in:Regular,Inclusion,SPED,'],
+            'program' => ['nullable', 'string', 'in:Regular,Inclusion,SPED,Self-contained,Transition,'],
             'status'  => ['nullable', 'string', 'in:active,inactive,all,'],
+            'school_year' => ['nullable', 'string', 'max:50'],
         ]);
 
         // Clear filter if user submitted an empty/reset form
         if (($validated['search'] ?? '') === ''
             && ($validated['level'] ?? '') === ''
             && ($validated['program'] ?? '') === ''
+            && ($validated['school_year'] ?? '') === ''
             && (($validated['status'] ?? 'all') === 'all')
         ) {
             session()->forget('students_filters');
@@ -99,9 +116,18 @@ class StudentsController extends Controller
             'lrn' => 'required|numeric|digits:12',
         ]);
 
-        $exists = Student::where('lrn', $request->lrn)->exists();
+        $teacher = Auth::user()->teacher;
+        $student = Student::where('lrn', $request->lrn)->first();
 
-        return response()->json(['exists' => $exists]);
+        if ($student) {
+            if ($teacher && $student->teacher_id == $teacher->id) {
+                return response()->json(['exists' => true, 'status' => 'own']);
+            } else {
+                return response()->json(['exists' => true, 'status' => 'other']);
+            }
+        }
+
+        return response()->json(['exists' => false]);
     }
 
     /**
@@ -121,15 +147,14 @@ class StudentsController extends Controller
         $showGradeSection = in_array($programType, ['Regular', 'Inclusion'], true);
 
         $request->validate([
-            'lrn' => 'required|numeric|digits:12|unique:students,lrn',
+            'lrn' => 'required|numeric|digits:12',
             'full_name' => 'required|string|max:255',
             'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained',
             'grade_level' => 'nullable|string|max:255',
             'age' => 'required|integer|min:1|max:120',
             'section' => 'nullable|string|max:255',
+            'school_year' => 'nullable|string|max:255',
             'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
-        ], [
-            'lrn.unique' => 'LRN already exists.',
         ]);
 
         // Split full name (expecting "Last Name, First Name" or fallback to space splitting)
@@ -150,6 +175,31 @@ class StudentsController extends Controller
         }
 
         $lrn = $request->lrn;
+
+        // Check for existing student
+        $existingStudent = Student::where('lrn', $lrn)->first();
+        if ($existingStudent) {
+            if ($existingStudent->teacher_id == $teacher->id) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => [
+                        'lrn' => ['Student already exists in your class.']
+                    ]
+                ], 422);
+            } else {
+                // Transfer student to this teacher
+                $existingStudent->teacher_id = $teacher->id;
+                $existingStudent->school_id = $teacher->school_id;
+                $existingStudent->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Student was previously enrolled by another teacher and has been successfully transferred to your class.',
+                    'student' => $existingStudent
+                ]);
+            }
+        }
+
         $pin = substr($lrn, -4);
 
         // Generate unique username from first name and last name
@@ -179,6 +229,7 @@ class StudentsController extends Controller
                 'age' => $request->age,
                 'grade_level' => $showGradeSection ? $request->grade_level : null,
                 'section' => $showGradeSection ? $request->section : null,
+                'school_year' => $request->school_year,
                 'fsl_mastery_level' => $request->fsl_mastery_level,
                 'program_type' => $programType,
             ]);
@@ -214,12 +265,6 @@ class StudentsController extends Controller
 
         $request->validate([
             'students' => 'required|array',
-            'students.*.lrn' => 'required|numeric|digits:12',
-            'students.*.full_name' => 'required|string|max:255',
-            'students.*.grade_level' => 'nullable|string|max:255',
-            'students.*.age' => 'required|integer|min:1|max:120',
-            'students.*.section' => 'nullable|string|max:255',
-            'students.*.fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
             'auto_pin' => 'nullable|boolean',
         ]);
 
@@ -233,11 +278,51 @@ class StudentsController extends Controller
         DB::beginTransaction();
         try {
             foreach ($studentsData as $index => $data) {
+                $validator = \Illuminate\Support\Facades\Validator::make($data, [
+                    'lrn' => 'required|numeric|digits:12',
+                    'full_name' => 'required|string|max:255',
+                    'grade_level' => 'nullable|string|max:255',
+                    'age' => 'required|integer|min:1|max:120',
+                    'section' => 'nullable|string|max:255',
+                    'school_year' => 'nullable|string|max:255',
+                    'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
+                ]);
+
+                if ($validator->fails()) {
+                    $skipped++;
+                    $errors[] = [
+                        'row' => $index + 2, // Assuming row 1 is header
+                        'name' => $data['full_name'] ?? 'Unknown',
+                        'reason' => implode(', ', $validator->errors()->all())
+                    ];
+                    continue;
+                }
+
                 $lrn = trim($data['lrn']);
 
                 // Skip if student with this LRN already exists
-                if (Student::where('lrn', $lrn)->exists()) {
-                    $skipped++;
+                $existingStudent = Student::where('lrn', $lrn)->first();
+                if ($existingStudent) {
+                    if ($existingStudent->teacher_id == $teacher->id) {
+                        $skipped++;
+                        $errors[] = [
+                            'row' => $index + 2,
+                            'name' => $data['full_name'],
+                            'reason' => 'Student already exists in your class.'
+                        ];
+                    } else {
+                        // Transfer to this teacher
+                        $existingStudent->teacher_id = $teacher->id;
+                        $existingStudent->school_id = $teacher->school_id;
+                        $existingStudent->save();
+                        
+                        $imported++;
+                        $errors[] = [
+                            'row' => $index + 2,
+                            'name' => $data['full_name'],
+                            'reason' => 'Warning: Transferred from another teacher to your class.'
+                        ];
+                    }
                     continue;
                 }
 
@@ -286,6 +371,7 @@ class StudentsController extends Controller
                     'age' => $data['age'],
                     'grade_level' => $data['grade_level'] ?? null,
                     'section' => $data['section'] ?? null,
+                    'school_year' => $data['school_year'] ?? null,
                     'fsl_mastery_level' => $data['fsl_mastery_level'],
                     'program_type' => 'Regular',
                 ]);
@@ -297,9 +383,11 @@ class StudentsController extends Controller
 
             return response()->json([
                 'success' => true,
+                'total' => count($studentsData),
                 'imported' => $imported,
                 'skipped' => $skipped,
-                'message' => "Successfully imported {$imported} students. Skipped {$skipped} existing records."
+                'errors' => $errors,
+                'message' => "Successfully imported {$imported} students. Skipped {$skipped} records."
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

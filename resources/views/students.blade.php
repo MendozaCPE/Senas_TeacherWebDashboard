@@ -150,16 +150,22 @@
                 @php $sf = session('students_filters', []); @endphp
                 <div class="relative shrink-0 order-1 lg:order-none">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                    <input id="student-search" type="text" value="{{ $sf['search'] ?? '' }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[180px]" />
+                    <input id="student-search" type="text" value="{{ $sf['search'] ?? '' }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[250px]" />
                 </div>
-                <div class="bg-[#f1f5f9] p-1 rounded-full flex items-center shadow-inner shrink-0 order-2 lg:order-none">
-                    <button type="button" data-filter="all" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? 'all') === 'all' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 font-medium' }} text-[12px] rounded-full transition-all hover:text-[#0d326b]">All Students</button>
-                    <button type="button" data-filter="active" class="filter-tab px-5 py-2 {{ ($sf['status'] ?? '') === 'active' ? 'bg-white text-[#0d326b] font-bold shadow-sm' : 'text-slate-500 font-medium' }} text-[12px] rounded-full transition-all hover:text-[#0d326b]">Active Only</button>
-                </div>
+
                 <div class="flex-1"></div>
                 <div class="relative shrink-0">
+                    <select id="filter-school-year" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
+                        <option value="">School Year</option>
+                        @foreach($availableSchoolYears as $sy)
+                        <option value="{{ $sy }}" {{ ($sf['school_year'] ?? '') === $sy ? 'selected' : '' }}>{{ $sy }}</option>
+                        @endforeach
+                    </select>
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+                </div>
+                <div class="relative shrink-0">
                     <select id="filter-level" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
-                        <option value="">Filter: Level</option>
+                        <option value="">Level</option>
                         <option value="Beginner" {{ ($sf['level'] ?? '') === 'Beginner' ? 'selected' : '' }}>Beginner</option>
                         <option value="Intermediate" {{ ($sf['level'] ?? '') === 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
                         <option value="Advanced" {{ ($sf['level'] ?? '') === 'Advanced' ? 'selected' : '' }}>Advanced</option>
@@ -169,7 +175,7 @@
                 </div>
                 <div class="relative shrink-0">
                     <select id="filter-program" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
-                        <option value="">Filter: Program Type</option>
+                        <option value="">Program Type</option>
                         <option value="Regular" {{ ($sf['program'] ?? '') === 'Regular' ? 'selected' : '' }}>Regular</option>
                         <option value="Self-contained" {{ ($sf['program'] ?? '') === 'Self-contained' ? 'selected' : '' }}>Self-Contained</option>
                         <option value="Transition" {{ ($sf['program'] ?? '') === 'Transition' ? 'selected' : '' }}>Transition</option>
@@ -179,7 +185,7 @@
                 </div>
                 {{-- Clear filter (client-side toggled, AJAX-cleared — no page reload) --}}
                 <span id="clear-filters-wrap" class="{{ empty($sf) ? 'hidden' : '' }}">
-                    <button type="button" id="clear-filters-btn" class="text-[11px] text-slate-400 hover:text-slate-600 font-medium underline-offset-2 hover:underline">Clear</button>
+                    <button type="button" id="clear-filters-btn" class="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-500 text-[13px] font-semibold transition-all hover:bg-slate-50 hover:border-slate-300">Clear</button>
                 </span>
                 {{-- Add Student Button moved here --}}
                 <button id="open-modal-btn" title="Add Student"
@@ -743,6 +749,7 @@
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Learner Reference Number (LRN)</label>
                     <input type="text" name="lrn" id="input-lrn" required placeholder="12-digit LRN" pattern="\d{12}" maxlength="12" title="LRN must be exactly 12 digits" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                     <p id="lrn-error" class="hidden text-[12px] font-medium text-red-600">LRN already exists.</p>
+                    <p id="lrn-warning" class="hidden text-[12px] font-medium text-amber-600 mt-1">Notice: Student is enrolled with another teacher. Proceeding will transfer them to your class.</p>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
@@ -784,6 +791,10 @@
                 <div id="field-section" class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Section</label>
                     <input type="text" name="section" id="input-section" placeholder="e.g. SPED-A" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">School Year</label>
+                    <input type="text" name="school_year" placeholder="e.g. 2023-2024" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">FSL Mastery Level</label>
@@ -859,18 +870,19 @@ closeModalBtn.addEventListener('click',closeModal);cancelBtns.forEach(b=>b.addEv
 const AT='text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all',IT='text-slate-400 border-b-2 border-transparent hover:text-slate-600 outline-none transition-all';
 tabSingle.addEventListener('click',()=>{tabSingle.className=AT;tabBulk.className=IT;formSingle.classList.remove('hidden');containerBulk.classList.add('hidden');});
 tabBulk.addEventListener('click',()=>{tabBulk.className=AT;tabSingle.className=IT;containerBulk.classList.remove('hidden');formSingle.classList.add('hidden');});
-function showAlert(msg,type='error'){modalAlert.classList.remove('hidden','bg-red-50','border-red-200','text-red-800','bg-emerald-50','border-emerald-200','text-emerald-800');modalAlertIcon.innerText=type==='error'?'error':'check_circle';modalAlert.classList.add(type==='error'?'bg-red-50':'bg-emerald-50',type==='error'?'border-red-200':'border-emerald-200',type==='error'?'text-red-800':'text-emerald-800');modalAlertMsg.innerHTML=msg;}
+function showAlert(msg,type='error'){modalAlert.classList.remove('hidden','bg-red-50','border-red-200','text-red-800','bg-emerald-50','border-emerald-200','text-emerald-800','bg-amber-50','border-amber-200','text-amber-800');modalAlertIcon.innerText=type==='error'?'error':(type==='warning'?'warning':'check_circle');modalAlert.classList.add(type==='error'?'bg-red-50':(type==='warning'?'bg-amber-50':'bg-emerald-50'),type==='error'?'border-red-200':(type==='warning'?'border-amber-200':'border-emerald-200'),type==='error'?'text-red-800':(type==='warning'?'text-amber-800':'text-emerald-800'));modalAlertMsg.innerHTML=msg;}
 function hideAlert(){modalAlert.classList.add('hidden');}
 function resetModal(){formSingle.reset();parsedStudents=[];resetUploadArea();hideAlert();hideLrnError();updatePinPreview();toggleGradeSectionFields();tabSingle.click();}
 const inputProgramType=document.getElementById('input-program-type'),fieldGradeLevel=document.getElementById('field-grade-level'),fieldSection=document.getElementById('field-section'),inputGradeLevel=document.getElementById('input-grade-level'),inputSection=document.getElementById('input-section');
 function toggleGradeSectionFields(){const show=['Regular','Inclusion'].includes(inputProgramType.value);fieldGradeLevel.classList.toggle('hidden',!show);fieldSection.classList.toggle('hidden',!show);inputGradeLevel.disabled=!show;inputSection.disabled=!show;if(!show){inputGradeLevel.value='';inputSection.value='';}}
 inputProgramType.addEventListener('change',toggleGradeSectionFields);toggleGradeSectionFields();
-const inputLrn=document.getElementById('input-lrn'),lrnError=document.getElementById('lrn-error'),pinPreview=document.getElementById('pin-preview');
+const inputLrn=document.getElementById('input-lrn'),lrnError=document.getElementById('lrn-error'),lrnWarning=document.getElementById('lrn-warning'),pinPreview=document.getElementById('pin-preview');
 let lrnExists=false,lrnCheckTimer=null;
-function hideLrnError(){lrnError.classList.add('hidden');inputLrn.classList.remove('border-red-400','focus:border-red-400');lrnExists=false;}
-function showLrnError(){lrnError.classList.remove('hidden');inputLrn.classList.add('border-red-400','focus:border-red-400');lrnExists=true;}
+function hideLrnError(){lrnError.classList.add('hidden');lrnWarning.classList.add('hidden');inputLrn.classList.remove('border-red-400','focus:border-red-400','border-amber-400','focus:border-amber-400');lrnExists=false;}
+function showLrnError(msg){if(msg)lrnError.innerText=msg;lrnError.classList.remove('hidden');inputLrn.classList.add('border-red-400','focus:border-red-400');lrnExists=true;}
+function showLrnWarning(msg){if(msg)lrnWarning.innerText=msg;lrnWarning.classList.remove('hidden');inputLrn.classList.add('border-amber-400','focus:border-amber-400');lrnExists=false;}
 function updatePinPreview(){const lrn=inputLrn.value.replace(/\D/g,'');pinPreview.textContent=lrn.length>=4?lrn.slice(-4):'----';}
-async function checkLrnUnique(){const lrn=inputLrn.value.replace(/\D/g,'');hideLrnError();if(lrn.length!==12)return;try{const res=await axios.get("{{ route('students.check-lrn') }}",{params:{lrn}});if(res.data.exists)showLrnError();}catch(_){}}
+async function checkLrnUnique(){const lrn=inputLrn.value.replace(/\D/g,'');hideLrnError();if(lrn.length!==12)return;try{const res=await axios.get("{{ route('students.check-lrn') }}",{params:{lrn}});if(res.data.exists){if(res.data.status==='own'){showLrnError('Student already exists in your class.');}else{showLrnWarning('Notice: Student is enrolled with another teacher. Proceeding will transfer them to your class.');}}}catch(_){}}
 inputLrn.addEventListener('input',()=>{updatePinPreview();clearTimeout(lrnCheckTimer);hideLrnError();if(inputLrn.value.replace(/\D/g,'').length===12){lrnCheckTimer=setTimeout(checkLrnUnique,400);}});
 inputLrn.addEventListener('blur',checkLrnUnique);updatePinPreview();
 ['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.add('border-[#0d326b]','bg-[#0d326b]/5');}));
@@ -880,9 +892,9 @@ excelInput.addEventListener('change',e=>{if(e.target.files[0])handleExcelFile(e.
 function handleExcelFile(file){hideAlert();const ext=file.name.split('.').pop().toLowerCase();if(!['xlsx','xls','csv'].includes(ext)){showAlert('Invalid file format. Please upload .xlsx, .xls, or .csv.');resetUploadArea();return;}const reader=new FileReader();reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],raw=XLSX.utils.sheet_to_json(ws,{header:1});parsedStudents=mapExcelData(raw);if(!parsedStudents.length){showAlert('File is empty or has no student rows.');resetUploadArea();return;}showUploadedFile(file.name,parsedStudents.length);}catch(err){showAlert(err.message||'Failed to parse file.');resetUploadArea();}};reader.readAsArrayBuffer(file);}
 function showUploadedFile(name,count){uploadIcon.innerText='check';uploadIconWrap.className='w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-sm';uploadPrimary.innerText=name;uploadSecondary.innerText=`${count} students detected. Ready to import.`;btnImport.removeAttribute('disabled');btnImport.className='bg-[#0d326b] hover:bg-[#154188] text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-pointer flex items-center justify-center';}
 function resetUploadArea(){excelInput.value='';uploadIcon.innerText='article';uploadIconWrap.className='w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm';uploadPrimary.innerText='Drag and drop your student roster here';uploadSecondary.innerText='.xlsx or .csv only, max 5MB';parsedStudents=[];btnImport.setAttribute('disabled','true');btnImport.className='bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center justify-center';}
-function mapExcelData(rows){if(!rows||rows.length<2)return[];const h=rows[0].map(x=>String(x||'').trim().toLowerCase()),lrnIdx=h.findIndex(x=>x.includes('lrn')||x.includes('reference')||x.includes('learner')),nameIdx=h.findIndex(x=>x.includes('name')||x.includes('student')||x.includes('full')),firstIdx=h.findIndex(x=>x.includes('first')),lastIdx=h.findIndex(x=>x.includes('last')),gradeIdx=h.findIndex(x=>x.includes('grade')||x.includes('level')||x.includes('class')),ageIdx=h.findIndex(x=>x.includes('age')),sectionIdx=h.findIndex(x=>x.includes('section')),masteryIdx=h.findIndex(x=>x.includes('fsl')||x.includes('mastery')||x.includes('skill'));if(lrnIdx===-1)throw new Error("Missing LRN column.");if(nameIdx===-1&&(firstIdx===-1||lastIdx===-1))throw new Error("Missing Name column.");if(ageIdx===-1)throw new Error("Missing Age column.");return rows.slice(1).filter(r=>r&&r.length&&(r[lrnIdx]||r[nameIdx]||r[firstIdx])).map((row,i)=>{const lrn=String(row[lrnIdx]||'').trim(),fullName=nameIdx!==-1?String(row[nameIdx]||'').trim():`${String(row[lastIdx]||'').trim()}, ${String(row[firstIdx]||'').trim()}`,age=parseInt(row[ageIdx],10),rawM=masteryIdx!==-1?String(row[masteryIdx]||'').trim().toLowerCase():'',fsl_mastery_level=rawM.includes('inter')?'Intermediate':rawM.includes('adv')?'Advanced':'Beginner';if(!lrn||lrn.length!==12||isNaN(Number(lrn)))throw new Error(`Row ${i+2}: LRN "${lrn}" must be exactly 12 digits.`);if(!fullName)throw new Error(`Row ${i+2}: Name is required.`);if(isNaN(age)||age<1)throw new Error(`Row ${i+2}: Valid age is required.`);return{lrn,full_name:fullName,grade_level:gradeIdx!==-1?String(row[gradeIdx]||'').trim()||null:null,age,section:sectionIdx!==-1?String(row[sectionIdx]||'').trim()||null:null,fsl_mastery_level};});}
-async function submitSingleStudent(event){event.preventDefault();hideAlert();const btn=document.getElementById('btn-single-submit'),nameVal=formSingle.querySelector('input[name="full_name"]').value;if(!nameVal.includes(',')){showAlert('Full Name must be "Last Name, First Name" (comma-separated).');return;}if(inputLrn.value.replace(/\D/g,'').length!==12){showAlert('LRN must be exactly 12 digits.');return;}await checkLrnUnique();if(lrnExists)return;const orig=btn.innerText;btn.innerText='Saving...';btn.disabled=true;const fd=new FormData(formSingle),showGS=['Regular','Inclusion'].includes(fd.get('program_type')),payload={lrn:fd.get('lrn'),full_name:fd.get('full_name'),program_type:fd.get('program_type'),age:fd.get('age'),fsl_mastery_level:fd.get('fsl_mastery_level')};if(showGS){payload.grade_level=fd.get('grade_level');payload.section=fd.get('section');}const token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.store') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message,'success');setTimeout(()=>window.location.reload(),1500);}else{showAlert(res.data.message||'An error occurred.');btn.innerText=orig;btn.disabled=false;}}catch(err){let msg='An error occurred while saving.';if(err.response?.data?.errors){const errors=err.response.data.errors;if(errors.lrn){showLrnError();msg=errors.lrn[0];}else{msg=Object.values(errors).flat().join('<br>');}}else if(err.response?.data?.message)msg=err.response.data.message;else if(err.request)msg=`Network error: ${err.message}`;showAlert(msg);btn.innerText=orig;btn.disabled=false;}}
-btnImport.addEventListener('click',async()=>{hideAlert();const orig=btnImport.innerText;btnImport.innerText='Importing...';btnImport.disabled=true;const payload={students:parsedStudents,auto_pin:document.getElementById('bulk-auto-pin').checked?1:0},token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.import') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message,'success');setTimeout(()=>window.location.reload(),1500);}else{showAlert(res.data.message||'Import error.');btnImport.innerText=orig;btnImport.disabled=false;}}catch(err){let msg='An error occurred during import.';if(err.response?.data?.errors)msg=Object.values(err.response.data.errors).flat().join('<br>');else if(err.response?.data?.message)msg=err.response.data.message;showAlert(msg);btnImport.innerText=orig;btnImport.disabled=false;}});
+function mapExcelData(rows){if(!rows||rows.length<2)return[];const h=rows[0].map(x=>String(x||'').trim().toLowerCase()),lrnIdx=h.findIndex(x=>x.includes('lrn')||x.includes('reference')||x.includes('learner')),nameIdx=h.findIndex(x=>x.includes('name')||x.includes('student')||x.includes('full')),firstIdx=h.findIndex(x=>x.includes('first')),lastIdx=h.findIndex(x=>x.includes('last')),gradeIdx=h.findIndex(x=>x.includes('grade')||x.includes('level')||x.includes('class')),ageIdx=h.findIndex(x=>x.includes('age')),sectionIdx=h.findIndex(x=>x.includes('section')),masteryIdx=h.findIndex(x=>x.includes('fsl')||x.includes('mastery')||x.includes('skill')),syIdx=h.findIndex(x=>x.includes('school')&&x.includes('year'));return rows.slice(1).filter(r=>r&&r.length).map((row,i)=>{const lrn=String(row[lrnIdx]||'').trim(),fullName=nameIdx!==-1?String(row[nameIdx]||'').trim():`${String(row[lastIdx]||'').trim()}, ${String(row[firstIdx]||'').trim()}`,age=parseInt(row[ageIdx],10),rawM=masteryIdx!==-1?String(row[masteryIdx]||'').trim().toLowerCase():'',fsl_mastery_level=rawM.includes('inter')?'Intermediate':rawM.includes('adv')?'Advanced':'Beginner';return{lrn,full_name:fullName,grade_level:gradeIdx!==-1?String(row[gradeIdx]||'').trim()||null:null,age:isNaN(age)?null:age,section:sectionIdx!==-1?String(row[sectionIdx]||'').trim()||null:null,school_year:syIdx!==-1?String(row[syIdx]||'').trim()||null:null,fsl_mastery_level};});}
+async function submitSingleStudent(event){event.preventDefault();hideAlert();const btn=document.getElementById('btn-single-submit'),nameVal=formSingle.querySelector('input[name="full_name"]').value;if(!nameVal.includes(',')){showAlert('Full Name must be "Last Name, First Name" (comma-separated).');return;}if(inputLrn.value.replace(/\D/g,'').length!==12){showAlert('LRN must be exactly 12 digits.');return;}await checkLrnUnique();if(lrnExists)return;const orig=btn.innerText;btn.innerText='Saving...';btn.disabled=true;const fd=new FormData(formSingle),showGS=['Regular','Inclusion'].includes(fd.get('program_type')),payload={lrn:fd.get('lrn'),full_name:fd.get('full_name'),program_type:fd.get('program_type'),age:fd.get('age'),fsl_mastery_level:fd.get('fsl_mastery_level'),school_year:fd.get('school_year')};if(showGS){payload.grade_level=fd.get('grade_level');payload.section=fd.get('section');}const token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.store') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message, res.data.message.includes('transferred') ? 'warning' : 'success');setTimeout(()=>window.location.reload(),1800);}else{showAlert(res.data.message||'An error occurred.');btn.innerText=orig;btn.disabled=false;}}catch(err){let msg='An error occurred while saving.';if(err.response?.data?.errors){const errors=err.response.data.errors;if(errors.lrn){showLrnError(errors.lrn[0]);msg=errors.lrn[0];}else{msg=Object.values(errors).flat().join('<br>');}}else if(err.response?.data?.message)msg=err.response.data.message;else if(err.request)msg=`Network error: ${err.message}`;showAlert(msg);btn.innerText=orig;btn.disabled=false;}}
+btnImport.addEventListener('click',async()=>{hideAlert();const orig=btnImport.innerText;btnImport.innerText='Importing...';btnImport.disabled=true;const payload={students:parsedStudents,auto_pin:document.getElementById('bulk-auto-pin').checked?1:0},token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.import') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){const d=res.data;let html=`<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-lg font-bold text-[#0d326b] mb-4">Import Summary</h3><div class="grid grid-cols-3 gap-4 mb-4"><div class="bg-blue-50 p-3 rounded-xl"><p class="text-[10px] text-blue-600 font-bold uppercase tracking-widest">Total Rows</p><p class="text-2xl font-black text-blue-900">${d.total}</p></div><div class="bg-emerald-50 p-3 rounded-xl"><p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Imported</p><p class="text-2xl font-black text-emerald-900">${d.imported}</p></div><div class="bg-amber-50 p-3 rounded-xl"><p class="text-[10px] text-amber-600 font-bold uppercase tracking-widest">Skipped</p><p class="text-2xl font-black text-amber-900">${d.skipped}</p></div></div>`;if(d.errors&&d.errors.length>0){html+=`<p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-4">Skipped Rows Details</p><div class="max-h-56 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-2">`;d.errors.forEach(e=>{html+=`<div class="text-[11px] bg-white p-2.5 border border-slate-200 rounded-lg shadow-sm"><span class="font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded mr-1">Row ${e.row}</span> <span class="font-bold text-[#0d326b]">${e.name}</span><p class="text-slate-500 font-medium mt-1 leading-tight">${e.reason}</p></div>`;});html+=`</div>`;}html+=`<button type="button" onclick="window.location.reload()" class="mt-6 w-full bg-[#0d326b] hover:bg-[#154188] text-white px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm">Done, Reload Page</button></div>`;document.getElementById('container-bulk').innerHTML=html;}else{showAlert(res.data.message||'Import error.');btnImport.innerText=orig;btnImport.disabled=false;}}catch(err){let msg='An error occurred during import.';if(err.response?.data?.errors)msg=Object.values(err.response.data.errors).flat().join('<br>');else if(err.response?.data?.message)msg=err.response.data.message;showAlert(msg);btnImport.innerText=orig;btnImport.disabled=false;}});
 
 // ─── AJAX Filtering + Pagination (no page reload) ──────────────────────────────
 // The whole "results" panel (table + pagination) below the toolbar is fetched
@@ -897,28 +909,12 @@ function setResultsLoading(isLoading) {
     if (el) el.classList.toggle('is-loading', isLoading);
 }
 
-function getActiveStatus() {
-    return document.querySelector('.filter-tab.font-bold')?.dataset.filter || 'all';
-}
-
-function setActiveTab(status) {
-    document.querySelectorAll('.filter-tab').forEach(function (tab) {
-        const isActive = tab.dataset.filter === status;
-        tab.classList.remove('bg-white', 'text-[#0d326b]', 'font-bold', 'shadow-sm', 'text-slate-500', 'font-medium');
-        if (isActive) {
-            tab.classList.add('bg-white', 'text-[#0d326b]', 'font-bold', 'shadow-sm');
-        } else {
-            tab.classList.add('text-slate-500', 'font-medium');
-        }
-    });
-}
-
 function updateClearButtonVisibility() {
     const search  = document.getElementById('student-search').value.trim();
     const level   = document.getElementById('filter-level').value;
     const program = document.getElementById('filter-program').value;
-    const status  = getActiveStatus();
-    const hasFilters = !!(search || level || program || (status && status !== 'all'));
+    const schoolYear = document.getElementById('filter-school-year').value;
+    const hasFilters = !!(search || level || program || schoolYear);
     const wrap = document.getElementById('clear-filters-wrap');
     if (wrap) wrap.classList.toggle('hidden', !hasFilters);
 }
@@ -957,9 +953,7 @@ function applyServerFilters(overrides) {
     const searchVal  = overrides.hasOwnProperty('search')  ? overrides.search  : document.getElementById('student-search').value.trim();
     const levelVal   = overrides.hasOwnProperty('level')   ? overrides.level   : document.getElementById('filter-level').value;
     const programVal = overrides.hasOwnProperty('program') ? overrides.program : document.getElementById('filter-program').value;
-    const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : getActiveStatus();
-
-    if (overrides.hasOwnProperty('status')) setActiveTab(statusVal);
+    const schoolYearVal = overrides.hasOwnProperty('school_year') ? overrides.school_year : document.getElementById('filter-school-year').value;
 
     const tokenInput = document.querySelector('#studentFilterForm input[name="_token"]');
     const token = tokenInput ? tokenInput.value : '';
@@ -969,7 +963,7 @@ function applyServerFilters(overrides) {
     body.set('search', searchVal);
     body.set('level', levelVal);
     body.set('program', programVal);
-    body.set('status', statusVal);
+    body.set('school_year', schoolYearVal);
 
     fetchStudentsResults("{{ route('students.filter') }}", {
         method: 'POST',
@@ -996,27 +990,22 @@ document.addEventListener('keydown', function (e) {
     }
 });
 
-// Level / Program dropdowns
+// Level / Program / School Year dropdowns
 document.addEventListener('change', function (e) {
-    if (e.target && (e.target.id === 'filter-level' || e.target.id === 'filter-program')) {
+    if (e.target && (e.target.id === 'filter-level' || e.target.id === 'filter-program' || e.target.id === 'filter-school-year')) {
         applyServerFilters();
     }
 });
 
-// Delegated clicks: filter tabs, clear button, pagination links, promote/demote
+// Delegated clicks: clear button, pagination links, promote/demote
 document.addEventListener('click', function (e) {
-    const tab = e.target.closest('.filter-tab');
-    if (tab) {
-        applyServerFilters({ status: tab.dataset.filter });
-        return;
-    }
-
     const clearBtn = e.target.closest('#clear-filters-btn');
     if (clearBtn) {
         document.getElementById('student-search').value = '';
         document.getElementById('filter-level').value = '';
         document.getElementById('filter-program').value = '';
-        applyServerFilters({ search: '', level: '', program: '', status: 'all' });
+        document.getElementById('filter-school-year').value = '';
+        applyServerFilters({ search: '', level: '', program: '', school_year: '' });
         return;
     }
 
