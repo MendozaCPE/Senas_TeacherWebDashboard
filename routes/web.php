@@ -3,6 +3,7 @@
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
@@ -21,6 +22,18 @@ Route::middleware('guest')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register']);
+
+    // OTP Account Verification (Before account creation)
+    Route::get('/register/verify-otp', [AuthController::class, 'showVerifyOtp'])->name('register.show-verify-otp');
+    Route::post('/register/verify-otp', [AuthController::class, 'verifyOtp'])->name('register.verify-otp');
+    Route::post('/register/resend-otp', [AuthController::class, 'resendOtp'])->name('register.resend-otp');
+
+    // API Helper for Login Loading State
+    Route::get('/api/teacher-name', [AuthController::class, 'getTeacherName'])->name('api.teacher-name');
+
+    // Google OAuth
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 });
 
 // Terms & Conditions (accessible to everyone)

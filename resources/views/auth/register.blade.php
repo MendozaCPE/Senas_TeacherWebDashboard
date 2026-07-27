@@ -45,6 +45,13 @@
                 </div>
             @endif
 
+            @if(!config('services.auth.developer_mode'))
+            <div class="mb-5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] shrink-0">shield</span>
+                <span>Registration restricted to <strong>@{{ config('services.auth.allowed_email_domain') }}</strong> accounts only.</span>
+            </div>
+            @endif
+
             <form method="POST" action="{{ route('register') }}" class="space-y-4">
                 @csrf
 
@@ -143,21 +150,21 @@
             {{-- Divider --}}
             <div class="flex items-center my-5 gap-3">
                 <div class="flex-1 h-px bg-gray-200"></div>
-                <span class="text-gray-400 text-xs">or</span>
+                <span class="text-gray-400 text-xs">or continue with</span>
                 <div class="flex-1 h-px bg-gray-200"></div>
             </div>
 
-            <div class="flex items-center justify-center gap-2 text-sm text-gray-400">
-                or sign in with
-                <button type="button" class="ml-1 w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:shadow transition">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
-                        <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.615 24 12.255 24z"/>
-                        <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z"/>
-                        <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.64 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/>
-                    </svg>
-                </button>
-            </div>
+            {{-- Google Sign-Up --}}
+            <a href="{{ route('auth.google', ['intent' => 'register']) }}"
+               class="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm font-semibold text-gray-700 text-sm">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
+                    <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.615 24 12.255 24z"/>
+                    <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z"/>
+                    <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.64 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/>
+                </svg>
+                Sign up with Google
+            </a>
 
         </div>
     </div>

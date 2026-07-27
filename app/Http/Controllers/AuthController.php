@@ -5,15 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\School;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    protected AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     /** Show login form */
     public function showLogin()
     {
@@ -21,6 +30,22 @@ class AuthController extends Controller
             return redirect('/');
         }
         return view('auth.login');
+    }
+
+    /** Lookup teacher name by email for the interactive loading screen */
+    public function getTeacherName(Request $request)
+    {
+        $email = trim($request->query('email', ''));
+        if (empty($email)) {
+            return response()->json(['name' => null]);
+        }
+
+        $user = User::where('email', $email)->first();
+        if ($user) {
+            return response()->json(['name' => $user->name]);
+        }
+
+        return response()->json(['name' => null]);
     }
 
     /** Process login */
@@ -31,9 +56,18 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
+        // Domain restriction check
+        if (!$this->authService->isEmailAllowed($request->email)) {
+            return back()->withErrors([
+                'email' => $this->authService->unauthorizedMessage(),
+            ])->onlyInput('email');
+        }
+
         $remember = $request->boolean('remember');
 
         if (Auth::attempt(['email' => $request->email, 'password' => $request->password], $remember)) {
+            $user = Auth::user();
+
             $request->session()->regenerate();
             return redirect()->intended(route('dashboard'));
         }
@@ -50,7 +84,7 @@ class AuthController extends Controller
         return view('auth.register', compact('schools'));
     }
 
-    /** Process registration */
+    /** Process registration — Sends OTP BEFORE creating account */
     public function register(Request $request)
     {
         $request->validate([
@@ -63,8 +97,75 @@ class AuthController extends Controller
             'terms.accepted' => 'You must agree to the Terms and Conditions.',
         ]);
 
-        // Auto-generate unique username from email
-        $base = strtolower(strtok($request->email, '@'));
+        // Domain restriction check
+        if (!$this->authService->isEmailAllowed($request->email)) {
+            return back()->withErrors([
+                'email' => $this->authService->unauthorizedMessage(),
+            ])->onlyInput('email', 'name', 'school_id');
+        }
+
+        // Generate 6-digit OTP
+        $otp = sprintf('%06d', mt_rand(100000, 999999));
+
+        // Store pending registration data in session (Expires in 15 mins)
+        session([
+            'pending_registration' => [
+                'name'       => $request->name,
+                'email'      => $request->email,
+                'password'   => Hash::make($request->password),
+                'school_id'  => $request->school_id,
+                'otp'        => $otp,
+                'expires_at' => now()->addMinutes(15)->timestamp,
+            ]
+        ]);
+
+        // Send OTP via email
+        try {
+            \Illuminate\Support\Facades\Notification::route('mail', $request->email)
+                ->notify(new \App\Notifications\RegistrationOtpNotification($otp));
+        } catch (\Throwable $e) {
+            Log::error('OTP email send failed: ' . $e->getMessage());
+        }
+
+        return redirect()->route('register.show-verify-otp');
+    }
+
+    /** Show OTP verification page */
+    public function showVerifyOtp()
+    {
+        $pending = session('pending_registration');
+        if (!$pending) {
+            return redirect()->route('register');
+        }
+
+        return view('auth.verify-otp', ['email' => $pending['email']]);
+    }
+
+    /** Verify OTP and finally create the account in database */
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'otp' => 'required|numeric|digits:6',
+        ]);
+
+        $pending = session('pending_registration');
+        if (!$pending) {
+            return redirect()->route('register')->withErrors(['email' => 'Session expired. Please fill out the registration form again.']);
+        }
+
+        if (now()->timestamp > $pending['expires_at']) {
+            return back()->withErrors(['otp' => 'The verification code has expired. Please request a new code.']);
+        }
+
+        if ($request->otp !== $pending['otp']) {
+            return back()->withErrors(['otp' => 'Invalid verification code. Please check your email and try again.']);
+        }
+
+        // --- OTP Validated! Now create User and Teacher records ---
+        $email = $pending['email'];
+
+        // Auto-generate unique username
+        $base = strtolower(strtok($email, '@'));
         $username = $base;
         $i = 1;
         while (User::where('username', $username)->exists()) {
@@ -72,30 +173,63 @@ class AuthController extends Controller
         }
 
         $user = User::create([
-            'username' => $username,
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'role'     => 'teacher',
-            'status'   => 'active',
+            'username'          => $username,
+            'name'              => $pending['name'],
+            'email'             => $email,
+            'email_verified_at' => now(),
+            'password'          => $pending['password'],
+            'role'              => 'teacher',
+            'status'            => 'active',
+            'google_id'         => $pending['google_id'] ?? null,
+            'profile_photo'     => $pending['profile_photo'] ?? null,
         ]);
 
         // Split full name into first / last
-        $parts     = explode(' ', trim($request->name), 2);
+        $parts     = explode(' ', trim($pending['name']), 2);
         $firstName = $parts[0];
         $lastName  = $parts[1] ?? '';
 
         Teacher::create([
             'user_id'        => $user->id,
-            'school_id'      => $request->school_id,
+            'school_id'      => $pending['school_id'],
             'first_name'     => $firstName,
             'last_name'      => $lastName,
             'specialization' => 'Regular',
         ]);
 
-        Auth::login($user);
+        // Clear pending registration session
+        session()->forget('pending_registration');
 
-        return redirect(route('dashboard'));
+        $isGoogle = $pending['is_google'] ?? false;
+        $message  = $isGoogle
+            ? 'Your Google account has been verified and your teacher account is now active! You can log in using Google.'
+            : 'Email verified and account created successfully! You can now log in.';
+
+        return redirect()->route('login')->with('status', $message);
+    }
+
+    /** Resend OTP code */
+    public function resendOtp()
+    {
+        $pending = session('pending_registration');
+        if (!$pending) {
+            return redirect()->route('register');
+        }
+
+        $newOtp = sprintf('%06d', mt_rand(100000, 999999));
+        $pending['otp'] = $newOtp;
+        $pending['expires_at'] = now()->addMinutes(15)->timestamp;
+
+        session(['pending_registration' => $pending]);
+
+        try {
+            \Illuminate\Support\Facades\Notification::route('mail', $pending['email'])
+                ->notify(new \App\Notifications\RegistrationOtpNotification($newOtp));
+        } catch (\Throwable $e) {
+            Log::error('Resend OTP email failed: ' . $e->getMessage());
+        }
+
+        return back()->with('status', 'A new 6-digit verification code has been sent to your email.');
     }
 
     /** Show the forgot password form */

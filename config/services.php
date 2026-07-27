@@ -37,4 +37,30 @@ return [
         'base_url' => env('DEEPSEEK_BASE_URL', 'https://openrouter.ai/api/v1'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google OAuth (via Laravel Socialite)
+    |--------------------------------------------------------------------------
+    | GOOGLE_CLIENT_ID     — OAuth 2.0 Client ID from Google Cloud Console
+    | GOOGLE_CLIENT_SECRET — OAuth 2.0 Client Secret
+    | GOOGLE_REDIRECT_URI  — Must match an authorized redirect URI in GCC
+    */
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Auth Settings
+    |--------------------------------------------------------------------------
+    | DEVELOPER_MODE        — true = allow any email; false = restrict to domain
+    | ALLOWED_EMAIL_DOMAIN  — domain suffix enforced in production (e.g. deped.gov.ph)
+    */
+    'auth' => [
+        'developer_mode'       => env('DEVELOPER_MODE', true),
+        'allowed_email_domain' => env('ALLOWED_EMAIL_DOMAIN', 'deped.gov.ph'),
+    ],
+
 ];
