@@ -44,6 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/lesson/{lessonId}/slide-xp', [StudentAuthController::class, 'awardSlideXp']);
     Route::get('/student/lesson/{lessonId}/attempts', [StudentAuthController::class, 'getAttempts']);
     
+    Route::get('/student/learning-path/lessons', [StudentAuthController::class, 'getRecommendedLessons']);
+    
     // Leaderboard
     Route::get('/student/lesson/{lessonId}/leaderboard', [StudentAuthController::class, 'getLessonLeaderboard']);
 
