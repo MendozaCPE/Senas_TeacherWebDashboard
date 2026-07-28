@@ -209,7 +209,23 @@
     font-weight: 700; color: #6B7280; border: 1px solid rgba(255,255,255,0.85); cursor: pointer;
 }
 .preview-content { padding: 0 16px 16px; flex: 1; display: flex; flex-direction: column; }
+.preview-controls-wrapper {
+    background: white;
+    border-radius: 16px;
+    padding: 16px 20px;
+    max-width: 900px;
+    margin: 0 auto 20px;
+    box-shadow: 0 4px 20px rgba(15,49,114,0.1);
+    border: 1px solid rgba(15,49,114,0.06);
+}
 
+.preview-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
 .media-wrap { margin: 10px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); background: #0f3172; }
 .slide-image { width: 100%; display: block; max-height: 220px; object-fit: cover; }
 .slide-video { width: 100%; display: block; max-height: 220px; background: #000; }
@@ -232,6 +248,186 @@
 
 .quiz-question-panel { display: none; }
 .quiz-question-panel.active { display: block; }
+
+/* ============ Drag & Drop ============ */
+.dnd-section { padding: 0 2px; }
+.dnd-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.dnd-header-badge {
+    background: linear-gradient(135deg,#1848c8,#6d28d9); color: white;
+    border-radius: 8px; padding: 4px 10px; font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
+}
+.dnd-hint {
+    font-size: 11.5px; color: #64748b; font-weight: 600;
+    background: rgba(24,72,200,0.06); border-radius: 8px; padding: 5px 10px; flex: 1;
+}
+.dnd-columns-label {
+    display: flex; gap: 10px; margin-bottom: 6px; padding: 0 2px;
+}
+.dnd-col-label {
+    flex: 1; text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.8px;
+    color: #94a3b8; text-transform: uppercase;
+}
+.dragdrop-wrap { display: flex; gap: 10px; margin-bottom: 8px; }
+.dragdrop-wrap.answered { pointer-events: none; }
+.dragdrop-col { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+
+.dragdrop-item {
+    display: flex; align-items: center; gap: 9px;
+    background: #fff; border: 2px solid #e2e8f0; border-radius: 14px;
+    padding: 11px 13px; cursor: pointer; transition: all 0.18s ease;
+    font-size: 13px; font-weight: 700; color: #1e293b;
+    box-shadow: 0 1px 4px rgba(15,49,114,0.06);
+    min-height: 48px; position: relative;
+}
+.dragdrop-item:hover:not(.dd-matched):not(.dd-wrong) {
+    border-color: #93c5fd; background: #f0f7ff;
+    transform: translateY(-1px); box-shadow: 0 3px 12px rgba(24,72,200,0.14);
+}
+.dragdrop-item.dd-selected {
+    border-color: #1848c8; background: rgba(24,72,200,0.08);
+    box-shadow: 0 0 0 3px rgba(24,72,200,0.18);
+    transform: scale(1.02);
+}
+.dragdrop-item.dd-matched {
+    border-color: #059669; background: rgba(5,150,105,0.09);
+    cursor: default; animation: ddMatchPop 0.3s ease;
+}
+.dragdrop-item.dd-matched::after {
+    content: '✓'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; font-weight: 900; color: #059669;
+}
+.dragdrop-item.dd-wrong {
+    border-color: #ef4444; background: rgba(239,68,68,0.09);
+    animation: ddShake 0.32s ease;
+}
+.dd-thumb {
+    width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex-shrink: 0;
+    border: 1px solid rgba(15,49,114,0.1);
+}
+.dnd-connector {
+    display: flex; align-items: center; justify-content: center;
+    padding-top: 4px; color: #cbd5e1; font-size: 16px; flex-shrink: 0;
+    width: 20px; align-self: stretch;
+}
+.dnd-score-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(15,49,114,0.04); border-radius: 10px; padding: 8px 12px; margin-top: 6px;
+}
+.dnd-score-text { font-size: 11.5px; font-weight: 700; color: #475569; }
+.dnd-matched-count { font-size: 12px; font-weight: 800; color: #1848c8; }
+
+@keyframes ddShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 60%{transform:translateX(5px)} }
+@keyframes ddMatchPop { 0%{transform:scale(1)} 50%{transform:scale(1.04)} 100%{transform:scale(1)} }
+
+/* ============ Gesture Recognition ============ */
+.gesture-section { padding: 0 2px; }
+.gesture-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.gesture-header-badge {
+    background: linear-gradient(135deg,#7c3aed,#a855f7); color: white;
+    border-radius: 8px; padding: 4px 10px; font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
+}
+.gesture-header-text {
+    font-size: 11.5px; color: #64748b; font-weight: 600;
+    background: rgba(124,58,237,0.06); border-radius: 8px; padding: 5px 10px; flex: 1;
+}
+
+.gesture-cam-wrap {
+    width: 100%; aspect-ratio: 16/9; max-height: 160px; border-radius: 18px; overflow: hidden;
+    background: linear-gradient(160deg,#0f172a 0%,#1e3a8a 60%,#312e81 100%);
+    position: relative; margin-bottom: 10px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 28px rgba(15,49,114,0.25);
+}
+.gesture-cam-scan {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+}
+.gesture-cam-scan::before, .gesture-cam-scan::after {
+    content: ''; position: absolute; width: 70px; height: 70px;
+    border: 2.5px solid rgba(99,179,237,0.7); border-radius: 8px;
+}
+.gesture-cam-scan::before {
+    top: 16px; left: 50%; transform: translateX(-50%);
+    clip-path: polygon(0 0, 20% 0, 20% 2px, 2px 2px, 2px 20%, 0 20%,
+                       80% 0, 100% 0, 100% 20%, calc(100% - 2px) 20%, calc(100% - 2px) 2px, 80% 2px);
+    border: none;
+}
+.gesture-scan-ring {
+    width: 80px; height: 80px; border-radius: 50%;
+    border: 2px solid rgba(147,197,253,0.4);
+    box-shadow: 0 0 0 6px rgba(99,179,237,0.08), 0 0 0 12px rgba(99,179,237,0.04);
+    display: flex; align-items: center; justify-content: center;
+    animation: gestPulse 2.4s ease-in-out infinite;
+    position: relative; z-index: 1;
+}
+.gesture-hand-icon { font-size: 36px; filter: drop-shadow(0 0 8px rgba(147,197,253,0.6)); }
+.gesture-cam-label {
+    position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;
+    font-size: 10.5px; font-weight: 700; color: rgba(186,230,253,0.85); letter-spacing: 0.5px;
+}
+.gesture-cam-corner {
+    position: absolute; width: 18px; height: 18px;
+    border-color: rgba(99,179,237,0.6); border-style: solid; border-width: 0;
+}
+.gesture-cam-corner.tl { top: 10px; left: 10px; border-top-width: 2.5px; border-left-width: 2.5px; border-radius: 4px 0 0 0; }
+.gesture-cam-corner.tr { top: 10px; right: 10px; border-top-width: 2.5px; border-right-width: 2.5px; border-radius: 0 4px 0 0; }
+.gesture-cam-corner.bl { bottom: 10px; left: 10px; border-bottom-width: 2.5px; border-left-width: 2.5px; border-radius: 0 0 0 4px; }
+.gesture-cam-corner.br { bottom: 10px; right: 10px; border-bottom-width: 2.5px; border-right-width: 2.5px; border-radius: 0 0 4px 0; }
+@keyframes gestPulse {
+    0%,100% { transform: scale(1); box-shadow: 0 0 0 6px rgba(99,179,237,0.08), 0 0 0 12px rgba(99,179,237,0.04); }
+    50% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(99,179,237,0.12), 0 0 0 20px rgba(99,179,237,0.04); }
+}
+
+.gesture-targets-label {
+    font-size: 10.5px; font-weight: 800; color: #7c3aed; letter-spacing: 0.6px;
+    text-transform: uppercase; margin-bottom: 6px;
+}
+.gesture-chip-grid {
+    display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-start; margin-bottom: 10px;
+}
+.gesture-chip {
+    display: flex; align-items: center; gap: 7px;
+    background: white; border: 1.5px solid #ede9fe; border-radius: 12px;
+    padding: 7px 12px 7px 7px;
+    font-size: 12.5px; font-weight: 700; color: #4c1d95;
+    box-shadow: 0 1px 4px rgba(124,58,237,0.08);
+}
+.gesture-chip-img {
+    width: 30px; height: 30px; border-radius: 8px; object-fit: cover;
+    background: #f5f3ff; border: 1px solid #ede9fe; flex-shrink: 0;
+}
+.gesture-chip-placeholder {
+    width: 30px; height: 30px; border-radius: 8px; background: #f5f3ff;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+}
+
+.gesture-confirm-btn {
+    width: 100%; padding: 13px 16px; border: none; border-radius: 14px; cursor: pointer;
+    background: linear-gradient(135deg,#7c3aed,#4f46e5);
+    color: white; font-weight: 800; font-size: 13px;
+    box-shadow: 0 5px 18px rgba(124,58,237,0.32);
+    transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.gesture-confirm-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,58,237,0.4); }
+.gesture-confirm-btn:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: none; }
+.gesture-confirm-btn.recognized {
+    background: linear-gradient(135deg,#059669,#10b981);
+    box-shadow: 0 5px 18px rgba(5,150,105,0.3);
+}
+
+.gesture-status-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(124,58,237,0.06); border-radius: 10px; padding: 8px 12px; margin-top: 6px;
+}
+.gesture-status-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #a855f7;
+    animation: statusBlink 1.2s ease-in-out infinite; flex-shrink: 0;
+}
+.gesture-status-dot.ready { background: #22c55e; animation: none; }
+.gesture-status-text { font-size: 11px; font-weight: 700; color: #6d28d9; }
+@keyframes statusBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 </style>
 
 @php
@@ -266,9 +462,11 @@
     // Normalize quiz options so the array/string mixing from the form never hits {{ }} directly.
     $normalizedQuiz = collect($lessonData['quiz'] ?? [])->map(function ($q) {
         $type = $q['type'] ?? 'multiple_choice';
+
+        $opts = [];
         if ($type === 'true_false') {
             $opts = [['text' => 'True', 'image' => null], ['text' => 'False', 'image' => null]];
-        } else {
+        } elseif ($type === 'multiple_choice') {
             $rawOpts = $q['options'] ?? ['Option A', 'Option B'];
             $opts = collect($rawOpts)->map(function ($opt) {
                 if (is_array($opt)) {
@@ -282,22 +480,33 @@
         }
         $q['_opts'] = $opts;
         $q['_media'] = (!empty($q['media']) && is_string($q['media'])) ? $q['media'] : null;
+        $q['_type'] = $type;
+
+        // Drag & drop: keep left column in order, shuffle the right column for the matching game.
+        $q['_ddPairs'] = collect($q['drag_drop_pairs'] ?? [])->values()->all();
+        $q['_ddRightShuffled'] = collect($q['_ddPairs'])->values()->shuffle()->all();
+
+        // Gesture: list of gestures the student needs to perform.
+        $q['_gestures'] = collect($q['gesture_details'] ?? [])->values()->all();
+
         return $q;
     });
 @endphp
 
 <!-- ============ TOP CONTROLS: Mobile/Web + Lesson/Quiz ============ -->
-<div class="preview-controls">
-    <div class="toggle-group" id="deviceToggle">
-        <button class="toggle-btn active" data-device="mobile" onclick="setDevice('mobile')">📱 Mobile</button>
-        <button class="toggle-btn" data-device="web" onclick="setDevice('web')">🖥️ Web</button>
+<div class="preview-controls-wrapper">
+    <div class="preview-controls">
+        <div class="toggle-group" id="deviceToggle">
+            <button class="toggle-btn active" data-device="mobile" onclick="setDevice('mobile')">📱 Mobile</button>
+            <button class="toggle-btn" data-device="web" onclick="setDevice('web')">🖥️ Web</button>
+        </div>
+        @if($totalQuestions > 0)
+        <div class="toggle-group" id="contentToggle">
+            <button class="toggle-btn {{ $totalSlides > 0 ? 'active' : '' }}" data-content="lesson" onclick="setContentMode('lesson')">📖 Lesson Preview</button>
+            <button class="toggle-btn {{ $totalSlides == 0 ? 'active' : '' }}" data-content="quiz" onclick="setContentMode('quiz')">📝 Quiz Preview</button>
+        </div>
+        @endif
     </div>
-    @if($totalQuestions > 0)
-    <div class="toggle-group" id="contentToggle">
-        <button class="toggle-btn active" data-content="lesson" onclick="setContentMode('lesson')">📖 Lesson Preview</button>
-        <button class="toggle-btn" data-content="quiz" onclick="setContentMode('quiz')">📝 Quiz Preview</button>
-    </div>
-    @endif
 </div>
 
 <div class="device-stage">
@@ -308,8 +517,16 @@
 
         <div class="preview-content">
             <!-- Lesson panel -->
-            <div class="content-panel active" id="m-lessonPanel">
-                @if($totalSlides > 0)
+            <div class="content-panel {{ $totalSlides > 0 ? 'active' : '' }}" id="m-lessonPanel">
+                @if($totalSlides == 0 && $totalQuestions > 0)
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; padding:24px; text-align:center;">
+                        <div style="width:60px; height:60px; background:rgba(15,49,114,0.08); border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
+                            <span class="material-symbols-outlined" style="font-size:28px; color:#4b7bbb;">description</span>
+                        </div>
+                        <p style="font-size:15px; font-weight:700; color:#0f3172; margin:0 0 6px;">No Lesson Content Yet</p>
+                        <p style="font-size:12px; color:#64748b; margin:0; max-width:260px;">This lesson only has quiz questions. Add lesson content slides to show material here.</p>
+                    </div>
+                @elseif($totalSlides > 0)
                     <div class="preview-header">
                         <span class="logo">SEÑAS</span>
                     </div>
@@ -380,7 +597,7 @@
             </div>
 
             <!-- Quiz panel -->
-            <div class="content-panel" id="m-quizPanel">
+            <div class="content-panel {{ $totalSlides == 0 && $totalQuestions > 0 ? 'active' : '' }}" id="m-quizPanel">
                 @if($totalQuestions > 0)
                     {{-- Progress header --}}
                     <div class="glass-card" id="m-quizHeader">
@@ -412,18 +629,124 @@
                                 <p style="font-size:16px; font-weight:800; color:#0f3172; margin-top:10px;">{{ $q['question'] ?? 'Sample Question' }}</p>
                             </div>
 
-                            @foreach($q['_opts'] as $optIndex => $option)
-                                <div class="option-card" onclick="selectOption('m', {{ $qIndex }}, {{ $optIndex }})" id="m-opt-{{ $qIndex }}-{{ $optIndex }}">
-                                    <div class="option-circle">{{ chr(65+$optIndex) }}</div>
-                                    @if(!empty($option['image']))
-                                        @php $optionImageUrl = formatImageUrl($option['image']); @endphp
-                                        @if($optionImageUrl)
-                                            <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
-                                        @endif
+                            @if($q['_type'] === 'drag_drop')
+                                @if(count($q['_ddPairs']) > 0)
+                                    <div class="dnd-section">
+                                        <div class="dnd-header">
+                                            <span class="dnd-header-badge">MATCH</span>
+                                            <span class="dnd-hint">Tap left → then tap its match on the right</span>
+                                        </div>
+                                        <div class="dnd-columns-label">
+                                            <span class="dnd-col-label">Items</span>
+                                            <span class="dnd-col-label">Matches</span>
+                                        </div>
+                                        <div class="dragdrop-wrap" id="m-dd-{{ $qIndex }}" data-total="{{ count($q['_ddPairs']) }}">
+                                            <div class="dragdrop-col">
+                                                @foreach($q['_ddPairs'] as $pIndex => $pair)
+                                                    <div class="dragdrop-item dd-left" data-match="{{ $pair['match_id'] }}" onclick="selectDragItem('m', {{ $qIndex }}, 'left', '{{ $pair['match_id'] }}', this)">
+                                                        @if(!empty($pair['left_image']))
+                                                            @php $li = formatImageUrl($pair['left_image']); @endphp
+                                                            @if($li)<img src="{{ $li }}" class="dd-thumb" onerror="this.style.display='none'">@endif
+                                                        @else
+                                                            <span style="font-size:18px;flex-shrink:0;">🔵</span>
+                                                        @endif
+                                                        <span>{{ $pair['left_text'] ?: 'Item '.($pIndex+1) }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                            <div class="dnd-connector" style="display:flex;flex-direction:column;justify-content:space-around;padding:0;width:16px;">
+                                                @foreach($q['_ddPairs'] as $p)
+                                                    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+                                                        <div style="width:1.5px;height:100%;background:linear-gradient(to bottom,#cbd5e1,#e2e8f0);min-height:20px;"></div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                            <div class="dragdrop-col">
+                                                @foreach($q['_ddRightShuffled'] as $pair)
+                                                    <div class="dragdrop-item dd-right" data-match="{{ $pair['match_id'] }}" onclick="selectDragItem('m', {{ $qIndex }}, 'right', '{{ $pair['match_id'] }}', this)">
+                                                        @if(!empty($pair['right_image']))
+                                                            @php $ri = formatImageUrl($pair['right_image']); @endphp
+                                                            @if($ri)<img src="{{ $ri }}" class="dd-thumb" onerror="this.style.display='none'">@endif
+                                                        @else
+                                                            <span style="font-size:18px;flex-shrink:0;">🟣</span>
+                                                        @endif
+                                                        <span>{{ $pair['right_text'] ?: 'Match' }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        <div class="dnd-score-bar" id="m-dnd-score-{{ $qIndex }}">
+                                            <span class="dnd-score-text">Matched: <span class="dnd-matched-count" id="m-dnd-count-{{ $qIndex }}">0</span> / {{ count($q['_ddPairs']) }}</span>
+                                            <span style="font-size:11px;font-weight:600;color:#94a3b8;">✨ No mistakes = full XP</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div style="text-align:center;padding:20px;background:#f8fafc;border-radius:14px;border:1.5px dashed #e2e8f0;">
+                                        <p style="font-size:13px;color:#94a3b8;font-weight:600;margin:0;">No pairs configured yet.</p>
+                                    </div>
+                                @endif
+                            @elseif($q['_type'] === 'gesture')
+                                <div class="gesture-section">
+                                    <div class="gesture-header">
+                                        <span class="gesture-header-badge">GESTURE</span>
+                                        <span class="gesture-header-text">Perform the gesture shown below</span>
+                                    </div>
+                                    <div class="gesture-cam-wrap">
+                                        <div class="gesture-cam-corner tl"></div>
+                                        <div class="gesture-cam-corner tr"></div>
+                                        <div class="gesture-cam-corner bl"></div>
+                                        <div class="gesture-cam-corner br"></div>
+                                        <div class="gesture-scan-ring">
+                                            <span class="gesture-hand-icon">✋</span>
+                                        </div>
+                                        <span class="gesture-cam-label">📷 Live camera · in-app only</span>
+                                    </div>
+                                    @if(count($q['_gestures']) > 0)
+                                        <p class="gesture-targets-label">Perform these gestures:</p>
+                                        <div class="gesture-chip-grid">
+                                            @foreach($q['_gestures'] as $g)
+                                                <div class="gesture-chip">
+                                                    @if(!empty($g['image_url']))
+                                                        @php $gi = formatImageUrl($g['image_url']); @endphp
+                                                        @if($gi)
+                                                            <img src="{{ $gi }}" class="gesture-chip-img" onerror="this.style.display='none'">
+                                                        @else
+                                                            <div class="gesture-chip-placeholder">✋</div>
+                                                        @endif
+                                                    @else
+                                                        <div class="gesture-chip-placeholder">✋</div>
+                                                    @endif
+                                                    <span>{{ $g['name'] }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div style="text-align:center;padding:12px;background:#faf5ff;border-radius:12px;margin-bottom:10px;">
+                                            <p style="font-size:12.5px;color:#7c3aed;font-weight:600;margin:0;">No gestures selected yet.</p>
+                                        </div>
                                     @endif
-                                    <span style="font-size:14px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
+                                    <div class="gesture-status-bar" id="m-gest-status-{{ $qIndex }}">
+                                        <div class="gesture-status-dot" id="m-gest-dot-{{ $qIndex }}"></div>
+                                        <span class="gesture-status-text" id="m-gest-text-{{ $qIndex }}">Waiting for gesture...</span>
+                                    </div>
+                                    <button type="button" class="gesture-confirm-btn mt-2" id="m-gesture-btn-{{ $qIndex }}" onclick="confirmGesture('m', {{ $qIndex }})" style="margin-top:8px;">
+                                        <span>✋</span> Simulate Correct Gesture
+                                    </button>
                                 </div>
-                            @endforeach
+                            @else
+                                @foreach($q['_opts'] as $optIndex => $option)
+                                    <div class="option-card" onclick="selectOption('m', {{ $qIndex }}, {{ $optIndex }})" id="m-opt-{{ $qIndex }}-{{ $optIndex }}">
+                                        <div class="option-circle">{{ chr(65+$optIndex) }}</div>
+                                        @if(!empty($option['image']))
+                                            @php $optionImageUrl = formatImageUrl($option['image']); @endphp
+                                            @if($optionImageUrl)
+                                                <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
+                                            @endif
+                                        @endif
+                                        <span style="font-size:14px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
+                                    </div>
+                                @endforeach
+                            @endif
 
                             {{-- Feedback area (shown after answering) --}}
                             <div class="answer-feedback" id="m-feedback-{{ $qIndex }}" style="display:none;">
@@ -441,7 +764,13 @@
                                         <span style="font-size:20px;">❌</span>
                                         <div>
                                             <p style="font-size:13px;font-weight:800;color:#DC2626;margin:0;">Not quite right</p>
-                                            <p style="font-size:11px;color:#7F1D1D;margin:0;" id="m-correct-answer-text-{{ $qIndex }}">The correct answer is: <strong>{{ chr(65+$correctIdx) }}</strong></p>
+                                            <p style="font-size:11px;color:#7F1D1D;margin:0;" id="m-correct-answer-text-{{ $qIndex }}">
+                                                @if($q['_type'] === 'drag_drop')
+                                                    Some pairs were matched incorrectly. Review the connections above.
+                                                @else
+                                                    The correct answer is: <strong>{{ chr(65+$correctIdx) }}</strong>
+                                                @endif
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -517,7 +846,7 @@
             </div>
             <div class="web-main">
                 <!-- Lesson panel (web) -->
-                <div class="content-panel active" id="w-lessonPanel">
+                <div class="content-panel {{ $totalSlides > 0 ? 'active' : '' }}" id="w-lessonPanel">
                     @if($totalSlides > 0)
                         <div class="web-grid-2col">
                             <div class="web-content-col">
@@ -592,7 +921,7 @@
                 </div>
 
                 <!-- Quiz panel (web) -->
-                <div class="content-panel" id="w-quizPanel">
+                <div class="content-panel {{ $totalSlides == 0 && $totalQuestions > 0 ? 'active' : '' }}" id="w-quizPanel">
                     @if($totalQuestions > 0)
                         <div class="web-grid-2col">
                             <div class="web-content-col">
@@ -625,18 +954,124 @@
                                             <p style="font-size:18px; font-weight:800; color:#0f3172; margin-top:10px;">{{ $q['question'] ?? 'Sample Question' }}</p>
                                         </div>
 
-                                        @foreach($q['_opts'] as $optIndex => $option)
-                                            <div class="option-card" onclick="selectOption('w', {{ $qIndex }}, {{ $optIndex }})" id="w-opt-{{ $qIndex }}-{{ $optIndex }}">
-                                                <div class="option-circle">{{ chr(65+$optIndex) }}</div>
-                                                @if(!empty($option['image']))
-                                                    @php $optionImageUrl = formatImageUrl($option['image']); @endphp
-                                                    @if($optionImageUrl)
-                                                        <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
-                                                    @endif
+                                        @if($q['_type'] === 'drag_drop')
+                                            @if(count($q['_ddPairs']) > 0)
+                                                <div class="dnd-section">
+                                                    <div class="dnd-header">
+                                                        <span class="dnd-header-badge">MATCH</span>
+                                                        <span class="dnd-hint">Click a card on the left, then click its match on the right</span>
+                                                    </div>
+                                                    <div class="dnd-columns-label">
+                                                        <span class="dnd-col-label">Items</span>
+                                                        <span class="dnd-col-label">Matches</span>
+                                                    </div>
+                                                    <div class="dragdrop-wrap" id="w-dd-{{ $qIndex }}" data-total="{{ count($q['_ddPairs']) }}">
+                                                        <div class="dragdrop-col">
+                                                            @foreach($q['_ddPairs'] as $pIndex => $pair)
+                                                                <div class="dragdrop-item dd-left" data-match="{{ $pair['match_id'] }}" onclick="selectDragItem('w', {{ $qIndex }}, 'left', '{{ $pair['match_id'] }}', this)">
+                                                                    @if(!empty($pair['left_image']))
+                                                                        @php $li = formatImageUrl($pair['left_image']); @endphp
+                                                                        @if($li)<img src="{{ $li }}" class="dd-thumb" onerror="this.style.display='none'">@endif
+                                                                    @else
+                                                                        <span style="font-size:18px;flex-shrink:0;">🔵</span>
+                                                                    @endif
+                                                                    <span>{{ $pair['left_text'] ?: 'Item '.($pIndex+1) }}</span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                        <div style="display:flex;flex-direction:column;justify-content:space-around;width:16px;padding:0;">
+                                                            @foreach($q['_ddPairs'] as $p)
+                                                                <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+                                                                    <div style="width:1.5px;height:100%;background:linear-gradient(to bottom,#cbd5e1,#e2e8f0);min-height:20px;"></div>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                        <div class="dragdrop-col">
+                                                            @foreach($q['_ddRightShuffled'] as $pair)
+                                                                <div class="dragdrop-item dd-right" data-match="{{ $pair['match_id'] }}" onclick="selectDragItem('w', {{ $qIndex }}, 'right', '{{ $pair['match_id'] }}', this)">
+                                                                    @if(!empty($pair['right_image']))
+                                                                        @php $ri = formatImageUrl($pair['right_image']); @endphp
+                                                                        @if($ri)<img src="{{ $ri }}" class="dd-thumb" onerror="this.style.display='none'">@endif
+                                                                    @else
+                                                                        <span style="font-size:18px;flex-shrink:0;">🟣</span>
+                                                                    @endif
+                                                                    <span>{{ $pair['right_text'] ?: 'Match' }}</span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                    <div class="dnd-score-bar" id="w-dnd-score-{{ $qIndex }}">
+                                                        <span class="dnd-score-text">Matched: <span class="dnd-matched-count" id="w-dnd-count-{{ $qIndex }}">0</span> / {{ count($q['_ddPairs']) }}</span>
+                                                        <span style="font-size:11px;font-weight:600;color:#94a3b8;">✨ No mistakes = full XP</span>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <div style="text-align:center;padding:24px;background:#f8fafc;border-radius:14px;border:1.5px dashed #e2e8f0;">
+                                                    <p style="font-size:13px;color:#94a3b8;font-weight:600;margin:0;">No pairs configured yet.</p>
+                                                </div>
+                                            @endif
+                                        @elseif($q['_type'] === 'gesture')
+                                            <div class="gesture-section">
+                                                <div class="gesture-header">
+                                                    <span class="gesture-header-badge">GESTURE</span>
+                                                    <span class="gesture-header-text">Perform the gesture shown below</span>
+                                                </div>
+                                                <div class="gesture-cam-wrap" style="max-height:200px;">
+                                                    <div class="gesture-cam-corner tl"></div>
+                                                    <div class="gesture-cam-corner tr"></div>
+                                                    <div class="gesture-cam-corner bl"></div>
+                                                    <div class="gesture-cam-corner br"></div>
+                                                    <div class="gesture-scan-ring">
+                                                        <span class="gesture-hand-icon">✋</span>
+                                                    </div>
+                                                    <span class="gesture-cam-label">📷 Live camera · in-app only</span>
+                                                </div>
+                                                @if(count($q['_gestures']) > 0)
+                                                    <p class="gesture-targets-label" style="margin-top:10px;">Perform these gestures:</p>
+                                                    <div class="gesture-chip-grid">
+                                                        @foreach($q['_gestures'] as $g)
+                                                            <div class="gesture-chip">
+                                                                @if(!empty($g['image_url']))
+                                                                    @php $gi = formatImageUrl($g['image_url']); @endphp
+                                                                    @if($gi)
+                                                                        <img src="{{ $gi }}" class="gesture-chip-img" onerror="this.style.display='none'">
+                                                                    @else
+                                                                        <div class="gesture-chip-placeholder">✋</div>
+                                                                    @endif
+                                                                @else
+                                                                    <div class="gesture-chip-placeholder">✋</div>
+                                                                @endif
+                                                                <span>{{ $g['name'] }}</span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <div style="text-align:center;padding:12px;background:#faf5ff;border-radius:12px;margin:10px 0;">
+                                                        <p style="font-size:13px;color:#7c3aed;font-weight:600;margin:0;">No gestures selected yet.</p>
+                                                    </div>
                                                 @endif
-                                                <span style="font-size:14.5px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
+                                                <div class="gesture-status-bar" id="w-gest-status-{{ $qIndex }}">
+                                                    <div class="gesture-status-dot" id="w-gest-dot-{{ $qIndex }}"></div>
+                                                    <span class="gesture-status-text" id="w-gest-text-{{ $qIndex }}">Waiting for gesture...</span>
+                                                </div>
+                                                <button type="button" class="gesture-confirm-btn" id="w-gesture-btn-{{ $qIndex }}" onclick="confirmGesture('w', {{ $qIndex }})" style="margin-top:8px;">
+                                                    <span>✋</span> Simulate Correct Gesture
+                                                </button>
                                             </div>
-                                        @endforeach
+                                        @else
+                                            @foreach($q['_opts'] as $optIndex => $option)
+                                                <div class="option-card" onclick="selectOption('w', {{ $qIndex }}, {{ $optIndex }})" id="w-opt-{{ $qIndex }}-{{ $optIndex }}">
+                                                    <div class="option-circle">{{ chr(65+$optIndex) }}</div>
+                                                    @if(!empty($option['image']))
+                                                        @php $optionImageUrl = formatImageUrl($option['image']); @endphp
+                                                        @if($optionImageUrl)
+                                                            <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
+                                                        @endif
+                                                    @endif
+                                                    <span style="font-size:14.5px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
+                                                </div>
+                                            @endforeach
+                                        @endif
 
                                         {{-- Feedback area --}}
                                         <div class="answer-feedback" id="w-feedback-{{ $qIndex }}" style="display:none;">
@@ -654,7 +1089,13 @@
                                                     <span style="font-size:22px;">❌</span>
                                                     <div>
                                                         <p style="font-size:14px;font-weight:800;color:#DC2626;margin:0;">Not quite right</p>
-                                                        <p style="font-size:12px;color:#7F1D1D;margin:0;" id="w-correct-answer-text-{{ $qIndex }}">The correct answer is: <strong>{{ chr(65+$correctIdx) }}</strong></p>
+                                                        <p style="font-size:12px;color:#7F1D1D;margin:0;" id="w-correct-answer-text-{{ $qIndex }}">
+                                                            @if($q['_type'] === 'drag_drop')
+                                                                Some pairs were matched incorrectly. Review the connections above.
+                                                            @else
+                                                                The correct answer is: <strong>{{ chr(65+$correctIdx) }}</strong>
+                                                            @endif
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -729,8 +1170,126 @@ let slideState = { m: 0, w: 0 };
 let questionState = { m: 0, w: 0 };
 let quizAnswers = { m: {}, w: {} };
 let quizScore   = { m: 0, w: 0 };
+let ddState      = { m: {}, w: {} }; // per question: { selectedLeft, selectedRight, matched: Set, mistakes }
+let answeredSet  = { m: {}, w: {} }; // per question: true once finished (prevents double-scoring)
 
 function colorFor(i) { return slideColors[i % slideColors.length]; }
+
+// Shared "question finished" tail — used by MC/TF option selection, drag-drop matching,
+// and gesture confirmation so scoring, feedback, dots, and the Next button stay in sync.
+function finishQuestion(prefix, qIndex, isCorrect) {
+    if (answeredSet[prefix][qIndex]) return;
+    answeredSet[prefix][qIndex] = true;
+
+    quizAnswers[prefix][qIndex] = { isCorrect };
+    if (isCorrect) quizScore[prefix]++;
+
+    const feedback = document.getElementById(prefix + '-feedback-' + qIndex);
+    if (feedback) feedback.style.display = 'block';
+    const correctBanner = document.getElementById(prefix + '-feedback-correct-' + qIndex);
+    const wrongBanner = document.getElementById(prefix + '-feedback-wrong-' + qIndex);
+    if (isCorrect) { if (correctBanner) correctBanner.style.display = 'block'; }
+    else { if (wrongBanner) wrongBanner.style.display = 'block'; }
+
+    const senyaTip = document.getElementById('w-senyaTip');
+    if (senyaTip && prefix === 'w') {
+        senyaTip.innerHTML = isCorrect
+            ? '<span style="font-size:13px;font-weight:700;color:#059669;line-height:1.6;">✅ That\'s correct! Keep it up!</span>'
+            : '<span style="font-size:13px;font-weight:700;color:#DC2626;line-height:1.6;">❌ Not quite! Review the highlighted answer above.</span>';
+    }
+
+    const nextBtn = document.getElementById(prefix + '-next-btn-' + qIndex);
+    if (nextBtn) {
+        nextBtn.style.opacity = '1';
+        nextBtn.style.pointerEvents = 'auto';
+        if (qIndex === totalQuestions - 1) nextBtn.classList.add('gold-btn');
+    }
+
+    document.querySelectorAll('#' + prefix + '-quizDots .progress-dot').forEach((dot, i) => {
+        if (i === qIndex) dot.style.background = isCorrect ? '#059669' : '#EF4444';
+    });
+}
+
+window.selectDragItem = function(prefix, qIndex, side, matchId, el) {
+    if (answeredSet[prefix][qIndex]) return;
+    if (!ddState[prefix][qIndex]) ddState[prefix][qIndex] = { selectedLeft: null, selectedRight: null, matched: new Set(), mistakes: 0 };
+    const state = ddState[prefix][qIndex];
+
+    if (el.classList.contains('dd-matched')) return;
+
+    const wrap = document.getElementById(prefix + '-dd-' + qIndex);
+    const total = parseInt(wrap?.dataset.total ?? '0');
+
+    if (side === 'left') {
+        wrap.querySelectorAll('.dd-left').forEach(c => c.classList.remove('dd-selected'));
+        el.classList.add('dd-selected');
+        state.selectedLeft = { matchId, el };
+    } else {
+        wrap.querySelectorAll('.dd-right').forEach(c => c.classList.remove('dd-selected'));
+        el.classList.add('dd-selected');
+        state.selectedRight = { matchId, el };
+    }
+
+    if (state.selectedLeft && state.selectedRight) {
+        const isMatch = String(state.selectedLeft.matchId) === String(state.selectedRight.matchId);
+        if (isMatch) {
+            state.selectedLeft.el.classList.remove('dd-selected');
+            state.selectedRight.el.classList.remove('dd-selected');
+            state.selectedLeft.el.classList.add('dd-matched');
+            state.selectedRight.el.classList.add('dd-matched');
+            state.matched.add(String(state.selectedLeft.matchId));
+            state.selectedLeft = null;
+            state.selectedRight = null;
+
+            // Update matched count display
+            const countEl = document.getElementById(prefix + '-dnd-count-' + qIndex);
+            if (countEl) countEl.textContent = state.matched.size;
+
+            if (state.matched.size >= total) {
+                wrap.classList.add('answered');
+                finishQuestion(prefix, qIndex, state.mistakes === 0);
+                // Update score bar to show completion
+                const scoreBar = document.getElementById(prefix + '-dnd-score-' + qIndex);
+                if (scoreBar) {
+                    const isPerf = state.mistakes === 0;
+                    scoreBar.style.background = isPerf ? 'rgba(5,150,105,0.1)' : 'rgba(239,68,68,0.08)';
+                    scoreBar.innerHTML = isPerf
+                        ? '<span style="font-size:12px;font-weight:800;color:#059669;">✅ Perfect! All pairs matched correctly!</span>'
+                        : '<span style="font-size:12px;font-weight:800;color:#EF4444;">❌ Completed with ' + state.mistakes + ' mistake(s)</span>';
+                }
+            }
+        } else {
+            state.mistakes++;
+            const leftEl = state.selectedLeft.el, rightEl = state.selectedRight.el;
+            leftEl.classList.add('dd-wrong');
+            rightEl.classList.add('dd-wrong');
+            setTimeout(() => {
+                leftEl.classList.remove('dd-wrong', 'dd-selected');
+                rightEl.classList.remove('dd-wrong', 'dd-selected');
+            }, 350);
+            state.selectedLeft = null;
+            state.selectedRight = null;
+        }
+    }
+};
+
+window.confirmGesture = function(prefix, qIndex) {
+    if (answeredSet[prefix][qIndex]) return;
+    const btn = document.getElementById(prefix + '-gesture-btn-' + qIndex);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>✅</span> Gesture Recognized!';
+        btn.classList.add('recognized');
+    }
+    // Update status bar
+    const dot = document.getElementById(prefix + '-gest-dot-' + qIndex);
+    const text = document.getElementById(prefix + '-gest-text-' + qIndex);
+    if (dot) { dot.classList.add('ready'); dot.style.animation = 'none'; }
+    if (text) { text.textContent = '✅ Gesture detected successfully!'; text.style.color = '#059669'; }
+    const statusBar = document.getElementById(prefix + '-gest-status-' + qIndex);
+    if (statusBar) statusBar.style.background = 'rgba(5,150,105,0.08)';
+    finishQuestion(prefix, qIndex, true);
+};
 
 window.setDevice = function(device) {
     document.querySelectorAll('#deviceToggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.device === device));
@@ -815,10 +1374,6 @@ window.selectOption = function(prefix, qIndex, optIndex) {
     const correctIdx = parseInt(panel.dataset.correct ?? '0');
     const isCorrect = (optIndex === correctIdx);
 
-    // Store answer
-    quizAnswers[prefix][qIndex] = { chosen: optIndex, correct: correctIdx, isCorrect };
-    if (isCorrect) quizScore[prefix]++;
-
     // Highlight all options
     document.querySelectorAll('#' + prefix + '-q-' + qIndex + ' .option-card').forEach((card, i) => {
         card.style.pointerEvents = 'none';
@@ -839,41 +1394,7 @@ window.selectOption = function(prefix, qIndex, optIndex) {
         }
     });
 
-    // Show feedback banner
-    const feedback = document.getElementById(prefix + '-feedback-' + qIndex);
-    if (feedback) feedback.style.display = 'block';
-    const correctBanner = document.getElementById(prefix + '-feedback-correct-' + qIndex);
-    const wrongBanner = document.getElementById(prefix + '-feedback-wrong-' + qIndex);
-    if (isCorrect) {
-        if (correctBanner) correctBanner.style.display = 'block';
-    } else {
-        if (wrongBanner) wrongBanner.style.display = 'block';
-    }
-
-    // Update Senya tip for web
-    const senyaTip = document.getElementById('w-senyaTip');
-    if (senyaTip && prefix === 'w') {
-        senyaTip.innerHTML = isCorrect
-            ? '<span style="font-size:13px;font-weight:700;color:#059669;line-height:1.6;">✅ That\'s correct! Keep it up!</span>'
-            : '<span style="font-size:13px;font-weight:700;color:#DC2626;line-height:1.6;">❌ Not quite! Review the highlighted answer above.</span>';
-    }
-
-    // Enable Next button
-    const nextBtn = document.getElementById(prefix + '-next-btn-' + qIndex);
-    if (nextBtn) {
-        nextBtn.style.opacity = '1';
-        nextBtn.style.pointerEvents = 'auto';
-        if (qIndex === totalQuestions - 1) {
-            nextBtn.classList.add('gold-btn');
-        }
-    }
-
-    // Mark dot as answered
-    document.querySelectorAll('#' + prefix + '-quizDots .progress-dot').forEach((dot, i) => {
-        if (i === qIndex) {
-            dot.style.background = isCorrect ? '#059669' : '#EF4444';
-        }
-    });
+    finishQuestion(prefix, qIndex, isCorrect);
 };
 
 window.handleNextQuestion = function(prefix, qIndex, total) {
@@ -933,8 +1454,7 @@ window.showQuizSummary = function(prefix, total) {
             row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:11px;background:' + (ans.isCorrect ? 'rgba(5,150,105,0.08)' : 'rgba(239,68,68,0.06)') + ';';
             row.innerHTML = '<span style="font-size:16px;flex-shrink:0;">' + (ans.isCorrect ? '✅' : '❌') + '</span>'
                 + '<span style="font-size:12px;font-weight:700;color:#374151;">Q' + (i+1) + '</span>'
-                + '<span style="font-size:12px;color:#6B7280;flex:1;">You chose <strong>' + String.fromCharCode(65 + ans.chosen) + '</strong>'
-                + (ans.isCorrect ? '' : ' — correct: <strong>' + String.fromCharCode(65 + ans.correct) + '</strong>') + '</span>';
+                + '<span style="font-size:12px;color:#6B7280;flex:1;">' + (ans.isCorrect ? 'Answered correctly' : 'Review this question') + '</span>';
             reviewEl.appendChild(row);
         }
     }
@@ -951,6 +1471,8 @@ window.showQuizSummary = function(prefix, total) {
 window.retakeQuiz = function(prefix) {
     quizScore[prefix] = 0;
     quizAnswers[prefix] = {};
+    ddState[prefix] = {};
+    answeredSet[prefix] = {};
 
     const header = document.getElementById(prefix + '-quizHeader');
     if (header) header.style.display = 'block';
@@ -991,6 +1513,20 @@ window.retakeQuiz = function(prefix) {
                 nextBtn.style.opacity = '0.4';
                 nextBtn.style.pointerEvents = 'none';
                 nextBtn.classList.remove('gold-btn');
+            }
+            // Reset drag-drop matching UI
+            const ddWrap = document.getElementById(prefix + '-dd-' + i);
+            if (ddWrap) {
+                ddWrap.classList.remove('answered');
+                ddWrap.querySelectorAll('.dragdrop-item').forEach(item => {
+                    item.classList.remove('dd-selected', 'dd-matched', 'dd-wrong');
+                });
+            }
+            // Reset gesture confirm button
+            const gestureBtn = document.getElementById(prefix + '-gesture-btn-' + i);
+            if (gestureBtn) {
+                gestureBtn.disabled = false;
+                gestureBtn.textContent = '✋ Simulate correct gesture';
             }
         }
     }

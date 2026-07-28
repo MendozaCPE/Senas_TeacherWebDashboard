@@ -74,6 +74,7 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
 
     // Add these new routes:
     Route::get('/lessons/{lesson}/view', [LessonsController::class, 'view'])->name('lessons.view');
+    Route::get('/lessons/{lesson}/preview-modal', [LessonsController::class, 'previewModal'])->name('lessons.preview-modal');
     Route::get('/lessons/{lesson}/edit', [LessonsController::class, 'edit'])->name('lessons.edit');
     Route::put('/lessons/{lesson}', [LessonsController::class, 'update'])->name('lessons.update');
 

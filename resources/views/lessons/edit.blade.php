@@ -124,6 +124,89 @@
         display: flex; align-items: center; justify-content: center;
         height: 400px; color: white; font-size: 16px; font-weight: 600;
     }
+
+    /* ── Drag & Drop Styles ────────────────────────────────────────────── */
+    .drag-drop-pair {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        background: white;
+        border: 1.5px solid #E5EAF2;
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+    }
+    .drag-drop-pair .pair-side {
+        flex: 1;
+        min-width: 120px;
+    }
+    .drag-drop-pair .pair-arrow {
+        display: flex;
+        align-items: center;
+        padding: 0 4px;
+        color: #94a3b8;
+    }
+    .drag-drop-pair .pair-remove {
+        margin-top: 16px;
+    }
+    .drag-drop-pair .pair-side label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6B7280;
+        display: block;
+        margin-bottom: 4px;
+    }
+    .drag-drop-pair .pair-side input[type="text"] {
+        padding: 8px 12px;
+        font-size: 13px;
+        width: 100%;
+        border: 1.5px solid #E5EAF2;
+        border-radius: 11px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .drag-drop-pair .pair-side input[type="text"]:focus {
+        border-color: #1848c8;
+    }
+
+    /* ── Gesture Selection Styles ────────────────────────────────────── */
+    .gesture-checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 12px;
+        border: 2px solid #E5EAF2;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 14px;
+        font-weight: 600;
+        color: #475569;
+        user-select: none;
+    }
+    .gesture-checkbox-label:hover:not(.selected) {
+        border-color: #0d326b;
+        background: #f0f4ff;
+    }
+    .gesture-checkbox-label.selected {
+        border-color: #10B981;
+        background: #ecfdf5;
+        color: #065F46;
+    }
+    .gesture-checkbox-label .check-icon {
+        display: none;
+        color: #10B981;
+        font-weight: 800;
+        font-size: 14px;
+    }
+    .gesture-checkbox-label.selected .check-icon {
+        display: inline;
+    }
+    .gesture-checkbox {
+        display: none;
+    }
 </style>
 
 <div class="max-w-4xl mx-auto">
@@ -228,14 +311,12 @@
                                     $existingPath = $content['media_url'] ?? null;
                                     $isVideo = ($content['content_type'] === 'video');
                                     $accept = $isVideo ? 'video/*' : 'image/*';
-                                    $context = $isVideo ? 'lesson_media' : 'lesson_media';
                                 @endphp
-                                {{-- Hidden field carries the stored path (existing or newly uploaded) --}}
                                 <input type="hidden" name="contents[{{ $index }}][existing_media]"
                                        value="{{ $existingPath }}"
                                        class="media-path-input">
                                 <div class="media-upload-widget {{ $existingPath ? 'has-file' : '' }}"
-                                     data-context="{{ $context }}"
+                                     data-context="lesson_media"
                                      data-accept="{{ $accept }}">
                                     <div class="upload-trigger">
                                         <input type="file" accept="{{ $accept }}"
@@ -359,7 +440,7 @@
             <div id="quizQuestions">
                 @if(isset($lessonData['quiz']) && count($lessonData['quiz']) > 0)
                     @foreach($lessonData['quiz'] as $index => $q)
-                    <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
+                    <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100" data-question-index="{{ $index }}">
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-sm font-bold text-slate-500 question-label">Question {{ $index + 1 }}</span>
                             <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
@@ -373,7 +454,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Type</label>
-                                <select name="quiz[{{ $index }}][type]" onchange="handleQuestionTypeChange(this)" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
+                                <select name="quiz[{{ $index }}][type]" onchange="handleQuestionTypeChange(this)" class="question-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
                                     <option value="multiple_choice" {{ ($q['type'] ?? 'multiple_choice') == 'multiple_choice' ? 'selected' : '' }}>Multiple Choice</option>
                                     <option value="true_false" {{ ($q['type'] ?? '') == 'true_false' ? 'selected' : '' }}>True / False</option>
                                     <option value="drag_drop" {{ ($q['type'] ?? '') == 'drag_drop' ? 'selected' : '' }}>Drag and Drop</option>
@@ -427,15 +508,12 @@
                                         <div class="option-body flex-1 space-y-2">
                                             <input type="text" name="quiz[{{ $index }}][options][{{ $optIndex }}][text]" value="{{ $optText }}" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option {{ chr(65 + $optIndex) }} text">
                                             <div class="option-image-row flex items-center gap-2">
-                                                {{-- Hidden path for existing OR newly uploaded option image --}}
                                                 <input type="hidden" name="quiz[{{ $index }}][options][{{ $optIndex }}][existing_image]" value="{{ $optImage }}" class="media-path-input">
-                                                {{-- Thumbnail --}}
                                                 <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200 flex-shrink-0"
                                                      src="{{ $optImage ? asset('storage/' . $optImage) : '' }}"
                                                      alt=""
                                                      style="{{ $optImage ? 'display:block;' : 'display:none;' }}"
                                                      onerror="this.style.display='none'">
-                                                {{-- AJAX file picker (compact, no full widget) --}}
                                                 <label class="text-xs text-[#0d326b] font-semibold cursor-pointer hover:underline flex items-center gap-1 flex-shrink-0">
                                                     <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span>
                                                     {{ $optImage ? 'Replace image' : 'Add image' }}
@@ -461,72 +539,90 @@
                                     + Add Option
                                 </button>
                             </div>
-                             <div class="drag-drop-container {{ ($q['type'] ?? '') === 'drag_drop' ? '' : 'hidden' }}">
+
+                            {{-- DRAG AND DROP PAIRS --}}
+                            <div class="drag-drop-container {{ ($q['type'] ?? '') === 'drag_drop' ? '' : 'hidden' }}">
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Drag and Drop Pairs</label>
                                 <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
                                 <div class="space-y-2 drag-drop-pairs-list">
-                                    @foreach($q['drag_drop_pairs'] ?? [] as $pairIndex => $pair)
                                     @php
-                                        $leftText = $pair['left_text'] ?? $pair['left'] ?? '';
-                                        $rightText = $pair['right_text'] ?? $pair['right'] ?? '';
-                                        $leftImage = $pair['left_image'] ?? '';
-                                        $rightImage = $pair['right_image'] ?? '';
+                                        $pairs = $q['drag_drop_pairs'] ?? [];
+                                        if (is_string($pairs)) {
+                                            $pairs = json_decode($pairs, true) ?: [];
+                                        }
+                                        if (!is_array($pairs)) {
+                                            $pairs = [];
+                                        }
                                     @endphp
-                                    <div class="drag-drop-pair" style="display:flex;gap:12px;align-items:center;background:white;border:1.5px solid #E5EAF2;border-radius:14px;padding:12px;margin-bottom:8px;flex-wrap:wrap;">
-                                        <div style="flex:1;min-width:120px;">
-                                            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Left Item</label>
-                                            <input type="text" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][left_text]" value="{{ $leftText }}" class="field-input" placeholder="e.g., Letter A" style="padding:8px 12px;font-size:13px;width:100%;">
-                                            <div style="margin-top:4px;">
-                                                <input type="hidden" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][left_image]" value="{{ $leftImage }}" class="drag-drop-image-path left-image-path">
-                                                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
-                                                    <div class="upload-trigger" style="gap:6px;">
-                                                        <input type="file" accept="image/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, {{ $index }}, {{ $pairIndex }})">
-                                                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
-                                                        <div class="upload-spinner"></div>
-                                                        <span class="upload-label" style="font-size:11px;">Add image</span>
-                                                    </div>
-                                                    <div class="media-thumb-wrap" style="margin-top:4px;">
-                                                        @if($leftImage)
-                                                        <img class="media-thumb" src="{{ asset('storage/' . $leftImage) }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;" />
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div style="display:flex;align-items:center;padding:0 4px;color:#94a3b8;">
-                                            <span class="material-symbols-outlined">arrow_forward</span>
-                                        </div>
-                                        <div style="flex:1;min-width:120px;">
-                                            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Right Match</label>
-                                            <input type="text" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][right_text]" value="{{ $rightText }}" class="field-input" placeholder="e.g., Hand sign for A" style="padding:8px 12px;font-size:13px;width:100%;">
-                                            <div style="margin-top:4px;">
-                                                <input type="hidden" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][right_image]" value="{{ $rightImage }}" class="drag-drop-image-path right-image-path">
-                                                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
-                                                    <div class="upload-trigger" style="gap:6px;">
-                                                        <input type="file" accept="image/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, {{ $index }}, {{ $pairIndex }})">
-                                                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
-                                                        <div class="upload-spinner"></div>
-                                                        <span class="upload-label" style="font-size:11px;">Add image</span>
-                                                    </div>
-                                                    <div class="media-thumb-wrap" style="margin-top:4px;">
-                                                        @if($rightImage)
-                                                        <img class="media-thumb" src="{{ asset('storage/' . $rightImage) }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;" />
-                                                        @endif
+                                    @if(count($pairs) > 0)
+                                        @foreach($pairs as $pairIndex => $pair)
+                                        @php
+                                            $leftText = is_array($pair) ? ($pair['left_text'] ?? $pair['left'] ?? '') : '';
+                                            $rightText = is_array($pair) ? ($pair['right_text'] ?? $pair['right'] ?? '') : '';
+                                            $leftImage = is_array($pair) ? ($pair['left_image'] ?? '') : '';
+                                            $rightImage = is_array($pair) ? ($pair['right_image'] ?? '') : '';
+                                        @endphp
+                                        <div class="drag-drop-pair" data-pair-index="{{ $pairIndex }}">
+                                            <div class="pair-side">
+                                                <label>Left Item</label>
+                                                <input type="text" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][left_text]" value="{{ $leftText }}" placeholder="e.g., Letter A">
+                                                <div style="margin-top:4px;">
+                                                    <input type="hidden" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][left_image]" value="{{ $leftImage }}" class="drag-drop-image-path left-image-path">
+                                                    <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                                                        <div class="upload-trigger" style="gap:6px;">
+                                                            <input type="file" accept="image/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, {{ $index }}, {{ $pairIndex }})">
+                                                            <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                                                            <div class="upload-spinner"></div>
+                                                            <span class="upload-label" style="font-size:11px;">{{ $leftImage ? 'Replace image' : 'Add image' }}</span>
+                                                        </div>
+                                                        <div class="media-thumb-wrap" style="margin-top:4px;">
+                                                            @if($leftImage)
+                                                            <img class="media-thumb" src="{{ asset('storage/' . $leftImage) }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;" />
+                                                            @endif
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
+                                            <div class="pair-arrow">
+                                                <span class="material-symbols-outlined">arrow_forward</span>
+                                            </div>
+                                            <div class="pair-side">
+                                                <label>Right Match</label>
+                                                <input type="text" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][right_text]" value="{{ $rightText }}" placeholder="e.g., Hand sign for A">
+                                                <div style="margin-top:4px;">
+                                                    <input type="hidden" name="quiz[{{ $index }}][drag_drop_pairs][{{ $pairIndex }}][right_image]" value="{{ $rightImage }}" class="drag-drop-image-path right-image-path">
+                                                    <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                                                        <div class="upload-trigger" style="gap:6px;">
+                                                            <input type="file" accept="image/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, {{ $index }}, {{ $pairIndex }})">
+                                                            <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                                                            <div class="upload-spinner"></div>
+                                                            <span class="upload-label" style="font-size:11px;">{{ $rightImage ? 'Replace image' : 'Add image' }}</span>
+                                                        </div>
+                                                        <div class="media-thumb-wrap" style="margin-top:4px;">
+                                                            @if($rightImage)
+                                                            <img class="media-thumb" src="{{ asset('storage/' . $rightImage) }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;" />
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button type="button" onclick="removeDragDropPair(this)" class="pair-remove option-remove-btn">
+                                                <span class="material-symbols-outlined text-sm">close</span>
+                                            </button>
                                         </div>
-                                        <button type="button" onclick="removeDragDropPair(this)" class="option-remove-btn" style="margin-top:16px;">
-                                            <span class="material-symbols-outlined text-sm">close</span>
-                                        </button>
-                                    </div>
-                                    @endforeach
+                                        @endforeach
+                                    @else
+                                        {{-- No pairs yet, show empty state --}}
+                                        <div class="text-sm text-slate-400 py-2">No pairs added yet. Click "Add Pair" below.</div>
+                                    @endif
                                 </div>
                                 <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">
                                     + Add Pair
                                 </button>
                             </div>
-                             <div class="gesture-quiz-container {{ ($q['type'] ?? '') === 'gesture' ? '' : 'hidden' }}">
+
+                            {{-- GESTURE RECOGNITION --}}
+                            <div class="gesture-quiz-container {{ ($q['type'] ?? '') === 'gesture' ? '' : 'hidden' }}">
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Recognition Settings</label>
                                 <p class="text-xs text-slate-400 mb-2">Select a gesture module and the specific gestures students need to perform.</p>
                                 <div class="space-y-3">
@@ -571,7 +667,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Type</label>
-                                <select name="quiz[0][type]" onchange="handleQuestionTypeChange(this)" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
+                                <select name="quiz[0][type]" onchange="handleQuestionTypeChange(this)" class="question-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
                                      <option value="multiple_choice">Multiple Choice</option>
                                      <option value="true_false">True / False</option>
                                      <option value="drag_drop">Drag and Drop</option>
@@ -645,6 +741,42 @@
                                     + Add Option
                                 </button>
                             </div>
+                            {{-- Drag and Drop Container (hidden by default) --}}
+                            <div class="drag-drop-container hidden">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Drag and Drop Pairs</label>
+                                <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
+                                <div class="space-y-2 drag-drop-pairs-list"></div>
+                                <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">
+                                    + Add Pair
+                                </button>
+                            </div>
+                            {{-- Gesture Recognition Container (hidden by default) --}}
+                            <div class="gesture-quiz-container hidden">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Recognition Settings</label>
+                                <p class="text-xs text-slate-400 mb-2">Select a gesture module and the specific gestures students need to perform.</p>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Module</label>
+                                        <select name="quiz[0][gesture_module_id]" class="field-select gesture-module-select w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" onchange="loadGesturesForModule(this, 0)">
+                                            <option value="">Select a module...</option>
+                                            @foreach($gestureModules as $module)
+                                                <option value="{{ $module->module_id }}">{{ $module->display_name ?? $module->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Select Gestures to Recognize</label>
+                                        <p class="text-xs text-slate-400 mb-2">Click to select gestures. Students will need to perform all selected gestures.</p>
+                                        <div id="gestureCheckboxes_0" class="flex flex-wrap gap-2 mt-2" style="min-height:60px;">
+                                            <span class="text-sm text-slate-400">Select a module first</span>
+                                        </div>
+                                    </div>
+                                    <div class="selected-gestures-preview" style="display:none;">
+                                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Selected Gestures</label>
+                                        <div class="flex flex-wrap gap-2" id="selectedGestureTags_0"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 @endif
@@ -694,8 +826,6 @@ let quizIndex    = {{ isset($lessonData['quiz']) ? count($lessonData['quiz']) : 
 
 /**
  * Upload a file via AJAX and update the widget + hidden field.
- * @param {HTMLInputElement} input  - the <input type="file">
- * @param {string}           type  - 'content' | 'quiz_media' | 'option'
  */
 async function handleAjaxUpload(input, type) {
     if (!input.files || !input.files[0]) return;
@@ -709,7 +839,6 @@ async function handleAjaxUpload(input, type) {
     const label    = widget.querySelector('.upload-label');
     const thumbWrap = widget.querySelector('.media-thumb-wrap');
 
-    // Find the hidden path input that is a sibling of the widget (or in parent)
     const pathInput = widget.closest('.media-field, div')?.querySelector('.media-path-input')
                    || widget.parentElement?.querySelector('.media-path-input');
 
@@ -728,15 +857,12 @@ async function handleAjaxUpload(input, type) {
 
         if (!resp.ok) throw new Error(data.message || 'Upload failed');
 
-        // Store path in hidden field
         if (pathInput) pathInput.value = data.path;
 
-        // Update widget appearance
         widget.classList.remove('uploading');
         widget.classList.add('has-file');
         if (label) label.textContent = 'Click to replace file';
 
-        // Render thumb
         if (thumbWrap) {
             const isVideo = file.type.startsWith('video/');
             thumbWrap.innerHTML = '';
@@ -760,12 +886,11 @@ async function handleAjaxUpload(input, type) {
         console.error('Upload error:', err);
     }
 
-    // Reset the file input so the same file can be re-selected after an error
     input.value = '';
 }
 
 /**
- * Upload an option image. Updates hidden input + thumbnail inline.
+ * Upload an option image.
  */
 async function handleOptionImageUpload(input) {
     if (!input.files || !input.files[0]) return;
@@ -794,7 +919,6 @@ async function handleOptionImageUpload(input) {
         if (pathInput) pathInput.value = data.path;
         if (preview)  { preview.src = data.url; preview.style.display = 'block'; }
 
-        // Add remove button if not there
         let clearBtn = optBody.querySelector('.option-img-clear-btn');
         if (!clearBtn) {
             clearBtn = document.createElement('button');
@@ -804,9 +928,12 @@ async function handleOptionImageUpload(input) {
             clearBtn.onclick = function() { clearOptionImage(this); };
             optBody.querySelector('.option-image-row').appendChild(clearBtn);
         }
-        if (label) label.querySelector('span:first-child').nextSibling
-            ? label.childNodes[label.childNodes.length - 2].textContent = ' Replace image'
-            : null;
+        if (label) {
+            const textNode = label.childNodes[label.childNodes.length - 2];
+            if (textNode && textNode.nodeType === 3) {
+                textNode.textContent = ' Replace image';
+            }
+        }
 
     } catch (err) {
         alert('Image upload failed: ' + err.message);
@@ -841,6 +968,104 @@ function clearOptionImage(btn) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   DRAG & DROP IMAGE UPLOAD
+═══════════════════════════════════════════════════════ */
+
+async function handleDragDropImageUpload(input, qIndex, pairIndex) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const widget = input.closest('.media-upload-widget');
+    if (!widget) return;
+
+    const side = input.dataset.side || 'left';
+    const errorEl = widget.querySelector('.media-upload-error');
+    const thumbWrap = widget.querySelector('.media-thumb-wrap');
+    const label = widget.querySelector('.upload-label');
+
+    let pathInput;
+    if (side === 'left') {
+        pathInput = widget.closest('.drag-drop-pair').querySelector('.left-image-path');
+    } else {
+        pathInput = widget.closest('.drag-drop-pair').querySelector('.right-image-path');
+    }
+
+    widget.classList.add('uploading');
+    widget.classList.remove('has-file');
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('context', 'quiz_media');
+    fd.append('_token', CSRF_TOKEN);
+
+    try {
+        const resp = await fetch(UPLOAD_URL, {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || 'Upload failed');
+
+        if (pathInput) {
+            const normalizedPath = data.path.replace(/\\/g, '/');
+            pathInput.value = normalizedPath;
+        }
+
+        widget.classList.remove('uploading');
+        widget.classList.add('has-file');
+        if (label) label.textContent = 'Replace image';
+        if (thumbWrap) {
+            thumbWrap.innerHTML = '';
+            const img = document.createElement('img');
+            img.className = 'media-thumb';
+            img.src = data.url;
+            img.style.width = '40px';
+            img.style.height = '40px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '6px';
+            img.style.border = '1.5px solid #e2e8f0';
+            thumbWrap.appendChild(img);
+
+            const info = document.createElement('div');
+            info.className = 'media-thumb-info';
+            info.innerHTML = `<button type="button" class="media-remove-btn" onclick="clearDragDropImage(this)">✕ Remove</button>`;
+            thumbWrap.appendChild(info);
+        }
+    } catch (err) {
+        widget.classList.remove('uploading');
+        if (errorEl) {
+            errorEl.textContent = '⚠ ' + err.message;
+            errorEl.style.display = 'block';
+        }
+        console.error('Upload error:', err);
+    }
+    input.value = '';
+}
+
+function clearDragDropImage(btn) {
+    const widget = btn.closest('.media-upload-widget');
+    if (!widget) return;
+    const thumbWrap = widget.querySelector('.media-thumb-wrap');
+    const pair = widget.closest('.drag-drop-pair');
+
+    const leftPath = pair.querySelector('.left-image-path');
+    const rightPath = pair.querySelector('.right-image-path');
+
+    if (thumbWrap) thumbWrap.innerHTML = '';
+    if (leftPath) leftPath.value = '';
+    if (rightPath) rightPath.value = '';
+
+    const lbl = widget.querySelector('.upload-label');
+    if (lbl) lbl.textContent = 'Add image';
+    widget.classList.remove('has-file');
+}
+
+/* ═══════════════════════════════════════════════════════
    PREVIEW
 ═══════════════════════════════════════════════════════ */
 
@@ -852,8 +1077,6 @@ function openPreview() {
 
     const form = document.getElementById('lessonForm');
 
-    // Upload any pending (not yet saved) file inputs to temp_preview first,
-    // then store the returned paths as existing_media hidden inputs.
     const pendingUploads = [];
     form.querySelectorAll('input[type="file"]').forEach(input => {
         if (input.files && input.files[0]) pendingUploads.push(input);
@@ -874,9 +1097,13 @@ function openPreview() {
                     const contentMatch  = name.match(/^(contents\[\d+\])\[media\]$/);
                     const quizMatch     = name.match(/^(quiz\[\d+\])\[media\]$/);
                     const optionMatch   = name.match(/^(quiz\[\d+\]\[options\]\[\d+\])\[image\]$/);
+                    const ddLeftMatch   = name.match(/^(quiz\[\d+\]\[drag_drop_pairs\]\[\d+\])\[left_image\]$/);
+                    const ddRightMatch  = name.match(/^(quiz\[\d+\]\[drag_drop_pairs\]\[\d+\])\[right_image\]$/);
                     if (contentMatch)  hiddenName = contentMatch[1]  + '[existing_media]';
                     else if (quizMatch) hiddenName = quizMatch[1]    + '[existing_media]';
                     else if (optionMatch) hiddenName = optionMatch[1] + '[existing_image]';
+                    else if (ddLeftMatch) hiddenName = ddLeftMatch[1] + '[left_image]';
+                    else if (ddRightMatch) hiddenName = ddRightMatch[1] + '[right_image]';
                     if (hiddenName) {
                         let hidden = form.querySelector(`input[type="hidden"][name="${CSS.escape(hiddenName)}"]`);
                         if (!hidden) {
@@ -966,7 +1193,9 @@ function toggleFields(select) {
 
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.content-type').forEach(toggleFields);
-    document.querySelectorAll('.quiz-question select[name*="[type]"]').forEach(handleQuestionTypeChange);
+    document.querySelectorAll('.quiz-question select.question-type').forEach(select => {
+        handleQuestionTypeChange(select);
+    });
 
     // Auto-load existing gesture module selections
     document.querySelectorAll('.gesture-module-select').forEach(select => {
@@ -1000,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function buildMediaWidget(index) {
     return `
-        <input type="hidden" name="contents[\${index}][existing_media]" value="" class="media-path-input">
+        <input type="hidden" name="contents[${index}][existing_media]" value="" class="media-path-input">
         <div class="media-upload-widget" data-context="lesson_media" data-accept="image/*,video/*">
             <div class="upload-trigger">
                 <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'content')">
@@ -1051,17 +1280,7 @@ function addContentCard() {
             </div>
             <div class="media-field hidden">
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Upload Media</label>
-                <input type="hidden" name="contents[${contentIndex}][existing_media]" value="" class="media-path-input">
-                <div class="media-upload-widget" data-context="lesson_media" data-accept="image/*,video/*">
-                    <div class="upload-trigger">
-                        <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'content')">
-                        <span class="upload-icon material-symbols-outlined text-slate-400" style="font-size:20px;">cloud_upload</span>
-                        <div class="upload-spinner"></div>
-                        <span class="upload-label">Click or drag to upload</span>
-                    </div>
-                    <div class="media-thumb-wrap"></div>
-                    <div class="media-upload-error"></div>
-                </div>
+                ${buildMediaWidget(contentIndex)}
             </div>
         </div>`;
     container.appendChild(card);
@@ -1090,18 +1309,19 @@ function updateStepNumbers() {
 function handleQuestionTypeChange(select) {
     const questionDiv = select.closest('.quiz-question');
     if (!questionDiv) return;
-    const optionsList = questionDiv.querySelector('.options-list');
-    const addOptionBtn = questionDiv.querySelector('.options-container > button');
+    const optionsContainer = questionDiv.querySelector('.options-container');
     const dragDropContainer = questionDiv.querySelector('.drag-drop-container');
     const gestureContainer = questionDiv.querySelector('.gesture-quiz-container');
     const qIndex = getQuizQuestionIndex(questionDiv);
 
     // Hide all type-specific containers
+    if (optionsContainer) optionsContainer.classList.add('hidden');
     if (dragDropContainer) dragDropContainer.classList.add('hidden');
     if (gestureContainer) gestureContainer.classList.add('hidden');
-    if (optionsList) optionsList.closest('.options-container')?.classList.remove('hidden');
 
     if (select.value === 'true_false') {
+        if (optionsContainer) optionsContainer.classList.remove('hidden');
+        const optionsList = questionDiv.querySelector('.options-list');
         const rows = optionsList.querySelectorAll('.option-row');
         while (rows.length > 2) rows[rows.length - 1].remove();
         const textInputs = optionsList.querySelectorAll('.option-text-input');
@@ -1111,32 +1331,31 @@ function handleQuestionTypeChange(select) {
         if (radios[0]) radios[0].value = '0';
         if (radios[1]) radios[1].value = '1';
         optionsList.querySelectorAll('.option-image-row, .option-remove-btn').forEach(el => el.style.visibility = 'hidden');
-        if (addOptionBtn) addOptionBtn.style.display = 'none';
-        if (optionsList) optionsList.closest('.options-container')?.classList.remove('hidden');
-        
+        const addBtn = optionsContainer.querySelector('button');
+        if (addBtn) addBtn.style.display = 'none';
     } else if (select.value === 'drag_drop') {
         if (dragDropContainer) dragDropContainer.classList.remove('hidden');
-        if (optionsList) optionsList.closest('.options-container')?.classList.add('hidden');
-        
         // Auto-add first pair if none exist
         const pairsList = dragDropContainer.querySelector('.drag-drop-pairs-list');
         if (pairsList && pairsList.querySelectorAll('.drag-drop-pair').length === 0) {
             const addBtn = dragDropContainer.querySelector('button[onclick*="addDragDropPair"]');
-            if (addBtn) addBtn.click();
+            if (addBtn) {
+                addBtn.click();
+                addBtn.click();
+            }
         }
     } else if (select.value === 'gesture') {
         if (gestureContainer) gestureContainer.classList.remove('hidden');
-        if (optionsList) optionsList.closest('.options-container')?.classList.add('hidden');
-        
-        // Auto-load gestures if module is already selected
         const moduleSelect = gestureContainer.querySelector('.gesture-module-select');
         if (moduleSelect && moduleSelect.value) {
-            loadGesturesForModule(moduleSelect, getQuizQuestionIndex(questionDiv));
+            loadGesturesForModule(moduleSelect, qIndex);
         }
     } else if (select.value === 'multiple_choice') {
-        if (optionsList) optionsList.closest('.options-container')?.classList.remove('hidden');
+        if (optionsContainer) optionsContainer.classList.remove('hidden');
+        const optionsList = questionDiv.querySelector('.options-list');
         optionsList.querySelectorAll('.option-image-row, .option-remove-btn').forEach(el => el.style.visibility = 'visible');
-        if (addOptionBtn) addOptionBtn.style.display = 'inline-block';
+        const addBtn = optionsContainer.querySelector('button');
+        if (addBtn) addBtn.style.display = 'inline-block';
     }
 }
 
@@ -1182,8 +1401,6 @@ function relabelOptions(optionsList, qIndex) {
         if (letterEl) letterEl.textContent = letter;
         const textInput = row.querySelector('.option-text-input');
         if (textInput) { textInput.name = `quiz[${qIndex}][options][${i}][text]`; textInput.placeholder = `Option ${letter} text`; }
-        const imgInput = row.querySelector('.option-image-input');
-        if (imgInput) imgInput.name = `quiz[${qIndex}][options][${i}][image]`;
         const pathInput = row.querySelector('.media-path-input');
         if (pathInput) pathInput.name = `quiz[${qIndex}][options][${i}][existing_image]`;
         const radio = row.querySelector('input[type="radio"]');
@@ -1209,6 +1426,227 @@ function removeOption(btn) {
     }
 }
 
+/* ═══════════════════════════════════════════════════════
+   DRAG & DROP PAIRS
+═══════════════════════════════════════════════════════ */
+
+function buildDragDropPair(qIndex, pairIndex) {
+    const pair = document.createElement('div');
+    pair.className = 'drag-drop-pair';
+    pair.dataset.pairIndex = pairIndex;
+    pair.innerHTML = `
+        <div class="pair-side">
+            <label>Left Item</label>
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_text]" placeholder="e.g., Letter A">
+            <div style="margin-top:4px;">
+                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_image]" value="" class="drag-drop-image-path left-image-path">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                    <div class="upload-trigger" style="gap:6px;">
+                        <input type="file" accept="image/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label" style="font-size:11px;">Add image</span>
+                    </div>
+                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="pair-arrow">
+            <span class="material-symbols-outlined">arrow_forward</span>
+        </div>
+        <div class="pair-side">
+            <label>Right Match</label>
+            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_text]" placeholder="e.g., Hand sign for A">
+            <div style="margin-top:4px;">
+                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_image]" value="" class="drag-drop-image-path right-image-path">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                    <div class="upload-trigger" style="gap:6px;">
+                        <input type="file" accept="image/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label" style="font-size:11px;">Add image</span>
+                    </div>
+                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
+                </div>
+            </div>
+        </div>
+        <button type="button" onclick="removeDragDropPair(this)" class="pair-remove option-remove-btn">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+    `;
+    return pair;
+}
+
+function addDragDropPair(btn) {
+    const container = btn.closest('.drag-drop-container');
+    if (!container) return;
+    const pairsList = container.querySelector('.drag-drop-pairs-list');
+    const qIndex = getQuizQuestionIndex(container.closest('.quiz-question'));
+    const pairIndex = pairsList.querySelectorAll('.drag-drop-pair').length;
+    pairsList.appendChild(buildDragDropPair(qIndex, pairIndex));
+}
+
+function removeDragDropPair(btn) {
+    const pair = btn.closest('.drag-drop-pair');
+    const container = pair.closest('.drag-drop-pairs-list');
+    if (container.querySelectorAll('.drag-drop-pair').length > 2) {
+        pair.remove();
+    }
+}
+
+function validateDragDropPairs() {
+    let isValid = true;
+    let errorMsg = '';
+
+    document.querySelectorAll('.quiz-question').forEach((questionDiv, index) => {
+        const typeSelect = questionDiv.querySelector('.question-type');
+        if (!typeSelect || typeSelect.value !== 'drag_drop') return;
+
+        const pairsList = questionDiv.querySelector('.drag-drop-pairs-list');
+        if (!pairsList) return;
+
+        const pairs = pairsList.querySelectorAll('.drag-drop-pair');
+        if (pairs.length < 2) {
+            isValid = false;
+            errorMsg = `Question ${index + 1} (Drag and Drop) needs at least 2 pairs. Currently has ${pairs.length}.`;
+            questionDiv.style.borderColor = '#EF4444';
+            questionDiv.style.borderWidth = '2px';
+        } else {
+            questionDiv.style.borderColor = '#E5EAF2';
+            questionDiv.style.borderWidth = '1.5px';
+        }
+    });
+
+    return { isValid, errorMsg };
+}
+
+/* ═══════════════════════════════════════════════════════
+   GESTURE MODULE LOADING
+═══════════════════════════════════════════════════════ */
+
+function loadGesturesForModule(select, questionIndex) {
+    const moduleId = select.value;
+    const questionDiv = select.closest('.quiz-question');
+    const checkboxesContainer = document.getElementById(`gestureCheckboxes_${questionIndex}`);
+    const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
+    const tagsContainer = document.getElementById(`selectedGestureTags_${questionIndex}`);
+
+    if (!moduleId) {
+        checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Select a module first</span>';
+        if (previewContainer) previewContainer.style.display = 'none';
+        return;
+    }
+
+    // Read the pre-selected IDs from data-selected-ids if present
+    let selectedIds = [];
+    if (select.dataset.selectedIds) {
+        try {
+            selectedIds = JSON.parse(select.dataset.selectedIds).map(id => Number(id));
+        } catch (e) {
+            console.error(e);
+        }
+        select.removeAttribute('data-selected-ids');
+    }
+
+    checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Loading gestures...</span>';
+
+    fetch(`/api/gesture-modules/${moduleId}/gestures`, {
+        headers: {
+            'X-CSRF-TOKEN': CSRF_TOKEN,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        checkboxesContainer.innerHTML = '';
+        if (data.gestures && data.gestures.length > 0) {
+            data.gestures.forEach(gesture => {
+                const label = document.createElement('label');
+                label.className = 'gesture-checkbox-label';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = `quiz[${questionIndex}][gesture_ids][]`;
+                checkbox.value = gesture.gesture_id;
+                checkbox.className = 'gesture-checkbox';
+                checkbox.dataset.displayName = gesture.display_name || gesture.name;
+
+                const checkIcon = document.createElement('span');
+                checkIcon.className = 'check-icon';
+                checkIcon.textContent = '✓';
+
+                checkbox.onchange = function() {
+                    if (this.checked) {
+                        label.classList.add('selected');
+                    } else {
+                        label.classList.remove('selected');
+                    }
+                    updateGesturePreview(questionIndex);
+                };
+
+                const span = document.createElement('span');
+                span.textContent = gesture.display_name || gesture.name;
+
+                if (selectedIds.includes(Number(gesture.gesture_id))) {
+                    checkbox.checked = true;
+                    label.classList.add('selected');
+                }
+
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                label.appendChild(checkIcon);
+                checkboxesContainer.appendChild(label);
+            });
+            updateGesturePreview(questionIndex);
+        } else {
+            checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">No gestures in this module</span>';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading gestures:', error);
+        checkboxesContainer.innerHTML = '<span class="text-sm text-red-500">Error loading gestures</span>';
+    });
+}
+
+function updateGesturePreview(questionIndex) {
+    const tagsContainer = document.getElementById(`selectedGestureTags_${questionIndex}`);
+    if (!tagsContainer) return;
+
+    const questionDiv = tagsContainer.closest('.quiz-question');
+    if (!questionDiv) return;
+
+    const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
+    const checkboxes = questionDiv.querySelectorAll(`.gesture-checkbox:checked`);
+
+    if (checkboxes.length === 0) {
+        if (previewContainer) previewContainer.style.display = 'none';
+        return;
+    }
+
+    if (previewContainer) previewContainer.style.display = 'block';
+    tagsContainer.innerHTML = '';
+
+    checkboxes.forEach(checkbox => {
+        const tag = document.createElement('span');
+        tag.className = 'badge-pill';
+        tag.style.cssText = `
+            background: rgba(16, 185, 129, 0.15);
+            color: #065F46;
+            padding: 6px 14px;
+            font-size: 12px;
+            border-radius: 99px;
+            font-weight: 700;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        `;
+        tag.textContent = checkbox.dataset.displayName || checkbox.value;
+        tagsContainer.appendChild(tag);
+    });
+}
+
+/* ═══════════════════════════════════════════════════════
+   QUIZ QUESTIONS - ADD/REMOVE
+═══════════════════════════════════════════════════════ */
+
 function addQuizQuestion() {
     const container = document.getElementById('quizQuestions');
     const qIndex = quizIndex;
@@ -1228,7 +1666,7 @@ function addQuizQuestion() {
             </div>
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Type</label>
-                <select name="quiz[${qIndex}][type]" onchange="handleQuestionTypeChange(this)" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all question-type">
+                <select name="quiz[${qIndex}][type]" onchange="handleQuestionTypeChange(this)" class="question-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
                     <option value="multiple_choice">Multiple Choice</option>
                     <option value="true_false">True / False</option>
                     <option value="drag_drop">Drag and Drop</option>
@@ -1291,7 +1729,8 @@ function addQuizQuestion() {
                     </div>
                 </div>
             </div>
-        </div>`;
+        </div>
+    `;
     container.appendChild(question);
     const optionsList = question.querySelector('.options-list');
     optionsList.appendChild(buildOptionRow(qIndex, 0));
@@ -1313,7 +1752,7 @@ function reindexQuizQuestions() {
         if (label) label.textContent = `Question ${qIndex + 1}`;
         const questionInput = questionDiv.querySelector('input[name*="[question]"]');
         if (questionInput) questionInput.name = `quiz[${qIndex}][question]`;
-        const typeSelect = questionDiv.querySelector('select[name*="[type]"]');
+        const typeSelect = questionDiv.querySelector('.question-type');
         if (typeSelect) typeSelect.name = `quiz[${qIndex}][type]`;
         const mediaPathInput = questionDiv.querySelector(':scope > div.space-y-3 > div > .media-path-input');
         if (mediaPathInput) mediaPathInput.name = `quiz[${qIndex}][existing_media]`;
@@ -1326,16 +1765,12 @@ function reindexQuizQuestions() {
             dragDropContainer.querySelectorAll('.drag-drop-pair').forEach((pair, pairIndex) => {
                 const leftText = pair.querySelector('input[name*="[left_text]"]');
                 if (leftText) leftText.name = `quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_text]`;
-                
                 const leftImage = pair.querySelector('input[name*="[left_image]"]');
                 if (leftImage) leftImage.name = `quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_image]`;
-                
                 const rightText = pair.querySelector('input[name*="[right_text]"]');
                 if (rightText) rightText.name = `quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_text]`;
-                
                 const rightImage = pair.querySelector('input[name*="[right_image]"]');
                 if (rightImage) rightImage.name = `quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_image]`;
-                
                 const leftFileInput = pair.querySelector('.ajax-file-input[data-side="left"]');
                 if (leftFileInput) {
                     leftFileInput.setAttribute('onchange', `handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})`);
@@ -1371,356 +1806,10 @@ function reindexQuizQuestions() {
     quizIndex = document.querySelectorAll('.quiz-question').length;
 }
 
-// Drag and Drop functions
-function addDragDropPair(btn) {
-    const container = btn.closest('.drag-drop-container');
-    if (!container) return;
-    const pairsList = container.querySelector('.drag-drop-pairs-list');
-    const qIndex = getQuizQuestionIndex(container.closest('.quiz-question'));
-    const pairIndex = pairsList.querySelectorAll('.drag-drop-pair').length;
-    
-    const pair = document.createElement('div');
-    pair.className = 'drag-drop-pair';
-    pair.style.cssText = 'display:flex;gap:12px;align-items:center;background:white;border:1.5px solid #E5EAF2;border-radius:14px;padding:12px;margin-bottom:8px;flex-wrap:wrap;';
-    pair.innerHTML = `
-        <div style="flex:1;min-width:120px;">
-            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Left Item</label>
-            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_text]" class="field-input" placeholder="e.g., Letter A" style="padding:8px 12px;font-size:13px;width:100%;">
-            <div style="margin-top:4px;">
-                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_image]" value="" class="drag-drop-image-path left-image-path">
-                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
-                    <div class="upload-trigger" style="gap:6px;">
-                        <input type="file" accept="image/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
-                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
-                        <div class="upload-spinner"></div>
-                        <span class="upload-label" style="font-size:11px;">Add image</span>
-                    </div>
-                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
-                </div>
-            </div>
-        </div>
-        <div style="display:flex;align-items:center;padding:0 4px;color:#94a3b8;">
-            <span class="material-symbols-outlined">arrow_forward</span>
-        </div>
-        <div style="flex:1;min-width:120px;">
-            <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px;">Right Match</label>
-            <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_text]" class="field-input" placeholder="e.g., Hand sign for A" style="padding:8px 12px;font-size:13px;width:100%;">
-            <div style="margin-top:4px;">
-                <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_image]" value="" class="drag-drop-image-path right-image-path">
-                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
-                    <div class="upload-trigger" style="gap:6px;">
-                        <input type="file" accept="image/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
-                        <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
-                        <div class="upload-spinner"></div>
-                        <span class="upload-label" style="font-size:11px;">Add image</span>
-                    </div>
-                    <div class="media-thumb-wrap" style="margin-top:4px;"></div>
-                </div>
-            </div>
-        </div>
-        <button type="button" onclick="removeDragDropPair(this)" class="option-remove-btn" style="margin-top:16px;">
-            <span class="material-symbols-outlined text-sm">close</span>
-        </button>
-    `;
-    pairsList.appendChild(pair);
-}
+/* ═══════════════════════════════════════════════════════
+   AI QUIZ FROM CONTENT
+═══════════════════════════════════════════════════════ */
 
-async function handleDragDropImageUpload(input, qIndex, pairIndex) {
-    if (!input.files || !input.files[0]) return;
-    const file = input.files[0];
-    const widget = input.closest('.media-upload-widget');
-    if (!widget) return;
-    
-    const side = input.dataset.side || 'left';
-    const errorEl = widget.querySelector('.media-upload-error');
-    const thumbWrap = widget.querySelector('.media-thumb-wrap');
-    const label = widget.querySelector('.upload-label');
-    
-    let pathInput;
-    if (side === 'left') {
-        pathInput = widget.closest('.drag-drop-pair').querySelector('.left-image-path');
-    } else {
-        pathInput = widget.closest('.drag-drop-pair').querySelector('.right-image-path');
-    }
-    
-    widget.classList.add('uploading');
-    widget.classList.remove('has-file');
-    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
-    
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('context', 'quiz_media');
-    fd.append('_token', CSRF_TOKEN);
-    
-    try {
-        const resp = await fetch(UPLOAD_URL, {
-            method: 'POST',
-            body: fd,
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        });
-        
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.message || 'Upload failed');
-        
-        if (pathInput) {
-            const normalizedPath = data.path.replace(/\\/g, '/');
-            pathInput.value = normalizedPath;
-            console.log(`✅ ${side} image saved:`, normalizedPath);
-        }
-        
-        widget.classList.remove('uploading');
-        widget.classList.add('has-file');
-        if (label) label.textContent = 'Replace image';
-        if (thumbWrap) {
-            thumbWrap.innerHTML = '';
-            const img = document.createElement('img');
-            img.className = 'media-thumb';
-            img.src = data.url;
-            img.style.width = '40px';
-            img.style.height = '40px';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '6px';
-            img.style.border = '1.5px solid #e2e8f0';
-            thumbWrap.appendChild(img);
-            
-            const info = document.createElement('div');
-            info.className = 'media-thumb-info';
-            info.innerHTML = `<button type="button" class="media-remove-btn" onclick="clearDragDropImage(this)">✕ Remove</button>`;
-            thumbWrap.appendChild(info);
-        }
-    } catch (err) {
-        widget.classList.remove('uploading');
-        if (errorEl) {
-            errorEl.textContent = '⚠ ' + err.message;
-            errorEl.style.display = 'block';
-        }
-        console.error('Upload error:', err);
-    }
-    input.value = '';
-}
-
-function clearDragDropImage(btn) {
-    const widget = btn.closest('.media-upload-widget');
-    if (!widget) return;
-    const thumbWrap = widget.querySelector('.media-thumb-wrap');
-    const pair = widget.closest('.drag-drop-pair');
-    
-    const leftPath = pair.querySelector('.left-image-path');
-    const rightPath = pair.querySelector('.right-image-path');
-    
-    if (thumbWrap) thumbWrap.innerHTML = '';
-    if (leftPath) leftPath.value = '';
-    if (rightPath) rightPath.value = '';
-    
-    const lbl = widget.querySelector('.upload-label');
-    if (lbl) lbl.textContent = 'Add image';
-    widget.classList.remove('has-file');
-}
-
-function removeDragDropPair(btn) {
-    const pair = btn.closest('.drag-drop-pair');
-    const container = pair.closest('.drag-drop-pairs-list');
-    if (container.querySelectorAll('.drag-drop-pair').length > 2) {
-        pair.remove();
-    }
-}
-
-// Load gestures for a module
-function loadGesturesForModule(select, questionIndex) {
-    const moduleId = select.value;
-    const questionDiv = select.closest('.quiz-question');
-    const checkboxesContainer = document.getElementById(`gestureCheckboxes_${questionIndex}`);
-    const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
-    
-    if (!moduleId) {
-        checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Select a module first</span>';
-        previewContainer.style.display = 'none';
-        return;
-    }
-    
-    // Read the pre-selected IDs from data-selected-ids if present
-    let selectedIds = [];
-    if (select.dataset.selectedIds) {
-        try {
-            selectedIds = JSON.parse(select.dataset.selectedIds).map(id => Number(id));
-        } catch (e) {
-            console.error(e);
-        }
-        // Clear it so it doesn't run again if they change modules manually
-        select.removeAttribute('data-selected-ids');
-    }
-    
-    checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Loading gestures...</span>';
-    
-    fetch(`/api/gesture-modules/${moduleId}/gestures`, {
-        headers: {
-            'X-CSRF-TOKEN': CSRF_TOKEN,
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        checkboxesContainer.innerHTML = '';
-        if (data.gestures && data.gestures.length > 0) {
-            data.gestures.forEach(gesture => {
-                const label = document.createElement('label');
-                label.className = 'gesture-checkbox-label';
-                label.style.cssText = `
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 8px 14px;
-                    border-radius: 12px;
-                    border: 2px solid #E5EAF2;
-                    background: white;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #475569;
-                    user-select: none;
-                `;
-                
-                label.onmouseenter = function() {
-                    if (!this.classList.contains('selected')) {
-                        this.style.borderColor = '#0d326b';
-                        this.style.background = '#f0f4ff';
-                    }
-                };
-                label.onmouseleave = function() {
-                    if (!this.classList.contains('selected')) {
-                        this.style.borderColor = '#E5EAF2';
-                        this.style.background = 'white';
-                    }
-                };
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.name = `quiz[${questionIndex}][gesture_ids][]`;
-                checkbox.value = gesture.gesture_id;
-                checkbox.className = 'gesture-checkbox';
-                checkbox.style.cssText = 'display: none;';
-                checkbox.dataset.displayName = gesture.display_name || gesture.name;
-                
-                const checkIcon = document.createElement('span');
-                checkIcon.className = 'check-icon';
-                checkIcon.textContent = '✓';
-                checkIcon.style.cssText = `
-                    display: none;
-                    color: #10B981;
-                    font-weight: 800;
-                    font-size: 14px;
-                `;
-                
-                checkbox.onchange = function() {
-                    const currentQIndex = getQuizQuestionIndex(this.closest('.quiz-question'));
-                    if (this.checked) {
-                        label.classList.add('selected');
-                        label.style.borderColor = '#10B981';
-                        label.style.background = '#ecfdf5';
-                        label.style.color = '#065F46';
-                        checkIcon.style.display = 'inline';
-                    } else {
-                        label.classList.remove('selected');
-                        label.style.borderColor = '#E5EAF2';
-                        label.style.background = 'white';
-                        label.style.color = '#475569';
-                        checkIcon.style.display = 'none';
-                    }
-                    updateGesturePreview(currentQIndex);
-                };
-                
-                const span = document.createElement('span');
-                span.textContent = gesture.display_name || gesture.name;
-                
-                if (selectedIds.includes(Number(gesture.gesture_id))) {
-                    checkbox.checked = true;
-                    label.classList.add('selected');
-                    label.style.borderColor = '#10B981';
-                    label.style.background = '#ecfdf5';
-                    label.style.color = '#065F46';
-                    checkIcon.style.display = 'inline';
-                }
-                
-                label.appendChild(checkbox);
-                label.appendChild(span);
-                label.appendChild(checkIcon);
-                checkboxesContainer.appendChild(label);
-            });
-            updateGesturePreview(questionIndex);
-        } else {
-            checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">No gestures in this module</span>';
-        }
-    })
-    .catch(error => {
-        console.error('Error loading gestures:', error);
-        checkboxesContainer.innerHTML = '<span class="text-sm text-red-500">Error loading gestures</span>';
-    });
-}
-
-function updateGesturePreview(questionIndex) {
-    const tagsContainer = document.getElementById(`selectedGestureTags_${questionIndex}`);
-    const questionDiv = tagsContainer?.closest('.quiz-question');
-    if (!questionDiv) return;
-    
-    const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
-    const checkboxes = questionDiv.querySelectorAll(`.gesture-checkbox:checked`);
-    
-    if (checkboxes.length === 0) {
-        previewContainer.style.display = 'none';
-        return;
-    }
-    
-    previewContainer.style.display = 'block';
-    tagsContainer.innerHTML = '';
-    
-    checkboxes.forEach(checkbox => {
-        const tag = document.createElement('span');
-        tag.className = 'badge-pill';
-        tag.style.cssText = `
-            background: rgba(16, 185, 129, 0.15);
-            color: #065F46;
-            padding: 6px 14px;
-            font-size: 12px;
-            border-radius: 99px;
-            font-weight: 700;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-        `;
-        tag.textContent = checkbox.dataset.displayName || checkbox.value;
-        tagsContainer.appendChild(tag);
-    });
-}
-
-function validateDragDropPairs() {
-    let isValid = true;
-    let errorMsg = '';
-    
-    document.querySelectorAll('.quiz-question').forEach((questionDiv, index) => {
-        const typeSelect = questionDiv.querySelector('.question-type');
-        if (!typeSelect || typeSelect.value !== 'drag_drop') return;
-        
-        const pairsList = questionDiv.querySelector('.drag-drop-pairs-list');
-        if (!pairsList) return;
-        
-        const pairs = pairsList.querySelectorAll('.drag-drop-pair');
-        if (pairs.length < 2) {
-            isValid = false;
-            errorMsg = `Question ${index + 1} (Drag and Drop) needs at least 2 pairs. Currently has ${pairs.length}.`;
-            questionDiv.style.borderColor = '#EF4444';
-            questionDiv.style.borderWidth = '2px';
-        } else {
-            questionDiv.style.borderColor = '#E5EAF2';
-            questionDiv.style.borderWidth = '1.5px';
-        }
-    });
-    
-    return { isValid, errorMsg };
-}
-
-// AI Quiz from Content
 function getLessonContentText() {
     let text = '';
     document.querySelectorAll('[name*="[content_text]"]').forEach(el => {

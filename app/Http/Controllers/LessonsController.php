@@ -479,13 +479,31 @@ public function store(Request $request)
                 ];
             }
 
+            $quizType = $q['type'] ?? 'multiple_choice';
+
+            $processedPairs = [];
+            if ($quizType === 'drag_drop') {
+                $processedPairs = $this->normalizeDragDropPairs($q['drag_drop_pairs'] ?? []);
+            }
+
+            $gestureDetails = [];
+            $gestureModuleId = null;
+            if ($quizType === 'gesture') {
+                $gestureModuleId = $q['gesture_module_id'] ?? null;
+                $gestureIds = array_filter((array) ($q['gesture_ids'] ?? []));
+                $gestureDetails = $this->buildGestureDetails($gestureIds);
+            }
+
             $lessonData['quiz'][] = [
                 'question' => $q['question'],
-                'type' => $q['type'] ?? 'multiple_choice',
+                'type' => $quizType,
                 'media' => $qMedia,
                 'options' => $processedOptions,
                 'correct' => $q['correct'] ?? 0,
                 'is_temp' => $isTemp,
+                'drag_drop_pairs' => $processedPairs,
+                'gesture_module_id' => $gestureModuleId,
+                'gesture_details' => $gestureDetails,
             ];
         }
 
@@ -533,6 +551,13 @@ public function view($id)
     // Format quiz data if exists
     if ($lesson->quiz) {
         foreach ($lesson->quiz->questions as $question) {
+            // Handle gesture_data (decode if double-encoded)
+            $gestureData = $question->gesture_data;
+            if (is_string($gestureData)) {
+                $gestureData = json_decode($gestureData, true) ?? [];
+            }
+            $gestureIds = $gestureData['gesture_ids'] ?? [];
+
             $lessonData['quiz'][] = [
                 'question' => $question->question_text,
                 'type' => $question->question_type,
@@ -544,12 +569,76 @@ public function view($id)
                     ];
                 })->toArray(),
                 'correct' => $question->options->search(fn ($opt) => $opt->is_correct),
+                'drag_drop_pairs' => $this->normalizeDragDropPairs($question->drag_drop_pairs ?? []),
+                'gesture_module_id' => $gestureData['module_id'] ?? null,
+                'gesture_details' => $this->buildGestureDetails($gestureIds),
             ];
         }
     }
 
     $totalSlides = count($lessonData['contents']) + count($lessonData['quiz']);
 
+    return response()->view('lessons.preview', compact('lessonData', 'totalSlides'));
+}
+
+/**
+ * Return the preview partial for a lesson (used by the modal overlay on the lessons index).
+ */
+public function previewModal($id)
+{
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($realId);
+
+    if ($id !== $lesson->hash_id) {
+        return redirect()->route('lessons.preview-modal', $lesson->hash_id);
+    }
+
+    $lessonData = [
+        'title'       => $lesson->title,
+        'description' => $lesson->description,
+        'lesson_type' => $lesson->lesson_type,
+        'difficulty'  => $lesson->difficulty,
+        'contents'    => $lesson->contents->map(function ($content) {
+            return [
+                'content_type' => $content->content_type,
+                'title'        => $content->title,
+                'content_text' => $content->content_text,
+                'media'        => $content->media_url,
+                'gesture_name' => $content->gesture_name,
+            ];
+        })->toArray(),
+        'quiz' => [],
+    ];
+
+    if ($lesson->quiz) {
+        foreach ($lesson->quiz->questions as $question) {
+            $gestureData = $question->gesture_data;
+            if (is_string($gestureData)) {
+                $gestureData = json_decode($gestureData, true) ?? [];
+            }
+            $gestureIds = $gestureData['gesture_ids'] ?? [];
+
+            $lessonData['quiz'][] = [
+                'question'         => $question->question_text,
+                'type'             => $question->question_type,
+                'media'            => $question->media_url,
+                'options'          => $question->options->map(function ($opt) {
+                    return [
+                        'text'  => $opt->option_text,
+                        'image' => $opt->option_media_url,
+                    ];
+                })->toArray(),
+                'correct'          => $question->options->search(fn ($opt) => $opt->is_correct),
+                'drag_drop_pairs'  => $this->normalizeDragDropPairs($question->drag_drop_pairs ?? []),
+                'gesture_module_id' => $gestureData['module_id'] ?? null,
+                'gesture_details'  => $this->buildGestureDetails($gestureIds),
+            ];
+        }
+    }
+
+    $totalSlides = count($lessonData['contents']) + count($lessonData['quiz']);
+
+    // Return as a bare partial — no layout wrapper
     return response()->view('lessons.preview', compact('lessonData', 'totalSlides'));
 }
 
@@ -1096,6 +1185,82 @@ foreach ($studentIds as $studentId) {
         return ($node instanceof UploadedFile && $node->isValid()) ? $node : null;
     }
 
+    /**
+     * Normalize raw drag_drop_pairs input (from the form or from the DB) into a
+     * consistent shape: [['left_text','right_text','left_image','right_image','match_id'], ...].
+     * Accepts both the ['left'=>..,'right'=>..] and ['left_text'=>..,'right_text'=>..] shapes,
+     * and skips pairs that have no content at all.
+     */
+    private function normalizeDragDropPairs($pairsInput): array
+    {
+        // Handle double-encoded JSON (old records saved with json_encode on a cast column)
+        if (is_string($pairsInput)) {
+            $decoded = json_decode($pairsInput, true);
+            if (is_array($decoded)) {
+                $pairsInput = $decoded;
+            } else {
+                return [];
+            }
+        }
+
+        if (empty($pairsInput) || !is_array($pairsInput)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach (array_values($pairsInput) as $pairIndex => $pair) {
+            if (!is_array($pair)) {
+                continue;
+            }
+
+            $leftText  = $pair['left_text']  ?? $pair['left']  ?? '';
+            $rightText = $pair['right_text'] ?? $pair['right'] ?? '';
+            $leftImage  = $pair['left_image']  ?? '';
+            $rightImage = $pair['right_image'] ?? '';
+
+            if (trim((string) $leftText) === '' && trim((string) $rightText) === ''
+                && empty($leftImage) && empty($rightImage)) {
+                continue;
+            }
+
+            $normalized[] = [
+                'left_text'   => $leftText,
+                'right_text'  => $rightText,
+                'left_image'  => $leftImage ?: null,
+                'right_image' => $rightImage ?: null,
+                'match_id'    => $pair['match_id'] ?? $pairIndex,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Fetch display info (name + media) for a set of gesture IDs so the preview can
+     * show the students what gesture(s) they need to perform, without requiring the
+     * blade view to query the database directly.
+     */
+    private function buildGestureDetails(array $gestureIds): array
+    {
+        $gestureIds = array_values(array_filter($gestureIds, fn ($id) => $id !== null && $id !== ''));
+        if (empty($gestureIds)) {
+            return [];
+        }
+
+        return Gesture::whereIn('gesture_id', $gestureIds)
+            ->get()
+            ->map(function ($gesture) {
+                return [
+                    'id' => $gesture->gesture_id,
+                    'name' => $gesture->display_name ?? $gesture->name,
+                    'image_url' => $gesture->image_url,
+                    'video_url' => $gesture->video_url,
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
+
     private function collectOptionIndices(array $optionInput, array $optionFiles): array
     {
         $indices = array_unique(array_merge(array_keys($optionInput), array_keys($optionFiles)));
@@ -1181,7 +1346,7 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
                 }
                 
                 if (!empty($processedPairs)) {
-                    $questionData['drag_drop_pairs'] = json_encode($processedPairs, JSON_UNESCAPED_SLASHES);
+                    $questionData['drag_drop_pairs'] = $processedPairs; // array cast handles JSON encoding
                     \Log::info('✅ Drag drop pairs saved', ['pairs' => $processedPairs]);
                 } else {
                     \Log::warning('⚠️ No valid drag drop pairs found', ['pairs' => $q['drag_drop_pairs']]);
@@ -1199,7 +1364,7 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
                 'module_id' => $q['gesture_module_id'] ?? null,
                 'gesture_ids' => $q['gesture_ids'] ?? [],
             ];
-            $questionData['gesture_data'] = json_encode($gestureData, JSON_UNESCAPED_SLASHES);
+            $questionData['gesture_data'] = $gestureData; // array cast handles JSON encoding
         }
 
         $question = QuizQuestion::create($questionData);

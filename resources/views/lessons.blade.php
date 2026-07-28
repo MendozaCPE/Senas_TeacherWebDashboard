@@ -380,7 +380,6 @@
                                 <tr>
                                     <th style="width:30px;"></th>
                                     <th>Lesson Title</th>
-                                    <th style="width:100px;">Type</th>
                                     <th style="width:110px;">Difficulty</th>
                                     <th style="width:110px;">Status</th>
                                     <th style="width:160px;text-align:right;">Actions</th>
@@ -390,14 +389,11 @@
                                 @foreach($allLessons as $lessonIndex => $lesson)
                                 @php $lessonPage = intdiv($lessonIndex, $pageSize) + 1; @endphp
                                 <tr class="lesson-row" data-page="{{ $lessonPage }}"
-                                    onclick="window.location.href='{{ route('lessons.view', $lesson->hash_id) }}'" style="cursor:pointer;">
+                                    onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" style="cursor:pointer;">
                                     <td class="text-slate-300" onclick="event.stopPropagation();">
                                         <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
                                     </td>
                                     <td class="lesson-title-cell">{{ $lesson->title }}</td>
-                                    <td>
-                                        <span class="badge-type">{{ $lesson->lesson_type }}</span>
-                                    </td>
                                     <td>
                                         <span class="badge-difficulty {{ $lesson->difficulty }}">
                                             {{ $lesson->difficulty }}
@@ -410,7 +406,7 @@
                                     </td>
                                     <td style="text-align:right;" onclick="event.stopPropagation();">
                                         <div class="flex items-center justify-end gap-1">
-                                            <a href="{{ route('lessons.view', $lesson->hash_id) }}" class="action-link" title="View">View</a>
+                                            <button onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" class="action-link" title="View">View</button>
                                             <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link" title="Edit">Edit</a>
                                             @if($lesson->status === 'draft')
                                             <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary" title="Publish">Publish</a>
@@ -504,7 +500,6 @@
                             <thead>
                                 <tr>
                                     <th>Lesson Title</th>
-                                    <th style="width:100px;">Type</th>
                                     <th style="width:110px;">Difficulty</th>
                                     <th style="width:110px;">Status</th>
                                     <th style="width:200px;text-align:right;">Actions</th>
@@ -512,14 +507,13 @@
                             </thead>
                             <tbody>
                                 @foreach($orphanedLessons as $lesson)
-                                <tr onclick="window.location.href='{{ route('lessons.view', $lesson->hash_id) }}'" style="cursor:pointer;">
+                                <tr onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" style="cursor:pointer;">
                                     <td class="lesson-title-cell">{{ $lesson->title }}</td>
-                                    <td><span class="badge-type">{{ $lesson->lesson_type }}</span></td>
                                     <td><span class="badge-difficulty {{ $lesson->difficulty }}">{{ $lesson->difficulty }}</span></td>
                                     <td><span class="badge-status {{ $lesson->status }}">{{ $lesson->status }}</span></td>
                                     <td style="text-align:right;" onclick="event.stopPropagation();">
                                         <div class="flex items-center justify-end gap-1">
-                                            <a href="{{ route('lessons.view', $lesson->hash_id) }}" class="action-link">View</a>
+                                            <button onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" class="action-link">View</button>
                                             <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link">Edit</a>
                                             <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary">Assign &amp; Publish</a>
                                             @if($lesson->status === 'published')
@@ -1026,5 +1020,102 @@ function saveStudentAccess() {
         </div>
     </div>
 </div>
+
+{{-- ── LESSON PREVIEW MODAL ────────────────────────────────────────────────── --}}
+<div id="lessonPreviewModal"
+     style="display:none; position:fixed; inset:0; z-index:9999; overflow-y:auto; padding:24px 16px;"
+     onclick="if(event.target===this) closeLessonPreviewModal()">
+    {{-- Transparent backdrop --}}
+    <div style="position:fixed; inset:0; background:rgba(10,20,50,0.55); backdrop-filter:blur(4px);"></div>
+
+    {{-- X close button (fixed top-right) --}}
+    <button onclick="closeLessonPreviewModal()"
+            style="position:fixed; top:18px; right:20px; z-index:10001; width:44px; height:44px;
+                   background:rgba(255,255,255,0.95); border:none; border-radius:50%; font-size:22px;
+                   cursor:pointer; display:flex; align-items:center; justify-content:center;
+                   box-shadow:0 4px 20px rgba(0,0,0,0.2); transition:transform .2s, background .2s;"
+            onmouseover="this.style.transform='scale(1.1)'; this.style.background='#fff'"
+            onmouseout="this.style.transform=''; this.style.background='rgba(255,255,255,0.95)'"
+            title="Close preview">
+        ✕
+    </button>
+
+    {{-- Content container (transparent, no card wrapping) --}}
+    <div id="lessonPreviewContent"
+         style="position:relative; z-index:10000; max-width:900px; margin:0 auto; min-height:200px;">
+        {{-- Loading state --}}
+        <div id="lessonPreviewLoading"
+             style="display:flex; align-items:center; justify-content:center;
+                    height:260px; color:rgba(255,255,255,0.85); font-size:15px; font-weight:600; gap:10px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 style="animation:spin .7s linear infinite;">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            Loading preview…
+        </div>
+        <div id="lessonPreviewBody" style="display:none;"></div>
+    </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+function openLessonPreviewModal(url) {
+    const modal   = document.getElementById('lessonPreviewModal');
+    const loading = document.getElementById('lessonPreviewLoading');
+    const body    = document.getElementById('lessonPreviewBody');
+
+    // Reset state
+    body.innerHTML = '';
+    body.style.display = 'none';
+    loading.style.display = 'flex';
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        })
+        .then(html => {
+            body.innerHTML = html;
+            loading.style.display = 'none';
+            body.style.display = 'block';
+
+            // Re-run any inline scripts injected by the preview partial
+            body.querySelectorAll('script').forEach(oldScript => {
+                const s = document.createElement('script');
+                if (oldScript.src) {
+                    s.src = oldScript.src;
+                } else {
+                    s.textContent = oldScript.textContent;
+                }
+                document.head.appendChild(s);
+                oldScript.remove();
+            });
+        })
+        .catch(err => {
+            loading.innerHTML = '<span style="color:#fca5a5;">⚠ Failed to load preview. Please try again.</span>';
+            console.error('Preview load error:', err);
+        });
+}
+
+function closeLessonPreviewModal() {
+    const modal = document.getElementById('lessonPreviewModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('lessonPreviewBody').innerHTML = '';
+}
+
+function openPreviewModal(url) {
+    openLessonPreviewModal(url);
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeLessonPreviewModal();
+});
+</script>
 
 @endsection
