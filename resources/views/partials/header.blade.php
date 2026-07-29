@@ -42,16 +42,6 @@
 
     <!-- Right controls -->
     <div class="flex items-center space-x-5">
-        <!-- Dark Mode Toggle -->
-        <button id="darkmode-btn" onclick="toggleDarkMode()" class="text-slate-400 hover:text-[#0d326b] transition-colors relative" title="Toggle dark mode">
-            <span id="darkmode-icon" class="material-symbols-outlined icon-outline text-[24px]">dark_mode</span>
-        </button>
-
-        <!-- Notification -->
-        <button class="text-slate-400 hover:text-[#0d326b] transition-colors relative">
-            <span class="material-symbols-outlined icon-outline text-[26px]">notifications</span>
-            <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-transparent rounded-full border-2 border-slate-400"></span>
-        </button>
         <div class="h-8 border-l border-slate-200"></div>
         <div class="text-[15px] font-semibold ">
             <span class="text-[#0d326b]">@yield('title')</span>
