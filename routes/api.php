@@ -32,6 +32,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/student/update-profile-picture', [StudentAuthController::class, 'updateProfilePicture']);
 
+     // Notification routes
+    Route::get('/student/notifications', [StudentAuthController::class, 'getNotifications']);
+    Route::post('/student/notifications/save', [StudentAuthController::class, 'saveNotifications']);
+    Route::post('/student/notifications/{id}/read', [StudentAuthController::class, 'markNotificationRead']);
+    Route::post('/student/notifications/read-all', [StudentAuthController::class, 'markAllNotificationsRead']);
 
     // Student Lessons
     Route::get('/student/all-lessons', [StudentAuthController::class, 'getAllLessons']);

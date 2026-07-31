@@ -17,6 +17,7 @@ use App\Models\ModuleQuizResult;
 use App\Models\Module;
 use App\Models\Achievement;
 use App\Models\StudentAchievement;
+use App\Models\StudentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -3240,6 +3241,256 @@ public function updateProfilePicture(Request $request)
     }
 }
 
+/**
+ * Get all notifications for the authenticated student
+ * GET /api/student/notifications
+ */
+public function getNotifications(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
 
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $notifications = StudentNotification::where('student_id', $student->student_id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'type' => $notification->type,
+                    'title' => $notification->title,
+                    'message' => $notification->message,
+                    'icon' => $notification->icon,
+                    'color' => $notification->color,
+                    'data' => $notification->data,
+                    'action_url' => $notification->action_url,
+                    'is_read' => (bool) $notification->is_read,
+                    'created_at' => $notification->created_at->toISOString(),
+                    'read_at' => $notification->read_at ? $notification->read_at->toISOString() : null,
+                ];
+            });
+
+        $unreadCount = StudentNotification::where('student_id', $student->student_id)
+            ->where('is_read', false)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'notifications' => $notifications,
+            'unread_count' => $unreadCount,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Mark a notification as read
+ * POST /api/student/notifications/{id}/read
+ */
+public function markNotificationRead(Request $request, $notificationId)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $notification = StudentNotification::where('id', $notificationId)
+            ->where('student_id', $student->student_id)
+            ->first();
+
+        if (!$notification) {
+            return response()->json(['error' => 'Notification not found'], 404);
+        }
+
+        $notification->markAsRead();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification marked as read',
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Mark all notifications as read
+ * POST /api/student/notifications/read-all
+ */
+public function markAllNotificationsRead(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        StudentNotification::where('student_id', $student->student_id)
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications marked as read',
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Create a notification for a student (helper method)
+ */
+private function createNotification($studentId, $type, $title, $message, $data = null, $actionUrl = null)
+{
+    $iconMap = [
+        'achievement' => 'trophy',
+        'promotion' => 'star',
+        'lesson' => 'book',
+        'streak' => 'flame',
+        'system' => 'notifications',
+    ];
+
+    $colorMap = [
+        'achievement' => '#F59E0B',
+        'promotion' => '#8B5CF6',
+        'lesson' => '#3B82F6',
+        'streak' => '#EF4444',
+        'system' => '#6B7280',
+    ];
+
+    return StudentNotification::create([
+        'student_id' => $studentId,
+        'type' => $type,
+        'title' => $title,
+        'message' => $message,
+        'icon' => $iconMap[$type] ?? 'notifications',
+        'color' => $colorMap[$type] ?? '#6B7280',
+        'data' => $data,
+        'action_url' => $actionUrl,
+        'is_read' => false,
+    ]);
+}
+
+/**
+ * Save multiple notifications for the student (with duplicate checking)
+ * POST /api/student/notifications/save
+ */
+public function saveNotifications(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'notifications' => 'required|array',
+            'notifications.*.type' => 'required|string|in:achievement,promotion,lesson,streak,system',
+            'notifications.*.title' => 'required|string|max:255',
+            'notifications.*.message' => 'required|string',
+            'notifications.*.data' => 'nullable',
+            'notifications.*.action_url' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $saved = [];
+        $skipped = 0;
+
+        foreach ($request->notifications as $notif) {
+            // Build a unique key based on the notification content
+            $type = $notif['type'];
+            $title = $notif['title'];
+            $message = $notif['message'];
+            
+            // Create a hash from the content to detect duplicates
+            $contentHash = md5($type . $title . $message);
+            
+            // Check if a notification with this exact content already exists for this student
+            $exists = StudentNotification::where('student_id', $student->student_id)
+                ->where('type', $type)
+                ->where('title', $title)
+                ->where('message', $message)
+                ->exists();
+            
+            // Also check by content hash if the above doesn't catch it
+            if (!$exists) {
+                // Check by data hash if data is present
+                $dataHash = isset($notif['data']) ? md5(json_encode($notif['data'])) : null;
+                
+                if ($dataHash) {
+                    $exists = StudentNotification::where('student_id', $student->student_id)
+                        ->where('type', $type)
+                        ->whereRaw('JSON_EXTRACT(data, "$") IS NOT NULL')
+                        ->whereRaw('MD5(JSON_EXTRACT(data, "$")) = ?', [$dataHash])
+                        ->exists();
+                }
+            }
+
+            if ($exists) {
+                $skipped++;
+                continue; // Skip duplicate
+            }
+
+            // Create new notification
+            $notification = $this->createNotification(
+                $student->student_id,
+                $type,
+                $title,
+                $message,
+                $notif['data'] ?? null,
+                $notif['action_url'] ?? null
+            );
+            $saved[] = $notification;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notifications saved successfully',
+            'saved' => count($saved),
+            'skipped' => $skipped,
+            'total' => count($saved) + $skipped,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
 
 }
