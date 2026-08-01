@@ -9,7 +9,8 @@ use App\Models\Student;
 use App\Models\StudentPromotion; 
 use App\Models\User;
 use App\Services\XPService; 
-use App\Services\AchievementService;  
+use App\Services\AchievementService; 
+use App\Services\DailyChallengeService;  
 use App\Models\Gesture;
 use App\Models\GestureModule;
 use App\Models\GesturePerformance;
@@ -18,11 +19,13 @@ use App\Models\Module;
 use App\Models\Achievement;
 use App\Models\StudentAchievement;
 use App\Models\StudentNotification;
+use App\Models\DailyChallenge; 
+use App\Models\ChallengeGoalProgress; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-
+use Carbon\Carbon; 
 
 class StudentAuthController extends Controller
 {
@@ -1106,6 +1109,12 @@ public function updateLessonProgress(Request $request, $lessonId)
                 $status = 'completed';
                 $assignment->completed_at = now();
                 $assignment->score = $request->input('quiz_score');
+
+                // 🎯 Finishing a lesson today counts toward today's
+                // "Complete a Lesson" goal — even if this exact lesson was
+                // already completed on a previous day.
+                $challengeService = new DailyChallengeService(new XPService());
+                $challengeService->recordProgressByType($student, 'lesson_completion', 1);
             }
             $assignment->status = $status;
             $assignment->save();
@@ -1304,6 +1313,21 @@ public function submitQuizAttempt(Request $request, $lessonId)
             }
             
             $assignment->save();
+
+            // 🎯 Passing a lesson's quiz today completes today's "Complete a
+            // Lesson" goal too — regardless of whether this lesson was
+            // completed on a previous day.
+            if ($status === 'completed') {
+                $challengeService = new DailyChallengeService($xpService);
+                $challengeService->recordProgressByType($student, 'lesson_completion', 1);
+            }
+        }
+
+        // 🎯 A 100% score today counts toward today's "Perfect Score" goal,
+        // even if this quiz was already aced on a previous day.
+        if ($isPerfect) {
+            $challengeService = new DailyChallengeService($xpService);
+            $challengeService->recordProgressByType($student, 'quiz_attempt', 1);
         }
 
         $student->refresh();
@@ -1760,6 +1784,14 @@ public function saveGesturePerformance(Request $request)
         // 🔥 FIX: Instantiate XPService and update streak
         $xpService = new XPService();
         $xpService->updateStreak($student);
+
+        // 🎯 Count this session's practiced gestures toward today's daily
+        // challenge "Master Gestures" goal — counts every time, regardless
+        // of whether these gestures were practiced/mastered on a prior day.
+        if (count($savedPerformances) > 0) {
+            $challengeService = new DailyChallengeService($xpService);
+            $challengeService->recordProgressByType($student, 'gesture_practice', count($savedPerformances));
+        }
 
         return response()->json([
             'success' => true,
@@ -2421,6 +2453,13 @@ private function isModuleLocked($student, $module)
                 $xpService->updateStreak($student);
             }
 
+            // 🎯 A 100% score on a module quiz counts toward today's
+            // "Perfect Score" goal, just like a lesson quiz would.
+            if ($percentage == 100) {
+                $challengeService = new DailyChallengeService(new \App\Services\XPService());
+                $challengeService->recordProgressByType($student, 'quiz_attempt', 1);
+            }
+
             $student->refresh();
 
             return response()->json([
@@ -2555,6 +2594,13 @@ public function awardChallengeXp(Request $request)
             $reason
         );
         $xpService->updateStreak($student);
+
+        // 🎯 Finishing a full Challenge Mode run today counts as today's
+        // "Master Gestures" goal, even if this module was already challenged
+        // (or mastered) on a previous day. Increment by a large number —
+        // recordProgressByType clamps to the goal's target either way.
+        $challengeService = new DailyChallengeService($xpService);
+        $challengeService->recordProgressByType($student, 'gesture_practice', 999);
 
         $student->refresh();
 
@@ -3492,5 +3538,257 @@ public function saveNotifications(Request $request)
         ], 500);
     }
 }
+
+/**
+ * Get today's daily challenge
+ * GET /api/student/daily-challenge
+ */
+public function getDailyChallenge(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+        
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+        
+        $challengeService = new DailyChallengeService(new XPService());
+        $challenge = $challengeService->generateDailyChallenge($student);
+        
+        // Get progress for each goal
+        $progress = DB::table('challenge_goal_progress')
+            ->where('challenge_id', $challenge->challenge_id)
+            ->get()
+            ->keyBy('goal_key');
+        
+        $goalsWithProgress = collect($challenge->goals)->map(function ($goal) use ($progress) {
+            $p = $progress->get($goal['id']);
+            return [
+                'id' => $goal['id'],
+                'type' => $goal['type'],
+                'title' => $goal['title'],
+                'description' => $goal['description'],
+                'target' => $goal['target'],
+                'xp_reward' => $goal['xp_reward'],
+                'icon' => $goal['icon'],
+                'current' => $p ? $p->current_value : 0,
+                'is_completed' => $p ? (bool) $p->is_completed : false,
+                'completed_at' => $p ? $p->completed_at : null,
+            ];
+        });
+        
+        $completedCount = $goalsWithProgress->filter(fn($g) => $g['is_completed'])->count();
+        $totalGoals = $goalsWithProgress->count();
+        $allCompleted = $completedCount === $totalGoals;
+        $bonusXp = $allCompleted ? 50 : 0;
+        
+        return response()->json([
+            'success' => true,
+            'challenge' => [
+                'id' => $challenge->challenge_id,
+                'date' => $challenge->challenge_date,
+                'theme' => $challenge->theme,
+                'is_completed' => (bool) $challenge->is_completed,
+                'completed_at' => $challenge->completed_at,
+                'goals' => $goalsWithProgress,
+                'summary' => [
+                    'completed' => $completedCount,
+                    'total' => $totalGoals,
+                    'progress_percentage' => $totalGoals > 0 ? round(($completedCount / $totalGoals) * 100) : 0,
+                    'xp_earned_so_far' => $challenge->total_xp_rewarded,
+                    'bonus_xp_available' => $allCompleted ? $bonusXp : 0,
+                ],
+            ],
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Update a goal's progress
+ * POST /api/student/daily-challenge/progress
+ */
+public function updateChallengeProgress(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+        
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+        
+        $validator = Validator::make($request->all(), [
+            'goal_id' => 'required|string',
+            'increment_by' => 'required|integer|min:1',
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Invalid data', 'errors' => $validator->errors()], 422);
+        }
+        
+        $challenge = DailyChallenge::where('student_id', $student->student_id)
+            ->whereDate('challenge_date', Carbon::today())
+            ->first();
+            
+        if (!$challenge) {
+            return response()->json(['error' => 'No challenge found for today'], 404);
+        }
+        
+        // Update progress
+        $progress = DB::table('challenge_goal_progress')
+            ->where('challenge_id', $challenge->challenge_id)
+            ->where('goal_key', $request->goal_id)
+            ->first();
+            
+        if (!$progress) {
+            return response()->json(['error' => 'Goal not found'], 404);
+        }
+        
+        $newValue = min($progress->current_value + $request->increment_by, $progress->target_value);
+        $isCompleted = $newValue >= $progress->target_value;
+        
+        DB::table('challenge_goal_progress')
+            ->where('progress_id', $progress->progress_id)
+            ->update([
+                'current_value' => $newValue,
+                'is_completed' => $isCompleted,
+                'completed_at' => $isCompleted ? now() : null,
+                'updated_at' => now(),
+            ]);
+            
+        // If goal is completed, award XP
+        $xpEarned = 0;
+        if ($isCompleted && !$progress->is_completed) {
+            $goals = collect($challenge->goals);
+            $goal = $goals->firstWhere('id', $request->goal_id);
+            if ($goal) {
+                $xpEarned = $goal['xp_reward'];
+                $xpService = new XPService();
+                $xpService->awardXp(
+                    $student,
+                    $xpEarned,
+                    'challenge_goal_completed',
+                    null,
+                    null,
+                    "🎯 Daily Challenge: {$goal['title']} - +{$xpEarned} XP"
+                );
+                $xpService->updateStreak($student);
+                
+                // Update total xp rewarded
+                $challenge->total_xp_rewarded += $xpEarned;
+                $challenge->save();
+            }
+        }
+        
+        // Check if all goals are completed
+        $allProgress = DB::table('challenge_goal_progress')
+            ->where('challenge_id', $challenge->challenge_id)
+            ->get();
+            
+        $allCompleted = $allProgress->every(fn($p) => (bool) $p->is_completed);
+        
+        // If all completed, award bonus XP
+        $bonusXp = 0;
+        if ($allCompleted && !$challenge->is_completed) {
+            $bonusXp = 50;
+            $xpService = new XPService();
+            $xpService->awardXp(
+                $student,
+                $bonusXp,
+                'challenge_completed',
+                null,
+                null,
+                "🏆 Daily Challenge COMPLETE! +{$bonusXp} XP Bonus!"
+            );
+            $xpService->updateStreak($student);
+            
+            $challenge->is_completed = true;
+            $challenge->completed_at = now();
+            $challenge->total_xp_rewarded += $bonusXp;
+            $challenge->save();
+        }
+        
+        $student->refresh();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Progress updated successfully',
+            'goal_id' => $request->goal_id,
+            'current_value' => $newValue,
+            'target_value' => $progress->target_value,
+            'is_completed' => $isCompleted,
+            'xp_earned' => $xpEarned,
+            'bonus_xp' => $bonusXp,
+            'total_xp' => $student->total_xp,
+            'level' => $student->level,
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Track time spent in gesture practice (for time goal)
+ * POST /api/student/daily-challenge/track-time
+ */
+public function trackChallengeTime(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+        
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+        
+        $validator = Validator::make($request->all(), [
+            'minutes_spent' => 'required|integer|min:1',
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Invalid data', 'errors' => $validator->errors()], 422);
+        }
+        
+        // Find the time goal
+        $challenge = DailyChallenge::where('student_id', $student->student_id)
+            ->whereDate('challenge_date', Carbon::today())
+            ->first();
+            
+        if (!$challenge) {
+            return response()->json(['error' => 'No challenge found for today'], 404);
+        }
+        
+        $goals = collect($challenge->goals);
+        $timeGoal = $goals->firstWhere('type', 'time_spent');
+        
+        if (!$timeGoal) {
+            return response()->json(['error' => 'Time goal not found'], 404);
+        }
+        
+        // Update progress (increment by minutes spent)
+        return $this->updateChallengeProgress(new Request([
+            'goal_id' => $timeGoal['id'],
+            'increment_by' => $request->minutes_spent,
+        ]));
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 
 }

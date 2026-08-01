@@ -89,4 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/achievements', [StudentAuthController::class, 'getAchievements']);
     Route::get('/student/achievements/unlocked', [StudentAuthController::class, 'getUnlockedAchievements']);
     Route::post('/student/achievements/check', [StudentAuthController::class, 'checkAchievements']);
+
+    Route::get('/student/daily-challenge', [StudentAuthController::class, 'getDailyChallenge']);
+Route::post('/student/daily-challenge/progress', [StudentAuthController::class, 'updateChallengeProgress']);
+Route::post('/student/daily-challenge/track-time', [StudentAuthController::class, 'trackChallengeTime']);
 });

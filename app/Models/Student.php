@@ -199,4 +199,22 @@ class Student extends Model
 
         return ['success' => true, 'message' => 'No new lessons to assign'];
     }
+ /**
+     * Get the daily challenges for this student.
+     */
+    public function dailyChallenges(): HasMany
+    {
+        return $this->hasMany(DailyChallenge::class, 'student_id', 'student_id');
+    }
+    
+    /**
+     * Get today's daily challenge for this student.
+     */
+    public function getTodayChallenge(): ?DailyChallenge
+    {
+        return $this->dailyChallenges()
+            ->whereDate('challenge_date', now()->toDateString())
+            ->first();
+    }
+
 }
