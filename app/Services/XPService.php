@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Student;
+use App\Models\StudentNotification;
 use Illuminate\Support\Facades\DB;
+
 
 class XPService
 {
@@ -189,48 +191,134 @@ public function getXpReason(int $attemptNumber, bool $isPerfect, float $percenta
         $student->level = $newLevel;
         $student->save();
     }
-
-    /**
+/**
      * Update streak
      */
-public function updateStreak(Student $student): void
-{
-    $today = now()->toDateString();
-    $lastActivity = $student->last_activity_date;
-    
-    if (is_string($lastActivity)) {
-        $lastActivity = \Carbon\Carbon::parse($lastActivity);
-    }
-    $lastActivityDate = $lastActivity?->toDateString();
+    public function updateStreak(Student $student): void
+    {
+        $today = now()->toDateString();
+        $lastActivity = $student->last_activity_date;
+        
+        if (is_string($lastActivity)) {
+            $lastActivity = \Carbon\Carbon::parse($lastActivity);
+        }
+        $lastActivityDate = $lastActivity?->toDateString();
 
-    // Already updated today → no change
-    if ($lastActivityDate === $today) {
-        return;
+        // Already updated today → no change
+        if ($lastActivityDate === $today) {
+            return;
+        }
+
+        // First time ever or streak broken
+        if ($lastActivity === null) {
+            $student->streak_days = 1;
+        } 
+        // Consecutive day
+        else if ($lastActivityDate === now()->subDay()->toDateString()) {
+            $student->streak_days += 1;
+        } 
+        // Streak broken (gap > 1 day) - reset to 1 for new streak
+        else {
+            $student->streak_days = 1;
+        }
+
+        $student->last_activity_date = now();
+        $student->save();
+
+        // ✅ Check for streak milestones after saving
+        $this->checkStreakMilestones($student);
+
+        // Bonus XP for streak milestones (every 3 days)
+        if ($student->streak_days > 0 && $student->streak_days % 3 === 0) {
+            $bonusXp = 5 * ($student->streak_days / 3);
+            $this->awardXp($student, (int)$bonusXp, 'streak_bonus', null, null);
+        }
     }
 
-    // First time ever or streak broken
-    if ($lastActivity === null) {
-        // First activity ever - start streak at 1
-        $student->streak_days = 1;
-    } 
-    // Consecutive day
-    else if ($lastActivityDate === now()->subDay()->toDateString()) {
-        $student->streak_days += 1;
-    } 
-    // Streak broken (gap > 1 day) - reset to 1 for new streak
-    else {
-        $student->streak_days = 1;
+    /**
+     * ✅ NEW: Check and create streak milestone notifications
+     */
+    protected function checkStreakMilestones(Student $student): void
+    {
+        $currentStreak = $student->streak_days ?? 0;
+        
+        if ($currentStreak < 7) {
+            return; // Only check when streak is 7 or more
+        }
+
+        // ─── CHECK MAJOR MILESTONES (7, 14, 21, 30) ──────────────
+        $milestones = [7, 14, 21, 30];
+        $lastMilestone = $student->last_streak_milestone ?? 0;
+
+        foreach ($milestones as $milestone) {
+            if ($currentStreak >= $milestone && $milestone > $lastMilestone) {
+                $this->createStreakNotification(
+                    $student,
+                    'milestone',
+                    $milestone,
+                    "🔥 {$milestone}-Day Streak!",
+                    "Amazing! You've been learning for {$milestone} days straight. Keep going!"
+                );
+                
+                $student->last_streak_milestone = $milestone;
+                $student->save();
+                break; // Only trigger the first new milestone
+            }
+        }
+
+        // ─── CHECK "KEEP GOING" NOTIFICATIONS (8, 15, 22, 29) ──
+        $keepGoingDays = [8, 15, 22, 29];
+        $lastKeepGoing = $student->last_keep_going_notification ?? 0;
+
+        foreach ($keepGoingDays as $day) {
+            if ($currentStreak >= $day && $day > $lastKeepGoing) {
+                $this->createStreakNotification(
+                    $student,
+                    'keep_going',
+                    $day,
+                    "💪 {$day} Days and Going Strong!",
+                    "You're on a {$currentStreak}-day streak! Keep up the great work! 🌟"
+                );
+                
+                $student->last_keep_going_notification = $day;
+                $student->save();
+                break; // Only trigger the first new keep-going notification
+            }
+        }
     }
 
-    $student->last_activity_date = now();
-    $student->save();
+    /**
+     * ✅ NEW: Create streak notification
+     */
+    protected function createStreakNotification(Student $student, string $type, int $day, string $title, string $message): void
+    {
+        // Check if notification already exists for this milestone
+        $exists = StudentNotification::where('student_id', $student->student_id)
+            ->where('type', 'streak')
+            ->where('data->milestone', $day)
+            ->exists();
 
-    // Bonus XP for streak milestones (every 3 days)
-    if ($student->streak_days > 0 && $student->streak_days % 3 === 0) {
-        $bonusXp = 5 * ($student->streak_days / 3);
-        $this->awardXp($student, (int)$bonusXp, 'streak_bonus', null, null);
+        if ($exists) {
+            return; // Skip duplicate
+        }
+
+        StudentNotification::create([
+            'student_id' => $student->student_id,
+            'type' => 'streak',
+            'title' => $title,
+            'message' => $message,
+            'icon' => 'flame',
+            'color' => '#EF4444',
+            'data' => [
+                'streak_days' => $student->streak_days,
+                'milestone' => $day,
+                'type' => $type,
+            ],
+            'action_url' => '/(tabs)/dashboard',
+            'is_read' => false,
+        ]);
     }
-}
+
 
     /**
      * Get human-readable reason
@@ -305,4 +393,6 @@ public function getLevelData(): array
     }
     return $data;
 }
+
+
 }

@@ -217,4 +217,19 @@ class Student extends Model
             ->first();
     }
 
+    public function settings()
+{
+    return $this->hasOne(StudentSetting::class, 'student_id', 'student_id');
+}
+
+// Helper to get settings with defaults
+public function getSettings()
+{
+    return $this->settings ?? (object) [
+        'sound_enabled' => true,
+        'notifications_enabled' => true,
+    ];
+}
+
+
 }

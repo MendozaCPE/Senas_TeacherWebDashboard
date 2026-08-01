@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Achievement;
 use App\Models\Student;
 use App\Models\StudentAchievement;
+use App\Models\StudentNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -41,9 +42,49 @@ class AchievementService
             }
         }
         
+        // ✅ ADD: Create notifications for newly unlocked achievements
+        if (!empty($unlocked)) {
+            foreach ($unlocked as $achievement) {
+                $this->createAchievementNotification($student, $achievement);
+            }
+        }
+        
         return $unlocked;
     }
 
+    /**
+     * ✅ NEW: Create notification for an unlocked achievement
+     */
+    protected function createAchievementNotification(Student $student, Achievement $achievement)
+    {
+        $iconMap = [
+            'achievement' => 'trophy',
+            'promotion' => 'star',
+            'lesson' => 'book',
+            'streak' => 'flame',
+            'system' => 'notifications',
+        ];
+
+        $colorMap = [
+            'achievement' => '#F59E0B',
+            'promotion' => '#8B5CF6',
+            'lesson' => '#3B82F6',
+            'streak' => '#EF4444',
+            'system' => '#6B7280',
+        ];
+
+        StudentNotification::create([
+            'student_id' => $student->student_id,
+            'type' => 'achievement',
+            'title' => '🏆 New Achievement Unlocked!',
+            'message' => "You earned \"{$achievement->name}\"! " . ($achievement->description ?? 'Keep up the great work!'),
+            'icon' => $iconMap['achievement'],
+            'color' => $colorMap['achievement'],
+            'data' => ['achievement' => $achievement],
+            'action_url' => '/(tabs)/achievements',
+            'is_read' => false,
+        ]);
+    }
     /**
      * Check if a specific achievement is unlocked
      */

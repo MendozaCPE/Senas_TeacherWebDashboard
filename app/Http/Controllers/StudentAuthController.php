@@ -8,6 +8,7 @@ use App\Models\LessonAssignment;
 use App\Models\Student;
 use App\Models\StudentPromotion; 
 use App\Models\User;
+use App\Models\StudentSetting;
 use App\Services\XPService; 
 use App\Services\AchievementService; 
 use App\Services\DailyChallengeService;  
@@ -62,6 +63,16 @@ class StudentAuthController extends Controller
             return response()->json(['message' => 'User account not found'], 404);
         }
 
+         // Get or create settings
+    $settings = $student->settings;
+    if (!$settings) {
+        $settings = StudentSetting::create([
+            'student_id' => $student->student_id,
+            'sound_enabled' => true,
+            'notifications_enabled' => true,
+        ]);
+    }
+
         // Create token for mobile app
         $token = $user->createToken('mobile-app')->plainTextToken;
 
@@ -84,9 +95,113 @@ class StudentAuthController extends Controller
     'fsl_mastery_level' => $student->fsl_mastery_level,
     'profile_picture' => $student->profile_picture ?? 'senya', // ← ADD THIS
 ],
+'settings' => [
+                    'sound_enabled' => $settings->sound_enabled,
+                    'notifications_enabled' => $settings->notifications_enabled,
+                ],
             ],
         ]);
     }
+
+    /**
+ * Get student settings
+ * GET /api/student/settings
+ */
+public function getSettings(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $settings = $student->settings;
+        if (!$settings) {
+            $settings = StudentSetting::create([
+                'student_id' => $student->student_id,
+                'sound_enabled' => true,
+                'notifications_enabled' => true,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'settings' => [
+                'sound_enabled' => (bool) $settings->sound_enabled,
+                'notifications_enabled' => (bool) $settings->notifications_enabled,
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Update student settings
+ * POST /api/student/settings
+ */
+public function updateSettings(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'sound_enabled' => 'sometimes|boolean',
+            'notifications_enabled' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Get or create settings
+        $settings = $student->settings;
+        if (!$settings) {
+            $settings = StudentSetting::create([
+                'student_id' => $student->student_id,
+                'sound_enabled' => true,
+                'notifications_enabled' => true,
+            ]);
+        }
+
+        // Update only provided fields
+        if ($request->has('sound_enabled')) {
+            $settings->sound_enabled = $request->sound_enabled;
+        }
+        if ($request->has('notifications_enabled')) {
+            $settings->notifications_enabled = $request->notifications_enabled;
+        }
+        $settings->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Settings updated successfully',
+            'settings' => [
+                'sound_enabled' => (bool) $settings->sound_enabled,
+                'notifications_enabled' => (bool) $settings->notifications_enabled,
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 
     public function profile(Request $request)
     {
@@ -2723,6 +2838,7 @@ public function awardCustomXp(Request $request)
                     'has_promotion' => false,
                 ]);
             }
+            $this->createPromotionNotification($student, $promotion);
 
             // Get the promotion data with celebration messages
             $fromLevel = $promotion->from_level;
@@ -2804,6 +2920,74 @@ public function awardCustomXp(Request $request)
             ], 500);
         }
     }
+
+    /**
+ * ✅ NEW: Create notification for a promotion
+ * Call this when a student is promoted
+ */
+protected function createPromotionNotification(Student $student, $promotion)
+{
+    $fromLevel = $promotion->from_level;
+    $toLevel = $promotion->to_level;
+    
+    // Check if notification already exists for this promotion
+    $exists = StudentNotification::where('student_id', $student->student_id)
+        ->where('type', 'promotion')
+        ->where('data->promotion_id', $promotion->id)
+        ->exists();
+
+    if ($exists) {
+        return; // Skip duplicate
+    }
+
+    // Get celebration message
+    $celebrationMessages = [
+        'Beginner' => [
+            'Intermediate' => [
+                'title' => '🎉 You\'ve been promoted!',
+                'message' => "Congratulations! You've mastered the basics and are now an Intermediate signer! Keep up the great work! 🌟",
+            ],
+        ],
+        'Intermediate' => [
+            'Advanced' => [
+                'title' => '🚀 Outstanding Achievement!',
+                'message' => "Your hard work has paid off! You're now an Advanced signer! You're becoming fluent in FSL! 💪",
+            ],
+            'Graduated' => [
+                'title' => '🎓 GRADUATION DAY! 🎓',
+                'message' => "CONGRATULATIONS, GRADUATE! You've completed your FSL journey! You're now officially a certified FSL signer! 🌟🎉🎊",
+            ],
+        ],
+        'Advanced' => [
+            'Graduated' => [
+                'title' => '🏅 YOU DID IT! 🏅',
+                'message' => "AMAZING! You've reached the pinnacle of FSL mastery! You're now officially GRADUATED! Your certificate awaits! 🎓🌟",
+            ],
+        ],
+    ];
+
+    $messages = $celebrationMessages[$fromLevel][$toLevel] ?? [
+        'title' => '🎉 Congratulations!',
+        'message' => "You've been promoted from {$fromLevel} to {$toLevel}! Keep up the great work! 🌟",
+    ];
+
+    StudentNotification::create([
+        'student_id' => $student->student_id,
+        'type' => 'promotion',
+        'title' => $messages['title'],
+        'message' => $messages['message'],
+        'icon' => 'star',
+        'color' => '#8B5CF6',
+        'data' => [
+            'promotion_id' => $promotion->id,
+            'from_level' => $fromLevel,
+            'to_level' => $toLevel,
+        ],
+        'action_url' => '/(tabs)/profile',
+        'is_read' => false,
+    ]);
+}
+
 
     /**
      * Mark promotion as viewed (for mobile app)

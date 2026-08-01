@@ -886,45 +886,48 @@ public function publishLesson(Request $request, $id)
         return back()->withErrors(['publish_option' => 'No students matched the selected publish option.'])->withInput();
     }
 
-    // Assign module and publish the lesson
+   // Assign module and publish the lesson
     $lesson->update([
         'module_id' => $moduleId,
         'status' => 'published',
         'published_at' => now(),
     ]);
 
-   // Create records in lesson_assignments table
-$assignedCount = 0;
-foreach ($studentIds as $studentId) {
-    $exists = LessonAssignment::where('lesson_id', $lesson->lesson_id)
-                              ->where('student_id', $studentId)
-                              ->exists();
+    // Create records in lesson_assignments table
+    $assignedCount = 0;
+    foreach ($studentIds as $studentId) {
+        $exists = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+                                  ->where('student_id', $studentId)
+                                  ->exists();
 
-    if (! $exists) {
-        // Determine if this lesson should be locked
-        $isLocked = true;
-        
-        // If it's the first lesson in the module, unlock it
-        $firstLesson = Lesson::where('module_id', $lesson->module_id)
-            ->where('status', 'published')
-            ->orderBy('module_order', 'asc')
-            ->first();
-        
-        if ($firstLesson && $firstLesson->lesson_id === $lesson->lesson_id) {
-            $isLocked = false;
+        if (! $exists) {
+            // Determine if this lesson should be locked
+            $isLocked = true;
+            
+            // If it's the first lesson in the module, unlock it
+            $firstLesson = Lesson::where('module_id', $lesson->module_id)
+                ->where('status', 'published')
+                ->orderBy('module_order', 'asc')
+                ->first();
+            
+            if ($firstLesson && $firstLesson->lesson_id === $lesson->lesson_id) {
+                $isLocked = false;
+            }
+            
+            LessonAssignment::create([
+                'lesson_id' => $lesson->lesson_id,
+                'student_id' => $studentId,
+                'assigned_at' => now(),
+                'status' => 'pending',
+                'is_locked' => $isLocked,
+                'notified' => $request->input('notify_students', false),
+            ]);
+            $assignedCount++;
+            
+            // ✅ ADD: Create notification for this student
+            $this->createLessonNotification($studentId, $lesson);
         }
-        
-        LessonAssignment::create([
-            'lesson_id' => $lesson->lesson_id,
-            'student_id' => $studentId,
-            'assigned_at' => now(),
-            'status' => 'pending',
-            'is_locked' => $isLocked,
-            'notified' => $request->input('notify_students', false),
-        ]);
-        $assignedCount++;
     }
-}
 
     $message = "Lesson published successfully to {$assignedCount} students!";
 
@@ -933,6 +936,51 @@ foreach ($studentIds as $studentId) {
     }
 
     return redirect()->route('lessons.index')->with('success', $message);
+}
+
+
+/**
+ * ✅ NEW: Create notification for a new lesson
+ */
+protected function createLessonNotification($studentId, $lesson)
+{
+    $iconMap = [
+        'achievement' => 'trophy',
+        'promotion' => 'star',
+        'lesson' => 'book',
+        'streak' => 'flame',
+        'system' => 'notifications',
+    ];
+
+    $colorMap = [
+        'achievement' => '#F59E0B',
+        'promotion' => '#8B5CF6',
+        'lesson' => '#3B82F6',
+        'streak' => '#EF4444',
+        'system' => '#6B7280',
+    ];
+
+    // Check if notification already exists for this lesson and student
+    $exists = \App\Models\StudentNotification::where('student_id', $studentId)
+        ->where('type', 'lesson')
+        ->where('data->lesson_id', $lesson->lesson_id)
+        ->exists();
+
+    if ($exists) {
+        return; // Skip duplicate
+    }
+
+    \App\Models\StudentNotification::create([
+        'student_id' => $studentId,
+        'type' => 'lesson',
+        'title' => '📚 New Lesson Available!',
+        'message' => "\"{$lesson->title}\" is ready for you to start! 🎓",
+        'icon' => $iconMap['lesson'],
+        'color' => $colorMap['lesson'],
+        'data' => ['lesson_id' => $lesson->lesson_id, 'lesson_title' => $lesson->title],
+        'action_url' => '/lessons',
+        'is_read' => false,
+    ]);
 }
 
     /**
