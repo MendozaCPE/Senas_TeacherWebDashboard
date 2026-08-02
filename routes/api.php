@@ -106,5 +106,5 @@ Route::get('/student/mastery', [StudentAuthController::class, 'getMasteryData'])
 Route::get('/student/checkpoint-exam/{examId}', [StudentAuthController::class, 'getCheckpointExamById']);
 Route::post('/student/checkpoint-exam/{examId}/submit', [StudentAuthController::class, 'submitCheckpointExam']);
 
-
+Route::get('/student/checkpoint-exam/{examId}/leaderboard', [StudentAuthController::class, 'getCheckpointExamLeaderboard']);
 });

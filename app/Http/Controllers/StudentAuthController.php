@@ -379,28 +379,14 @@ public function getRecommendedLessons(Request $request)
             ->toArray();
 
         // ============================================================
-        // 3. BUILD RECOMMENDATIONS (EXCLUDING COMPLETED LESSONS)
+        // 3. BUILD RECOMMENDATIONS
         // ============================================================
         
         $recommendedLessons = [];
         $recommendationReasons = [];
         $lessonIdsAdded = [];
 
-        // 🔥 FIRST: Add COMPLETED lessons (they should stay in the path)
-        foreach ($allLessons as $lesson) {
-            if (in_array($lesson->lesson_id, $completedLessonIds)) {
-                $recommendedLessons[] = $lesson;
-                $lessonIdsAdded[] = $lesson->lesson_id;
-                $recommendationReasons[$lesson->lesson_id] = [
-                    'type' => 'completed',
-                    'reason' => '✅ Lesson completed! Great job!',
-                    'covered_skills' => [],
-                    'priority' => 10, // High priority so they appear first
-                ];
-            }
-        }
-
-        // 🔥 SECOND: Add IN-PROGRESS lessons (resume these next)
+        // 🔥 FIRST: Add IN-PROGRESS lessons (resume these next)
         foreach ($allLessons as $lesson) {
             if (in_array($lesson->lesson_id, $inProgressLessonIds) && 
                 !in_array($lesson->lesson_id, $lessonIdsAdded)) {
@@ -415,7 +401,7 @@ public function getRecommendedLessons(Request $request)
             }
         }
 
-        // 🔥 THIRD: Add WEAK SKILL lessons (these should come next)
+        // 🔥 SECOND: Add WEAK SKILL lessons (these should come next)
         foreach ($allLessons as $lesson) {
             if (in_array($lesson->lesson_id, $lessonIdsAdded)) {
                 continue;
@@ -456,7 +442,7 @@ public function getRecommendedLessons(Request $request)
             }
         }
 
-        // 🔥 FOURTH: Add GOAL MATCH lessons
+        // 🔥 THIRD: Add GOAL MATCH lessons
         if ($goal !== 'Everything') {
             foreach ($allLessons as $lesson) {
                 if (in_array($lesson->lesson_id, $lessonIdsAdded, true)) {
@@ -487,7 +473,7 @@ public function getRecommendedLessons(Request $request)
             }
         }
 
-        // 🔥 FIFTH: Add NEW SKILL lessons
+        // 🔥 FOURTH: Add NEW SKILL lessons
         if (count($recommendedLessons) < 5) {
             $neverPracticed = $masteryService->getNeverPracticedSkills($student->student_id, 10);
             $newSkillNames = array_column($neverPracticed, 'gesture_name');
@@ -532,7 +518,7 @@ public function getRecommendedLessons(Request $request)
             }
         }
 
-        // 🔥 SIXTH: Fallback - recommended by module order
+        // 🔥 FIFTH: Fallback - recommended by module order
         if (empty($recommendedLessons) || count($recommendedLessons) < 3) {
             $fallbackLessons = Lesson::where('status', 'published')
                 ->whereNotIn('lesson_id', $completedLessonIds)
@@ -551,6 +537,25 @@ public function getRecommendedLessons(Request $request)
                         'reason' => '➡️ Next in your learning path',
                         'covered_skills' => [],
                         'priority' => 0,
+                    ];
+                }
+            }
+        }
+
+        // 🔥 SIXTH (LAST): Add COMPLETED lessons - ONLY if they don't already have a reason
+        foreach ($allLessons as $lesson) {
+            if (in_array($lesson->lesson_id, $completedLessonIds) && 
+                !in_array($lesson->lesson_id, $lessonIdsAdded)) {
+                $recommendedLessons[] = $lesson;
+                $lessonIdsAdded[] = $lesson->lesson_id;
+                
+                // Check if this lesson already has a reason from previous loops
+                if (!isset($recommendationReasons[$lesson->lesson_id])) {
+                    $recommendationReasons[$lesson->lesson_id] = [
+                        'type' => 'completed',
+                        'reason' => $lesson->description ?? '📚 Recommended for you',
+                        'covered_skills' => [],
+                        'priority' => 10,
                     ];
                 }
             }
@@ -669,7 +674,7 @@ public function getRecommendedLessons(Request $request)
         });
 
         // 🆕 APPLY SEQUENTIAL LOCKING
-        $unlockedNext = true; // First lesson is always unlocked
+        $unlockedNext = true;
         $formattedLessons = [];
 
         foreach ($lessonData as $data) {
@@ -679,23 +684,17 @@ public function getRecommendedLessons(Request $request)
             $isInProgress = $data['isInProgress'];
             $reason = $data['reason'];
             
-            // Determine lock status based on sequential logic
             $isLocked = false;
             $isActive = false;
             
             if ($isDone) {
-                // 🔥 FIX: Completed lessons are ALWAYS unlocked (show checkmark)
                 $isLocked = false;
                 $isActive = false;
-                // 🔥 IMPORTANT: Don't change $unlockedNext for completed lessons
-                // This allows the first NOT-DONE lesson to be unlocked
             } elseif ($unlockedNext) {
-                // This is the first NOT-DONE lesson → UNLOCKED and ACTIVE
                 $isLocked = false;
                 $isActive = true;
-                $unlockedNext = false; // After this, all subsequent NOT-DONE lessons are locked
+                $unlockedNext = false;
             } else {
-                // All lessons after the active one are LOCKED
                 $isLocked = true;
                 $isActive = false;
             }
@@ -757,7 +756,7 @@ public function getRecommendedLessons(Request $request)
             'learning_path' => [
                 'fsl_level' => $level,
                 'learning_goal' => $goal,
-                'goal_mastered' => false, // You can implement this if needed
+                'goal_mastered' => false,
             ],
             'mastery_summary' => $overallMastery,
             'weak_skills' => $weakSkills,
@@ -4767,13 +4766,14 @@ public function submitCheckpointExam(Request $request, $examId)
             return response()->json(['error' => 'Student not found'], 404);
         }
 
+        // 🔥 UPDATE THIS VALIDATOR SECTION
         $validator = Validator::make($request->all(), [
             'answers' => 'required|array',
             'answers.*.question_id' => 'required|exists:checkpoint_exam_questions,question_id',
             'answers.*.selected_option_id' => 'nullable|integer',
             'answers.*.selected_option_text' => 'nullable|string',
             'answers.*.gesture_success' => 'nullable|boolean',
-            'answers.*.drag_drop_matches' => 'nullable|array',
+            'answers.*.drag_drop_success' => 'nullable|boolean',   // ← WAS 'drag_drop_matches' (array)
         ]);
 
         if ($validator->fails()) {
@@ -4782,6 +4782,8 @@ public function submitCheckpointExam(Request $request, $examId)
                 'errors' => $validator->errors()
             ], 422);
         }
+
+
 
         // Get the exam
         $exam = CheckpointExam::with('questions')->findOrFail($examId);
@@ -4817,35 +4819,33 @@ public function submitCheckpointExam(Request $request, $examId)
             }
 
             // Check based on question type
-            switch ($question->question_type) {
-                case 'multiple_choice':
-                case 'true_false':
-                    $options = is_array($question->options_data) ? $question->options_data : [];
-                    $selectedText = $answer['selected_option_text'] ?? '';
-                    
-                    // Find if the selected option is correct
-                    foreach ($options as $opt) {
-                        if (isset($opt['text']) && $opt['text'] === $selectedText && isset($opt['is_correct']) && $opt['is_correct']) {
-                            $isCorrect = true;
-                            break;
-                        }
+          switch ($question->question_type) {
+            case 'multiple_choice':
+            case 'true_false':
+                $options = is_array($question->options_data) ? $question->options_data : [];
+                $selectedText = $answer['selected_option_text'] ?? '';
+                
+                foreach ($options as $opt) {
+                    if (isset($opt['text']) && $opt['text'] === $selectedText && isset($opt['is_correct']) && $opt['is_correct']) {
+                        $isCorrect = true;
+                        break;
                     }
-                    break;
+                }
+                break;
 
-                case 'gesture':
-                    $isCorrect = isset($answer['gesture_success']) && $answer['gesture_success'] === true;
-                    break;
+            case 'gesture':
+                $isCorrect = isset($answer['gesture_success']) && $answer['gesture_success'] === true;
+                break;
 
-                case 'drag_drop':
-                    // Check if all drag-drop pairs are correct
-                    $pairs = $question->drag_drop_pairs ?? [];
-                    $matches = $answer['drag_drop_matches'] ?? [];
-                    $isCorrect = $this->checkDragDropMatches($pairs, $matches);
-                    break;
+            case 'drag_drop':
+                // 🔥 REPLACE THIS ENTIRE CASE
+                // Trust the client-computed result, same as gesture questions
+                $isCorrect = isset($answer['drag_drop_success']) && $answer['drag_drop_success'] === true;
+                break;
 
-                default:
-                    $isCorrect = false;
-            }
+            default:
+                $isCorrect = false;
+        }
 
             if ($isCorrect) {
                 $earnedPoints += $question->points;
@@ -5059,5 +5059,106 @@ private function unlockNextModuleContent($student, $moduleId)
     }
 }
 
+
+/**
+ * Get leaderboard for a checkpoint exam
+ * GET /api/student/checkpoint-exam/{examId}/leaderboard
+ */
+public function getCheckpointExamLeaderboard(Request $request, $examId)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $exam = CheckpointExam::find($examId);
+        if (!$exam) {
+            return response()->json(['error' => 'Checkpoint exam not found'], 404);
+        }
+
+        $rankings = DB::table('checkpoint_exam_attempts as cea')
+            ->join('students as s', 'cea.student_id', '=', 's.student_id')
+            ->join('users as u', 's.user_id', '=', 'u.id')
+            ->where('cea.exam_id', $examId)
+            ->where('cea.status', 'completed')
+            ->select(
+                's.student_id',
+                's.first_name',
+                's.last_name',
+                'u.username',
+                DB::raw('MAX(cea.percentage) as best_score'),
+                DB::raw('COUNT(cea.attempt_id) as total_attempts'),
+                DB::raw('MAX(cea.xp_earned) as xp_earned')
+            )
+            ->groupBy('s.student_id', 's.first_name', 's.last_name', 'u.username')
+            ->get();
+
+        $rankedList = $rankings->map(function ($item) use ($examId, $student) {
+            $bestAttempt = DB::table('checkpoint_exam_attempts')
+                ->where('student_id', $item->student_id)
+                ->where('exam_id', $examId)
+                ->where('percentage', $item->best_score)
+                ->where('status', 'completed')
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            $attemptsBeforeBest = DB::table('checkpoint_exam_attempts')
+                ->where('student_id', $item->student_id)
+                ->where('exam_id', $examId)
+                ->where('status', 'completed')
+                ->where('created_at', '<', $bestAttempt->created_at)
+                ->count();
+
+            $attemptsToAchieve = $attemptsBeforeBest + 1;
+
+            return [
+                'student_id' => $item->student_id,
+                'name' => $item->first_name . ' ' . $item->last_name,
+                'username' => $item->username,
+                'best_score' => (int) $item->best_score,
+                'attempts' => (int) $item->total_attempts,
+                'attempts_to_achieve' => $attemptsToAchieve,
+                'is_me' => $item->student_id === $student->student_id,
+                'initials' => strtoupper(substr($item->first_name, 0, 1) . substr($item->last_name, 0, 1)),
+                'xp_earned' => (int) $item->xp_earned,
+            ];
+        })
+        ->sort(function ($a, $b) {
+            if ($a['best_score'] !== $b['best_score']) {
+                return $b['best_score'] - $a['best_score'];
+            }
+            return $a['attempts_to_achieve'] - $b['attempts_to_achieve'];
+        })
+        ->values();
+
+        $rankedList = $rankedList->map(function ($item, $index) {
+            $item['rank'] = $index + 1;
+            return $item;
+        });
+
+        $userRank = null;
+        foreach ($rankedList as $r) {
+            if ($r['is_me']) {
+                $userRank = $r['rank'];
+                break;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'rankings' => $rankedList,
+            'user_rank' => $userRank,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
 
 }
