@@ -27,13 +27,18 @@ class Module extends Model
     // Relationships
     public function teacher()
     {
-        // FIXED: Use 'id' from teachers table
         return $this->belongsTo(Teacher::class, 'teacher_id', 'id');
     }
 
     public function lessons()
     {
         return $this->hasMany(Lesson::class, 'module_id', 'module_id');
+    }
+
+    // ✅ ADD THIS RELATIONSHIP
+    public function checkpointExams()
+    {
+        return $this->hasMany(CheckpointExam::class, 'module_id', 'module_id');
     }
 
     // Scope for published modules

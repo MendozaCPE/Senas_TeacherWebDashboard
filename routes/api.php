@@ -101,5 +101,10 @@ Route::get('/student/mastery', [StudentAuthController::class, 'getMasteryData'])
     
     // Updated route - replace the existing getRecommendedLessons
     Route::get('/student/adaptive-lessons', [StudentAuthController::class, 'getRecommendedLessons']);
+    
+    Route::get('/student/checkpoint-exams', [StudentAuthController::class, 'getCheckpointExams']);
+Route::get('/student/checkpoint-exam/{examId}', [StudentAuthController::class, 'getCheckpointExamById']);
+Route::post('/student/checkpoint-exam/{examId}/submit', [StudentAuthController::class, 'submitCheckpointExam']);
+
 
 });

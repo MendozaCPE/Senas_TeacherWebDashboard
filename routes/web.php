@@ -119,4 +119,14 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
         })
     ]);
 })->name('api.gesture-module.gestures');
+
+Route::prefix('lessons/checkpoint-exam')->name('lessons.checkpoint-exam.')->group(function () {
+    Route::get('/create', [LessonsController::class, 'createCheckpointExam'])->name('create');
+    Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
+    Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
+    Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
+    Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
+    Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
+});
+
 });

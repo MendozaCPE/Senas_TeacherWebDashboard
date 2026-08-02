@@ -12,6 +12,9 @@ use App\Models\QuizQuestion;
 use App\Models\Teacher;
 use App\Models\Gesture;
 use App\Models\GestureModule;
+use App\Models\CheckpointExam;
+use App\Models\CheckpointExamQuestion;
+use App\Models\CheckpointExamAssignment;
 use App\Services\DeepSeekService;
 use App\Services\GestureMediaResolver;
 use Illuminate\Http\Request;
@@ -24,39 +27,67 @@ class LessonsController extends Controller
     /**
      * Show the list of lessons.
      */
-    public function index()
-{
-    $user = Auth::user();
-    $teacher = $user ? $user->teacher : null;
-    
-    if ($teacher) {
-        // Get all lessons (works with existing view)
-        $lessons = Lesson::where('teacher_id', $teacher->id)
-            ->orderBy('module_order')
-            ->get();
+  public function index()
+    {
+        $user = Auth::user();
+        $teacher = $user ? $user->teacher : null;
         
-        // Get modules with their lessons (for future use)
-        $modules = Module::where('teacher_id', $teacher->id)
-            ->with(['lessons' => function($query) {
-                $query->orderBy('module_order');
-            }])
-            ->orderBy('module_order')
-            ->get();
-        
-        // Get orphaned lessons (lessons without a module)
-        $orphanedLessons = Lesson::where('teacher_id', $teacher->id)
-            ->whereNull('module_id')
-            ->orderBy('module_order')
-            ->get();
-    } else {
-        $lessons = collect();
-        $modules = collect();
-        $orphanedLessons = collect();
+        if ($teacher) {
+            // Get all lessons
+            $lessons = Lesson::where('teacher_id', $teacher->id)
+                ->orderBy('module_order')
+                ->get();
+            
+            // Get modules with their lessons
+            $modules = Module::where('teacher_id', $teacher->id)
+                ->with(['lessons' => function($query) {
+                    $query->orderBy('module_order');
+                }])
+                ->with(['checkpointExams' => function($query) {
+                    $query->orderBy('created_at', 'desc');
+                }])
+                ->orderBy('module_order')
+                ->get();
+            
+            // Get orphaned lessons
+            $orphanedLessons = Lesson::where('teacher_id', $teacher->id)
+                ->whereNull('module_id')
+                ->orderBy('module_order')
+                ->get();
+
+            // Get all checkpoint exam questions for used lesson IDs check
+            $usedLessonIds = CheckpointExamQuestion::whereHas('exam', function($q) use ($teacher) {
+                $q->where('teacher_id', $teacher->id);
+            })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
+
+            // Add computed properties to each module
+            foreach ($modules as $module) {
+                // Get available lessons for checkpoint exam creation (lessons not yet in a checkpoint exam for this module)
+                $moduleUsedLessonIds = CheckpointExamQuestion::whereHas('exam', function($q) use ($module) {
+                    $q->where('module_id', $module->module_id);
+                })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
+
+                $availableLessons = $module->lessons->filter(function($lesson) use ($moduleUsedLessonIds) {
+                    return !in_array($lesson->lesson_id, $moduleUsedLessonIds) 
+                        && $lesson->status === 'published' 
+                        && $lesson->quiz 
+                        && $lesson->quiz->questions->count() > 0;
+                });
+                
+                $module->availableLessonsCount = $availableLessons->count();
+                $module->canCreateExam = $module->availableLessonsCount >= 2;
+                $module->checkpointExamsCount = $module->checkpointExams->count();
+            }
+
+        } else {
+            $lessons = collect();
+            $modules = collect();
+            $orphanedLessons = collect();
+            $usedLessonIds = [];
+        }
+
+        return view('lessons', compact('lessons', 'modules', 'orphanedLessons', 'usedLessonIds'));
     }
-
-    return view('lessons', compact('lessons', 'modules', 'orphanedLessons'));
-}
-
     /**
      * Show the create form.
      */
@@ -1541,4 +1572,397 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
 
         return $quiz;
     }
+
+    /**
+ * Show the checkpoint exam creation form.
+ * GET /lessons/checkpoint-exam/create
+ */
+public function createCheckpointExam(Request $request)
+{
+    $teacherId = $this->resolveTeacherId();
+    $moduleId = $request->query('module_id');
+
+    if (!$moduleId) {
+        return redirect()->route('lessons.index')->with('error', 'Please select a module first.');
+    }
+
+    // Verify module belongs to teacher
+    $module = Module::where('module_id', $moduleId)
+        ->where('teacher_id', $teacherId)
+        ->firstOrFail();
+
+    // Get all lessons in this module with their quiz questions
+    $lessons = Lesson::where('module_id', $moduleId)
+        ->where('teacher_id', $teacherId)
+        ->where('status', 'published')
+        ->with(['quiz.questions' => function($query) {
+            $query->orderBy('question_number');
+        }])
+        ->orderBy('module_order')
+        ->get();
+
+    // Filter to only lessons that have quiz questions
+    $lessonsWithQuizzes = $lessons->filter(function($lesson) {
+        return $lesson->quiz && $lesson->quiz->questions->count() > 0;
+    });
+
+    // Check if there are at least 2 lessons with quizzes
+    if ($lessonsWithQuizzes->count() < 2) {
+        return redirect()->route('lessons.index')
+            ->with('error', 'You need at least 2 published lessons with quizzes in this module to create a checkpoint exam.');
+    }
+
+    // Check if there are lessons that haven't been used in a checkpoint exam yet
+    $usedLessonIds = CheckpointExamQuestion::whereHas('exam', function($query) use ($moduleId) {
+        $query->where('module_id', $moduleId);
+    })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
+
+    $availableLessons = $lessonsWithQuizzes->filter(function($lesson) use ($usedLessonIds) {
+        return !in_array($lesson->lesson_id, $usedLessonIds);
+    });
+
+    if ($availableLessons->count() < 2) {
+        return redirect()->route('lessons.index')
+            ->with('error', 'All lessons in this module have already been used in checkpoint exams. Please add new lessons first.');
+    }
+
+    // Get all quiz questions from available lessons
+    $availableQuestions = [];
+    foreach ($availableLessons as $lesson) {
+        foreach ($lesson->quiz->questions as $question) {
+            $availableQuestions[] = [
+                'question_id' => $question->question_id,
+                'lesson_id' => $lesson->lesson_id,
+                'lesson_title' => $lesson->title,
+                'question_text' => $question->question_text,
+                'question_type' => $question->question_type,
+                'media_url' => $question->media_url,
+                'options' => $question->options->map(function($opt) {
+                    return [
+                        'text' => $opt->option_text,
+                        'image' => $opt->option_media_url,
+                        'is_correct' => $opt->is_correct,
+                    ];
+                })->toArray(),
+                'drag_drop_pairs' => $question->drag_drop_pairs ?? [],
+                'gesture_data' => $question->gesture_data ?? [],
+                'correct_answer' => $question->options->where('is_correct', true)->first()->option_text ?? null,
+            ];
+        }
+    }
+
+    return view('lessons.checkpoint-exam.create', compact('module', 'availableLessons', 'availableQuestions'));
+}
+
+/**
+ * Store a checkpoint exam.
+ * POST /lessons/checkpoint-exam
+ */
+public function storeCheckpointExam(Request $request)
+{
+    $validated = $request->validate([
+        'module_id' => 'required|exists:modules,module_id',
+        'title' => 'required|string|max:255',
+        'description' => 'nullable|string|max:1000',
+        'questions' => 'required|array|min:1',
+        'questions.*.source_question_id' => 'required|exists:quiz_questions,question_id',
+        'questions.*.points' => 'required|integer|min:1|max:10',
+        'passing_score_percentage' => 'nullable|integer|min:1|max:100',
+    ]);
+
+    $teacherId = $this->resolveTeacherId();
+    $module = Module::where('module_id', $validated['module_id'])
+        ->where('teacher_id', $teacherId)
+        ->firstOrFail();
+
+    // Calculate total points
+    $totalPoints = array_sum(array_column($validated['questions'], 'points'));
+
+    // Calculate passing score (60% by default, or custom)
+    $passingPercentage = $validated['passing_score_percentage'] ?? 60;
+    $passingScore = max(1, round(($passingPercentage / 100) * $totalPoints));
+
+    $exam = DB::transaction(function () use ($validated, $teacherId, $module, $totalPoints, $passingScore) {
+        // Create the exam
+        $exam = CheckpointExam::create([
+            'module_id' => $validated['module_id'],
+            'teacher_id' => $teacherId,
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'total_points' => $totalPoints,
+            'passing_score' => $passingScore,
+            'status' => 'draft',
+        ]);
+
+        // Create exam questions
+        $questionNumber = 1;
+        foreach ($validated['questions'] as $questionData) {
+            $sourceQuestion = QuizQuestion::with('options')->findOrFail($questionData['source_question_id']);
+
+            // Get the correct answer
+            $correctAnswer = null;
+            if ($sourceQuestion->question_type === 'multiple_choice' || $sourceQuestion->question_type === 'true_false') {
+                $correctOption = $sourceQuestion->options->where('is_correct', true)->first();
+                $correctAnswer = $correctOption ? $correctOption->option_text : null;
+            }
+
+            CheckpointExamQuestion::create([
+                'exam_id' => $exam->exam_id,
+                'source_lesson_id' => $sourceQuestion->quiz->lesson_id,
+                'source_question_id' => $sourceQuestion->question_id,
+                'question_number' => $questionNumber++,
+                'question_text' => $sourceQuestion->question_text,
+                'question_type' => $sourceQuestion->question_type,
+                'media_url' => $sourceQuestion->media_url,
+                'points' => $questionData['points'],
+                'options_data' => $sourceQuestion->options->map(function($opt) {
+                    return [
+                        'text' => $opt->option_text,
+                        'image' => $opt->option_media_url,
+                        'is_correct' => $opt->is_correct,
+                    ];
+                })->toArray(),
+                'drag_drop_pairs' => $sourceQuestion->drag_drop_pairs ?? [],
+                'gesture_data' => $sourceQuestion->gesture_data ?? [],
+                'correct_answer' => $correctAnswer,
+            ]);
+        }
+
+        return $exam;
+    });
+
+    return redirect()->route('lessons.checkpoint-exam.show', $exam->hash_id)
+        ->with('success', 'Checkpoint exam created successfully! You can now publish it to students.');
+}
+
+/**
+ * Show a checkpoint exam.
+ * GET /lessons/checkpoint-exam/{id}
+ */
+public function showCheckpointExam($id)
+{
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $exam = CheckpointExam::with(['questions', 'module'])
+        ->findOrFail($realId);
+
+    if ($id !== $exam->hash_id) {
+        return redirect()->route('lessons.checkpoint-exam.show', $exam->hash_id);
+    }
+
+    // Format questions for display
+    $questions = $exam->questions->map(function($question) {
+        return [
+            'question_id' => $question->question_id,
+            'question_number' => $question->question_number,
+            'question_text' => $question->question_text,
+            'question_type' => $question->question_type,
+            'media_url' => $question->media_url,
+            'points' => $question->points,
+            'options' => $question->options_data ?? [],
+            'drag_drop_pairs' => $question->drag_drop_pairs ?? [],
+            'gesture_data' => $question->gesture_data ?? [],
+            'correct_answer' => $question->correct_answer,
+        ];
+    });
+
+    return view('lessons.checkpoint-exam.show', compact('exam', 'questions'));
+}
+
+/**
+ * Publish a checkpoint exam.
+ * POST /lessons/checkpoint-exam/{id}/publish
+ */
+public function publishCheckpointExam(Request $request, $id)
+{
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $exam = CheckpointExam::findOrFail($realId);
+
+    $validated = $request->validate([
+        'publish_option' => 'required|in:all,program,mastery,selected',
+        'program' => 'required_if:publish_option,program|nullable|string',
+        'mastery_level' => 'required_if:publish_option,mastery|nullable|string',
+        'students' => 'required_if:publish_option,selected|nullable|array|min:1',
+        'students.*' => 'exists:students,student_id',
+        'notify_students' => 'boolean',
+    ]);
+
+    $teacherId = $this->resolveTeacherId();
+
+    // Determine which students to publish to
+    $studentIds = [];
+    switch ($validated['publish_option']) {
+        case 'all':
+            $studentIds = DB::table('students')
+                ->where('status', 'active')
+                ->pluck('student_id')
+                ->toArray();
+            break;
+        case 'program':
+            $studentIds = DB::table('students')
+                ->where('status', 'active')
+                ->where('program_type', $validated['program'])
+                ->pluck('student_id')
+                ->toArray();
+            break;
+        case 'mastery':
+            $studentIds = DB::table('students')
+                ->where('status', 'active')
+                ->where('fsl_mastery_level', $validated['mastery_level'])
+                ->pluck('student_id')
+                ->toArray();
+            break;
+        case 'selected':
+            $studentIds = $validated['students'];
+            break;
+    }
+
+    if (empty($studentIds)) {
+        return back()->withErrors(['publish_option' => 'No students matched the selected publish option.'])->withInput();
+    }
+
+    // Publish the exam
+    $exam->update([
+        'status' => 'published',
+        'published_at' => now(),
+    ]);
+
+    // Create assignments
+    $assignedCount = 0;
+    foreach ($studentIds as $studentId) {
+        $exists = CheckpointExamAssignment::where('exam_id', $exam->exam_id)
+            ->where('student_id', $studentId)
+            ->exists();
+
+        if (!$exists) {
+            CheckpointExamAssignment::create([
+                'exam_id' => $exam->exam_id,
+                'student_id' => $studentId,
+                'assigned_at' => now(),
+                'status' => 'pending',
+                'is_locked' => true,
+                'notified' => $request->input('notify_students', false),
+            ]);
+            $assignedCount++;
+
+            // Create notification
+            $this->createCheckpointExamNotification($studentId, $exam);
+        }
+    }
+
+    $message = "Checkpoint exam published successfully to {$assignedCount} students!";
+
+    if ($request->input('notify_students')) {
+        $message .= ' Students will be notified.';
+    }
+
+    return redirect()->route('lessons.index')->with('success', $message);
+}
+
+/**
+ * Create notification for a checkpoint exam.
+ */
+protected function createCheckpointExamNotification($studentId, $exam)
+{
+    $exists = \App\Models\StudentNotification::where('student_id', $studentId)
+        ->where('type', 'checkpoint_exam')
+        ->where('data->exam_id', $exam->exam_id)
+        ->exists();
+
+    if ($exists) {
+        return;
+    }
+
+    \App\Models\StudentNotification::create([
+        'student_id' => $studentId,
+        'type' => 'checkpoint_exam',
+        'title' => '📝 Checkpoint Exam Available!',
+        'message' => "\"{$exam->title}\" is ready for you to take! 🎯",
+        'icon' => 'trophy',
+        'color' => '#8B5CF6',
+        'data' => ['exam_id' => $exam->exam_id, 'exam_title' => $exam->title],
+        'action_url' => '/checkpoint-exams',
+        'is_read' => false,
+    ]);
+}
+
+/**
+ * Delete a checkpoint exam.
+ * DELETE /lessons/checkpoint-exam/{id}
+ */
+public function destroyCheckpointExam($id)
+{
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $exam = CheckpointExam::findOrFail($realId);
+
+    DB::transaction(function () use ($exam) {
+        $exam->questions()->delete();
+        $exam->assignments()->delete();
+        $exam->delete();
+    });
+
+    return redirect()->route('lessons.index')
+        ->with('success', 'Checkpoint exam deleted successfully.');
+}
+
+/**
+ * Get available lessons for checkpoint exam (AJAX).
+ * GET /lessons/checkpoint-exam/available-questions
+ */
+public function getAvailableExamQuestions(Request $request)
+{
+    $moduleId = $request->query('module_id');
+    $teacherId = $this->resolveTeacherId();
+
+    if (!$moduleId) {
+        return response()->json(['error' => 'Module ID required'], 400);
+    }
+
+    // Get lessons with quizzes that haven't been used in checkpoint exams
+    $usedLessonIds = CheckpointExamQuestion::whereHas('exam', function($query) use ($moduleId) {
+        $query->where('module_id', $moduleId);
+    })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
+
+    $lessons = Lesson::where('module_id', $moduleId)
+        ->where('teacher_id', $teacherId)
+        ->where('status', 'published')
+        ->whereNotIn('lesson_id', $usedLessonIds)
+        ->with(['quiz.questions.options'])
+        ->orderBy('module_order')
+        ->get();
+
+    $result = [];
+    foreach ($lessons as $lesson) {
+        if ($lesson->quiz && $lesson->quiz->questions->count() > 0) {
+            $questions = [];
+            foreach ($lesson->quiz->questions as $question) {
+                $questions[] = [
+                    'question_id' => $question->question_id,
+                    'question_text' => $question->question_text,
+                    'question_type' => $question->question_type,
+                    'media_url' => $question->media_url,
+                    'options' => $question->options->map(function($opt) {
+                        return [
+                            'text' => $opt->option_text,
+                            'image' => $opt->option_media_url,
+                            'is_correct' => $opt->is_correct,
+                        ];
+                    })->toArray(),
+                    'drag_drop_pairs' => $question->drag_drop_pairs ?? [],
+                    'gesture_data' => $question->gesture_data ?? [],
+                ];
+            }
+            $result[] = [
+                'lesson_id' => $lesson->lesson_id,
+                'lesson_title' => $lesson->title,
+                'questions' => $questions,
+            ];
+        }
+    }
+
+    return response()->json($result);
+}
+
+
+
+
 }

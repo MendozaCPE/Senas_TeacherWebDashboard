@@ -460,13 +460,58 @@
                 @endif
             </div>
 
-            {{-- Footer: Add Lesson --}}
-            <div style="padding: 12px 24px 20px; border-top: 1px solid #f8fafc;">
+            {{-- Checkpoint Exams section inside module card --}}
+            @if($module->checkpointExams && $module->checkpointExams->isNotEmpty())
+            <div class="px-6 pb-4 pt-3 border-t border-purple-100 bg-purple-50/30">
+                <div class="text-[11px] font-bold text-purple-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px] text-purple-600">emoji_events</span>
+                    Checkpoint Exams
+                </div>
+                <div class="space-y-2">
+                    @foreach($module->checkpointExams as $exam)
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-white border border-purple-100 shadow-sm hover:border-purple-300 transition flex-wrap gap-2">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
+                                🏆
+                            </span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-[#0d326b]">{{ $exam->title }}</span>
+                                    <span class="badge-status {{ $exam->status }} text-[9px] px-2 py-0.5">{{ $exam->status }}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 font-medium">
+                                    {{ $exam->total_points }} pts · {{ $exam->questions->count() }} question(s) · Passing: {{ $exam->passing_score }} pts
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('lessons.checkpoint-exam.show', $exam->hash_id) }}" class="action-link primary" title="View Exam">View Exam</a>
+                            <form action="{{ route('lessons.checkpoint-exam.destroy', $exam->hash_id) }}" method="POST" class="inline" onsubmit="return confirm('Delete this checkpoint exam?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="action-link danger" title="Delete Exam">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            {{-- Footer: Add Lesson & Create Exam --}}
+            <div style="padding: 12px 24px 20px; border-top: 1px solid #f8fafc;" class="flex items-center justify-between flex-wrap gap-3">
                 <a href="{{ route('lessons.create', ['module_id' => $module->module_id]) }}"
                    class="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#0d326b] hover:underline">
                     <span class="material-symbols-outlined text-[16px]">add</span>
                     Add Lesson to this Module
                 </a>
+
+                <button onclick="openExamChoiceModal({{ $module->module_id }}, '{{ addslashes($module->title) }}', {{ $module->canCreateExam ? 'true' : 'false' }}, {{ $module->availableLessonsCount }})"
+                   class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 text-[#8b5cf6] border border-purple-200 text-[12px] font-bold hover:bg-purple-100 transition shadow-sm">
+                    <span class="material-symbols-outlined text-[16px]">assignment_add</span>
+                    Create Checkpoint Exam
+                </button>
             </div>
         </div>
         @empty
@@ -1114,8 +1159,117 @@ function openPreviewModal(url) {
 }
 
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeLessonPreviewModal();
+    if (e.key === 'Escape') {
+        closeLessonPreviewModal();
+        closeExamChoiceModal();
+    }
 });
+</script>
+
+{{-- Create Exam Choice Modal --}}
+<div id="examChoiceModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+                <h3 class="text-base font-bold text-[#0d326b] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[#8b5cf6]">assignment_add</span>
+                    Create Checkpoint Exam
+                </h3>
+                <p class="text-xs text-slate-400 font-medium mt-0.5" id="modalModuleTitle">Module</p>
+            </div>
+            <button onclick="closeExamChoiceModal()" class="text-slate-400 hover:text-slate-600">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <div id="examRequirementWarning" class="hidden p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-start gap-2">
+            <span class="material-symbols-outlined text-amber-600 text-[18px] shrink-0 mt-0.5">warning</span>
+            <div>
+                <span class="font-bold block mb-0.5">At least 2 new published lessons required!</span>
+                You need at least 2 published lessons with quizzes in this module that haven't been included in a checkpoint exam yet before creating a new exam.
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <!-- Choice 1: Choose from previous questions -->
+            <div id="choicePrevQuestions" class="p-4 rounded-xl border border-slate-200 hover:border-purple-300 bg-white hover:bg-purple-50/50 transition cursor-pointer flex items-center justify-between group"
+                 onclick="proceedWithChoice('create')">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                        <span class="material-symbols-outlined text-[22px]">checklist</span>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-[#0d326b] group-hover:text-purple-700 transition">Choose from Previous Lessons & Quizzes</h4>
+                        <p class="text-xs text-slate-400 font-medium">Select questions from published lessons in this module and customize point values.</p>
+                    </div>
+                </div>
+                <span class="material-symbols-outlined text-slate-300 group-hover:text-purple-600 text-[20px] transition">chevron_right</span>
+            </div>
+
+            <!-- Choice 2: Create Manually -->
+            <div class="p-4 rounded-xl border border-slate-150 bg-slate-50/70 opacity-60 flex items-center justify-between cursor-not-allowed">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[22px]">edit_note</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-sm font-bold text-slate-600">Create Questions Manually</h4>
+                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[9px] font-bold uppercase">Coming Soon</span>
+                        </div>
+                        <p class="text-xs text-slate-400 font-medium">Write custom exam questions from scratch.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Choice 3: Generate with AI -->
+            <div class="p-4 rounded-xl border border-slate-150 bg-slate-50/70 opacity-60 flex items-center justify-between cursor-not-allowed">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-sm font-bold text-slate-600">Generate Exam with AI</h4>
+                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[9px] font-bold uppercase">Coming Soon</span>
+                        </div>
+                        <p class="text-xs text-slate-400 font-medium">Auto-generate exam questions based on module content using AI.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentSelectedModuleId = null;
+
+function openExamChoiceModal(moduleId, moduleTitle, canCreate, availableCount) {
+    currentSelectedModuleId = moduleId;
+    document.getElementById('modalModuleTitle').textContent = `Module: ${moduleTitle}`;
+    const warning = document.getElementById('examRequirementWarning');
+    const prevChoice = document.getElementById('choicePrevQuestions');
+
+    if (!canCreate) {
+        warning.classList.remove('hidden');
+        prevChoice.classList.add('opacity-50', 'pointer-events-none');
+    } else {
+        warning.classList.add('hidden');
+        prevChoice.classList.remove('opacity-50', 'pointer-events-none');
+    }
+
+    document.getElementById('examChoiceModal').classList.remove('hidden');
+}
+
+function closeExamChoiceModal() {
+    document.getElementById('examChoiceModal').classList.add('hidden');
+}
+
+function proceedWithChoice(type) {
+    if (type === 'create' && currentSelectedModuleId) {
+        window.location.href = `{{ url('/lessons/checkpoint-exam/create') }}?module_id=${currentSelectedModuleId}`;
+    }
+}
 </script>
 
 @endsection
