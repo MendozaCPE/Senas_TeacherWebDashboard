@@ -238,20 +238,27 @@ public function getXpReason(int $attemptNumber, bool $isPerfect, float $percenta
     /**
      * ✅ NEW: Check and create streak milestone notifications
      */
-    protected function checkStreakMilestones(Student $student): void
-    {
-        $currentStreak = $student->streak_days ?? 0;
-        
-        if ($currentStreak < 7) {
-            return; // Only check when streak is 7 or more
-        }
+   protected function checkStreakMilestones(Student $student): void
+{
+    $currentStreak = $student->streak_days ?? 0;
+    
+    if ($currentStreak < 7) {
+        return;
+    }
 
-        // ─── CHECK MAJOR MILESTONES (7, 14, 21, 30) ──────────────
-        $milestones = [7, 14, 21, 30];
-        $lastMilestone = $student->last_streak_milestone ?? 0;
+    // ─── CHECK MAJOR MILESTONES (7, 14, 21, 30) ──────────────
+    $milestones = [7, 14, 21, 30];
+    $lastMilestone = $student->last_streak_milestone ?? 0;
 
-        foreach ($milestones as $milestone) {
-            if ($currentStreak >= $milestone && $milestone > $lastMilestone) {
+    foreach ($milestones as $milestone) {
+        if ($currentStreak >= $milestone && $milestone > $lastMilestone) {
+            // ✅ Check if notification already exists for this milestone
+            $exists = StudentNotification::where('student_id', $student->student_id)
+                ->where('type', 'streak')
+                ->where('data->milestone', $milestone)
+                ->exists();
+
+            if (!$exists) {
                 $this->createStreakNotification(
                     $student,
                     'milestone',
@@ -259,19 +266,28 @@ public function getXpReason(int $attemptNumber, bool $isPerfect, float $percenta
                     "🔥 {$milestone}-Day Streak!",
                     "Amazing! You've been learning for {$milestone} days straight. Keep going!"
                 );
-                
-                $student->last_streak_milestone = $milestone;
-                $student->save();
-                break; // Only trigger the first new milestone
             }
+            
+            $student->last_streak_milestone = $milestone;
+            $student->save();
+            break;
         }
+    }
 
-        // ─── CHECK "KEEP GOING" NOTIFICATIONS (8, 15, 22, 29) ──
-        $keepGoingDays = [8, 15, 22, 29];
-        $lastKeepGoing = $student->last_keep_going_notification ?? 0;
+    // ─── CHECK "KEEP GOING" NOTIFICATIONS (8, 15, 22, 29) ──
+    $keepGoingDays = [8, 15, 22, 29];
+    $lastKeepGoing = $student->last_keep_going_notification ?? 0;
 
-        foreach ($keepGoingDays as $day) {
-            if ($currentStreak >= $day && $day > $lastKeepGoing) {
+    foreach ($keepGoingDays as $day) {
+        if ($currentStreak >= $day && $day > $lastKeepGoing) {
+            // ✅ Check if notification already exists for this keep-going day
+            $exists = StudentNotification::where('student_id', $student->student_id)
+                ->where('type', 'streak')
+                ->where('data->milestone', $day)
+                ->where('data->type', 'keep_going')
+                ->exists();
+
+            if (!$exists) {
                 $this->createStreakNotification(
                     $student,
                     'keep_going',
@@ -279,13 +295,14 @@ public function getXpReason(int $attemptNumber, bool $isPerfect, float $percenta
                     "💪 {$day} Days and Going Strong!",
                     "You're on a {$currentStreak}-day streak! Keep up the great work! 🌟"
                 );
-                
-                $student->last_keep_going_notification = $day;
-                $student->save();
-                break; // Only trigger the first new keep-going notification
             }
+            
+            $student->last_keep_going_notification = $day;
+            $student->save();
+            break;
         }
     }
+}
 
     /**
      * ✅ NEW: Create streak notification

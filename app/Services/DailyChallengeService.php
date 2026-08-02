@@ -82,7 +82,7 @@ class DailyChallengeService
             'id' => 'time_' . uniqid(),
             'type' => 'time_spent',
             'title' => 'Practice Time',
-            'description' => "Spend {$timeMinutes} minutes practicing gestures",
+            'description' => "Spend {$timeMinutes} minutes learning or practicing gestures",
             'target' => $timeMinutes,
             'xp_reward' => 20,
             'icon' => '⏱️',

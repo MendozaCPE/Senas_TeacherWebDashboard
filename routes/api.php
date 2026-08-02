@@ -96,4 +96,10 @@ Route::post('/student/daily-challenge/track-time', [StudentAuthController::class
 Route::get('/student/settings', [StudentAuthController::class, 'getSettings']);
 Route::post('/student/settings', [StudentAuthController::class, 'updateSettings']);
 
+Route::get('/student/mastery', [StudentAuthController::class, 'getMasteryData']);
+    Route::post('/student/mastery/update', [StudentAuthController::class, 'updateMasteryAfterPractice']);
+    
+    // Updated route - replace the existing getRecommendedLessons
+    Route::get('/student/adaptive-lessons', [StudentAuthController::class, 'getRecommendedLessons']);
+
 });
