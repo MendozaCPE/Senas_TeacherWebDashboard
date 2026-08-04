@@ -344,39 +344,12 @@
 
                                 {{-- Actions --}}
                                 <td class="py-4 px-3 md:px-5 text-right overflow-hidden">
-                                    <div class="flex items-center justify-end gap-1.5">
-                                        @if($canDemote)
-                                        <button class="demote-btn w-9 h-9 shrink-0 flex items-center justify-center"
-                                            data-student-id="{{ $student->student_id }}"
-                                            data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
-                                            data-current-level="{{ $lvl }}"
-                                            data-target-level="{{ $demoteTo }}"
-                                            data-current-xp="{{ $xp }}"
-                                            data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
-                                            title="Demote to {{ $demoteTo }}">
-                                            <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
-                                        </button>
-                                        @endif
-
-                                        @if($promoteTo)
-                                        <button class="promote-btn promo-btn w-9 h-9 shrink-0 flex items-center justify-center {{ $enoughXp ? 'promo-btn-eligible' : 'promo-btn-locked' }}"
-                                            data-student-id="{{ $student->student_id }}"
-                                            data-student-name="{{ $student->first_name }} {{ $student->last_name }}"
-                                            data-current-level="{{ $lvl }}"
-                                            data-target-level="{{ $promoteTo }}"
-                                            data-current-xp="{{ $xp }}"
-                                            data-required-xp="{{ $promoteXp }}"
-                                            data-enough="{{ $enoughXp ? 'true' : 'false' }}"
-                                            data-history="{!! htmlspecialchars(json_encode($promoHistory->map(fn($p)=>['from'=>$p->from_level,'to'=>$p->to_level,'xp'=>$p->xp_at_promotion,'date'=>$p->promoted_at?->format('M d, Y'),'forced'=>$p->was_forced])->toArray()), ENT_QUOTES, 'UTF-8') !!}"
-                                            title="{{ $enoughXp ? 'Promote to '.$promoteTo : 'Force promote (XP insufficient)' }}">
-                                            <span class="material-symbols-outlined text-[16px]">{{ $enoughXp ? 'arrow_upward' : 'lock' }}</span>
-                                        </button>
-                                        @else
-                                        <span class="promo-btn promo-btn-completed w-9 h-9 shrink-0 flex items-center justify-center" title="Completed">
-                                            <span class="material-symbols-outlined text-[16px]">verified</span>
-                                        </span>
-                                        @endif
-                                    </div>
+                                    <button class="view-student-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-[#0d326b] hover:bg-[#154188] text-white shadow-sm"
+                                        data-student-id="{{ $student->student_id }}"
+                                        title="View student details">
+                                        <span class="material-symbols-outlined icon-outline text-[15px]">person</span>
+                                        <span>View</span>
+                                    </button>
                                 </td>
                             </tr>
                             @empty
@@ -565,169 +538,261 @@
     </div>
 </div>
 
-{{-- ══════════ PROMOTE STUDENT MODAL ══════════ --}}
-<div id="promote-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div id="promote-card" class="bg-white rounded-[28px] w-[520px] max-w-full mx-4 shadow-2xl relative transform scale-95 transition-transform duration-300 overflow-hidden flex flex-col" style="max-height:92vh">
+{{-- ══════════ STUDENT DETAILS MODAL ══════════ --}}
+<div id="student-details-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div id="student-details-card" class="bg-white rounded-[28px] w-[780px] max-w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col" style="max-height:92vh">
 
-        {{-- Colored top bar --}}
-        <div id="promote-header-bar" class="h-1.5 w-full bg-gradient-to-r from-emerald-400 to-emerald-600 shrink-0"></div>
+        {{-- Top accent bar --}}
+        <div id="sdc-accent" class="h-1.5 w-full rounded-t-[28px] bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] shrink-0"></div>
 
-        {{-- Scrollable body --}}
-        <div class="overflow-y-auto flex-1 px-7 pt-6 pb-3">
-
-            {{-- Header --}}
-            <div class="flex items-start space-x-4 mb-5">
-                <div id="promote-icon-wrap" class="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">
-                    <span id="promote-icon" class="material-symbols-outlined text-emerald-600 text-[24px]">arrow_upward</span>
-                </div>
-                <div>
-                    <h3 class="text-[20px] font-black text-[#0d326b]" id="promote-title">Promote Student</h3>
-                    <p class="text-[13px] text-slate-400 font-medium mt-0.5" id="promote-subtitle">Move to next mastery level</p>
-                </div>
+        {{-- Header --}}
+        <div class="flex items-center justify-between px-7 pt-5 pb-4 border-b border-slate-100 shrink-0">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-[#0d326b] text-[22px]">person</span>
+                <h2 class="text-[17px] font-black text-[#0d326b]">Student Details</h2>
             </div>
+            <div class="flex items-center gap-2">
+                <button id="sdc-edit-btn" title="Edit student details"
+                    class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-slate-100 hover:bg-slate-200 text-slate-600">
+                    <span class="material-symbols-outlined text-[15px]">edit</span>
+                    <span>Edit</span>
+                </button>
+                <button id="sdc-save-btn" title="Save changes"
+                    class="hidden flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-[#0d326b] hover:bg-[#154188] text-white">
+                    <span class="material-symbols-outlined text-[15px]">save</span>
+                    <span>Save Changes</span>
+                </button>
+                <button id="sdc-cancel-edit-btn" title="Cancel editing"
+                    class="hidden flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500">
+                    <span class="material-symbols-outlined text-[15px]">close</span>
+                    <span>Cancel</span>
+                </button>
+                <button id="sdc-close" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-slate-500 text-[18px]">close</span>
+                </button>
+            </div>
+        </div>
 
-            {{-- Student info + level transition --}}
-            <div class="bg-slate-50 rounded-2xl p-4 mb-4 flex items-center space-x-3">
-                <img id="promote-avatar" src="" class="w-12 h-12 rounded-full ring-2 ring-slate-200" />
-                <div class="flex-1 min-w-0">
-                    <p id="promote-student-name" class="text-[14px] font-black text-[#0d326b] truncate"></p>
-                    <div class="flex items-center space-x-2 mt-1.5">
-                        <span id="promote-from-badge" class="lvl-badge"></span>
-                        <span class="material-symbols-outlined text-slate-400 text-[16px]">arrow_forward</span>
-                        <span id="promote-to-badge" class="lvl-badge"></span>
+        {{-- Loading state --}}
+        <div id="sdc-loading" class="flex-1 flex items-center justify-center py-16">
+            <div class="flex flex-col items-center gap-3">
+                <span class="material-symbols-outlined text-[#0d326b] text-[36px] animate-spin">progress_activity</span>
+                <p class="text-[13px] text-slate-400 font-medium">Loading student data…</p>
+            </div>
+        </div>
+
+        {{-- Content (hidden until loaded) --}}
+        <div id="sdc-content" class="hidden flex-1 overflow-y-auto">
+            <div class="flex flex-col lg:flex-row gap-0">
+
+                {{-- LEFT PANEL --}}
+                <div class="lg:w-[220px] shrink-0 bg-gradient-to-b from-[#f8fafc] to-white border-r border-slate-100 p-6 flex flex-col items-center gap-4">
+                    <div class="relative">
+                        <img id="sdc-avatar" src="" alt="" class="w-20 h-20 rounded-2xl shadow-md object-cover ring-4 ring-white" />
+                        <span id="sdc-status-dot" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white bg-emerald-400"></span>
+                    </div>
+                    <div class="text-center">
+                        <p id="sdc-name" class="text-[15px] font-black text-[#0d326b] leading-tight"></p>
+                        <p id="sdc-lrn-display" class="text-[11px] text-slate-400 font-medium mt-1"></p>
+                    </div>
+                    <span id="sdc-level-badge" class="lvl-badge beginner text-[11px] px-3 py-1"></span>
+                    <span id="sdc-status-badge" class="text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider"></span>
+
+                    {{-- XP bar --}}
+                    <div class="w-full">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">EXP</span>
+                            <span id="sdc-xp-fraction" class="text-[10px] font-bold text-[#0d326b]"></span>
+                        </div>
+                        <div class="xp-bar-wrap">
+                            <div id="sdc-xp-bar" class="xp-bar-fill" style="width:0%"></div>
+                        </div>
+                        <p id="sdc-xp-hint" class="text-[9px] text-slate-400 text-right mt-1"></p>
+                    </div>
+
+                    {{-- Quick stats --}}
+                    <div class="w-full space-y-2">
+                        <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
+                            <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">bolt</span>Streak</span>
+                            <span id="sdc-streak" class="text-[12px] font-black text-[#0d326b]">0 days</span>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
+                            <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">military_tech</span>Level</span>
+                            <span id="sdc-level-num" class="text-[12px] font-black text-[#0d326b]">1</span>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
+                            <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>Active</span>
+                            <span id="sdc-last-active" class="text-[10px] font-bold text-[#0d326b]">—</span>
+                        </div>
                     </div>
                 </div>
+
+                {{-- RIGHT PANEL --}}
+                <div class="flex-1 p-6 space-y-5">
+
+                    {{-- Personal Info --}}
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">badge</span>Personal Information</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Full Name <span class="text-red-400 edit-only hidden">*</span></p>
+                                <p id="sdc-fullname" class="text-[13px] font-bold text-slate-700 view-only"></p>
+                                <input id="sdc-edit-fullname" type="text" placeholder="Last Name, First Name"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Age</p>
+                                <p id="sdc-age" class="text-[13px] font-bold text-slate-700 view-only"></p>
+                                <input id="sdc-edit-age" type="number" min="1" max="120" placeholder="Age"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Username</p><p id="sdc-username" class="text-[13px] font-bold text-slate-700"></p></div>
+                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Email / LRN</p><p id="sdc-email" class="text-[13px] font-bold text-slate-700 break-all"></p></div>
+                        </div>
+                    </div>
+
+                    {{-- Academic Info --}}
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">school</span>Academic Information</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Program <span class="text-red-400 edit-only hidden">*</span></p>
+                                <p id="sdc-program" class="text-[13px] font-bold text-slate-700 view-only"></p>
+                                <select id="sdc-edit-program"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none appearance-none transition-all cursor-pointer">
+                                    <option value="Regular">Regular</option>
+                                    <option value="Inclusion">Inclusion</option>
+                                    <option value="SPED">SPED</option>
+                                    <option value="Home-based">Home-based</option>
+                                    <option value="Self-contained">Self-contained</option>
+                                    <option value="Transition">Transition</option>
+                                </select>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Grade Level</p>
+                                <p id="sdc-grade" class="text-[13px] font-bold text-slate-700 view-only"></p>
+                                <select id="sdc-edit-grade"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none appearance-none transition-all cursor-pointer">
+                                    <option value="">— None —</option>
+                                    <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
+                                    <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
+                                    <option>SPED A</option><option>SPED B</option>
+                                </select>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Section</p>
+                                <p id="sdc-section" class="text-[13px] font-bold text-slate-700 view-only"></p>
+                                <input id="sdc-edit-section" type="text" placeholder="e.g. SPED-A"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">School Year</p>
+                                <p id="sdc-school-year" class="text-[13px] font-bold text-slate-700 view-only"></p>
+                                <div class="edit-only hidden">
+                                    <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2024-2025" maxlength="9"
+                                        class="w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
+                                    <p id="sdc-sy-error" class="hidden text-[10px] text-red-500 font-semibold mt-1"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Account Info --}}
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">info</span>Account Information</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Student ID</p><p id="sdc-sid" class="text-[13px] font-bold text-slate-700 font-mono"></p></div>
+                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">LRN</p><p id="sdc-lrn" class="text-[13px] font-bold text-slate-700 font-mono"></p></div>
+                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Date Added</p><p id="sdc-created" class="text-[13px] font-bold text-slate-700"></p></div>
+                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Last Updated</p><p id="sdc-updated" class="text-[13px] font-bold text-slate-700"></p></div>
+                        </div>
+                    </div>
+
+                    {{-- Promotion History --}}
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">history</span>Promotion History</p>
+                        <div id="sdc-history-list" class="space-y-2 max-h-44 overflow-y-auto pr-1"></div>
+                        <div id="sdc-history-empty" class="hidden text-center py-4">
+                            <span class="material-symbols-outlined text-slate-200 text-[28px] block mb-1">history</span>
+                            <p class="text-[11px] text-slate-400">No promotions yet</p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
-            {{-- XP Indicator --}}
-            <div class="mb-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11px] font-bold text-slate-500">XP Progress</span>
-                    <span id="promote-xp-fraction" class="text-[11px] font-black text-[#0d326b]"></span>
-                </div>
-                <div class="xp-bar-wrap">
-                    <div id="promote-xp-bar" class="xp-bar-fill" style="width:0%;background:linear-gradient(90deg,#10b981,#059669)"></div>
-                </div>
-                <div class="flex justify-between mt-1">
-                    <span class="text-[9px] text-slate-300">0</span>
-                    <span id="promote-xp-target-label" class="text-[9px] text-slate-400 font-medium"></span>
+            {{-- ── MANAGEMENT SECTION ── --}}
+            <div class="border-t border-slate-100 px-6 py-5 bg-slate-50/60">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">settings</span>Student Management</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+                    {{-- Enrollment --}}
+                    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Enrollment</p>
+                        <p id="sdc-enroll-status-text" class="text-[11px] text-slate-500 mb-3"></p>
+                        <div class="flex gap-2">
+                            <button id="sdc-enroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white">
+                                <span class="material-symbols-outlined text-[14px]">person_add</span>Enroll
+                            </button>
+                            <button id="sdc-unenroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
+                                <span class="material-symbols-outlined text-[14px]">person_remove</span>Unenroll
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Promotion --}}
+                    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Promotion</p>
+                        <p id="sdc-promote-hint" class="text-[11px] text-slate-500 mb-3"></p>
+                        <button id="sdc-promote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-[#0d326b] hover:bg-[#154188] text-white">
+                            <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+                            <span id="sdc-promote-label">Promote</span>
+                        </button>
+                    </div>
+
+                    {{-- Demotion --}}
+                    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Demotion</p>
+                        <p id="sdc-demote-hint" class="text-[11px] text-slate-500 mb-3">Move student down one level.</p>
+                        <button id="sdc-demote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
+                            <span class="material-symbols-outlined text-[14px]">arrow_downward</span>
+                            <span id="sdc-demote-label">Demote</span>
+                        </button>
+                    </div>
+
                 </div>
             </div>
 
-            {{-- XP status panel (warning or success) --}}
-            <div id="promote-xp-warning" class="hidden mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start space-x-3">
-                <span class="material-symbols-outlined text-amber-500 text-[22px] shrink-0 mt-0.5">warning</span>
-                <div>
-                    <p class="text-[13px] font-bold text-amber-800">EXP Insufficient</p>
-                    <p id="promote-xp-detail" class="text-[12px] text-amber-600 mt-0.5"></p>
-                    <p class="text-[12px] text-amber-700 font-semibold mt-2">Do you still want to promote this student?</p>
-                </div>
-            </div>
-            <div id="promote-xp-ok" class="hidden mb-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start space-x-3">
-                <span class="material-symbols-outlined text-emerald-500 text-[22px] shrink-0 mt-0.5">check_circle</span>
-                <div>
-                    <p class="text-[13px] font-bold text-emerald-800">Eligible for Promotion!</p>
-                    <p id="promote-xp-ok-detail" class="text-[12px] text-emerald-600 mt-0.5"></p>
-                </div>
-            </div>
-
-            {{-- ── Promotion History ── --}}
-            <div id="promote-history-wrap" class="mb-2">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Promotion History</p>
-                <div id="promote-history-list">
-                    {{-- filled by JS --}}
-                </div>
-                <div id="promote-history-empty" class="hidden text-center py-4">
-                    <span class="material-symbols-outlined text-slate-200 text-[32px] block mb-1">history</span>
-                    <p class="text-[11px] text-slate-400">No promotions yet</p>
-                </div>
-            </div>
         </div>
 
-        {{-- Sticky footer buttons --}}
-        <div class="flex items-center justify-end space-x-3 px-7 py-4 border-t border-slate-100 shrink-0 bg-white">
-            <button id="promote-cancel-btn" class="px-6 py-2.5 text-slate-500 hover:text-slate-800 font-semibold text-[14px] transition-colors rounded-xl hover:bg-slate-100">Cancel</button>
-            <button id="promote-confirm-btn" class="flex items-center space-x-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:shadow-lg hover:shadow-emerald-200">
-                <span class="material-symbols-outlined text-[18px]">arrow_upward</span>
-                <span id="promote-confirm-label">Promote</span>
-            </button>
-        </div>
+        {{-- Notification bar (inside modal) --}}
+        <div id="sdc-notif" class="hidden shrink-0 mx-6 mb-4 px-4 py-3 rounded-xl text-[12px] font-semibold flex items-center gap-2 border"></div>
 
     </div>
 </div>
 
-{{-- ══════════ DEMOTE STUDENT MODAL ══════════ --}}
-<div id="demote-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div id="demote-card" class="bg-white rounded-[28px] w-[520px] max-w-full mx-4 shadow-2xl relative transform scale-95 transition-transform duration-300 overflow-hidden flex flex-col" style="max-height:92vh">
-
-        {{-- Colored top bar (red for demotion) --}}
-        <div class="h-1.5 w-full bg-gradient-to-r from-red-400 to-red-600 shrink-0"></div>
-
-        {{-- Scrollable body --}}
-        <div class="overflow-y-auto flex-1 px-7 pt-6 pb-3">
-
-            {{-- Header --}}
-            <div class="flex items-start space-x-4 mb-5">
-                <div class="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-red-600 text-[24px]">arrow_downward</span>
-                </div>
-                <div>
-                    <h3 class="text-[20px] font-black text-[#0d326b]">Demote Student</h3>
-                    <p class="text-[13px] text-slate-400 font-medium mt-0.5">Move down one mastery level</p>
-                </div>
+{{-- ══════════ CONFIRM DIALOG (reusable inside Student Details) ══════════ --}}
+<div id="sdc-confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[60] flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+    <div id="sdc-confirm-card" class="bg-white rounded-[24px] w-[400px] max-w-full mx-4 p-7 shadow-2xl transform scale-95 transition-transform duration-200">
+        <div class="flex items-start gap-4 mb-5">
+            <div id="sdc-confirm-icon-wrap" class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0">
+                <span id="sdc-confirm-icon" class="material-symbols-outlined text-[22px]">help</span>
             </div>
-
-            {{-- Student info + level transition --}}
-            <div class="bg-slate-50 rounded-2xl p-4 mb-4 flex items-center space-x-3">
-                <img id="demote-avatar" src="" class="w-12 h-12 rounded-full ring-2 ring-slate-200" />
-                <div class="flex-1 min-w-0">
-                    <p id="demote-student-name" class="text-[14px] font-black text-[#0d326b] truncate"></p>
-                    <div class="flex items-center space-x-2 mt-1.5">
-                        <span id="demote-from-badge" class="lvl-badge"></span>
-                        <span class="material-symbols-outlined text-slate-400 text-[16px]">arrow_forward</span>
-                        <span id="demote-to-badge" class="lvl-badge"></span>
-                    </div>
-                </div>
-            </div>
-
-            {{-- ⚠️ Warning --}}
-            <div class="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start space-x-3">
-                <span class="material-symbols-outlined text-red-500 text-[22px] shrink-0 mt-0.5">warning</span>
-                <div>
-                    <p class="text-[13px] font-bold text-red-800">Confirm Demotion</p>
-                    <p id="demote-warning-detail" class="text-[12px] text-red-600 mt-0.5"></p>
-                    <p class="text-[12px] text-red-700 font-semibold mt-2">This will move the student down one level. Are you sure?</p>
-                </div>
-            </div>
-
-            {{-- ── Promotion/Demotion History ── --}}
-            <div id="demote-history-wrap" class="mb-2">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Promotion History</p>
-                <div id="demote-history-list">
-                    {{-- filled by JS --}}
-                </div>
-                <div id="demote-history-empty" class="hidden text-center py-4">
-                    <span class="material-symbols-outlined text-slate-200 text-[32px] block mb-1">history</span>
-                    <p class="text-[11px] text-slate-400">No promotions yet</p>
-                </div>
+            <div>
+                <p id="sdc-confirm-title" class="text-[15px] font-black text-[#0d326b]"></p>
+                <p id="sdc-confirm-body" class="text-[12px] text-slate-500 mt-1 leading-relaxed"></p>
             </div>
         </div>
-
-        {{-- Sticky footer buttons --}}
-        <div class="flex items-center justify-end space-x-3 px-7 py-4 border-t border-slate-100 shrink-0 bg-white">
-            <button id="demote-cancel-btn" class="px-6 py-2.5 text-slate-500 hover:text-slate-800 font-semibold text-[14px] transition-colors rounded-xl hover:bg-slate-100">Cancel</button>
-            <button id="demote-confirm-btn" class="flex items-center space-x-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-lg hover:shadow-red-200">
-                <span class="material-symbols-outlined text-[18px]">arrow_downward</span>
-                <span>Confirm Demotion</span>
-            </button>
+        <div class="flex gap-3">
+            <button id="sdc-confirm-cancel" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-[13px] font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+            <button id="sdc-confirm-ok" class="flex-1 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all"></button>
         </div>
-
     </div>
 </div>
 
-{{-- ══════════ ADD STUDENT MODAL (same as before) ══════════ --}}
+{{-- ══════════ ADD STUDENT MODAL ══════════ --}}
 <div id="add-student-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-[32px] w-[620px] max-w-full p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
+    <div class="bg-white rounded-[32px] w-[620px] max-w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
         <button id="close-modal-btn" class="absolute top-7 right-7 text-slate-400 hover:text-slate-600 outline-none">
             <span class="material-symbols-outlined text-[24px]">close</span>
         </button>
@@ -795,7 +860,8 @@
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">School Year</label>
-                    <input type="text" name="school_year" placeholder="e.g. 2023-2024" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
+                    <input type="text" name="school_year" id="single-school-year" placeholder="e.g. 2024-2025" maxlength="9" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
+                    <p id="single-sy-error" class="hidden text-[12px] font-medium text-red-600"></p>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">FSL Mastery Level</label>
@@ -827,36 +893,49 @@
             </div>
         </form>
         <div id="container-bulk" class="hidden">
-            <div id="bulk-upload-area">
-            <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-[#0d326b] rounded-[24px] p-10 flex flex-col items-center justify-center space-y-4 mb-6 transition-all cursor-pointer relative bg-slate-50/50">
-                <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="absolute inset-0 opacity-0 cursor-pointer" />
-                <div id="upload-icon-container" class="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm">
-                    <span id="upload-icon" class="material-symbols-outlined text-[28px]">article</span>
-                </div>
-                <div class="text-center">
-                    <p id="upload-primary-text" class="text-[15px] font-bold text-slate-700">Drag and drop your student roster here</p>
-                    <p id="upload-secondary-text" class="text-[12px] text-slate-400 mt-1">.xlsx only, max 5MB</p>
-                </div>
-                <button type="button" id="browse-btn" class="border border-[#0d326b] text-[#0d326b] hover:bg-[#0d326b]/5 font-bold text-[13px] px-6 py-2.5 rounded-xl transition-colors pointer-events-none">Browse Files</button>
-            </div>
-            <div class="bg-[#f1f5f9] p-4 rounded-[20px] flex items-center justify-between mb-8 shadow-sm">
-                <div class="flex items-center space-x-4">
-                    <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#0d326b] shadow-sm"><span class="material-symbols-outlined text-[20px]">lock</span></div>
-                    <div>
-                        <p class="text-[13px] font-bold text-[#0d326b]">Auto-generate Student PINs</p>
-                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">Apply to all imported students</p>
+
+            {{-- ── STEP 1: Upload zone ── --}}
+            <div id="bulk-step-upload">
+                <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-[#0d326b] rounded-[24px] p-10 flex flex-col items-center justify-center space-y-4 mb-5 transition-all cursor-pointer relative bg-slate-50/50">
+                    <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                    <div id="upload-icon-container" class="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm">
+                        <span id="upload-icon" class="material-symbols-outlined text-[28px]">article</span>
                     </div>
+                    <div class="text-center">
+                        <p id="upload-primary-text" class="text-[15px] font-bold text-slate-700">Drag and drop your student roster here</p>
+                        <p id="upload-secondary-text" class="text-[12px] text-slate-400 mt-1">.xlsx, .xls, or .csv — max 5MB</p>
+                    </div>
+                    <button type="button" class="border border-[#0d326b] text-[#0d326b] hover:bg-[#0d326b]/5 font-bold text-[13px] px-6 py-2.5 rounded-xl transition-colors pointer-events-none">Browse Files</button>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="bulk-auto-pin" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0d326b]"></div>
-                </label>
+                <div class="bg-[#f1f5f9] p-4 rounded-[20px] flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#0d326b] shadow-sm"><span class="material-symbols-outlined text-[20px]">lock</span></div>
+                        <div>
+                            <p class="text-[13px] font-bold text-[#0d326b]">Auto-generate Student PINs</p>
+                            <p class="text-[11px] text-slate-400 font-medium mt-0.5">Last 4 digits of LRN — applied to all students</p>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="bulk-auto-pin" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0d326b]"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-end space-x-3 mt-5">
+                    <button type="button" class="btn-cancel px-6 py-3 text-slate-500 hover:text-slate-800 font-semibold text-[14px] transition-colors">Cancel</button>
+                    <button type="button" id="btn-preview-table" disabled
+                        onclick="renderDataTable()"
+                        class="bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">table_view</span>Review &amp; Import
+                    </button>
+                </div>
             </div>
-            </div>{{-- /bulk-upload-area --}}
-            <div class="flex items-center justify-end space-x-4">
-                <button type="button" class="btn-cancel px-6 py-3 text-slate-500 hover:text-slate-800 font-semibold text-[14px] transition-colors">Cancel</button>
-                <button type="button" id="btn-import-submit" disabled class="bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center justify-center">Confirm Import</button>
-            </div>
+
+            {{-- ── STEP 2: Editable data table (injected by JS) ── --}}
+            <div id="bulk-step-table" class="hidden"></div>
+
+            {{-- ── STEP 3: Result (injected by JS) ── --}}
+            <div id="bulk-step-result" class="hidden"></div>
+
         </div>
     </div>
 </div>
@@ -865,7 +944,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 // ─── Add Student Modal ────────────────────────────────────────────────────────
-const openModalBtn=document.getElementById('open-modal-btn'),closeModalBtn=document.getElementById('close-modal-btn'),cancelBtns=document.querySelectorAll('.btn-cancel'),modal=document.getElementById('add-student-modal'),modalCard=modal.querySelector('.bg-white'),tabSingle=document.getElementById('tab-single'),tabBulk=document.getElementById('tab-bulk'),formSingle=document.getElementById('form-single'),containerBulk=document.getElementById('container-bulk'),modalAlert=document.getElementById('modal-alert'),modalAlertIcon=document.getElementById('modal-alert-icon'),modalAlertMsg=document.getElementById('modal-alert-message'),dropZone=document.getElementById('drop-zone'),excelInput=document.getElementById('excel-file'),btnImport=document.getElementById('btn-import-submit'),uploadIcon=document.getElementById('upload-icon'),uploadIconWrap=document.getElementById('upload-icon-container'),uploadPrimary=document.getElementById('upload-primary-text'),uploadSecondary=document.getElementById('upload-secondary-text');
+const openModalBtn=document.getElementById('open-modal-btn'),closeModalBtn=document.getElementById('close-modal-btn'),cancelBtns=document.querySelectorAll('.btn-cancel'),modal=document.getElementById('add-student-modal'),modalCard=modal.querySelector('.bg-white'),tabSingle=document.getElementById('tab-single'),tabBulk=document.getElementById('tab-bulk'),formSingle=document.getElementById('form-single'),containerBulk=document.getElementById('container-bulk'),modalAlert=document.getElementById('modal-alert'),modalAlertIcon=document.getElementById('modal-alert-icon'),modalAlertMsg=document.getElementById('modal-alert-message'),dropZone=document.getElementById('drop-zone'),excelInput=document.getElementById('excel-file'),uploadIcon=document.getElementById('upload-icon'),uploadIconWrap=document.getElementById('upload-icon-container'),uploadPrimary=document.getElementById('upload-primary-text'),uploadSecondary=document.getElementById('upload-secondary-text');
 let parsedStudents=[];
 openModalBtn.addEventListener('click',()=>{modal.classList.remove('hidden');requestAnimationFrame(()=>{modal.classList.remove('opacity-0');modalCard.classList.remove('scale-95');});});
 function closeModal(){modal.classList.add('opacity-0');modalCard.classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden');resetModal();},300);}
@@ -890,137 +969,91 @@ inputLrn.addEventListener('input',()=>{updatePinPreview();clearTimeout(lrnCheckT
 inputLrn.addEventListener('blur',checkLrnUnique);updatePinPreview();
 // ─── Drag / drop + file input wiring ─────────────────────────────────────────
 ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
-    e.preventDefault();
-    dropZone.classList.add('border-[#0d326b]', 'bg-[#0d326b]/5');
+    e.preventDefault(); dropZone.classList.add('border-[#0d326b]','bg-[#0d326b]/5');
 }));
 ['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => {
-    e.preventDefault();
-    dropZone.classList.remove('border-[#0d326b]', 'bg-[#0d326b]/5');
+    e.preventDefault(); dropZone.classList.remove('border-[#0d326b]','bg-[#0d326b]/5');
 }));
-dropZone.addEventListener('drop', e => {
-    const f = e.dataTransfer.files[0];
-    if (f) { excelInput.files = e.dataTransfer.files; handleExcelFile(f); }
-});
-excelInput.addEventListener('change', e => { if (e.target.files[0]) handleExcelFile(e.target.files[0]); });
+dropZone.addEventListener('drop', e => { const f=e.dataTransfer.files[0]; if(f){excelInput.files=e.dataTransfer.files;handleExcelFile(f);} });
+excelInput.addEventListener('change', e => { if(e.target.files[0]) handleExcelFile(e.target.files[0]); });
 
 function handleExcelFile(file) {
     hideAlert();
     const ext = file.name.split('.').pop().toLowerCase();
-    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-        showAlert('Invalid file format. Please upload .xlsx, .xls, or .csv.');
-        resetUploadArea();
-        return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-        showAlert('File is too large. Maximum allowed size is 5 MB.');
-        resetUploadArea();
-        return;
-    }
+    if (!['xlsx','xls','csv'].includes(ext)) { showAlert('Invalid file format. Please upload .xlsx, .xls, or .csv.'); resetUploadArea(); return; }
+    if (file.size > 5*1024*1024) { showAlert('File is too large. Maximum allowed size is 5 MB.'); resetUploadArea(); return; }
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = ev => {
         try {
-            const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const wb  = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
             const ws  = wb.Sheets[wb.SheetNames[0]];
-            const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            const raw = XLSX.utils.sheet_to_json(ws, { header:1 });
             parsedStudents = mapExcelData(raw);
-            if (!parsedStudents.length) {
-                showAlert('File is empty or has no student rows.');
-                resetUploadArea();
-                return;
-            }
-            // Run client-side pre-validation before enabling import
-            preValidateAndRender(file.name, parsedStudents);
-        } catch (err) {
-            showAlert(err.message || 'Failed to parse file.');
-            resetUploadArea();
-        }
+            if (!parsedStudents.length) { showAlert('File is empty or has no student rows.'); resetUploadArea(); return; }
+            const errCount = parsedStudents.filter(s => !isValid(s)).length;
+            uploadIcon.innerText = errCount > 0 ? 'warning' : 'check_circle';
+            uploadIconWrap.className = errCount > 0
+                ? 'w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center text-amber-500 shadow-sm'
+                : 'w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shadow-sm';
+            uploadPrimary.innerText = file.name;
+            uploadSecondary.innerText = parsedStudents.length + ' students detected' + (errCount > 0 ? ' — ' + errCount + ' need attention' : ' — all valid');
+            const previewBtn = document.getElementById('btn-preview-table');
+            previewBtn.removeAttribute('disabled');
+            previewBtn.className = 'bg-[#0d326b] hover:bg-[#154188] text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-pointer flex items-center gap-2';
+        } catch(err) { showAlert(err.message || 'Failed to parse file.'); resetUploadArea(); }
     };
     reader.readAsArrayBuffer(file);
 }
 
-function showUploadedFile(name, total, invalidCount) {
-    uploadIcon.innerText = invalidCount > 0 ? 'warning' : 'check';
-    uploadIconWrap.className = invalidCount > 0
-        ? 'w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center text-amber-500 shadow-sm'
-        : 'w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-sm';
-    uploadPrimary.innerText  = name;
-    uploadSecondary.innerText = invalidCount > 0
-        ? `${total} students detected — ${invalidCount} need attention.`
-        : `${total} students detected. Ready to import.`;
-    btnImport.removeAttribute('disabled');
-    btnImport.className = 'bg-[#0d326b] hover:bg-[#154188] text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-pointer flex items-center justify-center';
-}
 function resetUploadArea() {
     excelInput.value = '';
     uploadIcon.innerText = 'article';
     uploadIconWrap.className = 'w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm';
     uploadPrimary.innerText = 'Drag and drop your student roster here';
-    uploadSecondary.innerText = '.xlsx or .csv only, max 5MB';
+    uploadSecondary.innerText = '.xlsx, .xls, or .csv — max 5MB';
     parsedStudents = [];
-    btnImport.setAttribute('disabled', 'true');
-    btnImport.className = 'bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center justify-center';
-    // Remove any correction screen that may be showing
-    const existing = document.getElementById('validation-screen');
-    if (existing) existing.remove();
-    document.getElementById('bulk-upload-area').classList.remove('hidden');
+    const previewBtn = document.getElementById('btn-preview-table');
+    if (previewBtn) { previewBtn.setAttribute('disabled','true'); previewBtn.className = 'bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center gap-2'; }
+    document.getElementById('bulk-step-upload').classList.remove('hidden');
+    const st = document.getElementById('bulk-step-table'); st.classList.add('hidden'); st.innerHTML = '';
+    const sr = document.getElementById('bulk-step-result'); sr.classList.add('hidden'); sr.innerHTML = '';
 }
 
 // ─── Column header fuzzy-finder ───────────────────────────────────────────────
 function mapExcelData(rows) {
     if (!rows || rows.length < 2) return [];
     const h = rows[0].map(x => String(x || '').trim().toLowerCase());
-
-    // Column index detection (required)
     const lrnIdx     = h.findIndex(x => x.includes('lrn') || x.includes('reference') || x.includes('learner'));
     const nameIdx    = h.findIndex(x => x.includes('name') || x.includes('student') || x.includes('full'));
     const firstIdx   = h.findIndex(x => x.includes('first'));
     const lastIdx    = h.findIndex(x => x.includes('last'));
     const programIdx = h.findIndex(x => x.includes('program') || x.includes('type') || x.includes('track'));
-    // Optional columns
     const gradeIdx   = h.findIndex(x => (x.includes('grade') || x.includes('level') || x.includes('class')) && !x.includes('mastery'));
     const ageIdx     = h.findIndex(x => x === 'age' || x.includes('age'));
     const sectionIdx = h.findIndex(x => x.includes('section'));
     const masteryIdx = h.findIndex(x => x.includes('fsl') || x.includes('mastery') || x.includes('skill'));
     const syIdx      = h.findIndex(x => x.includes('school') && x.includes('year'));
-
-    // Valid program values for normalisation
-    const PROGRAMS = { regular: 'Regular', inclusion: 'Inclusion', sped: 'SPED', 'home-based': 'Home-based', homebased: 'Home-based', home: 'Home-based' };
-
+    const PROGRAMS   = { regular:'Regular', inclusion:'Inclusion', sped:'SPED', 'home-based':'Home-based', homebased:'Home-based', home:'Home-based' };
     return rows.slice(1)
         .filter(r => r && r.some(cell => String(cell || '').trim() !== ''))
         .map((row, i) => {
             const lrn = String(row[lrnIdx] ?? '').trim();
-
-            // Name: prefer dedicated full-name column, fall back to last+first
             let full_name = '';
-            if (nameIdx !== -1) {
-                full_name = String(row[nameIdx] ?? '').trim();
-            } else if (lastIdx !== -1 || firstIdx !== -1) {
-                const ln = String(row[lastIdx] ?? '').trim();
-                const fn = String(row[firstIdx] ?? '').trim();
-                full_name = ln && fn ? `${ln}, ${fn}` : (ln || fn);
+            if (nameIdx !== -1) { full_name = String(row[nameIdx] ?? '').trim(); }
+            else if (lastIdx !== -1 || firstIdx !== -1) {
+                const ln = String(row[lastIdx] ?? '').trim(), fn = String(row[firstIdx] ?? '').trim();
+                full_name = ln && fn ? ln + ', ' + fn : (ln || fn);
             }
-
-            // Program – normalise common variations
             let program_type = '';
             if (programIdx !== -1) {
                 const raw = String(row[programIdx] ?? '').trim().toLowerCase();
                 program_type = PROGRAMS[raw] ?? (raw ? String(row[programIdx]).trim() : '');
             }
-
-            // Mastery
             const rawM = masteryIdx !== -1 ? String(row[masteryIdx] ?? '').trim().toLowerCase() : '';
-            const fsl_mastery_level = rawM.includes('inter') ? 'Intermediate'
-                                    : rawM.includes('adv')   ? 'Advanced'
-                                    : rawM.includes('beg') || rawM === '' ? 'Beginner' : 'Beginner';
-
+            const fsl_mastery_level = rawM.includes('inter') ? 'Intermediate' : rawM.includes('adv') ? 'Advanced' : 'Beginner';
             const age = ageIdx !== -1 ? parseInt(row[ageIdx], 10) : NaN;
-
             return {
-                _row:              i + 2,   // Excel row number (1-indexed header)
-                lrn,
-                full_name,
-                program_type,
+                _row: i + 2, lrn, full_name, program_type,
                 grade_level:       gradeIdx   !== -1 ? String(row[gradeIdx]   ?? '').trim() || null : null,
                 age:               isNaN(age) ? null : age,
                 section:           sectionIdx !== -1 ? String(row[sectionIdx] ?? '').trim() || null : null,
@@ -1029,6 +1062,29 @@ function mapExcelData(rows) {
             };
         });
 }
+// ─── Validation ───────────────────────────────────────────────────────────────
+const VALID_PROGRAMS     = ['Regular', 'Inclusion', 'SPED', 'Home-based'];
+const VALID_MASTERY      = ['Beginner', 'Intermediate', 'Advanced'];
+const GRADE_SEC_PROGRAMS = ['Regular', 'Inclusion'];
+function validateStudent(s) {
+    const errs = {};
+    if (!s.lrn || String(s.lrn).trim() === '')             errs.lrn = 'Required';
+    else if (!/^\d{12}$/.test(String(s.lrn).trim()))       errs.lrn = 'Must be 12 digits';
+    if (!s.full_name || String(s.full_name).trim() === '')  errs.full_name = 'Required';
+    if (!s.program_type || !VALID_PROGRAMS.includes(String(s.program_type).trim()))
+        errs.program_type = s.program_type ? 'Invalid: "' + s.program_type + '"' : 'Required';
+    if (!s.fsl_mastery_level || !VALID_MASTERY.includes(s.fsl_mastery_level))
+        errs.fsl_mastery_level = 'Required';
+    if (GRADE_SEC_PROGRAMS.includes(String(s.program_type || '').trim())) {
+        if (!s.grade_level || String(s.grade_level).trim() === '') errs.grade_level = 'Required';
+        if (!s.section     || String(s.section).trim()     === '') errs.section     = 'Required';
+    }
+    return errs;
+}
+function isValid(s) { return Object.keys(validateStudent(s)).length === 0; }
+function escHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── Single student submit ────────────────────────────────────────────────────
 async function submitSingleStudent(event) {
     event.preventDefault();
     hideAlert();
@@ -1036,6 +1092,16 @@ async function submitSingleStudent(event) {
     const nameVal = formSingle.querySelector('input[name="full_name"]').value;
     if (!nameVal.includes(',')) { showAlert('Full Name must be "Last Name, First Name" (comma-separated).'); return; }
     if (inputLrn.value.replace(/\D/g,'').length !== 12) { showAlert('LRN must be exactly 12 digits.'); return; }
+    // School year validation
+    const syInput = document.getElementById('single-school-year');
+    const syVal   = syInput ? syInput.value.trim() : '';
+    const syErr   = sdcValidateSchoolYear(syVal);
+    if (syErr) {
+        const errEl = document.getElementById('single-sy-error');
+        if (errEl) { errEl.textContent = syErr; errEl.classList.remove('hidden'); }
+        showAlert('School year: ' + syErr);
+        return;
+    }
     await checkLrnUnique();
     if (lrnExists) return;
     const orig = btn.innerText;
@@ -1065,170 +1131,223 @@ async function submitSingleStudent(event) {
         showAlert(msg); btn.innerText = orig; btn.disabled = false;
     }
 }
-// ─── Required-field definitions ──────────────────────────────────────────────
-const REQUIRED_FIELDS    = ['lrn', 'full_name', 'program_type', 'fsl_mastery_level'];
-const VALID_PROGRAMS     = ['Regular', 'Inclusion', 'SPED', 'Home-based'];
-const VALID_MASTERY      = ['Beginner', 'Intermediate', 'Advanced'];
-const GRADE_SEC_PROGRAMS = ['Regular', 'Inclusion'];
-function validateStudent(s) {
-    const missing = [];
-    if (!s.lrn || String(s.lrn).trim() === '')                                 missing.push('LRN');
-    else if (!/^\d{12}$/.test(String(s.lrn).trim()))                           missing.push('LRN (must be exactly 12 digits)');
-    if (!s.full_name || String(s.full_name).trim() === '')                      missing.push('Student Name');
-    if (!s.program_type || String(s.program_type).trim() === '')                missing.push('Program');
-    else if (!VALID_PROGRAMS.includes(String(s.program_type).trim()))           missing.push('Program (invalid: "' + s.program_type + '")');
-    if (!s.fsl_mastery_level || !VALID_MASTERY.includes(s.fsl_mastery_level))  missing.push('FSL Mastery Level');
-    if (GRADE_SEC_PROGRAMS.includes(String(s.program_type).trim())) {
-        if (!s.grade_level || String(s.grade_level).trim() === '')              missing.push('Grade Level');
-        if (!s.section     || String(s.section).trim()     === '')              missing.push('Section');
+// ─── Step 2: "Review & Import" button → show editable table ──────────────────
+// Wired via onclick on the button itself (see renderDataTable call in handleExcelFile)
+
+function renderDataTable() {
+    hideAlert();
+    document.getElementById('bulk-step-upload').classList.add('hidden');
+    const stepTable = document.getElementById('bulk-step-table');
+    stepTable.classList.remove('hidden');
+    stepTable.innerHTML = '';
+
+    const errCount   = parsedStudents.filter(s => !isValid(s)).length;
+    const validCount = parsedStudents.length - errCount;
+
+    // Header bar
+    const hdr = document.createElement('div');
+    hdr.className = 'flex items-center justify-between mb-4 flex-wrap gap-3';
+    hdr.innerHTML =
+        '<div class="flex items-center gap-2.5">' +
+        '<button type="button" id="btn-back-upload" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors shrink-0">' +
+        '<span class="material-symbols-outlined text-[18px] text-slate-600">arrow_back</span></button>' +
+        '<div><p class="text-[14px] font-bold text-[#0d326b]">Review &amp; Edit Data</p>' +
+        '<p class="text-[11px] text-slate-400 font-medium">' + parsedStudents.length + ' students &nbsp;·&nbsp; ' +
+        '<span class="text-emerald-600 font-semibold">' + validCount + ' valid</span>' +
+        (errCount > 0 ? ' &nbsp;·&nbsp; <span class="text-red-500 font-semibold">' + errCount + ' errors</span>' : '') +
+        '</p></div></div>' +
+        '<div class="flex items-center gap-2">' +
+        '<span id="tbl-err-badge" class="' + (errCount > 0 ? '' : 'hidden ') +
+        'text-[11px] font-bold bg-red-50 text-red-500 border border-red-100 px-3 py-1 rounded-full">' + errCount + ' rows need fixing</span>' +
+        '<button type="button" id="btn-confirm-import" class="bg-[#0d326b] hover:bg-[#154188] text-white px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-1.5">' +
+        '<span class="material-symbols-outlined text-[16px]">upload</span>Confirm Import</button></div>';
+    stepTable.appendChild(hdr);
+
+    // Legend (only when errors exist)
+    if (errCount > 0) {
+        const leg = document.createElement('div');
+        leg.className = 'flex items-center gap-5 mb-3 text-[11px] text-slate-500 font-medium';
+        leg.innerHTML = '<span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-red-100 border border-red-300 shrink-0"></span>Cell has error — edit to fix</span>' +
+            '<span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-white border border-slate-200 shrink-0"></span>Valid — still editable</span>';
+        stepTable.appendChild(leg);
     }
-    return missing;
-}
-function labelToKey(label) {
-    const map = { 'LRN': 'lrn', 'Student Name': 'full_name', 'Program': 'program_type',
-                  'FSL Mastery Level': 'fsl_mastery_level', 'Grade Level': 'grade_level',
-                  'Section': 'section', 'School Year': 'school_year', 'Age': 'age' };
-    return map[label.split(' (')[0]] || null;
-}
-function keyToLabel(key) {
-    const map = { lrn: 'LRN', full_name: 'Student Name', program_type: 'Program',
-                  fsl_mastery_level: 'FSL Mastery Level', grade_level: 'Grade Level',
-                  section: 'Section', school_year: 'School Year', age: 'Age' };
-    return map[key] || key;
-}
-function escHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-// ─── Phase 1: validate after parse, render correction screen if needed ────────
-function preValidateAndRender(fileName, students) {
-    const invalid = students
-        .map((s, i) => ({ idx: i, student: s, missing: validateStudent(s) }))
-        .filter(x => x.missing.length > 0);
-    showUploadedFile(fileName, students.length, invalid.length);
-    if (invalid.length === 0) {
-        document.getElementById('bulk-upload-area').classList.remove('hidden');
-        return;
-    }
-    document.getElementById('bulk-upload-area').classList.add('hidden');
-    renderCorrectionScreen(invalid);
-}
-// ─── Correction screen ────────────────────────────────────────────────────────
-function renderCorrectionScreen(invalids) {
-    const existing = document.getElementById('validation-screen');
-    if (existing) existing.remove();
+
+    // Table wrapper (scrollable)
     const wrap = document.createElement('div');
-    wrap.id = 'validation-screen';
-    wrap.className = 'space-y-4 mt-4';
-    const banner = document.createElement('div');
-    banner.className = 'bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3';
-    banner.innerHTML = '<span class="material-symbols-outlined text-amber-500 text-[22px] mt-0.5 shrink-0">warning</span><div><p class="text-[13px] font-bold text-amber-800">' + invalids.length + ' student' + (invalids.length > 1 ? 's' : '') + ' need' + (invalids.length === 1 ? 's' : '') + ' attention before import</p><p class="text-[11px] text-amber-700 mt-0.5">Fill in the missing fields below, then click <strong>Save &amp; Confirm Import</strong>.</p></div>';
-    wrap.appendChild(banner);
-    invalids.forEach(function({ idx, student, missing }) {
-        const card = document.createElement('div');
-        card.className = 'bg-white border border-red-100 rounded-2xl p-4 shadow-sm';
-        let fieldsHtml = '';
-        missing.forEach(function(fieldLabel) {
-            const fieldKey = labelToKey(fieldLabel);
-            if (!fieldKey) return;
-            const isSelect = ['program_type', 'fsl_mastery_level', 'grade_level'].includes(fieldKey);
-            if (isSelect) {
-                const opts = fieldKey === 'program_type' ? VALID_PROGRAMS
-                           : fieldKey === 'fsl_mastery_level' ? VALID_MASTERY
-                           : ['Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','SPED A','SPED B'];
-                fieldsHtml += '<div class="flex flex-col gap-1"><label class="text-[10px] font-bold text-red-500 uppercase tracking-wider">' + fieldLabel.split(' (')[0] + ' <span class="text-red-400">*</span></label><select data-field="' + fieldKey + '" data-idx="' + idx + '" class="corr-field bg-red-50 border border-red-200 text-[13px] font-medium py-2.5 px-3 rounded-xl outline-none"><option value="">— Select —</option>' + opts.map(function(o){return '<option value="' + o + '">' + o + '</option>';}).join('') + '</select></div>';
-            } else {
-                fieldsHtml += '<div class="flex flex-col gap-1"><label class="text-[10px] font-bold text-red-500 uppercase tracking-wider">' + fieldLabel.split(' (')[0] + ' <span class="text-red-400">*</span></label><input type="text" data-field="' + fieldKey + '" data-idx="' + idx + '" value="' + escHtml(String(student[fieldKey] ?? '')) + '" placeholder="Enter ' + fieldLabel.split(' (')[0] + '" class="corr-field bg-red-50 border border-red-200 text-[13px] font-medium py-2.5 px-3 rounded-xl outline-none placeholder:text-slate-400" /></div>';
-            }
-        });
-        card.innerHTML = '<div class="flex items-center justify-between mb-3"><div><span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg mr-2">Row ' + student._row + '</span><span class="text-[13px] font-bold text-slate-700">' + escHtml(student.full_name || '(no name)') + '</span></div><div class="flex flex-wrap gap-1">' + missing.map(function(m){return '<span class="text-[9px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">' + escHtml(m.split(' (')[0]) + '</span>';}).join('') + '</div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' + fieldsHtml + '</div>';
-        wrap.appendChild(card);
+    wrap.className = 'overflow-auto rounded-2xl border border-slate-200 shadow-sm';
+    wrap.style.maxHeight = '46vh';
+
+    const COLS = [
+        { key:'_row',              label:'#',           w:'44px',  edit:false },
+        { key:'lrn',               label:'LRN',         w:'140px', edit:true, type:'text'   },
+        { key:'full_name',         label:'Student Name',w:'175px', edit:true, type:'text'   },
+        { key:'program_type',      label:'Program',     w:'130px', edit:true, type:'select', opts:VALID_PROGRAMS },
+        { key:'grade_level',       label:'Grade Level', w:'120px', edit:true, type:'select', opts:['','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','SPED A','SPED B'] },
+        { key:'section',           label:'Section',     w:'105px', edit:true, type:'text'   },
+        { key:'age',               label:'Age',         w:'64px',  edit:true, type:'text'   },
+        { key:'fsl_mastery_level', label:'FSL Mastery', w:'128px', edit:true, type:'select', opts:VALID_MASTERY },
+        { key:'school_year',       label:'School Year', w:'115px', edit:true, type:'text'   },
+    ];
+
+    const tbl = document.createElement('table');
+    tbl.className = 'w-full text-[12px] border-collapse';
+    tbl.style.minWidth = '960px';
+
+    // thead
+    tbl.innerHTML = '<thead><tr class="bg-[#f1f5f9] sticky top-0 z-10">' +
+        COLS.map(c => '<th class="text-left px-3 py-2.5 font-bold text-[10px] text-slate-500 uppercase tracking-wider whitespace-nowrap border-b border-slate-200" style="min-width:' + c.w + '">' + c.label + '</th>').join('') +
+        '</tr></thead>';
+
+    const tbody = document.createElement('tbody');
+    tbody.id = 'import-tbody';
+    parsedStudents.forEach((s, ri) => tbody.appendChild(buildTblRow(s, ri, COLS)));
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
+    stepTable.appendChild(wrap);
+
+    // Back button
+    document.getElementById('btn-back-upload').addEventListener('click', () => {
+        stepTable.classList.add('hidden'); stepTable.innerHTML = '';
+        document.getElementById('bulk-step-upload').classList.remove('hidden');
     });
-    const btns = document.createElement('div');
-    btns.className = 'flex items-center justify-between pt-2';
-    btns.innerHTML = '<button type="button" onclick="resetUploadArea()" class="text-[13px] font-semibold text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">arrow_back</span> Upload different file</button><button type="button" id="btn-save-corrections" class="bg-[#0d326b] hover:bg-[#154188] text-white px-7 py-3 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">check_circle</span>Save &amp; Confirm Import</button>';
-    wrap.appendChild(btns);
-    const bulkWrap = document.getElementById('container-bulk');
-    const footerBtns = bulkWrap.querySelector('.flex.items-center.justify-end');
-    bulkWrap.insertBefore(wrap, footerBtns);
-    // Live sync corrections into parsedStudents
-    wrap.addEventListener('input', function(e) {
-        const el = e.target;
-        if (!el.dataset.field) return;
-        const idx = parseInt(el.dataset.idx, 10);
-        parsedStudents[idx][el.dataset.field] = el.value.trim();
-        const remaining = validateStudent(parsedStudents[idx]);
-        el.classList.toggle('bg-red-50',      remaining.some(function(m){return labelToKey(m) === el.dataset.field || m.startsWith(keyToLabel(el.dataset.field));}));
-        el.classList.toggle('border-red-200', remaining.some(function(m){return labelToKey(m) === el.dataset.field || m.startsWith(keyToLabel(el.dataset.field));}));
-    });
-    document.getElementById('btn-save-corrections').addEventListener('click', function() {
-        const stillBad = parsedStudents.map(function(s,i){return {i:i,missing:validateStudent(s)};}).filter(function(x){return x.missing.length > 0;});
-        if (stillBad.length > 0) {
-            const names = stillBad.slice(0,3).map(function(x){return parsedStudents[x.i].full_name || 'Row ' + parsedStudents[x.i]._row;}).join(', ');
-            showAlert(stillBad.length + ' student' + (stillBad.length > 1 ? 's' : '') + ' still ' + (stillBad.length > 1 ? 'have' : 'has') + ' missing required fields: ' + names + (stillBad.length > 3 ? '…' : '') + '. Please complete them.', 'warning');
+
+    // Confirm Import button
+    document.getElementById('btn-confirm-import').addEventListener('click', () => {
+        const bad = parsedStudents.filter(s => !isValid(s));
+        if (bad.length > 0) {
+            const names = bad.slice(0,3).map(s => s.full_name || 'Row ' + s._row).join(', ');
+            showAlert(bad.length + ' student' + (bad.length > 1 ? 's' : '') + ' still have errors: ' + names + (bad.length > 3 ? '…' : '') + '. Fix them before importing.', 'warning');
             return;
         }
         runImport();
     });
 }
+
+function buildTblRow(s, ri, COLS) {
+    const errs     = validateStudent(s);
+    const hasError = Object.keys(errs).length > 0;
+    const tr       = document.createElement('tr');
+    tr.dataset.idx = ri;
+    tr.className   = (hasError ? 'bg-red-50/30' : 'bg-white') + ' border-b border-slate-100 hover:brightness-[.98] transition-colors';
+    COLS.forEach(col => {
+        const td    = document.createElement('td');
+        td.className = 'px-2 py-1.5 align-top';
+        const cellErr = errs[col.key];
+        if (!col.edit) {
+            td.innerHTML = '<span class="text-[11px] font-bold text-slate-400">' + s._row + '</span>';
+        } else if (col.type === 'select') {
+            const sel = document.createElement('select');
+            sel.dataset.field = col.key; sel.dataset.idx = ri;
+            sel.className = 'tbl-cell w-full text-[12px] font-medium py-1.5 px-2 rounded-lg outline-none border transition-all appearance-none cursor-pointer ' +
+                (cellErr ? 'bg-red-50 border-red-300 text-red-700' : 'bg-transparent border-transparent hover:border-slate-300 focus:border-slate-400 text-slate-700');
+            col.opts.forEach(o => { const opt = document.createElement('option'); opt.value = o; opt.textContent = o || '— Select —'; if (String(s[col.key]||'') === o) opt.selected = true; sel.appendChild(opt); });
+            td.appendChild(sel);
+            if (cellErr) { const e = document.createElement('p'); e.className = 'text-[10px] text-red-500 font-semibold mt-0.5 pl-1 leading-none'; e.textContent = cellErr; td.appendChild(e); }
+        } else {
+            const inp = document.createElement('input'); inp.type = 'text';
+            inp.dataset.field = col.key; inp.dataset.idx = ri;
+            inp.value = String(s[col.key] ?? ''); inp.placeholder = col.label;
+            inp.className = 'tbl-cell w-full text-[12px] font-medium py-1.5 px-2 rounded-lg outline-none border transition-all ' +
+                (cellErr ? 'bg-red-50 border-red-300 text-red-700 placeholder:text-red-300' : 'bg-transparent border-transparent hover:border-slate-300 focus:border-slate-400 text-slate-700 placeholder:text-slate-300');
+            td.appendChild(inp);
+            if (cellErr) { const e = document.createElement('p'); e.className = 'text-[10px] text-red-500 font-semibold mt-0.5 pl-1 leading-none'; e.textContent = cellErr; td.appendChild(e); }
+        }
+        tr.appendChild(td);
+    });
+    return tr;
+}
+
+// Live cell edit → sync + re-validate
+document.getElementById('bulk-step-table').addEventListener('input', function(e) {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.field) return;
+    const idx = parseInt(el.dataset.idx, 10);
+    parsedStudents[idx][el.dataset.field] = el.value.trim();
+    const errs    = validateStudent(parsedStudents[idx]);
+    const cellErr = errs[el.dataset.field];
+    const td      = el.parentElement;
+    // Style the input/select
+    if (cellErr) {
+        el.classList.remove('bg-transparent','border-transparent','text-slate-700','placeholder:text-slate-300');
+        el.classList.add('bg-red-50','border-red-300','text-red-700');
+    } else {
+        el.classList.remove('bg-red-50','border-red-300','text-red-700','placeholder:text-red-300');
+        el.classList.add('bg-transparent','border-transparent','text-slate-700');
+    }
+    // Error hint below cell
+    let hint = td.querySelector('p');
+    if (cellErr) { if (!hint) { hint = document.createElement('p'); hint.className = 'text-[10px] text-red-500 font-semibold mt-0.5 pl-1 leading-none'; td.appendChild(hint); } hint.textContent = cellErr; }
+    else if (hint) hint.remove();
+    // Row background
+    const tr = el.closest('tr');
+    const rowBad = Object.keys(validateStudent(parsedStudents[idx])).length > 0;
+    tr.className = (rowBad ? 'bg-red-50/30' : 'bg-white') + ' border-b border-slate-100 hover:brightness-[.98] transition-colors';
+    // Badge
+    const totalBad = parsedStudents.filter(s => !isValid(s)).length;
+    const badge = document.getElementById('tbl-err-badge');
+    if (badge) { badge.textContent = totalBad + ' rows need fixing'; badge.classList.toggle('hidden', totalBad === 0); }
+});
+
 // ─── The actual import POST ───────────────────────────────────────────────────
 async function runImport() {
     hideAlert();
-    btnImport.innerText = 'Importing…'; btnImport.disabled = true;
-    const btnSave = document.getElementById('btn-save-corrections');
-    if (btnSave) { btnSave.innerText = 'Importing…'; btnSave.disabled = true; }
+    const confirmBtn = document.getElementById('btn-confirm-import');
+    if (confirmBtn) { confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Importing…'; confirmBtn.disabled = true; }
     const payload = { students: parsedStudents, auto_pin: document.getElementById('bulk-auto-pin').checked ? 1 : 0 };
     const token   = formSingle.querySelector('input[name="_token"]').value;
     try {
         const res = await axios.post("{{ route('students.import') }}", payload, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
         if (res.data.success) {
             const d = res.data;
-            const realErrors = (d.errors || []).filter(function(e){return !e.reason.startsWith('Warning:');});
-            const transfers  = (d.errors || []).filter(function(e){return  e.reason.startsWith('Warning:');});
-            let failedRows = '';
+            document.getElementById('bulk-step-table').classList.add('hidden');
+            const sr = document.getElementById('bulk-step-result');
+            sr.classList.remove('hidden');
+            const realErrors = (d.errors||[]).filter(e => !e.reason.startsWith('Warning:'));
+            const transfers  = (d.errors||[]).filter(e =>  e.reason.startsWith('Warning:'));
+            let failHtml = '';
             if (realErrors.length > 0) {
-                failedRows  = '<p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-4">Failed Records (' + realErrors.length + ')</p>';
-                failedRows += '<div class="max-h-56 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-2">';
-                realErrors.forEach(function(e, n) {
-                    const bList = (e.missing && e.missing.length)
-                        ? e.missing.map(function(m){return '<li>• ' + escHtml(m) + '</li>';}).join('')
-                        : '<li>• ' + escHtml(e.reason) + '</li>';
-                    failedRows += '<div class="text-[11px] bg-white p-2.5 border border-slate-200 rounded-lg shadow-sm"><div class="flex items-center gap-1.5 mb-1"><span class="font-bold text-slate-400 text-[10px]">' + (n+1) + '.</span><span class="font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[10px]">Row ' + e.row + '</span><span class="font-bold text-[#0d326b] ml-1">' + escHtml(e.name) + '</span></div><ul class="pl-2 text-slate-500 font-medium leading-snug">' + bList + '</ul></div>';
+                failHtml = '<div class="mt-4"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Failed Records (' + realErrors.length + ')</p>' +
+                    '<div class="max-h-44 overflow-y-auto space-y-2 bg-slate-50 rounded-xl border border-slate-200 p-2">';
+                realErrors.forEach((e,n) => {
+                    const list = (e.missing&&e.missing.length) ? e.missing.map(m=>'<li>• '+escHtml(m)+'</li>').join('') : '<li>• '+escHtml(e.reason)+'</li>';
+                    failHtml += '<div class="text-[11px] bg-white p-2.5 border border-slate-200 rounded-lg">' +
+                        '<div class="flex items-center gap-1.5 mb-0.5"><span class="text-[10px] font-bold text-slate-400">'+(n+1)+'.</span>' +
+                        '<span class="font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[10px]">Row '+e.row+'</span>' +
+                        '<span class="font-bold text-[#0d326b] ml-1">'+escHtml(e.name)+'</span></div>' +
+                        '<ul class="pl-2 text-slate-500 font-medium leading-snug">'+list+'</ul></div>';
                 });
-                failedRows += '</div>';
+                failHtml += '</div></div>';
             }
-            let transferRow = '';
+            let xferHtml = '';
             if (transfers.length > 0) {
-                transferRow = '<p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-3 mb-1">Transferred (' + transfers.length + ')</p><div class="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-2">' + transfers.map(function(t){return '<span class="inline-block font-semibold mr-2">' + escHtml(t.name) + '</span>';}).join('') + '</div>';
+                xferHtml = '<div class="mt-3"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Transferred ('+transfers.length+')</p>' +
+                    '<div class="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-2">' +
+                    transfers.map(t=>'<span class="inline-block font-semibold mr-2">'+escHtml(t.name)+'</span>').join('') + '</div></div>';
             }
-            document.getElementById('container-bulk').innerHTML =
-                '<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">' +
-                '<div class="flex items-center gap-2 mb-5"><span class="material-symbols-outlined text-emerald-500 text-[22px]">check_circle</span><h3 class="text-lg font-bold text-[#0d326b]">Import Complete</h3></div>' +
-                '<div class="grid grid-cols-3 gap-3 mb-2">' +
-                '<div class="bg-blue-50 p-3 rounded-xl text-center"><p class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-1">Total Rows</p><p class="text-3xl font-black text-blue-900">' + d.total + '</p></div>' +
-                '<div class="bg-emerald-50 p-3 rounded-xl text-center"><p class="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mb-1">Imported</p><p class="text-3xl font-black text-emerald-900">' + d.imported + '</p></div>' +
-                '<div class="bg-amber-50 p-3 rounded-xl text-center"><p class="text-[9px] text-amber-600 font-bold uppercase tracking-widest mb-1">Skipped</p><p class="text-3xl font-black text-amber-900">' + d.skipped + '</p></div>' +
-                '</div>' + failedRows + transferRow +
-                '<button type="button" onclick="window.location.reload()" class="mt-5 w-full bg-[#0d326b] hover:bg-[#154188] text-white px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm">Done — Reload Page</button></div>';
+            sr.innerHTML =
+                '<div class="flex items-center gap-3 mb-5">' +
+                '<div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-emerald-600 text-[22px]">check_circle</span></div>' +
+                '<div><p class="text-[15px] font-bold text-[#0d326b]">Import Complete</p>' +
+                '<p class="text-[11px] text-slate-400 font-medium">'+d.imported+' of '+d.total+' students added to your class</p></div></div>' +
+                '<div class="grid grid-cols-3 gap-3">' +
+                '<div class="bg-blue-50 p-3 rounded-xl text-center"><p class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-1">Total</p><p class="text-3xl font-black text-blue-900">'+d.total+'</p></div>' +
+                '<div class="bg-emerald-50 p-3 rounded-xl text-center"><p class="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mb-1">Imported</p><p class="text-3xl font-black text-emerald-900">'+d.imported+'</p></div>' +
+                '<div class="bg-amber-50 p-3 rounded-xl text-center"><p class="text-[9px] text-amber-600 font-bold uppercase tracking-widest mb-1">Skipped</p><p class="text-3xl font-black text-amber-900">'+d.skipped+'</p></div>' +
+                '</div>' + failHtml + xferHtml +
+                '<button type="button" onclick="window.location.reload()" class="mt-5 w-full bg-[#0d326b] hover:bg-[#154188] text-white py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm flex items-center justify-center gap-2">' +
+                '<span class="material-symbols-outlined text-[16px]">refresh</span>Done — Reload Page</button>';
         } else {
-            showAlert(res.data.message || 'Import error.');
-            btnImport.innerText = 'Confirm Import'; btnImport.disabled = false;
-            if (btnSave) { btnSave.innerText = 'Save & Confirm Import'; btnSave.disabled = false; }
+            showAlert(res.data.message || 'Import error.', 'error');
+            if (confirmBtn) { confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">upload</span>Confirm Import'; confirmBtn.disabled = false; }
         }
-    } catch (err) {
+    } catch(err) {
         let msg = 'An error occurred during import.';
         if (err.response?.data?.errors) msg = Object.values(err.response.data.errors).flat().join('<br>');
         else if (err.response?.data?.message) msg = err.response.data.message;
         showAlert(msg);
-        btnImport.innerText = 'Confirm Import'; btnImport.disabled = false;
-        if (btnSave) { btnSave.innerText = 'Save & Confirm Import'; btnSave.disabled = false; }
+        if (confirmBtn) { confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">upload</span>Confirm Import'; confirmBtn.disabled = false; }
     }
 }
-// The bulk upload area needs an id for hide/show toggling
-btnImport.addEventListener('click', function() {
-    const corrScreen = document.getElementById('validation-screen');
-    if (corrScreen) return; // correction screen's own button handles it
-    runImport();
-});
 
 // ─── AJAX Filtering + Pagination (no page reload) ──────────────────────────────
 // The whole "results" panel (table + pagination) below the toolbar is fetched
@@ -1353,120 +1472,443 @@ document.addEventListener('click', function (e) {
     }
 
     const promoteBtn = e.target.closest('.promote-btn');
-    if (promoteBtn) { openPromoteModal(promoteBtn); return; }
+    if (promoteBtn) { return; } // handled inside Student Details modal
 
     const demoteBtn = e.target.closest('.demote-btn');
-    if (demoteBtn) { openDemoteModal(demoteBtn); return; }
+    if (demoteBtn) { return; } // handled inside Student Details modal
 });
 
 document.addEventListener('DOMContentLoaded', function () {
     updateClearButtonVisibility();
 });
 
-// ─── Promote Modal ────────────────────────────────────────────────────────────
-const promoteModal=document.getElementById('promote-modal'),promoteCard=document.getElementById('promote-card'),promoteTitle=document.getElementById('promote-title'),promoteSubtitle=document.getElementById('promote-subtitle'),promoteAvatar=document.getElementById('promote-avatar'),promoteStudentName=document.getElementById('promote-student-name'),promoteFromBadge=document.getElementById('promote-from-badge'),promoteToBadge=document.getElementById('promote-to-badge'),promoteXpWarning=document.getElementById('promote-xp-warning'),promoteXpDetail=document.getElementById('promote-xp-detail'),promoteXpOk=document.getElementById('promote-xp-ok'),promoteXpOkDetail=document.getElementById('promote-xp-ok-detail'),promoteHeaderBar=document.getElementById('promote-header-bar'),promoteIconWrap=document.getElementById('promote-icon-wrap'),promoteIcon=document.getElementById('promote-icon'),promoteCancelBtn=document.getElementById('promote-cancel-btn'),promoteConfirmBtn=document.getElementById('promote-confirm-btn'),promoteConfirmLabel=document.getElementById('promote-confirm-label'),promoteXpBar=document.getElementById('promote-xp-bar'),promoteXpFraction=document.getElementById('promote-xp-fraction'),promoteXpTargetLabel=document.getElementById('promote-xp-target-label'),promoteHistoryList=document.getElementById('promote-history-list'),promoteHistoryEmpty=document.getElementById('promote-history-empty');
-let currentPromoteData=null;
+// ─── Student Details Modal ───────────────────────────────────────────────────
+const sdModal      = document.getElementById('student-details-modal');
+const sdCard       = document.getElementById('student-details-card');
+const sdLoading    = document.getElementById('sdc-loading');
+const sdContent    = document.getElementById('sdc-content');
+const sdNotif      = document.getElementById('sdc-notif');
+let _sdCurrent     = null; // current student data object
 
-const lvlMeta={
-    'Beginner':     {cssClass:'beginner',     barColor:'#93c5fd'},
-    'Intermediate': {cssClass:'intermediate',  barColor:'#3b82f6'},
-    'Advanced':     {cssClass:'advanced',      barColor:'#1e4b8f'},
-    'Completed':    {cssClass:'completed',     barColor:'#0d326b'},
+const lvlMeta = {
+    'Beginner':     { cssClass:'beginner',     barColor:'#f59e0b' },
+    'Intermediate': { cssClass:'intermediate',  barColor:'#3b82f6' },
+    'Advanced':     { cssClass:'advanced',      barColor:'#1e4b8f' },
+    'Completed':    { cssClass:'completed',     barColor:'#0d326b' },
 };
 
-function renderHistory(history, containerId, emptyId){
-    const list = document.getElementById(containerId);
-    const empty = document.getElementById(emptyId);
-    if(!list) return;
-    list.innerHTML='';
-    if(!history||!history.length){if(empty) empty.classList.remove('hidden');return;}
-    if(empty) empty.classList.add('hidden');
-    history.forEach(h=>{
-        const fromMeta=lvlMeta[h.from]||lvlMeta['Beginner'];
-        const toMeta=lvlMeta[h.to]||lvlMeta['Beginner'];
-        const forcedBadge=h.forced?`<span style="background:#fef3c7;color:#92400e;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9999px;margin-left:6px">forced</span>`:'';
-        list.innerHTML+=`
-        <div class="hist-item">
-            <div class="hist-dot" style="background:${toMeta.barColor}"></div>
-            <div class="flex-1 min-w-0">
+// ── Edit mode ────────────────────────────────────────────────────────────────
+let _sdEditing = false;
+
+function sdcEnterEdit() {
+    _sdEditing = true;
+    const s = _sdCurrent;
+    // Populate inputs with current values
+    document.getElementById('sdc-edit-fullname').value    = s.last_name && s.first_name ? s.last_name + ', ' + s.first_name : s.full_name;
+    document.getElementById('sdc-edit-age').value         = s.age || '';
+    document.getElementById('sdc-edit-program').value     = s.program_type || 'Regular';
+    document.getElementById('sdc-edit-grade').value       = s.grade_level || '';
+    document.getElementById('sdc-edit-section').value     = s.section || '';
+    document.getElementById('sdc-edit-school-year').value = s.school_year || '';
+    document.getElementById('sdc-sy-error').classList.add('hidden');
+
+    // Show edit fields, hide read-only
+    document.querySelectorAll('#sdc-content .view-only').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('#sdc-content .edit-only').forEach(el => el.classList.remove('hidden'));
+
+    // Toggle header buttons
+    document.getElementById('sdc-edit-btn').classList.add('hidden');
+    document.getElementById('sdc-save-btn').classList.remove('hidden');
+    document.getElementById('sdc-cancel-edit-btn').classList.remove('hidden');
+
+    // Add a subtle amber border to the right panel to signal edit mode
+    document.getElementById('sdc-content').classList.add('ring-2','ring-amber-200','ring-inset','rounded-b-[28px]');
+}
+
+function sdcExitEdit() {
+    _sdEditing = false;
+    document.querySelectorAll('#sdc-content .view-only').forEach(el => el.classList.remove('hidden'));
+    document.querySelectorAll('#sdc-content .edit-only').forEach(el => el.classList.add('hidden'));
+    document.getElementById('sdc-edit-btn').classList.remove('hidden');
+    document.getElementById('sdc-save-btn').classList.add('hidden');
+    document.getElementById('sdc-cancel-edit-btn').classList.add('hidden');
+    document.getElementById('sdc-content').classList.remove('ring-2','ring-amber-200','ring-inset','rounded-b-[28px]');
+    document.getElementById('sdc-sy-error').classList.add('hidden');
+}
+
+function sdcValidateSchoolYear(val) {
+    if (!val || val.trim() === '') return null; // optional field — blank is ok
+    const m = val.trim().match(/^(\d{4})-(\d{4})$/);
+    if (!m) return 'Must be in YYYY-YYYY format (e.g. 2024-2025).';
+    const y1 = parseInt(m[1]), y2 = parseInt(m[2]);
+    if (y2 !== y1 + 1) return 'Second year must be exactly one after the first (e.g. ' + y1 + '-' + (y1+1) + ').';
+    const now = new Date().getFullYear();
+    if (y1 < 2000 || y1 > now + 2) return 'School year ' + val + ' is out of a reasonable range.';
+    return null;
+}
+
+// Auto-format school year inputs: insert dash after 4 digits, live validation
+document.addEventListener('input', function(e) {
+    const ids = ['sdc-edit-school-year', 'single-school-year'];
+    if (!e.target || !ids.includes(e.target.id)) return;
+
+    let v = e.target.value.replace(/[^\d-]/g, '');
+    if (v.length === 4 && !v.includes('-')) v = v + '-';
+    if (v.length > 9) v = v.slice(0, 9);
+    e.target.value = v;
+
+    const err = sdcValidateSchoolYear(v);
+
+    if (e.target.id === 'sdc-edit-school-year') {
+        const errEl = document.getElementById('sdc-sy-error');
+        errEl.textContent = err || '';
+        errEl.classList.toggle('hidden', !err);
+        e.target.classList.toggle('border-red-300', !!err);
+        e.target.classList.toggle('border-slate-200', !err);
+    } else {
+        const errEl = document.getElementById('single-sy-error');
+        errEl.textContent = err || '';
+        errEl.classList.toggle('hidden', !err);
+        e.target.classList.toggle('border-red-400', !!err);
+        e.target.classList.toggle('border-transparent', !err);
+    }
+});
+
+document.getElementById('sdc-edit-btn').addEventListener('click', sdcEnterEdit);
+document.getElementById('sdc-cancel-edit-btn').addEventListener('click', () => {
+    // populateStudentDetails already calls sdcExitEdit internally
+    populateStudentDetails(_sdCurrent);
+});
+document.getElementById('sdc-save-btn').addEventListener('click', async () => {
+    const fullName  = document.getElementById('sdc-edit-fullname').value.trim();
+    const syVal     = document.getElementById('sdc-edit-school-year').value.trim();
+    const syErr     = sdcValidateSchoolYear(syVal);
+    if (!fullName) { sdNotifShow('Full name is required.', 'error'); return; }
+    if (syErr)     { sdNotifShow('School year: ' + syErr, 'error'); return; }
+
+    const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+    const saveBtn = document.getElementById('sdc-save-btn');
+    const origHtml = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span><span>Saving…</span>';
+    saveBtn.disabled = true;
+
+    try {
+        const res = await axios.put('/students/' + _sdCurrent.student_id, {
+            full_name:         fullName,
+            age:               document.getElementById('sdc-edit-age').value || null,
+            program_type:      document.getElementById('sdc-edit-program').value,
+            grade_level:       document.getElementById('sdc-edit-grade').value || null,
+            section:           document.getElementById('sdc-edit-section').value || null,
+            school_year:       syVal || null,
+            fsl_mastery_level: _sdCurrent.fsl_mastery_level,
+            _method:           'PUT',
+        }, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
+
+        if (res.data.success) {
+            sdNotifShow(res.data.message, 'success');
+            sdcExitEdit();
+            // Re-fetch fresh data
+            fetch('/students/' + _sdCurrent.student_id, {
+                method: 'GET', credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(r => r.json()).then(fresh => {
+                if (fresh.success) { _sdCurrent = fresh.student; populateStudentDetails(fresh.student); applyServerFilters(); }
+            });
+        } else {
+            sdNotifShow(res.data.message || 'Update failed.', 'error');
+        }
+    } catch (err) {
+        let msg = 'Failed to save changes.';
+        if (err.response?.data?.errors) msg = Object.values(err.response.data.errors).flat().join(' ');
+        else if (err.response?.data?.message) msg = err.response.data.message;
+        sdNotifShow(msg, 'error');
+    } finally {
+        saveBtn.innerHTML = origHtml;
+        saveBtn.disabled = false;
+    }
+});
+
+// ── Open / close ──────────────────────────────────────────────────────────────
+function openStudentDetails(studentId) {
+    sdLoading.classList.remove('hidden');
+    sdContent.classList.add('hidden');
+    sdNotif.classList.add('hidden');
+    sdModal.classList.remove('hidden');
+    requestAnimationFrame(() => { sdModal.classList.remove('opacity-0'); sdCard.classList.remove('scale-95'); });
+    const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+    fetch('/students/' + studentId, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => {
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        return r.json();
+    })
+    .then(res => {
+        if (!res.success) { sdNotifShow('Failed to load student: ' + (res.message || 'Unknown error'), 'error'); return; }
+        _sdCurrent = res.student;
+        populateStudentDetails(res.student);
+        sdLoading.classList.add('hidden');
+        sdContent.classList.remove('hidden');
+    })
+    .catch(err => {
+        sdLoading.classList.add('hidden');
+        sdNotifShow('Error loading student details: ' + err.message, 'error');
+    });
+}
+function closeStudentDetails() {
+    if (_sdEditing) sdcExitEdit();
+    sdModal.classList.add('opacity-0'); sdCard.classList.add('scale-95');
+    setTimeout(() => { sdModal.classList.add('hidden'); _sdCurrent = null; }, 300);
+}
+document.getElementById('sdc-close').addEventListener('click', closeStudentDetails);
+sdModal.addEventListener('click', e => { if (e.target === sdModal) closeStudentDetails(); });
+
+// ── Populate all fields ───────────────────────────────────────────────────────
+function populateStudentDetails(s) {
+    // Always exit edit mode when populating fresh data
+    if (_sdEditing) sdcExitEdit();
+
+    const lvl  = s.fsl_mastery_level;
+    const meta = lvlMeta[lvl] || lvlMeta['Beginner'];
+
+    // Left panel
+    document.getElementById('sdc-avatar').src = s.avatar_url;
+    document.getElementById('sdc-name').textContent = s.full_name;
+    document.getElementById('sdc-lrn-display').textContent = 'LRN: ' + (s.lrn || 'N/A');
+
+    const lvlBadge = document.getElementById('sdc-level-badge');
+    lvlBadge.className = 'lvl-badge ' + meta.cssClass + ' text-[11px] px-3 py-1';
+    lvlBadge.textContent = lvl;
+
+    const statusBadge = document.getElementById('sdc-status-badge');
+    const isActive = s.status === 'active';
+    statusBadge.className = 'text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ' +
+        (isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500');
+    statusBadge.textContent = s.status;
+
+    const dot = document.getElementById('sdc-status-dot');
+    dot.className = 'absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ' + (isActive ? 'bg-emerald-400' : 'bg-slate-300');
+
+    const xpPct = s.xp_bar_pct || 0;
+    document.getElementById('sdc-xp-bar').style.width = xpPct + '%';
+    document.getElementById('sdc-xp-bar').style.background = 'linear-gradient(90deg,' + meta.barColor + '88,' + meta.barColor + ')';
+    document.getElementById('sdc-xp-fraction').textContent = (s.total_xp || 0).toLocaleString() + ' / ' + (s.required_xp || 0).toLocaleString() + ' XP';
+    document.getElementById('sdc-xp-hint').textContent = s.promote_to ? (xpPct >= 100 ? '✓ Eligible for ' + s.promote_to : (s.required_xp - s.total_xp).toLocaleString() + ' XP to ' + s.promote_to) : 'Max level reached';
+    document.getElementById('sdc-streak').textContent = (s.streak_days || 0) + ' days';
+    document.getElementById('sdc-level-num').textContent = 'Lv. ' + (s.level || 1);
+    document.getElementById('sdc-last-active').textContent = s.last_activity_date || '—';
+
+    // Personal
+    document.getElementById('sdc-fullname').textContent    = s.full_name || '—';
+    document.getElementById('sdc-age').textContent         = s.age ? s.age + ' yrs' : '—';
+    document.getElementById('sdc-username').textContent    = s.username || '—';
+    document.getElementById('sdc-email').textContent       = s.email || '—';
+
+    // Academic
+    document.getElementById('sdc-program').textContent     = s.program_type || '—';
+    document.getElementById('sdc-grade').textContent       = s.grade_level  || '—';
+    document.getElementById('sdc-section').textContent     = s.section      || '—';
+    document.getElementById('sdc-school-year').textContent = s.school_year  || '—';
+
+    // Account
+    document.getElementById('sdc-sid').textContent     = '#' + s.student_id;
+    document.getElementById('sdc-lrn').textContent     = s.lrn || '—';
+    document.getElementById('sdc-created').textContent = s.created_at || '—';
+    document.getElementById('sdc-updated').textContent = s.updated_at || '—';
+
+    // History
+    sdcRenderHistory(s.promotions || []);
+
+    // Management panel
+    sdcSetupManagement(s);
+}
+
+// ── Promotion history ─────────────────────────────────────────────────────────
+function sdcRenderHistory(history) {
+    const list  = document.getElementById('sdc-history-list');
+    const empty = document.getElementById('sdc-history-empty');
+    list.innerHTML = '';
+    if (!history.length) { empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    history.forEach(h => {
+        const fm = lvlMeta[h.from] || lvlMeta['Beginner'];
+        const tm = lvlMeta[h.to]   || lvlMeta['Beginner'];
+        const forcedTag = h.forced ? '<span style="background:#fef3c7;color:#92400e;font-size:9px;font-weight:700;padding:1px 5px;border-radius:9999px;margin-left:4px">forced</span>' : '';
+        list.innerHTML += `<div class="hist-item">
+            <div class="hist-dot" style="background:${tm.barColor}"></div>
+            <div class="flex-1">
                 <div class="flex items-center flex-wrap gap-1">
-                    <span class="lvl-badge ${fromMeta.cssClass}" style="font-size:9px;padding:2px 7px">${h.from}</span>
-                    <span style="font-size:11px;color:#94a3b8">→</span>
-                    <span class="lvl-badge ${toMeta.cssClass}" style="font-size:9px;padding:2px 7px">${h.to}</span>
-                    ${forcedBadge}
+                    <span class="lvl-badge ${fm.cssClass}" style="font-size:9px;padding:2px 6px">${h.from}</span>
+                    <span style="color:#94a3b8;font-size:11px">→</span>
+                    <span class="lvl-badge ${tm.cssClass}" style="font-size:9px;padding:2px 6px">${h.to}</span>
+                    ${forcedTag}
                 </div>
-                <div class="flex items-center justify-between mt-1">
-                    <span style="font-size:10px;color:#94a3b8">${h.date}</span>
-                    <span style="font-size:10px;font-weight:700;color:#0d326b">${Number(h.xp).toLocaleString()} XP</span>
+                <div class="flex justify-between mt-1">
+                    <span style="font-size:10px;color:#94a3b8">${h.date || ''}</span>
+                    <span style="font-size:10px;font-weight:700;color:#0d326b">${Number(h.xp||0).toLocaleString()} XP</span>
                 </div>
-            </div>
-        </div>`;
+            </div></div>`;
     });
 }
 
-function openPromoteModal(btn){
-    const sid=btn.dataset.studentId,sname=btn.dataset.studentName,cur=btn.dataset.currentLevel,tgt=btn.dataset.targetLevel,cxp=parseInt(btn.dataset.currentXp,10),rxp=parseInt(btn.dataset.requiredXp,10),ok=btn.dataset.enough==='true';
-    let history=[];try{history=JSON.parse(btn.dataset.history||'[]');}catch(e){}
-    currentPromoteData={studentId:sid,targetLevel:tgt,force:!ok};
-    promoteAvatar.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(sname.replace(/ /g,'+'))}&background=0d326b&color=fff&rounded=true&size=80`;
-    promoteStudentName.textContent=sname;
-    const fc=lvlMeta[cur]||lvlMeta['Beginner'],tc=lvlMeta[tgt]||lvlMeta['Beginner'];
-    promoteFromBadge.className=`lvl-badge ${fc.cssClass}`;promoteFromBadge.textContent=cur;
-    promoteToBadge.className=`lvl-badge ${tc.cssClass}`;promoteToBadge.textContent=tgt;
-    const pct=rxp>0?Math.min(100,Math.round(cxp/rxp*100)):100;
-    promoteXpBar.style.width=pct+'%';
-    promoteXpBar.style.background=ok?`linear-gradient(90deg,${tc.barColor}88,${tc.barColor})`:`linear-gradient(90deg,#f59e0b88,#f59e0b)`;
-    promoteXpFraction.textContent=`${cxp.toLocaleString()} / ${rxp.toLocaleString()} XP`;
-    promoteXpTargetLabel.textContent=`${rxp.toLocaleString()} XP required`;
-    promoteXpWarning.classList.add('hidden');promoteXpOk.classList.add('hidden');
-    if(ok){
-        promoteXpOk.classList.remove('hidden');
-        document.getElementById('promote-xp-ok-detail').textContent=`This student is eligible for promotion to ${tgt}. They have met the ${rxp.toLocaleString()} XP requirement.`;
-        promoteHeaderBar.className='h-1.5 w-full bg-gradient-to-r from-emerald-400 to-emerald-600';
-        promoteIconWrap.className='w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0';
-        promoteIcon.className='material-symbols-outlined text-emerald-600 text-[24px]';promoteIcon.textContent='arrow_upward';
-        promoteTitle.textContent=`Promote to ${tgt}`;promoteSubtitle.textContent=`Move ${sname} to the next mastery level`;
-        promoteConfirmBtn.className='flex items-center space-x-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:shadow-lg hover:shadow-emerald-200';
-        promoteConfirmLabel.textContent='Promote';
+// ── Management panel wiring ───────────────────────────────────────────────────
+function sdcSetupManagement(s) {
+    const enrollBtn   = document.getElementById('sdc-enroll-btn');
+    const unenrollBtn = document.getElementById('sdc-unenroll-btn');
+    const promoteBtn  = document.getElementById('sdc-promote-btn');
+    const demoteBtn   = document.getElementById('sdc-demote-btn');
+    const promoteLabel  = document.getElementById('sdc-promote-label');
+    const promoteHint   = document.getElementById('sdc-promote-hint');
+    const demoteLabel   = document.getElementById('sdc-demote-label');
+    const demoteHint    = document.getElementById('sdc-demote-hint');
+    const statusText    = document.getElementById('sdc-enroll-status-text');
+
+    const isActive = s.status === 'active';
+    statusText.textContent = isActive ? 'Student is currently enrolled and active.' : 'Student is currently unenrolled.';
+    enrollBtn.disabled   = isActive;
+    unenrollBtn.disabled = !isActive;
+    enrollBtn.className  = 'flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 ' +
+        (isActive ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer');
+    unenrollBtn.className = 'flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 ' +
+        (isActive ? 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer' : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-transparent');
+
+    // Promote
+    if (s.promote_to) {
+        promoteBtn.classList.remove('hidden');
+        promoteLabel.textContent = 'Promote to ' + s.promote_to;
+        promoteHint.textContent  = s.enough_xp
+            ? '✓ Eligible — ' + (s.total_xp||0).toLocaleString() + ' / ' + (s.required_xp||0).toLocaleString() + ' XP'
+            : 'Needs ' + (s.required_xp - s.total_xp).toLocaleString() + ' more XP (force allowed)';
+        promoteBtn.className = 'w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 ' +
+            (s.enough_xp ? 'bg-[#0d326b] hover:bg-[#154188] text-white' : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200');
     } else {
-        promoteXpWarning.classList.remove('hidden');
-        promoteXpDetail.textContent=`Student has ${cxp.toLocaleString()} XP but needs ${rxp.toLocaleString()} XP to reach ${tgt}.`;
-        promoteHeaderBar.className='h-1.5 w-full bg-gradient-to-r from-amber-400 to-amber-500';
-        promoteIconWrap.className='w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0';
-        promoteIcon.className='material-symbols-outlined text-amber-600 text-[24px]';promoteIcon.textContent='warning';
-        promoteTitle.textContent='EXP Insufficient';promoteSubtitle.textContent='Do you still want to force promote?';
-        promoteConfirmBtn.className='flex items-center space-x-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:shadow-lg hover:shadow-amber-200';
-        promoteConfirmLabel.textContent='Promote Anyway';
+        promoteBtn.classList.add('hidden');
+        promoteHint.textContent = 'Max level reached.';
     }
-    renderHistory(history, 'promote-history-list', 'promote-history-empty');
-    promoteModal.classList.remove('hidden');
-    requestAnimationFrame(()=>{promoteModal.classList.remove('opacity-0');promoteCard.classList.remove('scale-95');});
-}
-function closePromoteModal(){promoteModal.classList.add('opacity-0');promoteCard.classList.add('scale-95');setTimeout(()=>promoteModal.classList.add('hidden'),300);currentPromoteData=null;}
-promoteCancelBtn.addEventListener('click',closePromoteModal);promoteModal.addEventListener('click',e=>{if(e.target===promoteModal)closePromoteModal();});
-promoteConfirmBtn.addEventListener('click',async()=>{if(!currentPromoteData)return;const origInner=promoteConfirmBtn.innerHTML;promoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Promoting...</span>';promoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentPromoteData.studentId}/promote`;try{const res=await axios.post(url,{target_level:currentPromoteData.targetLevel,force:currentPromoteData.force?1:0},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){promoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-emerald-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Promoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>{closePromoteModal();applyServerFilters();},1400);}else{promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;}}catch(err){promoteConfirmBtn.innerHTML=origInner;promoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
 
-// ─── Demote Modal ─────────────────────────────────────────────────────────────
-const demoteModal=document.getElementById('demote-modal'),demoteCard=document.getElementById('demote-card'),demoteAvatar=document.getElementById('demote-avatar'),demoteStudentName=document.getElementById('demote-student-name'),demoteFromBadge=document.getElementById('demote-from-badge'),demoteToBadge=document.getElementById('demote-to-badge'),demoteWarningDetail=document.getElementById('demote-warning-detail'),demoteCancelBtn=document.getElementById('demote-cancel-btn'),demoteConfirmBtn=document.getElementById('demote-confirm-btn');
-let currentDemoteData=null;
-
-function openDemoteModal(btn){
-    const sid=btn.dataset.studentId,sname=btn.dataset.studentName,cur=btn.dataset.currentLevel,tgt=btn.dataset.targetLevel;
-    let history=[];try{history=JSON.parse(btn.dataset.history||'[]');}catch(e){}
-    currentDemoteData={studentId:sid,targetLevel:tgt};
-    demoteAvatar.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(sname.replace(/ /g,'+'))}&background=0d326b&color=fff&rounded=true&size=80`;
-    demoteStudentName.textContent=sname;
-    const fc=lvlMeta[cur]||lvlMeta['Beginner'],tc=lvlMeta[tgt]||lvlMeta['Beginner'];
-    demoteFromBadge.className=`lvl-badge ${fc.cssClass}`;demoteFromBadge.textContent=cur;
-    demoteToBadge.className=`lvl-badge ${tc.cssClass}`;demoteToBadge.textContent=tgt;
-    demoteWarningDetail.textContent=`This will move ${sname} from ${cur} down to ${tgt}. They will lose their current level status.`;
-    renderHistory(history, 'demote-history-list', 'demote-history-empty');
-    demoteModal.classList.remove('hidden');
-    requestAnimationFrame(()=>{demoteModal.classList.remove('opacity-0');demoteCard.classList.remove('scale-95');});
+    // Demote
+    if (s.demote_to) {
+        demoteBtn.classList.remove('hidden');
+        demoteLabel.textContent = 'Demote to ' + s.demote_to;
+        demoteHint.textContent  = 'Moves ' + s.full_name.split(' ')[0] + ' from ' + s.fsl_mastery_level + ' → ' + s.demote_to + '.';
+    } else {
+        demoteBtn.classList.add('hidden');
+        demoteHint.textContent = 'Cannot demote — already at Beginner.';
+    }
 }
-function closeDemoteModal(){demoteModal.classList.add('opacity-0');demoteCard.classList.add('scale-95');setTimeout(()=>demoteModal.classList.add('hidden'),300);currentDemoteData=null;}
-demoteCancelBtn.addEventListener('click',closeDemoteModal);demoteModal.addEventListener('click',e=>{if(e.target===demoteModal)closeDemoteModal();});
-demoteConfirmBtn.addEventListener('click',async()=>{if(!currentDemoteData)return;const origInner=demoteConfirmBtn.innerHTML;demoteConfirmBtn.innerHTML='<span class="material-symbols-outlined text-[18px]">progress_activity</span><span>Demoting...</span>';demoteConfirmBtn.disabled=true;const token=formSingle.querySelector('input[name="_token"]').value,url=`/students/${currentDemoteData.studentId}/demote`;try{const res=await axios.post(url,{target_level:currentDemoteData.targetLevel},{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){demoteCard.innerHTML=`<div class="p-10 flex flex-col items-center text-center"><div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-5"><span class="material-symbols-outlined text-red-500 text-[42px]">check_circle</span></div><p class="text-[20px] font-black text-[#0d326b] mb-2">Demoted!</p><p class="text-[13px] text-slate-400">${res.data.message}</p></div>`;setTimeout(()=>{closeDemoteModal();applyServerFilters();},1400);}else{demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;}}catch(err){demoteConfirmBtn.innerHTML=origInner;demoteConfirmBtn.disabled=false;alert(err.response?.data?.message||'Something went wrong. Please try again.');}});
+
+// ── Notification bar inside the modal ────────────────────────────────────────
+function sdNotifShow(msg, type) {
+    sdNotif.classList.remove('hidden', 'bg-emerald-50','border-emerald-200','text-emerald-800',
+        'bg-red-50','border-red-200','text-red-800','bg-amber-50','border-amber-200','text-amber-800');
+    const map = { success:['bg-emerald-50','border-emerald-200','text-emerald-800','check_circle'],
+                  error:  ['bg-red-50','border-red-200','text-red-800','error'],
+                  warning:['bg-amber-50','border-amber-200','text-amber-800','warning'] };
+    const [bg,border,txt,icon] = map[type] || map.error;
+    sdNotif.classList.add(bg, border, txt);
+    sdNotif.innerHTML = `<span class="material-symbols-outlined text-[18px] shrink-0">${icon}</span><span>${msg}</span>`;
+    setTimeout(() => sdNotif.classList.add('hidden'), 4000);
+}
+
+// ── Confirm dialog helper ─────────────────────────────────────────────────────
+function sdcConfirm({ title, body, okLabel, okClass, onConfirm }) {
+    const cm   = document.getElementById('sdc-confirm-modal');
+    const cc   = document.getElementById('sdc-confirm-card');
+    const iw   = document.getElementById('sdc-confirm-icon-wrap');
+    const ico  = document.getElementById('sdc-confirm-icon');
+    const tEl  = document.getElementById('sdc-confirm-title');
+    const bEl  = document.getElementById('sdc-confirm-body');
+    const okEl = document.getElementById('sdc-confirm-ok');
+    const canEl = document.getElementById('sdc-confirm-cancel');
+
+    tEl.textContent  = title;
+    bEl.textContent  = body;
+    okEl.textContent = okLabel;
+    okEl.className   = 'flex-1 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all ' + (okClass || 'bg-[#0d326b] hover:bg-[#154188]');
+
+    cm.classList.remove('hidden');
+    requestAnimationFrame(() => { cm.classList.remove('opacity-0'); cc.classList.remove('scale-95'); });
+
+    function closeConfirm() { cm.classList.add('opacity-0'); cc.classList.add('scale-95'); setTimeout(() => cm.classList.add('hidden'), 200); }
+    canEl.onclick = closeConfirm;
+    cm.onclick = e => { if (e.target === cm) closeConfirm(); };
+    okEl.onclick = () => { closeConfirm(); onConfirm(); };
+}
+
+// ── Enroll / Unenroll ─────────────────────────────────────────────────────────
+document.getElementById('sdc-enroll-btn').addEventListener('click', () => {
+    if (!_sdCurrent || _sdCurrent.status === 'active') return;
+    sdcConfirm({
+        title: 'Enroll Student',
+        body: 'Are you sure you want to enroll ' + _sdCurrent.full_name + '? They will have full access to lessons and progress tracking.',
+        okLabel: 'Enroll', okClass: 'bg-emerald-500 hover:bg-emerald-600',
+        onConfirm: () => sdcAction('/students/' + _sdCurrent.student_id + '/enroll', {}, 'enroll'),
+    });
+});
+document.getElementById('sdc-unenroll-btn').addEventListener('click', () => {
+    if (!_sdCurrent || _sdCurrent.status !== 'active') return;
+    sdcConfirm({
+        title: 'Unenroll Student',
+        body: 'Are you sure you want to unenroll ' + _sdCurrent.full_name + '? This action can be reversed by enrolling them again.',
+        okLabel: 'Unenroll', okClass: 'bg-red-500 hover:bg-red-600',
+        onConfirm: () => sdcAction('/students/' + _sdCurrent.student_id + '/unenroll', {}, 'unenroll'),
+    });
+});
+
+// ── Promote / Demote ──────────────────────────────────────────────────────────
+document.getElementById('sdc-promote-btn').addEventListener('click', () => {
+    if (!_sdCurrent || !_sdCurrent.promote_to) return;
+    const tgt = _sdCurrent.promote_to;
+    const force = !_sdCurrent.enough_xp;
+    sdcConfirm({
+        title: force ? 'Force Promote?' : 'Promote Student',
+        body: 'Are you sure you want to promote ' + _sdCurrent.full_name + ' to ' + tgt + '?' + (force ? ' This student has not met the XP requirement.' : ''),
+        okLabel: force ? 'Promote Anyway' : 'Promote to ' + tgt,
+        okClass: force ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#0d326b] hover:bg-[#154188]',
+        onConfirm: () => sdcAction('/students/' + _sdCurrent.student_id + '/promote', { target_level: tgt, force: force ? 1 : 0 }, 'promote'),
+    });
+});
+document.getElementById('sdc-demote-btn').addEventListener('click', () => {
+    if (!_sdCurrent || !_sdCurrent.demote_to) return;
+    const tgt = _sdCurrent.demote_to;
+    sdcConfirm({
+        title: 'Demote Student',
+        body: 'Are you sure you want to demote ' + _sdCurrent.full_name + ' from ' + _sdCurrent.fsl_mastery_level + ' to ' + tgt + '?',
+        okLabel: 'Demote to ' + tgt, okClass: 'bg-red-500 hover:bg-red-600',
+        onConfirm: () => sdcAction('/students/' + _sdCurrent.student_id + '/demote', { target_level: tgt }, 'demote'),
+    });
+});
+
+// ── Generic action handler ────────────────────────────────────────────────────
+async function sdcAction(url, data, type) {
+    const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+    try {
+        const res = await axios.post(url, data, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
+        if (res.data.success) {
+            sdNotifShow(res.data.message, 'success');
+            // Re-fetch and re-populate
+            fetch('/students/' + _sdCurrent.student_id, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(r => r.json())
+                .then(fresh => { if (fresh.success) { _sdCurrent = fresh.student; populateStudentDetails(fresh.student); applyServerFilters(); } });
+        } else {
+            sdNotifShow(res.data.message || 'Action failed.', 'error');
+        }
+    } catch (err) {
+        sdNotifShow(err.response?.data?.message || 'Something went wrong.', 'error');
+    }
+}
+
+// ── Delegated click: View button ──────────────────────────────────────────────
+document.addEventListener('click', function(e) {
+    const viewBtn = e.target.closest('.view-student-btn');
+    if (viewBtn) { openStudentDetails(viewBtn.dataset.studentId); return; }
+});
 
 // ─── Mastery Donut Tooltip ──────────────────────────────────────────────────
 document.querySelectorAll('.mastery-donut-hit').forEach(function(seg){
@@ -1487,5 +1929,4 @@ document.querySelectorAll('.mastery-donut-hit').forEach(function(seg){
     });
 });
 </script>
-
 @endsection

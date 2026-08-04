@@ -57,8 +57,12 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::get('/students/check-lrn', [App\Http\Controllers\StudentsController::class, 'checkLrn'])->name('students.check-lrn');
     Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
     Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
+    Route::get('/students/{id}', [App\Http\Controllers\StudentsController::class, 'show'])->name('students.show');
+    Route::put('/students/{id}', [App\Http\Controllers\StudentsController::class, 'update'])->name('students.update');
     Route::post('/students/{id}/promote', [App\Http\Controllers\StudentsController::class, 'promote'])->name('students.promote');
     Route::post('/students/{id}/demote', [App\Http\Controllers\StudentsController::class, 'demote'])->name('students.demote');
+    Route::post('/students/{id}/enroll', [App\Http\Controllers\StudentsController::class, 'enroll'])->name('students.enroll');
+    Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController::class, 'unenroll'])->name('students.unenroll');
 
     // Lessons - ALL using LessonsController (plural)
     Route::get('/lessons', [LessonsController::class, 'index'])->name('lessons.index');

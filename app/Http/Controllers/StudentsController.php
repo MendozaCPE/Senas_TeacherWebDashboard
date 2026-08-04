@@ -159,11 +159,25 @@ class StudentsController extends Controller
         $request->validate([
             'lrn' => 'required|numeric|digits:12',
             'full_name' => 'required|string|max:255',
-            'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained',
+            'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained,SPED,Home-based',
             'grade_level' => 'nullable|string|max:255',
             'age' => 'required|integer|min:1|max:120',
             'section' => 'nullable|string|max:255',
-            'school_year' => 'nullable|string|max:255',
+            'school_year' => ['nullable', 'string', 'max:20',
+                function ($attribute, $value, $fail) {
+                    if (empty($value)) return;
+                    if (!preg_match('/^(\d{4})-(\d{4})$/', $value, $m)) {
+                        $fail('School year must be in YYYY-YYYY format (e.g. 2024-2025).');
+                        return;
+                    }
+                    if ((int)$m[2] !== (int)$m[1] + 1) {
+                        $fail("School year is invalid — the second year must be exactly one year after the first (e.g. {$m[1]}-" . ((int)$m[1]+1) . ').');
+                    }
+                    if ((int)$m[1] < 2000 || (int)$m[1] > (int)date('Y') + 2) {
+                        $fail("School year {$value} is out of a reasonable range.");
+                    }
+                },
+            ],
             'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
         ]);
 
@@ -287,7 +301,7 @@ class StudentsController extends Controller
         ]);
 
         $studentsData = $request->students;
-        $autoPin      = (bool) $request->auto_pin;
+        // auto_pin flag is accepted for backwards-compatibility but PIN is always last 4 digits of LRN
 
         $imported  = 0;
         $skipped   = 0;
@@ -407,8 +421,8 @@ class StudentsController extends Controller
                     $firstName = implode(' ', $parts);
                 }
 
-                // ── 5. PIN ────────────────────────────────────────────────────
-                $pin = $autoPin ? substr($lrn, -6) : substr($lrn, -4);
+                // ── 5. PIN — always last 4 digits of LRN ─────────────────────
+                $pin = substr($lrn, -4);
 
                 // ── 6. Determine nullable fields ──────────────────────────────
                 $gradeLevel = in_array($programType, $needGradeSection)
@@ -471,6 +485,212 @@ class StudentsController extends Controller
                 'message' => 'Bulk import failed: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Update editable student fields.
+     * School year must be in YYYY-YYYY format where the second year = first + 1.
+     */
+    public function update(Request $request, $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $student = Student::where('student_id', $id)
+                          ->where('teacher_id', $teacher->id)
+                          ->firstOrFail();
+
+        $validated = $request->validate([
+            'full_name'         => 'required|string|max:255',
+            'age'               => 'nullable|integer|min:1|max:120',
+            'program_type'      => 'required|in:Regular,Inclusion,SPED,Home-based,Self-contained,Transition',
+            'grade_level'       => 'nullable|string|max:50',
+            'section'           => 'nullable|string|max:100',
+            'school_year'       => ['nullable', 'string', 'max:20',
+                function ($attribute, $value, $fail) {
+                    if (empty($value)) return;
+                    // Must be YYYY-YYYY
+                    if (!preg_match('/^(\d{4})-(\d{4})$/', $value, $m)) {
+                        $fail('School year must be in YYYY-YYYY format (e.g. 2024-2025).');
+                        return;
+                    }
+                    $y1 = (int) $m[1];
+                    $y2 = (int) $m[2];
+                    if ($y2 !== $y1 + 1) {
+                        $fail("School year is invalid — the second year must be exactly one year after the first (e.g. {$y1}-" . ($y1 + 1) . ').');
+                    }
+                    $currentYear = (int) date('Y');
+                    if ($y1 < 2000 || $y1 > $currentYear + 2) {
+                        $fail("School year {$value} is out of a reasonable range.");
+                    }
+                },
+            ],
+            'fsl_mastery_level' => 'nullable|in:Beginner,Intermediate,Advanced',
+        ]);
+
+        // Parse name (Last, First  OR  First Last)
+        $fullName = trim($validated['full_name']);
+        if (str_contains($fullName, ',')) {
+            [$lastName, $firstName] = array_map('trim', explode(',', $fullName, 2));
+        } else {
+            $parts    = explode(' ', $fullName);
+            $lastName = count($parts) > 1 ? array_pop($parts) : '';
+            $firstName = implode(' ', $parts);
+        }
+
+        // Grade / section only required for Regular + Inclusion
+        $needGradeSection = in_array($validated['program_type'], ['Regular', 'Inclusion']);
+
+        $student->update([
+            'first_name'        => $firstName,
+            'last_name'         => $lastName,
+            'age'               => $validated['age'] ?? $student->age,
+            'program_type'      => $validated['program_type'],
+            'grade_level'       => $needGradeSection ? ($validated['grade_level'] ?? null) : ($validated['grade_level'] ?? null),
+            'section'           => $validated['section'] ?? null,
+            'school_year'       => $validated['school_year'] ?? null,
+            'fsl_mastery_level' => $validated['fsl_mastery_level'] ?? $student->fsl_mastery_level,
+        ]);
+
+        // Also update the linked user's display name
+        if ($student->user_id) {
+            \App\Models\User::where('id', $student->user_id)
+                ->update(['name' => trim($firstName . ' ' . $lastName)]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student details updated successfully.',
+        ]);
+    }
+
+    /**
+     * Return full student details as JSON for the Student Details modal.
+     */
+    public function show($id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $student = Student::where('student_id', $id)
+                          ->where('teacher_id', $teacher->id)
+                          ->with(['promotions'])
+                          ->firstOrFail();
+
+        // Load the associated user separately (no relationship defined on model)
+        $user = \App\Models\User::find($student->user_id);
+
+        $xp  = $student->total_xp ?? 0;
+        $lvl = $student->fsl_mastery_level;
+
+        $xpThresholds = ['Beginner' => 300, 'Intermediate' => 600, 'Advanced' => 1000];
+        $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
+        $demotionMap  = ['Intermediate' => 'Beginner', 'Advanced' => 'Intermediate', 'Completed' => 'Advanced'];
+
+        $promoteTo  = $promotionMap[$lvl] ?? null;
+        $requiredXp = $xpThresholds[$lvl] ?? 0;
+        $enoughXp   = $xp >= $requiredXp;
+        $demoteTo   = $demotionMap[$lvl] ?? null;
+
+        return response()->json([
+            'success' => true,
+            'student' => [
+                'student_id'        => $student->student_id,
+                'first_name'        => $student->first_name,
+                'last_name'         => $student->last_name,
+                'full_name'         => $student->first_name . ' ' . $student->last_name,
+                'lrn'               => $student->lrn,
+                'pin'               => $student->pin,
+                'age'               => $student->age,
+                'grade_level'       => $student->grade_level,
+                'section'           => $student->section,
+                'school_year'       => $student->school_year,
+                'program_type'      => $student->program_type,
+                'fsl_mastery_level' => $lvl,
+                'status'            => $student->status,
+                'total_xp'          => $xp,
+                'level'             => $student->level ?? 1,
+                'streak_days'       => $student->streak_days ?? 0,
+                'last_activity_date'=> $student->last_activity_date,
+                'created_at'        => $student->created_at?->format('M d, Y'),
+                'updated_at'        => $student->updated_at?->format('M d, Y'),
+                'email'             => $user?->email,
+                'username'          => $user?->username,
+                'avatar_url'        => 'https://ui-avatars.com/api/?name=' . urlencode($student->first_name . ' ' . $student->last_name) . '&background=0d326b&color=fff&rounded=true&size=128',
+                // Promotion helpers
+                'promote_to'        => $promoteTo,
+                'demote_to'         => $demoteTo,
+                'required_xp'       => $requiredXp,
+                'enough_xp'         => $enoughXp,
+                'xp_bar_pct'        => $requiredXp > 0 ? min(100, round($xp / $requiredXp * 100)) : 100,
+                // History
+                'promotions'        => $student->promotions->map(fn($p) => [
+                    'from'   => $p->from_level,
+                    'to'     => $p->to_level,
+                    'xp'     => $p->xp_at_promotion,
+                    'date'   => $p->promoted_at?->format('M d, Y'),
+                    'forced' => (bool) $p->was_forced,
+                ])->toArray(),
+            ],
+        ]);
+    }
+
+    /**
+     * Enroll (set status = active) a student.
+     */
+    public function enroll($id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $student = Student::where('student_id', $id)
+                          ->where('teacher_id', $teacher->id)
+                          ->firstOrFail();
+
+        if ($student->status === 'active') {
+            return response()->json(['success' => false, 'message' => 'Student is already enrolled.'], 422);
+        }
+
+        $student->update(['status' => 'active']);
+
+        return response()->json([
+            'success' => true,
+            'message' => $student->first_name . ' ' . $student->last_name . ' has been enrolled successfully.',
+            'status'  => 'active',
+        ]);
+    }
+
+    /**
+     * Unenroll (set status = inactive) a student.
+     */
+    public function unenroll($id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $student = Student::where('student_id', $id)
+                          ->where('teacher_id', $teacher->id)
+                          ->firstOrFail();
+
+        if ($student->status === 'inactive') {
+            return response()->json(['success' => false, 'message' => 'Student is already unenrolled.'], 422);
+        }
+
+        $student->update(['status' => 'inactive']);
+
+        return response()->json([
+            'success' => true,
+            'message' => $student->first_name . ' ' . $student->last_name . ' has been unenrolled.',
+            'status'  => 'inactive',
+        ]);
     }
 
     /**
