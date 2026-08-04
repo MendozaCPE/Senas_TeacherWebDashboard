@@ -39,7 +39,16 @@
         * { box-sizing: border-box; }
     </style>
 </head>
-<body class="font-sans antialiased bg-gray-50 min-h-screen">
-    @yield('content')
+<body class="font-sans antialiased bg-gray-50 min-h-screen flex flex-col">
+    <div class="flex-1">
+        @yield('content')
+    </div>
+
+    <!-- Footer -->
+    <footer class="py-4 flex items-center justify-center border-t border-gray-200 bg-transparent">
+        <p class="text-[11px] font-medium tracking-wide text-gray-400 select-none">
+            &copy; 2026 &nbsp;<span class="font-bold text-gray-500">SEÑAS</span>&nbsp; &mdash; All rights reserved.
+        </p>
+    </footer>
 </body>
 </html>

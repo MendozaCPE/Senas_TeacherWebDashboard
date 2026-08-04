@@ -158,6 +158,9 @@
         /* Dark mode scrollbar */
         html.dark ::-webkit-scrollbar-thumb { background: #0047AB; }
         html.dark ::-webkit-scrollbar-thumb:hover { background: #007FFF; }
+
+        /* Footer */
+        html.dark .footer-global { border-color: rgba(255,255,255,0.05) !important; }
     </style>
 </head>
 <body class="font-sans antialiased flex h-screen overflow-hidden bg-[#f5f8fc] @yield('bg-class', '')">
@@ -172,9 +175,12 @@
         @include('partials.header')
 
         <!-- Scrollable Content -->
-        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-10 relative border-l border-slate-100">
+        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-6 relative border-l border-slate-100">
             @yield('content')
         </main>
+
+        <!-- Footer -->
+        @include('partials.footer')
     </div>
 
     <!-- Dark Mode Script -->
