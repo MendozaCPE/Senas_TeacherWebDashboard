@@ -262,6 +262,14 @@ class StudentsController extends Controller
 
     /**
      * Import multiple students from parsed Excel JSON.
+     *
+     * Every row is validated for all required fields before any DB writes happen.
+     * Rows with missing/invalid required fields are rejected and returned in the
+     * errors list — no partial / NULL records are ever inserted.
+     *
+     * Required fields: lrn, full_name, program_type, fsl_mastery_level
+     * Optional fields: age, grade_level, section, school_year
+     *   (grade_level and section are required when program_type is Regular or Inclusion)
      */
     public function import(Request $request)
     {
@@ -274,116 +282,171 @@ class StudentsController extends Controller
         }
 
         $request->validate([
-            'students' => 'required|array',
-            'auto_pin' => 'nullable|boolean',
+            'students'  => 'required|array|min:1',
+            'auto_pin'  => 'nullable|boolean',
         ]);
 
         $studentsData = $request->students;
-        $autoPin = $request->auto_pin;
+        $autoPin      = (bool) $request->auto_pin;
 
-        $imported = 0;
-        $skipped = 0;
-        $errors = [];
+        $imported  = 0;
+        $skipped   = 0;
+        $errors    = [];
+        $transfers = [];
+
+        // Valid values for enumerated fields
+        $validPrograms  = ['Regular', 'Inclusion', 'SPED', 'Home-based'];
+        $validMastery   = ['Beginner', 'Intermediate', 'Advanced'];
+        $needGradeSection = ['Regular', 'Inclusion'];
 
         DB::beginTransaction();
         try {
             foreach ($studentsData as $index => $data) {
-                $validator = \Illuminate\Support\Facades\Validator::make($data, [
-                    'lrn' => 'required|numeric|digits:12',
-                    'full_name' => 'required|string|max:255',
-                    'grade_level' => 'nullable|string|max:255',
-                    'age' => 'required|integer|min:1|max:120',
-                    'section' => 'nullable|string|max:255',
-                    'school_year' => 'nullable|string|max:255',
-                    'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
-                ]);
+                $rowNumber  = $index + 2; // row 1 is the header
+                $displayName = trim($data['full_name'] ?? '');
+                if ($displayName === '') {
+                    $displayName = "Row {$rowNumber} (name unknown)";
+                }
 
-                if ($validator->fails()) {
+                // ── 1. Collect all missing/invalid required fields ────────────
+                $missing = [];
+
+                $lrn = trim((string) ($data['lrn'] ?? ''));
+                if ($lrn === '') {
+                    $missing[] = 'LRN';
+                } elseif (!preg_match('/^\d{12}$/', $lrn)) {
+                    $missing[] = 'LRN (must be exactly 12 digits)';
+                }
+
+                $fullName = trim((string) ($data['full_name'] ?? ''));
+                if ($fullName === '') {
+                    $missing[] = 'Student Name';
+                }
+
+                $programType = trim((string) ($data['program_type'] ?? ''));
+                if ($programType === '') {
+                    $missing[] = 'Program';
+                } elseif (!in_array($programType, $validPrograms, true)) {
+                    $missing[] = "Program (invalid value \"{$programType}\"; allowed: " . implode(', ', $validPrograms) . ')';
+                }
+
+                $masteryLevel = trim((string) ($data['fsl_mastery_level'] ?? ''));
+                if ($masteryLevel === '') {
+                    $missing[] = 'FSL Mastery Level';
+                } elseif (!in_array($masteryLevel, $validMastery, true)) {
+                    // Tolerate minor casing issues from the client normalisation
+                    $normalised = ucfirst(strtolower($masteryLevel));
+                    if (in_array($normalised, $validMastery, true)) {
+                        $masteryLevel = $normalised;
+                    } else {
+                        $missing[] = "FSL Mastery Level (invalid value \"{$masteryLevel}\")";
+                    }
+                }
+
+                // Grade Level + Section are required for Regular / Inclusion programs
+                if (in_array($programType, $needGradeSection, true)) {
+                    if (trim((string) ($data['grade_level'] ?? '')) === '') {
+                        $missing[] = 'Grade Level';
+                    }
+                    if (trim((string) ($data['section'] ?? '')) === '') {
+                        $missing[] = 'Section';
+                    }
+                }
+
+                // Age is optional but must be sane if provided
+                $age = null;
+                if (isset($data['age']) && $data['age'] !== '' && $data['age'] !== null) {
+                    $ageVal = filter_var($data['age'], FILTER_VALIDATE_INT);
+                    if ($ageVal === false || $ageVal < 1 || $ageVal > 120) {
+                        $missing[] = 'Age (must be a number between 1 and 120)';
+                    } else {
+                        $age = $ageVal;
+                    }
+                }
+
+                // ── 2. Reject row if anything is missing ─────────────────────
+                if (!empty($missing)) {
                     $skipped++;
                     $errors[] = [
-                        'row' => $index + 2, // Assuming row 1 is header
-                        'name' => $data['full_name'] ?? 'Unknown',
-                        'reason' => implode(', ', $validator->errors()->all())
+                        'row'     => $rowNumber,
+                        'name'    => $displayName,
+                        'missing' => $missing,
+                        'reason'  => 'Missing: ' . implode(', ', $missing),
                     ];
                     continue;
                 }
 
-                $lrn = trim($data['lrn']);
-
-                // Skip if student with this LRN already exists
+                // ── 3. Duplicate / transfer handling ─────────────────────────
                 $existingStudent = Student::where('lrn', $lrn)->first();
                 if ($existingStudent) {
                     if ($existingStudent->teacher_id == $teacher->id) {
                         $skipped++;
                         $errors[] = [
-                            'row' => $index + 2,
-                            'name' => $data['full_name'],
-                            'reason' => 'Student already exists in your class.'
+                            'row'     => $rowNumber,
+                            'name'    => $displayName,
+                            'missing' => [],
+                            'reason'  => 'Student already exists in your class.',
                         ];
                     } else {
-                        // Transfer to this teacher
+                        // Transfer to this teacher's class
                         $existingStudent->teacher_id = $teacher->id;
-                        $existingStudent->school_id = $teacher->school_id;
+                        $existingStudent->school_id  = $teacher->school_id;
                         $existingStudent->save();
-                        
                         $imported++;
-                        $errors[] = [
-                            'row' => $index + 2,
-                            'name' => $data['full_name'],
-                            'reason' => 'Warning: Transferred from another teacher to your class.'
-                        ];
+                        $transfers[] = $displayName;
                     }
                     continue;
                 }
 
-                // Process name
-                $fullName = trim($data['full_name']);
+                // ── 4. Parse name (Last, First  OR  First Last) ───────────────
                 if (str_contains($fullName, ',')) {
-                    $parts = explode(',', $fullName, 2);
-                    $lastName = trim($parts[0]);
-                    $firstName = trim($parts[1]);
+                    [$lastName, $firstName] = array_map('trim', explode(',', $fullName, 2));
                 } else {
-                    $parts = explode(' ', $fullName);
-                    if (count($parts) > 1) {
-                        $lastName = array_pop($parts);
-                        $firstName = implode(' ', $parts);
-                    } else {
-                        $firstName = $fullName;
-                        $lastName = '';
-                    }
+                    $parts     = explode(' ', $fullName);
+                    $lastName  = count($parts) > 1 ? array_pop($parts) : '';
+                    $firstName = implode(' ', $parts);
                 }
 
-                // Auto PIN is 6-digit code derived from LRN if checked. Otherwise, default is 4-digit derived from LRN.
+                // ── 5. PIN ────────────────────────────────────────────────────
                 $pin = $autoPin ? substr($lrn, -6) : substr($lrn, -4);
 
-                // Generate unique username
+                // ── 6. Determine nullable fields ──────────────────────────────
+                $gradeLevel = in_array($programType, $needGradeSection)
+                    ? trim((string) ($data['grade_level'] ?? ''))
+                    : (trim((string) ($data['grade_level'] ?? '')) ?: null);
+
+                $section = in_array($programType, $needGradeSection)
+                    ? trim((string) ($data['section'] ?? ''))
+                    : (trim((string) ($data['section'] ?? '')) ?: null);
+
+                $schoolYear = trim((string) ($data['school_year'] ?? '')) ?: null;
+
+                // ── 7. Create User + Student ──────────────────────────────────
                 $username = $this->generateUniqueUsername($firstName, $lastName);
 
-                // Create user
                 $user = User::create([
-                    'name' => trim($firstName . ' ' . $lastName),
+                    'name'     => trim($firstName . ' ' . $lastName),
                     'username' => $username,
-                    'email' => $lrn,
-                    'password' => Hash::make($lrn), // Temporary password using LRN
-                    'role' => 'student',
-                    'status' => 'active',
+                    'email'    => $lrn,
+                    'password' => Hash::make($lrn),
+                    'role'     => 'student',
+                    'status'   => 'active',
                 ]);
 
-                // Create student
                 Student::create([
-                    'user_id' => $user->id,
-                    'teacher_id' => $teacher->id,
-                    'school_id' => $teacher->school_id,
-                    'lrn' => $lrn,
-                    'pin' => $pin,
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'age' => $data['age'],
-                    'grade_level' => $data['grade_level'] ?? null,
-                    'section' => $data['section'] ?? null,
-                    'school_year' => $data['school_year'] ?? null,
-                    'fsl_mastery_level' => $data['fsl_mastery_level'],
-                    'program_type' => 'Regular',
+                    'user_id'          => $user->id,
+                    'teacher_id'       => $teacher->id,
+                    'school_id'        => $teacher->school_id,
+                    'lrn'              => $lrn,
+                    'pin'              => $pin,
+                    'first_name'       => $firstName,
+                    'last_name'        => $lastName,
+                    'age'              => $age,
+                    'grade_level'      => $gradeLevel,
+                    'section'          => $section,
+                    'school_year'      => $schoolYear,
+                    'fsl_mastery_level'=> $masteryLevel,
+                    'program_type'     => $programType,
                 ]);
 
                 $imported++;
@@ -392,18 +455,20 @@ class StudentsController extends Controller
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'total' => count($studentsData),
-                'imported' => $imported,
-                'skipped' => $skipped,
-                'errors' => $errors,
-                'message' => "Successfully imported {$imported} students. Skipped {$skipped} records."
+                'success'   => true,
+                'total'     => count($studentsData),
+                'imported'  => $imported,
+                'skipped'   => $skipped,
+                'transfers' => count($transfers),
+                'errors'    => $errors,
+                'message'   => "Successfully imported {$imported} students. Skipped {$skipped} records.",
             ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk import failed: ' . $e->getMessage()
+                'message' => 'Bulk import failed: ' . $e->getMessage(),
             ], 500);
         }
     }
