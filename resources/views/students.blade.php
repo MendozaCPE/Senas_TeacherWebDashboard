@@ -827,6 +827,7 @@
             </div>
         </form>
         <div id="container-bulk" class="hidden">
+            <div id="bulk-upload-area">
             <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-[#0d326b] rounded-[24px] p-10 flex flex-col items-center justify-center space-y-4 mb-6 transition-all cursor-pointer relative bg-slate-50/50">
                 <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="absolute inset-0 opacity-0 cursor-pointer" />
                 <div id="upload-icon-container" class="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm">
@@ -851,6 +852,7 @@
                     <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0d326b]"></div>
                 </label>
             </div>
+            </div>{{-- /bulk-upload-area --}}
             <div class="flex items-center justify-end space-x-4">
                 <button type="button" class="btn-cancel px-6 py-3 text-slate-500 hover:text-slate-800 font-semibold text-[14px] transition-colors">Cancel</button>
                 <button type="button" id="btn-import-submit" disabled class="bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center justify-center">Confirm Import</button>
@@ -886,16 +888,347 @@ function updatePinPreview(){const lrn=inputLrn.value.replace(/\D/g,'');pinPrevie
 async function checkLrnUnique(){const lrn=inputLrn.value.replace(/\D/g,'');hideLrnError();if(lrn.length!==12)return;try{const res=await axios.get("{{ route('students.check-lrn') }}",{params:{lrn}});if(res.data.exists){if(res.data.status==='own'){showLrnError('Student already exists in your class.');}else{showLrnWarning('Notice: Student is enrolled with another teacher. Proceeding will transfer them to your class.');}}}catch(_){}}
 inputLrn.addEventListener('input',()=>{updatePinPreview();clearTimeout(lrnCheckTimer);hideLrnError();if(inputLrn.value.replace(/\D/g,'').length===12){lrnCheckTimer=setTimeout(checkLrnUnique,400);}});
 inputLrn.addEventListener('blur',checkLrnUnique);updatePinPreview();
-['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.add('border-[#0d326b]','bg-[#0d326b]/5');}));
-['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.remove('border-[#0d326b]','bg-[#0d326b]/5');}));
-dropZone.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f){excelInput.files=e.dataTransfer.files;handleExcelFile(f);}});
-excelInput.addEventListener('change',e=>{if(e.target.files[0])handleExcelFile(e.target.files[0]);});
-function handleExcelFile(file){hideAlert();const ext=file.name.split('.').pop().toLowerCase();if(!['xlsx','xls','csv'].includes(ext)){showAlert('Invalid file format. Please upload .xlsx, .xls, or .csv.');resetUploadArea();return;}const reader=new FileReader();reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],raw=XLSX.utils.sheet_to_json(ws,{header:1});parsedStudents=mapExcelData(raw);if(!parsedStudents.length){showAlert('File is empty or has no student rows.');resetUploadArea();return;}showUploadedFile(file.name,parsedStudents.length);}catch(err){showAlert(err.message||'Failed to parse file.');resetUploadArea();}};reader.readAsArrayBuffer(file);}
-function showUploadedFile(name,count){uploadIcon.innerText='check';uploadIconWrap.className='w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-sm';uploadPrimary.innerText=name;uploadSecondary.innerText=`${count} students detected. Ready to import.`;btnImport.removeAttribute('disabled');btnImport.className='bg-[#0d326b] hover:bg-[#154188] text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-pointer flex items-center justify-center';}
-function resetUploadArea(){excelInput.value='';uploadIcon.innerText='article';uploadIconWrap.className='w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm';uploadPrimary.innerText='Drag and drop your student roster here';uploadSecondary.innerText='.xlsx or .csv only, max 5MB';parsedStudents=[];btnImport.setAttribute('disabled','true');btnImport.className='bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center justify-center';}
-function mapExcelData(rows){if(!rows||rows.length<2)return[];const h=rows[0].map(x=>String(x||'').trim().toLowerCase()),lrnIdx=h.findIndex(x=>x.includes('lrn')||x.includes('reference')||x.includes('learner')),nameIdx=h.findIndex(x=>x.includes('name')||x.includes('student')||x.includes('full')),firstIdx=h.findIndex(x=>x.includes('first')),lastIdx=h.findIndex(x=>x.includes('last')),gradeIdx=h.findIndex(x=>x.includes('grade')||x.includes('level')||x.includes('class')),ageIdx=h.findIndex(x=>x.includes('age')),sectionIdx=h.findIndex(x=>x.includes('section')),masteryIdx=h.findIndex(x=>x.includes('fsl')||x.includes('mastery')||x.includes('skill')),syIdx=h.findIndex(x=>x.includes('school')&&x.includes('year'));return rows.slice(1).filter(r=>r&&r.length).map((row,i)=>{const lrn=String(row[lrnIdx]||'').trim(),fullName=nameIdx!==-1?String(row[nameIdx]||'').trim():`${String(row[lastIdx]||'').trim()}, ${String(row[firstIdx]||'').trim()}`,age=parseInt(row[ageIdx],10),rawM=masteryIdx!==-1?String(row[masteryIdx]||'').trim().toLowerCase():'',fsl_mastery_level=rawM.includes('inter')?'Intermediate':rawM.includes('adv')?'Advanced':'Beginner';return{lrn,full_name:fullName,grade_level:gradeIdx!==-1?String(row[gradeIdx]||'').trim()||null:null,age:isNaN(age)?null:age,section:sectionIdx!==-1?String(row[sectionIdx]||'').trim()||null:null,school_year:syIdx!==-1?String(row[syIdx]||'').trim()||null:null,fsl_mastery_level};});}
-async function submitSingleStudent(event){event.preventDefault();hideAlert();const btn=document.getElementById('btn-single-submit'),nameVal=formSingle.querySelector('input[name="full_name"]').value;if(!nameVal.includes(',')){showAlert('Full Name must be "Last Name, First Name" (comma-separated).');return;}if(inputLrn.value.replace(/\D/g,'').length!==12){showAlert('LRN must be exactly 12 digits.');return;}await checkLrnUnique();if(lrnExists)return;const orig=btn.innerText;btn.innerText='Saving...';btn.disabled=true;const fd=new FormData(formSingle),showGS=['Regular','Inclusion'].includes(fd.get('program_type')),payload={lrn:fd.get('lrn'),full_name:fd.get('full_name'),program_type:fd.get('program_type'),age:fd.get('age'),fsl_mastery_level:fd.get('fsl_mastery_level'),school_year:fd.get('school_year')};if(showGS){payload.grade_level=fd.get('grade_level');payload.section=fd.get('section');}const token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.store') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){showAlert(res.data.message, res.data.message.includes('transferred') ? 'warning' : 'success');setTimeout(()=>window.location.reload(),1800);}else{showAlert(res.data.message||'An error occurred.');btn.innerText=orig;btn.disabled=false;}}catch(err){let msg='An error occurred while saving.';if(err.response?.data?.errors){const errors=err.response.data.errors;if(errors.lrn){showLrnError(errors.lrn[0]);msg=errors.lrn[0];}else{msg=Object.values(errors).flat().join('<br>');}}else if(err.response?.data?.message)msg=err.response.data.message;else if(err.request)msg=`Network error: ${err.message}`;showAlert(msg);btn.innerText=orig;btn.disabled=false;}}
-btnImport.addEventListener('click',async()=>{hideAlert();const orig=btnImport.innerText;btnImport.innerText='Importing...';btnImport.disabled=true;const payload={students:parsedStudents,auto_pin:document.getElementById('bulk-auto-pin').checked?1:0},token=formSingle.querySelector('input[name="_token"]').value;try{const res=await axios.post("{{ route('students.import') }}",payload,{headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});if(res.data.success){const d=res.data;let html=`<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-lg font-bold text-[#0d326b] mb-4">Import Summary</h3><div class="grid grid-cols-3 gap-4 mb-4"><div class="bg-blue-50 p-3 rounded-xl"><p class="text-[10px] text-blue-600 font-bold uppercase tracking-widest">Total Rows</p><p class="text-2xl font-black text-blue-900">${d.total}</p></div><div class="bg-emerald-50 p-3 rounded-xl"><p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Imported</p><p class="text-2xl font-black text-emerald-900">${d.imported}</p></div><div class="bg-amber-50 p-3 rounded-xl"><p class="text-[10px] text-amber-600 font-bold uppercase tracking-widest">Skipped</p><p class="text-2xl font-black text-amber-900">${d.skipped}</p></div></div>`;if(d.errors&&d.errors.length>0){html+=`<p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-4">Skipped Rows Details</p><div class="max-h-56 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-2">`;d.errors.forEach(e=>{html+=`<div class="text-[11px] bg-white p-2.5 border border-slate-200 rounded-lg shadow-sm"><span class="font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded mr-1">Row ${e.row}</span> <span class="font-bold text-[#0d326b]">${e.name}</span><p class="text-slate-500 font-medium mt-1 leading-tight">${e.reason}</p></div>`;});html+=`</div>`;}html+=`<button type="button" onclick="window.location.reload()" class="mt-6 w-full bg-[#0d326b] hover:bg-[#154188] text-white px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm">Done, Reload Page</button></div>`;document.getElementById('container-bulk').innerHTML=html;}else{showAlert(res.data.message||'Import error.');btnImport.innerText=orig;btnImport.disabled=false;}}catch(err){let msg='An error occurred during import.';if(err.response?.data?.errors)msg=Object.values(err.response.data.errors).flat().join('<br>');else if(err.response?.data?.message)msg=err.response.data.message;showAlert(msg);btnImport.innerText=orig;btnImport.disabled=false;}});
+// ─── Drag / drop + file input wiring ─────────────────────────────────────────
+['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault();
+    dropZone.classList.add('border-[#0d326b]', 'bg-[#0d326b]/5');
+}));
+['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault();
+    dropZone.classList.remove('border-[#0d326b]', 'bg-[#0d326b]/5');
+}));
+dropZone.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) { excelInput.files = e.dataTransfer.files; handleExcelFile(f); }
+});
+excelInput.addEventListener('change', e => { if (e.target.files[0]) handleExcelFile(e.target.files[0]); });
+
+function handleExcelFile(file) {
+    hideAlert();
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+        showAlert('Invalid file format. Please upload .xlsx, .xls, or .csv.');
+        resetUploadArea();
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        showAlert('File is too large. Maximum allowed size is 5 MB.');
+        resetUploadArea();
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const ws  = wb.Sheets[wb.SheetNames[0]];
+            const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            parsedStudents = mapExcelData(raw);
+            if (!parsedStudents.length) {
+                showAlert('File is empty or has no student rows.');
+                resetUploadArea();
+                return;
+            }
+            // Run client-side pre-validation before enabling import
+            preValidateAndRender(file.name, parsedStudents);
+        } catch (err) {
+            showAlert(err.message || 'Failed to parse file.');
+            resetUploadArea();
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function showUploadedFile(name, total, invalidCount) {
+    uploadIcon.innerText = invalidCount > 0 ? 'warning' : 'check';
+    uploadIconWrap.className = invalidCount > 0
+        ? 'w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center text-amber-500 shadow-sm'
+        : 'w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-sm';
+    uploadPrimary.innerText  = name;
+    uploadSecondary.innerText = invalidCount > 0
+        ? `${total} students detected — ${invalidCount} need attention.`
+        : `${total} students detected. Ready to import.`;
+    btnImport.removeAttribute('disabled');
+    btnImport.className = 'bg-[#0d326b] hover:bg-[#154188] text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-pointer flex items-center justify-center';
+}
+function resetUploadArea() {
+    excelInput.value = '';
+    uploadIcon.innerText = 'article';
+    uploadIconWrap.className = 'w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm';
+    uploadPrimary.innerText = 'Drag and drop your student roster here';
+    uploadSecondary.innerText = '.xlsx or .csv only, max 5MB';
+    parsedStudents = [];
+    btnImport.setAttribute('disabled', 'true');
+    btnImport.className = 'bg-slate-300 text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-all cursor-not-allowed flex items-center justify-center';
+    // Remove any correction screen that may be showing
+    const existing = document.getElementById('validation-screen');
+    if (existing) existing.remove();
+    document.getElementById('bulk-upload-area').classList.remove('hidden');
+}
+
+// ─── Column header fuzzy-finder ───────────────────────────────────────────────
+function mapExcelData(rows) {
+    if (!rows || rows.length < 2) return [];
+    const h = rows[0].map(x => String(x || '').trim().toLowerCase());
+
+    // Column index detection (required)
+    const lrnIdx     = h.findIndex(x => x.includes('lrn') || x.includes('reference') || x.includes('learner'));
+    const nameIdx    = h.findIndex(x => x.includes('name') || x.includes('student') || x.includes('full'));
+    const firstIdx   = h.findIndex(x => x.includes('first'));
+    const lastIdx    = h.findIndex(x => x.includes('last'));
+    const programIdx = h.findIndex(x => x.includes('program') || x.includes('type') || x.includes('track'));
+    // Optional columns
+    const gradeIdx   = h.findIndex(x => (x.includes('grade') || x.includes('level') || x.includes('class')) && !x.includes('mastery'));
+    const ageIdx     = h.findIndex(x => x === 'age' || x.includes('age'));
+    const sectionIdx = h.findIndex(x => x.includes('section'));
+    const masteryIdx = h.findIndex(x => x.includes('fsl') || x.includes('mastery') || x.includes('skill'));
+    const syIdx      = h.findIndex(x => x.includes('school') && x.includes('year'));
+
+    // Valid program values for normalisation
+    const PROGRAMS = { regular: 'Regular', inclusion: 'Inclusion', sped: 'SPED', 'home-based': 'Home-based', homebased: 'Home-based', home: 'Home-based' };
+
+    return rows.slice(1)
+        .filter(r => r && r.some(cell => String(cell || '').trim() !== ''))
+        .map((row, i) => {
+            const lrn = String(row[lrnIdx] ?? '').trim();
+
+            // Name: prefer dedicated full-name column, fall back to last+first
+            let full_name = '';
+            if (nameIdx !== -1) {
+                full_name = String(row[nameIdx] ?? '').trim();
+            } else if (lastIdx !== -1 || firstIdx !== -1) {
+                const ln = String(row[lastIdx] ?? '').trim();
+                const fn = String(row[firstIdx] ?? '').trim();
+                full_name = ln && fn ? `${ln}, ${fn}` : (ln || fn);
+            }
+
+            // Program – normalise common variations
+            let program_type = '';
+            if (programIdx !== -1) {
+                const raw = String(row[programIdx] ?? '').trim().toLowerCase();
+                program_type = PROGRAMS[raw] ?? (raw ? String(row[programIdx]).trim() : '');
+            }
+
+            // Mastery
+            const rawM = masteryIdx !== -1 ? String(row[masteryIdx] ?? '').trim().toLowerCase() : '';
+            const fsl_mastery_level = rawM.includes('inter') ? 'Intermediate'
+                                    : rawM.includes('adv')   ? 'Advanced'
+                                    : rawM.includes('beg') || rawM === '' ? 'Beginner' : 'Beginner';
+
+            const age = ageIdx !== -1 ? parseInt(row[ageIdx], 10) : NaN;
+
+            return {
+                _row:              i + 2,   // Excel row number (1-indexed header)
+                lrn,
+                full_name,
+                program_type,
+                grade_level:       gradeIdx   !== -1 ? String(row[gradeIdx]   ?? '').trim() || null : null,
+                age:               isNaN(age) ? null : age,
+                section:           sectionIdx !== -1 ? String(row[sectionIdx] ?? '').trim() || null : null,
+                school_year:       syIdx      !== -1 ? String(row[syIdx]      ?? '').trim() || null : null,
+                fsl_mastery_level,
+            };
+        });
+}
+async function submitSingleStudent(event) {
+    event.preventDefault();
+    hideAlert();
+    const btn = document.getElementById('btn-single-submit');
+    const nameVal = formSingle.querySelector('input[name="full_name"]').value;
+    if (!nameVal.includes(',')) { showAlert('Full Name must be "Last Name, First Name" (comma-separated).'); return; }
+    if (inputLrn.value.replace(/\D/g,'').length !== 12) { showAlert('LRN must be exactly 12 digits.'); return; }
+    await checkLrnUnique();
+    if (lrnExists) return;
+    const orig = btn.innerText;
+    btn.innerText = 'Saving...'; btn.disabled = true;
+    const fd = new FormData(formSingle);
+    const showGS = ['Regular','Inclusion'].includes(fd.get('program_type'));
+    const payload = { lrn: fd.get('lrn'), full_name: fd.get('full_name'), program_type: fd.get('program_type'), age: fd.get('age'), fsl_mastery_level: fd.get('fsl_mastery_level'), school_year: fd.get('school_year') };
+    if (showGS) { payload.grade_level = fd.get('grade_level'); payload.section = fd.get('section'); }
+    const token = formSingle.querySelector('input[name="_token"]').value;
+    try {
+        const res = await axios.post("{{ route('students.store') }}", payload, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
+        if (res.data.success) {
+            showAlert(res.data.message, res.data.message.includes('transferred') ? 'warning' : 'success');
+            setTimeout(() => window.location.reload(), 1800);
+        } else {
+            showAlert(res.data.message || 'An error occurred.');
+            btn.innerText = orig; btn.disabled = false;
+        }
+    } catch (err) {
+        let msg = 'An error occurred while saving.';
+        if (err.response?.data?.errors) {
+            const errors = err.response.data.errors;
+            if (errors.lrn) { showLrnError(errors.lrn[0]); msg = errors.lrn[0]; }
+            else { msg = Object.values(errors).flat().join('<br>'); }
+        } else if (err.response?.data?.message) msg = err.response.data.message;
+        else if (err.request) msg = `Network error: ${err.message}`;
+        showAlert(msg); btn.innerText = orig; btn.disabled = false;
+    }
+}
+// ─── Required-field definitions ──────────────────────────────────────────────
+const REQUIRED_FIELDS    = ['lrn', 'full_name', 'program_type', 'fsl_mastery_level'];
+const VALID_PROGRAMS     = ['Regular', 'Inclusion', 'SPED', 'Home-based'];
+const VALID_MASTERY      = ['Beginner', 'Intermediate', 'Advanced'];
+const GRADE_SEC_PROGRAMS = ['Regular', 'Inclusion'];
+function validateStudent(s) {
+    const missing = [];
+    if (!s.lrn || String(s.lrn).trim() === '')                                 missing.push('LRN');
+    else if (!/^\d{12}$/.test(String(s.lrn).trim()))                           missing.push('LRN (must be exactly 12 digits)');
+    if (!s.full_name || String(s.full_name).trim() === '')                      missing.push('Student Name');
+    if (!s.program_type || String(s.program_type).trim() === '')                missing.push('Program');
+    else if (!VALID_PROGRAMS.includes(String(s.program_type).trim()))           missing.push('Program (invalid: "' + s.program_type + '")');
+    if (!s.fsl_mastery_level || !VALID_MASTERY.includes(s.fsl_mastery_level))  missing.push('FSL Mastery Level');
+    if (GRADE_SEC_PROGRAMS.includes(String(s.program_type).trim())) {
+        if (!s.grade_level || String(s.grade_level).trim() === '')              missing.push('Grade Level');
+        if (!s.section     || String(s.section).trim()     === '')              missing.push('Section');
+    }
+    return missing;
+}
+function labelToKey(label) {
+    const map = { 'LRN': 'lrn', 'Student Name': 'full_name', 'Program': 'program_type',
+                  'FSL Mastery Level': 'fsl_mastery_level', 'Grade Level': 'grade_level',
+                  'Section': 'section', 'School Year': 'school_year', 'Age': 'age' };
+    return map[label.split(' (')[0]] || null;
+}
+function keyToLabel(key) {
+    const map = { lrn: 'LRN', full_name: 'Student Name', program_type: 'Program',
+                  fsl_mastery_level: 'FSL Mastery Level', grade_level: 'Grade Level',
+                  section: 'Section', school_year: 'School Year', age: 'Age' };
+    return map[key] || key;
+}
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// ─── Phase 1: validate after parse, render correction screen if needed ────────
+function preValidateAndRender(fileName, students) {
+    const invalid = students
+        .map((s, i) => ({ idx: i, student: s, missing: validateStudent(s) }))
+        .filter(x => x.missing.length > 0);
+    showUploadedFile(fileName, students.length, invalid.length);
+    if (invalid.length === 0) {
+        document.getElementById('bulk-upload-area').classList.remove('hidden');
+        return;
+    }
+    document.getElementById('bulk-upload-area').classList.add('hidden');
+    renderCorrectionScreen(invalid);
+}
+// ─── Correction screen ────────────────────────────────────────────────────────
+function renderCorrectionScreen(invalids) {
+    const existing = document.getElementById('validation-screen');
+    if (existing) existing.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'validation-screen';
+    wrap.className = 'space-y-4 mt-4';
+    const banner = document.createElement('div');
+    banner.className = 'bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3';
+    banner.innerHTML = '<span class="material-symbols-outlined text-amber-500 text-[22px] mt-0.5 shrink-0">warning</span><div><p class="text-[13px] font-bold text-amber-800">' + invalids.length + ' student' + (invalids.length > 1 ? 's' : '') + ' need' + (invalids.length === 1 ? 's' : '') + ' attention before import</p><p class="text-[11px] text-amber-700 mt-0.5">Fill in the missing fields below, then click <strong>Save &amp; Confirm Import</strong>.</p></div>';
+    wrap.appendChild(banner);
+    invalids.forEach(function({ idx, student, missing }) {
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-red-100 rounded-2xl p-4 shadow-sm';
+        let fieldsHtml = '';
+        missing.forEach(function(fieldLabel) {
+            const fieldKey = labelToKey(fieldLabel);
+            if (!fieldKey) return;
+            const isSelect = ['program_type', 'fsl_mastery_level', 'grade_level'].includes(fieldKey);
+            if (isSelect) {
+                const opts = fieldKey === 'program_type' ? VALID_PROGRAMS
+                           : fieldKey === 'fsl_mastery_level' ? VALID_MASTERY
+                           : ['Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','SPED A','SPED B'];
+                fieldsHtml += '<div class="flex flex-col gap-1"><label class="text-[10px] font-bold text-red-500 uppercase tracking-wider">' + fieldLabel.split(' (')[0] + ' <span class="text-red-400">*</span></label><select data-field="' + fieldKey + '" data-idx="' + idx + '" class="corr-field bg-red-50 border border-red-200 text-[13px] font-medium py-2.5 px-3 rounded-xl outline-none"><option value="">— Select —</option>' + opts.map(function(o){return '<option value="' + o + '">' + o + '</option>';}).join('') + '</select></div>';
+            } else {
+                fieldsHtml += '<div class="flex flex-col gap-1"><label class="text-[10px] font-bold text-red-500 uppercase tracking-wider">' + fieldLabel.split(' (')[0] + ' <span class="text-red-400">*</span></label><input type="text" data-field="' + fieldKey + '" data-idx="' + idx + '" value="' + escHtml(String(student[fieldKey] ?? '')) + '" placeholder="Enter ' + fieldLabel.split(' (')[0] + '" class="corr-field bg-red-50 border border-red-200 text-[13px] font-medium py-2.5 px-3 rounded-xl outline-none placeholder:text-slate-400" /></div>';
+            }
+        });
+        card.innerHTML = '<div class="flex items-center justify-between mb-3"><div><span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg mr-2">Row ' + student._row + '</span><span class="text-[13px] font-bold text-slate-700">' + escHtml(student.full_name || '(no name)') + '</span></div><div class="flex flex-wrap gap-1">' + missing.map(function(m){return '<span class="text-[9px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">' + escHtml(m.split(' (')[0]) + '</span>';}).join('') + '</div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' + fieldsHtml + '</div>';
+        wrap.appendChild(card);
+    });
+    const btns = document.createElement('div');
+    btns.className = 'flex items-center justify-between pt-2';
+    btns.innerHTML = '<button type="button" onclick="resetUploadArea()" class="text-[13px] font-semibold text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">arrow_back</span> Upload different file</button><button type="button" id="btn-save-corrections" class="bg-[#0d326b] hover:bg-[#154188] text-white px-7 py-3 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">check_circle</span>Save &amp; Confirm Import</button>';
+    wrap.appendChild(btns);
+    const bulkWrap = document.getElementById('container-bulk');
+    const footerBtns = bulkWrap.querySelector('.flex.items-center.justify-end');
+    bulkWrap.insertBefore(wrap, footerBtns);
+    // Live sync corrections into parsedStudents
+    wrap.addEventListener('input', function(e) {
+        const el = e.target;
+        if (!el.dataset.field) return;
+        const idx = parseInt(el.dataset.idx, 10);
+        parsedStudents[idx][el.dataset.field] = el.value.trim();
+        const remaining = validateStudent(parsedStudents[idx]);
+        el.classList.toggle('bg-red-50',      remaining.some(function(m){return labelToKey(m) === el.dataset.field || m.startsWith(keyToLabel(el.dataset.field));}));
+        el.classList.toggle('border-red-200', remaining.some(function(m){return labelToKey(m) === el.dataset.field || m.startsWith(keyToLabel(el.dataset.field));}));
+    });
+    document.getElementById('btn-save-corrections').addEventListener('click', function() {
+        const stillBad = parsedStudents.map(function(s,i){return {i:i,missing:validateStudent(s)};}).filter(function(x){return x.missing.length > 0;});
+        if (stillBad.length > 0) {
+            const names = stillBad.slice(0,3).map(function(x){return parsedStudents[x.i].full_name || 'Row ' + parsedStudents[x.i]._row;}).join(', ');
+            showAlert(stillBad.length + ' student' + (stillBad.length > 1 ? 's' : '') + ' still ' + (stillBad.length > 1 ? 'have' : 'has') + ' missing required fields: ' + names + (stillBad.length > 3 ? '…' : '') + '. Please complete them.', 'warning');
+            return;
+        }
+        runImport();
+    });
+}
+// ─── The actual import POST ───────────────────────────────────────────────────
+async function runImport() {
+    hideAlert();
+    btnImport.innerText = 'Importing…'; btnImport.disabled = true;
+    const btnSave = document.getElementById('btn-save-corrections');
+    if (btnSave) { btnSave.innerText = 'Importing…'; btnSave.disabled = true; }
+    const payload = { students: parsedStudents, auto_pin: document.getElementById('bulk-auto-pin').checked ? 1 : 0 };
+    const token   = formSingle.querySelector('input[name="_token"]').value;
+    try {
+        const res = await axios.post("{{ route('students.import') }}", payload, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
+        if (res.data.success) {
+            const d = res.data;
+            const realErrors = (d.errors || []).filter(function(e){return !e.reason.startsWith('Warning:');});
+            const transfers  = (d.errors || []).filter(function(e){return  e.reason.startsWith('Warning:');});
+            let failedRows = '';
+            if (realErrors.length > 0) {
+                failedRows  = '<p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-4">Failed Records (' + realErrors.length + ')</p>';
+                failedRows += '<div class="max-h-56 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-2">';
+                realErrors.forEach(function(e, n) {
+                    const bList = (e.missing && e.missing.length)
+                        ? e.missing.map(function(m){return '<li>• ' + escHtml(m) + '</li>';}).join('')
+                        : '<li>• ' + escHtml(e.reason) + '</li>';
+                    failedRows += '<div class="text-[11px] bg-white p-2.5 border border-slate-200 rounded-lg shadow-sm"><div class="flex items-center gap-1.5 mb-1"><span class="font-bold text-slate-400 text-[10px]">' + (n+1) + '.</span><span class="font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[10px]">Row ' + e.row + '</span><span class="font-bold text-[#0d326b] ml-1">' + escHtml(e.name) + '</span></div><ul class="pl-2 text-slate-500 font-medium leading-snug">' + bList + '</ul></div>';
+                });
+                failedRows += '</div>';
+            }
+            let transferRow = '';
+            if (transfers.length > 0) {
+                transferRow = '<p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-3 mb-1">Transferred (' + transfers.length + ')</p><div class="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-2">' + transfers.map(function(t){return '<span class="inline-block font-semibold mr-2">' + escHtml(t.name) + '</span>';}).join('') + '</div>';
+            }
+            document.getElementById('container-bulk').innerHTML =
+                '<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">' +
+                '<div class="flex items-center gap-2 mb-5"><span class="material-symbols-outlined text-emerald-500 text-[22px]">check_circle</span><h3 class="text-lg font-bold text-[#0d326b]">Import Complete</h3></div>' +
+                '<div class="grid grid-cols-3 gap-3 mb-2">' +
+                '<div class="bg-blue-50 p-3 rounded-xl text-center"><p class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-1">Total Rows</p><p class="text-3xl font-black text-blue-900">' + d.total + '</p></div>' +
+                '<div class="bg-emerald-50 p-3 rounded-xl text-center"><p class="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mb-1">Imported</p><p class="text-3xl font-black text-emerald-900">' + d.imported + '</p></div>' +
+                '<div class="bg-amber-50 p-3 rounded-xl text-center"><p class="text-[9px] text-amber-600 font-bold uppercase tracking-widest mb-1">Skipped</p><p class="text-3xl font-black text-amber-900">' + d.skipped + '</p></div>' +
+                '</div>' + failedRows + transferRow +
+                '<button type="button" onclick="window.location.reload()" class="mt-5 w-full bg-[#0d326b] hover:bg-[#154188] text-white px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm">Done — Reload Page</button></div>';
+        } else {
+            showAlert(res.data.message || 'Import error.');
+            btnImport.innerText = 'Confirm Import'; btnImport.disabled = false;
+            if (btnSave) { btnSave.innerText = 'Save & Confirm Import'; btnSave.disabled = false; }
+        }
+    } catch (err) {
+        let msg = 'An error occurred during import.';
+        if (err.response?.data?.errors) msg = Object.values(err.response.data.errors).flat().join('<br>');
+        else if (err.response?.data?.message) msg = err.response.data.message;
+        showAlert(msg);
+        btnImport.innerText = 'Confirm Import'; btnImport.disabled = false;
+        if (btnSave) { btnSave.innerText = 'Save & Confirm Import'; btnSave.disabled = false; }
+    }
+}
+// The bulk upload area needs an id for hide/show toggling
+btnImport.addEventListener('click', function() {
+    const corrScreen = document.getElementById('validation-screen');
+    if (corrScreen) return; // correction screen's own button handles it
+    runImport();
+});
 
 // ─── AJAX Filtering + Pagination (no page reload) ──────────────────────────────
 // The whole "results" panel (table + pagination) below the toolbar is fetched
