@@ -623,110 +623,173 @@ public function getRecommendedLessons(Request $request)
         }
 
         // 🆕 SORT: Completed first, then in-progress, then pending by priority
-        usort($lessonData, function($a, $b) use ($goal) {
-            // 1. Completed lessons go to the VERY TOP
-            if ($a['isDone'] && !$b['isDone']) {
-                return -1;
-            }
-            if (!$a['isDone'] && $b['isDone']) {
-                return 1;
-            }
-            
-            // 2. Among completed, sort by most recently accessed
-            if ($a['isDone'] && $b['isDone']) {
-                $aTime = $a['progress']->last_accessed_at ?? null;
-                $bTime = $b['progress']->last_accessed_at ?? null;
-                return strcmp((string) $bTime, (string) $aTime);
-            }
+      usort($lessonData, function($a, $b) use ($goal) {
+    // 1. Completed lessons go to the VERY TOP
+    if ($a['isDone'] && !$b['isDone']) {
+        return -1;
+    }
+    if (!$a['isDone'] && $b['isDone']) {
+        return 1;
+    }
+    
+    // 2. Among completed, sort by most recently accessed
+    if ($a['isDone'] && $b['isDone']) {
+        $aTime = $a['progress']->last_accessed_at ?? null;
+        $bTime = $b['progress']->last_accessed_at ?? null;
+        return strcmp((string) $bTime, (string) $aTime);
+    }
 
-            // 3. Among not-done lessons: resume anything in progress first
-            if ($a['isInProgress'] && !$b['isInProgress']) {
-                return -1;
-            }
-            if (!$a['isInProgress'] && $b['isInProgress']) {
-                return 1;
-            }
-            
-            // 4. Both are pending - sort by learning goal
-            if ($goal === 'Alphabet_Numbers') {
-                if ($a['isAlphabetLesson'] && !$b['isAlphabetLesson']) return -1;
-                if (!$a['isAlphabetLesson'] && $b['isAlphabetLesson']) return 1;
-                if ($a['isNumberLesson'] && !$b['isNumberLesson']) return -1;
-                if (!$a['isNumberLesson'] && $b['isNumberLesson']) return 1;
-            }
-            
-            if ($goal === 'Greetings') {
-                if ($a['isGreetingLesson'] && !$b['isGreetingLesson']) return -1;
-                if (!$a['isGreetingLesson'] && $b['isGreetingLesson']) return 1;
-            }
+    // 3. Among not-done lessons: resume anything in progress first
+    if ($a['isInProgress'] && !$b['isInProgress']) {
+        return -1;
+    }
+    if (!$a['isInProgress'] && $b['isInProgress']) {
+        return 1;
+    }
+    
+    // 4. Both are pending - sort by learning goal
+    if ($goal === 'Alphabet_Numbers') {
+        if ($a['isAlphabetLesson'] && !$b['isAlphabetLesson']) return -1;
+        if (!$a['isAlphabetLesson'] && $b['isAlphabetLesson']) return 1;
+        if ($a['isNumberLesson'] && !$b['isNumberLesson']) return -1;
+        if (!$a['isNumberLesson'] && $b['isNumberLesson']) return 1;
+    }
+    
+    if ($goal === 'Greetings') {
+        if ($a['isGreetingLesson'] && !$b['isGreetingLesson']) return -1;
+        if (!$a['isGreetingLesson'] && $b['isGreetingLesson']) return 1;
+    }
 
-            if ($goal === 'Classroom_Words') {
-                if ($a['isOtherLesson'] && !$b['isOtherLesson']) return -1;
-                if (!$a['isOtherLesson'] && $b['isOtherLesson']) return 1;
-            }
-            
-            // 5. Then by priority (weak skills covered)
-            if ($a['reason']['priority'] !== $b['reason']['priority']) {
-                return $b['reason']['priority'] - $a['reason']['priority'];
-            }
-            
-            // 6. Finally by module order
-            return $a['lesson']->module_order - $b['lesson']->module_order;
-        });
+    if ($goal === 'Classroom_Words') {
+        if ($a['isOtherLesson'] && !$b['isOtherLesson']) return -1;
+        if (!$a['isOtherLesson'] && $b['isOtherLesson']) return 1;
+    }
+    
+    // 5. Then by priority (weak skills covered)
+    if ($a['reason']['priority'] !== $b['reason']['priority']) {
+        return $b['reason']['priority'] - $a['reason']['priority'];
+    }
+    
+    // 6. Finally by module order
+    return $a['lesson']->module_order - $b['lesson']->module_order;
+});
 
-        // 🆕 APPLY SEQUENTIAL LOCKING
-        $unlockedNext = true;
-        $formattedLessons = [];
+// ============================================================
+// 🔥 NEW: ENHANCE REASONS FOR BETTER DISPLAY
+// ============================================================
 
-        foreach ($lessonData as $data) {
-            $lesson = $data['lesson'];
-            $assignment = $data['assignment'];
-            $isDone = $data['isDone'];
-            $isInProgress = $data['isInProgress'];
-            $reason = $data['reason'];
-            
-            $isLocked = false;
-            $isActive = false;
-            
-            if ($isDone) {
-                $isLocked = false;
-                $isActive = false;
-            } elseif ($unlockedNext) {
-                $isLocked = false;
-                $isActive = true;
-                $unlockedNext = false;
-            } else {
-                $isLocked = true;
-                $isActive = false;
-            }
-
-            $formattedLessons[] = [
-                'assignment_id' => $assignment->id ?? null,
-                'lesson_id' => $lesson->lesson_id,
-                'title' => $lesson->title,
-                'description' => $lesson->description,
-                'difficulty' => $lesson->difficulty,
-                'module_id' => $lesson->module_id,
-                'module_title' => $lesson->module->title ?? null,
-                'module_order' => $lesson->module_order ?? 0,
-                'status' => $isDone ? 'completed' : ($isInProgress ? 'in_progress' : 'pending'),
-                'score' => $data['highestScore'],
-                'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
-                'has_quiz' => $lesson->quiz ? true : false,
-                'done' => $isDone,
-                'in_progress' => $isInProgress,
-                'locked' => $isLocked,
-                'active' => $isActive,
-                'recommendation_reason' => $reason['reason'],
-                'recommendation_type' => $reason['type'],
-                'covered_skills' => $reason['covered_skills'] ?? [],
-                'priority' => $reason['priority'] ?? 0,
-                'is_alphabet_lesson' => $data['isAlphabetLesson'],
-                'is_number_lesson' => $data['isNumberLesson'],
-                'is_greeting_lesson' => $data['isGreetingLesson'],
-                'lesson_concepts' => $data['lessonConcepts'],
-            ];
+// Add better reasons for lessons that don't have specific skill matches
+foreach ($lessonData as &$data) {
+    $lesson = $data['lesson'];
+    $reason = $data['reason'];
+    $learningPath = LearningPath::where('student_id', $student->student_id)->first();
+    $goal = $learningPath->learning_goal ?? 'Everything';
+    
+    // If the lesson already has a good reason (weak_skill_practice, new_skill, in_progress), skip
+    if (in_array($reason['type'], ['weak_skill_practice', 'new_skill', 'in_progress'])) {
+        continue;
+    }
+    
+    // For goal_match lessons, generate a more specific reason
+    if ($reason['type'] === 'goal_match') {
+        $goalDisplay = str_replace('_', ' ', $goal);
+        
+        // Get the lesson's concepts to explain what it teaches
+        $concepts = $this->extractLessonConcepts($lesson);
+        $conceptDisplay = !empty($concepts) ? implode(', ', array_slice($concepts, 0, 3)) : '';
+        
+        if ($conceptDisplay) {
+            $reason['reason'] = "🎯 This lesson teaches: {$conceptDisplay}. It matches your learning goal: {$goalDisplay}.";
+            $reason['detailed_reason'] = "Your learning goal is {$goalDisplay}. This lesson covers concepts like {$conceptDisplay} to help you progress.";
+        } else {
+            $reason['reason'] = "🎯 This lesson matches your learning goal: {$goalDisplay}.";
+            $reason['detailed_reason'] = "Your learning goal is {$goalDisplay}. This lesson is designed to help you achieve it.";
         }
+    }
+    
+    // For completed lessons
+    if ($reason['type'] === 'completed') {
+        $score = $data['highestScore'] ?? 0;
+        $reason['reason'] = "✅ You completed this lesson with {$score}%! Great job! 🎉";
+        $reason['detailed_reason'] = "You've already mastered this lesson. Review it anytime to reinforce your skills.";
+    }
+    
+    // For next_in_path (fallback)
+    if ($reason['type'] === 'next_in_path') {
+        $moduleName = $lesson->module->title ?? 'your learning path';
+        $reason['reason'] = "➡️ Next lesson in {$moduleName}";
+        $reason['detailed_reason'] = "This is the next lesson in your learning path. Complete it to continue your progress.";
+    }
+    
+    // For default/recommended
+    if ($reason['type'] === 'recommended' || $reason['type'] === '') {
+        // Try to extract what the lesson teaches
+        $concepts = $this->extractLessonConcepts($lesson);
+        if (!empty($concepts)) {
+            $conceptDisplay = implode(', ', array_slice($concepts, 0, 3));
+            $reason['reason'] = "📚 This lesson teaches: {$conceptDisplay}";
+            $reason['detailed_reason'] = "This lesson covers: {$conceptDisplay}. It's recommended based on your learning path.";
+        } else {
+            $reason['reason'] = "📚 Recommended lesson for you";
+            $reason['detailed_reason'] = "This lesson is part of your learning path. Complete it to build your skills.";
+        }
+    }
+}
+
+// 🆕 APPLY SEQUENTIAL LOCKING
+$unlockedNext = true;
+$formattedLessons = [];
+
+foreach ($lessonData as $data) {
+    $lesson = $data['lesson'];
+    $assignment = $data['assignment'];
+    $isDone = $data['isDone'];
+    $isInProgress = $data['isInProgress'];
+    $reason = $data['reason'];
+    
+    $isLocked = false;
+    $isActive = false;
+    
+    if ($isDone) {
+        $isLocked = false;
+        $isActive = false;
+    } elseif ($unlockedNext) {
+        $isLocked = false;
+        $isActive = true;
+        $unlockedNext = false;
+    } else {
+        $isLocked = true;
+        $isActive = false;
+    }
+
+    $formattedLessons[] = [
+        'assignment_id' => $assignment->id ?? null,
+        'lesson_id' => $lesson->lesson_id,
+        'title' => $lesson->title,
+        'description' => $lesson->description,
+        'difficulty' => $lesson->difficulty,
+        'module_id' => $lesson->module_id,
+        'module_title' => $lesson->module->title ?? null,
+        'module_order' => $lesson->module_order ?? 0,
+        'status' => $isDone ? 'completed' : ($isInProgress ? 'in_progress' : 'pending'),
+        'score' => $data['highestScore'],
+        'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
+        'has_quiz' => $lesson->quiz ? true : false,
+        'done' => $isDone,
+        'in_progress' => $isInProgress,
+        'locked' => $isLocked,
+        'active' => $isActive,
+        'recommendation_reason' => $reason['reason'],
+        'recommendation_type' => $reason['type'],
+        'detailed_reason' => $reason['detailed_reason'] ?? $reason['reason'], // ✅ ADD THIS
+        'covered_skills' => $reason['covered_skills'] ?? [],
+        'priority' => $reason['priority'] ?? 0,
+        'is_alphabet_lesson' => $data['isAlphabetLesson'],
+        'is_number_lesson' => $data['isNumberLesson'],
+        'is_greeting_lesson' => $data['isGreetingLesson'],
+        'lesson_concepts' => $data['lessonConcepts'],
+    ];
+}
 
         // Limit to 20 lessons
         $formattedLessons = array_slice($formattedLessons, 0, 20);
@@ -4612,7 +4675,8 @@ public function getCheckpointExams(Request $request)
                 'module_title' => $exam->module->title ?? null,
                 'total_points' => $exam->total_points,
                 'passing_score' => $exam->passing_score,
-                'total_questions' => $exam->questions->count(),
+        'time_limit_minutes' => $exam->time_limit_minutes ?? 60, // ✅ ADD THIS
+        'total_questions' => $exam->questions->count(),
                 'status' => $bestAttempt ? 'completed' : ($assignment->status ?? 'pending'),
                 'score' => $bestAttempt ? $bestAttempt->percentage : null,
                 'is_passed' => $bestAttempt ? $bestAttempt->percentage >= 60 : null,
@@ -4670,6 +4734,33 @@ public function getCheckpointExamById(Request $request, $examId)
 
         // Format questions (without revealing correct answers)
         $questions = $exam->questions->map(function($question) {
+            // 🔥 Ensure drag_drop_pairs is always an array
+            $dragDropPairs = $question->drag_drop_pairs;
+            if (is_string($dragDropPairs)) {
+                $dragDropPairs = json_decode($dragDropPairs, true) ?? [];
+            }
+            if (!is_array($dragDropPairs)) {
+                $dragDropPairs = [];
+            }
+
+            // 🔥 Ensure gesture_data is always an array
+            $gestureData = $question->gesture_data;
+            if (is_string($gestureData)) {
+                $gestureData = json_decode($gestureData, true) ?? [];
+            }
+            if (!is_array($gestureData)) {
+                $gestureData = [];
+            }
+
+            // 🔥 Ensure options_data is always an array
+            $optionsData = $question->options_data;
+            if (is_string($optionsData)) {
+                $optionsData = json_decode($optionsData, true) ?? [];
+            }
+            if (!is_array($optionsData)) {
+                $optionsData = [];
+            }
+
             $questionData = [
                 'question_id' => $question->question_id,
                 'question_number' => $question->question_number,
@@ -4677,29 +4768,18 @@ public function getCheckpointExamById(Request $request, $examId)
                 'question_text' => $question->question_text,
                 'media_url' => $question->media_url,
                 'points' => $question->points,
+                'drag_drop_pairs' => $dragDropPairs,
+                'gesture_data' => $gestureData,
             ];
 
             // For multiple choice and true/false, include options (without correct flag)
             if (in_array($question->question_type, ['multiple_choice', 'true_false'])) {
-                $options = is_array($question->options_data) ? $question->options_data : [];
                 $questionData['options'] = array_map(function($opt) {
                     return [
                         'text' => $opt['text'] ?? '',
                         'image' => $opt['image'] ?? null,
                     ];
-                }, $options);
-            }
-
-            // For drag and drop
-            if ($question->question_type === 'drag_drop') {
-                $questionData['drag_drop_pairs'] = $question->drag_drop_pairs ?? [];
-                $questionData['drag_drop_left_label'] = $question->drag_drop_left_label ?? null;
-                $questionData['drag_drop_right_label'] = $question->drag_drop_right_label ?? null;
-            }
-
-            // For gesture
-            if ($question->question_type === 'gesture') {
-                $questionData['gesture_data'] = $question->gesture_data ?? [];
+                }, $optionsData);
             }
 
             return $questionData;
@@ -4723,7 +4803,7 @@ public function getCheckpointExamById(Request $request, $examId)
                 ];
             });
 
-        // Check if the exam is locked (for the lessons map)
+        // Check if the exam is locked
         $isLocked = (bool) $assignment->is_locked;
         $assignmentStatus = $assignment->status;
 
@@ -4737,6 +4817,7 @@ public function getCheckpointExamById(Request $request, $examId)
                 'module_title' => $exam->module->title ?? null,
                 'total_points' => $exam->total_points,
                 'passing_score' => $exam->passing_score,
+                'time_limit_minutes' => $exam->time_limit_minutes ?? 60,
                 'total_questions' => $exam->questions->count(),
                 'questions' => $questions,
                 'is_locked' => $isLocked,
@@ -4744,7 +4825,6 @@ public function getCheckpointExamById(Request $request, $examId)
             ],
             'attempts' => $attempts,
         ]);
-
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
@@ -4752,6 +4832,7 @@ public function getCheckpointExamById(Request $request, $examId)
         ], 500);
     }
 }
+
 
 /**
  * Submit a checkpoint exam
@@ -4869,8 +4950,7 @@ public function submitCheckpointExam(Request $request, $examId)
             ->count() + 1;
 
         // Calculate XP based on percentage
-        $xpEarned = $this->calculateCheckpointXp($percentage, $attemptNumber);
-
+   $xpEarned = $this->calculateCheckpointXp($percentage, $attemptNumber, $student, $examId);
         // Save the attempt
         $attemptId = DB::table('checkpoint_exam_attempts')->insertGetId([
             'student_id' => $student->student_id,
@@ -4946,30 +5026,88 @@ public function submitCheckpointExam(Request $request, $examId)
 }
 
 /**
- * Calculate XP for checkpoint exam
+ * Calculate XP for checkpoint exam with cap (max 50 XP per exam)
+ * 
+ * - First attempt perfect = 50 XP (bonus!)
+ * - First attempt passing (60-99%) = 30 XP
+ * - First attempt failing (<60%) = 5 XP (participation)
+ * - Subsequent attempts = only XP if score improves
+ * - Max XP per exam = 50
  */
-private function calculateCheckpointXp($percentage, $attemptNumber)
+private function calculateCheckpointXp($percentage, $attemptNumber, $student, $examId)
 {
-    $xp = 0;
-
-    if ($percentage >= 100) {
-        $xp = 50; // Perfect score
-    } elseif ($percentage >= 80) {
-        $xp = 35;
-    } elseif ($percentage >= 60) {
-        $xp = 20;
-    } elseif ($percentage >= 40) {
-        $xp = 10;
-    } else {
-        $xp = 5; // Participation XP
+    // ─── 1. GET TOTAL XP EARNED SO FAR FOR THIS EXAM ──────────────
+    $totalXpEarned = DB::table('checkpoint_exam_attempts')
+        ->where('student_id', $student->student_id)
+        ->where('exam_id', $examId)
+        ->sum('xp_earned');
+    
+    // Max XP per exam is 50
+    $maxXpPerExam = 50;
+    
+    // If already earned max XP, return 0
+    if ($totalXpEarned >= $maxXpPerExam) {
+        return 0;
     }
-
-    // Bonus for first attempt passing
+    
+    // ─── 2. GET PREVIOUS BEST SCORE ──────────────────────────────
+    $previousBest = DB::table('checkpoint_exam_attempts')
+        ->where('student_id', $student->student_id)
+        ->where('exam_id', $examId)
+        ->where('status', 'completed')
+        ->max('percentage');
+    
+    // ─── 3. FIRST ATTEMPT PERFECT = 50 XP ──────────────────────
+    if ($attemptNumber === 1 && $percentage >= 100) {
+        $xpEarned = min(50, $maxXpPerExam - $totalXpEarned);
+        return max(0, $xpEarned);
+    }
+    
+    // ─── 4. FIRST ATTEMPT PASSING (60-99%) = 30 XP ─────────────
     if ($attemptNumber === 1 && $percentage >= 60) {
-        $xp += 10;
+        $xpEarned = min(30, $maxXpPerExam - $totalXpEarned);
+        return max(0, $xpEarned);
     }
-
-    return $xp;
+    
+    // ─── 5. FIRST ATTEMPT FAILING = 5 XP (participation) ──────
+    if ($attemptNumber === 1 && $percentage < 60) {
+        // Cap at remaining XP
+        $remainingXp = $maxXpPerExam - $totalXpEarned;
+        return min(5, $remainingXp);
+    }
+    
+    // ─── 6. SUBSEQUENT ATTEMPTS - ONLY GET XP FOR IMPROVEMENT ──
+    if ($previousBest !== null) {
+        // Only award XP if they improved their score
+        if ($percentage > $previousBest) {
+            $improvement = $percentage - $previousBest;
+            
+            // Base XP: 1 XP per 5% improvement
+            $xpEarned = floor($improvement / 5);
+            
+            // Bonus for reaching perfect score (only if not already perfect)
+            if ($percentage >= 100 && $previousBest < 100) {
+                $xpEarned += 5;
+            }
+            
+            // Cap at remaining XP
+            $remainingXp = $maxXpPerExam - $totalXpEarned;
+            $xpEarned = min($xpEarned, $remainingXp);
+            
+            // If improvement is less than 5%, give at least 1 XP
+            if ($xpEarned < 1 && $improvement > 0) {
+                $xpEarned = 1;
+            }
+            
+            return max(0, $xpEarned);
+        }
+        
+        // No improvement = 0 XP
+        return 0;
+    }
+    
+    // ─── 7. FALLBACK: 5 XP for participation ─────────────────────
+    return 5;
 }
 
 /**

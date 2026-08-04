@@ -478,6 +478,44 @@
     }
     .btn-outline-blue:hover { background: rgba(24,72,200,0.06); }
 
+/* Error styles */
+.field-error {
+    border-color: #EF4444 !important;
+    background-color: #FEF2F2 !important;
+}
+
+.field-error:focus {
+    border-color: #EF4444 !important;
+    box-shadow: 0 0 0 4px rgba(239,68,68,0.08) !important;
+}
+
+.error-message {
+    color: #EF4444;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.error-message .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.section-error {
+    border-color: #EF4444 !important;
+    border-width: 2px !important;
+    background-color: #FEF2F2 !important;
+}
+
+.section-error .section-title {
+    color: #EF4444 !important;
+}
+
+
+    
+
     .hidden { display: none !important; }
 </style>
 
@@ -502,6 +540,9 @@
 
     <form action="{{ route('lessons.store') }}" method="POST" enctype="multipart/form-data" id="lessonForm">
         @csrf
+
+        <!-- Hidden field carrying the clicked button's status (draft / published) -->
+        <input type="hidden" name="status" id="lessonStatusField" value="draft">
 
         @if ($errors->any())
             <div class="section-card" style="border-color:#FCA5A5; background:#FEF2F2;">
@@ -845,8 +886,8 @@
                 <span class="material-symbols-outlined text-sm">visibility</span> Preview
             </button>
             <div class="flex gap-3">
-                <button type="submit" name="status" value="draft" class="btn-ghost">💾 Save Draft</button>
-                <button type="submit" name="status" value="published" class="btn-primary">🚀 Publish Lesson</button>
+                <button type="submit" data-status="draft" class="btn-ghost">💾 Save Draft</button>
+                <button type="submit" data-status="published" class="btn-primary">🚀 Publish Lesson</button>
             </div>
         </div>
     </form>
@@ -1207,13 +1248,16 @@ function toggleModuleFields() {
 /* ═══════════════════════════════════════════════════════
    CONTENT CARDS
 ═══════════════════════════════════════════════════════ */
-
 function toggleFields(select) {
     const card = select.closest('.content-card');
     if (!card) return;
     const gestureField = card.querySelector('.gesture-field');
     const mediaField = card.querySelector('.media-field');
     const typeLabel = card.querySelector('.badge-pill');
+    
+    // Hide validation indicators
+    card.style.borderColor = '#E5EAF2';
+    
     if (gestureField) gestureField.classList.add('hidden');
     if (mediaField) mediaField.classList.add('hidden');
     if (typeLabel) {
@@ -1229,6 +1273,9 @@ function toggleFields(select) {
     if (mediaMissingInput && mediaMissingInput.value === '1') {
         if (mediaField) mediaField.classList.remove('hidden');
     }
+    
+    // Update AI quiz button state
+    updateAiQuizBtnState();
 }
 
 function addContentCard() {
@@ -1831,6 +1878,406 @@ function closeAiQuizModal() {
     document.getElementById('aiQuizModal').style.display = 'none';
 }
 
+// Add this validation function before the form submit handler
+function validateLessonContent() {
+    let errors = [];
+    
+    // 1. Check Lesson Content Cards
+    const contentCards = document.querySelectorAll('.content-card');
+    if (contentCards.length === 0) {
+        errors.push('Please add at least one content slide.');
+    }
+    
+    contentCards.forEach((card, index) => {
+        const typeSelect = card.querySelector('.content-type');
+        const contentType = typeSelect ? typeSelect.value : 'text';
+        const titleInput = card.querySelector('input[name*="[title]"]');
+        const contentText = card.querySelector('textarea[name*="[content_text]"]');
+        const mediaInput = card.querySelector('input[name*="[existing_media]"]');
+        
+        // Check title
+        if (!titleInput || !titleInput.value.trim()) {
+            errors.push(`Content Slide ${index + 1}: Please add a title.`);
+        }
+        
+        // Check based on content type
+        if (contentType === 'text') {
+            if (!contentText || !contentText.value.trim()) {
+                errors.push(`Content Slide ${index + 1}: Please add content text.`);
+            }
+        } else if (contentType === 'gesture_demo') {
+            const gestureName = card.querySelector('input[name*="[gesture_name]"]');
+            if (!gestureName || !gestureName.value.trim()) {
+                errors.push(`Content Slide ${index + 1}: Please enter a gesture name.`);
+            }
+        } else if (contentType === 'image' || contentType === 'video') {
+            if (!mediaInput || !mediaInput.value.trim()) {
+                errors.push(`Content Slide ${index + 1}: Please upload a ${contentType}.`);
+            }
+        }
+    });
+    
+    return errors;
+}
+
+function validateQuizQuestions() {
+    let errors = [];
+    const questions = document.querySelectorAll('.quiz-question');
+    
+    if (questions.length === 0) {
+        errors.push('Please add at least one quiz question.');
+        return errors;
+    }
+    
+    questions.forEach((question, index) => {
+        const questionNum = index + 1;
+        const questionInput = question.querySelector('input[name*="[question]"]');
+        
+        // Check question text
+        if (!questionInput || !questionInput.value.trim()) {
+            errors.push(`Quiz Question ${questionNum}: Please enter a question.`);
+        }
+        
+        const typeSelect = question.querySelector('.question-type');
+        const questionType = typeSelect ? typeSelect.value : 'multiple_choice';
+        
+        // Check based on question type
+        if (questionType === 'multiple_choice' || questionType === 'true_false') {
+            const options = question.querySelectorAll('.option-row');
+            const hasValidOption = Array.from(options).some(opt => {
+                const textInput = opt.querySelector('.option-text-input');
+                const imageInput = opt.querySelector('input[name*="[existing_image]"]');
+                return (textInput && textInput.value.trim()) || (imageInput && imageInput.value.trim());
+            });
+            
+            if (options.length < 2) {
+                errors.push(`Quiz Question ${questionNum}: Need at least 2 options for ${questionType === 'true_false' ? 'True/False' : 'Multiple Choice'}.`);
+            } else if (!hasValidOption) {
+                errors.push(`Quiz Question ${questionNum}: Each option needs text OR an image.`);
+            }
+            
+            // Check if correct answer is selected
+            const correctRadio = question.querySelector('input[type="radio"]:checked');
+            if (!correctRadio) {
+                errors.push(`Quiz Question ${questionNum}: Please select the correct answer.`);
+            }
+            
+        } else if (questionType === 'drag_drop') {
+            const pairs = question.querySelectorAll('.drag-drop-pair');
+            
+            if (pairs.length < 2) {
+                errors.push(`Quiz Question ${questionNum}: Need at least 2 drag & drop pairs.`);
+            }
+            
+            pairs.forEach((pair, pairIndex) => {
+                const leftText = pair.querySelector('input[name*="[left_text]"]');
+                const rightText = pair.querySelector('input[name*="[right_text]"]');
+                const leftImage = pair.querySelector('input[name*="[left_image]"]');
+                const rightImage = pair.querySelector('input[name*="[right_image]"]');
+                
+                const hasLeftContent = (leftText && leftText.value.trim()) || (leftImage && leftImage.value.trim());
+                const hasRightContent = (rightText && rightText.value.trim()) || (rightImage && rightImage.value.trim());
+                
+                if (!hasLeftContent) {
+                    errors.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Left item needs text OR an image.`);
+                }
+                if (!hasRightContent) {
+                    errors.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Right item needs text OR an image.`);
+                }
+            });
+            
+        } else if (questionType === 'gesture') {
+            const moduleSelect = question.querySelector('.gesture-module-select');
+            const selectedGestures = question.querySelectorAll('.gesture-checkbox:checked');
+            
+            if (!moduleSelect || !moduleSelect.value) {
+                errors.push(`Quiz Question ${questionNum}: Please select a gesture module.`);
+            }
+            
+            if (selectedGestures.length === 0) {
+                errors.push(`Quiz Question ${questionNum}: Please select at least one gesture.`);
+            }
+        }
+    });
+    
+    return errors;
+}
+
+function clearValidationErrors() {
+    // Remove error styling from all fields
+    document.querySelectorAll('.field-error').forEach(el => {
+        el.classList.remove('field-error');
+    });
+    document.querySelectorAll('.section-error').forEach(el => {
+        el.classList.remove('section-error');
+    });
+    document.querySelectorAll('.error-message').forEach(el => {
+        el.remove();
+    });
+    
+    // Reset media widgets
+    document.querySelectorAll('.media-upload-widget').forEach(widget => {
+        widget.style.borderColor = '';
+        widget.style.borderWidth = '';
+    });
+}
+
+// Show error on a specific field
+function showFieldError(field, message) {
+    if (!field) return;
+    
+    // Add error class
+    field.classList.add('field-error');
+    
+    // Check if error message already exists
+    let errorEl = field.parentElement.querySelector('.error-message');
+    if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'error-message';
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+        field.parentElement.appendChild(errorEl);
+    } else {
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+    }
+}
+
+// Show section error (for whole cards)
+function showSectionError(element, message) {
+    if (!element) return;
+    element.classList.add('section-error');
+    
+    // Check if error message already exists
+    let errorEl = element.querySelector('.section-error-message');
+    if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'error-message section-error-message';
+        errorEl.style.marginTop = '12px';
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+        element.appendChild(errorEl);
+    } else {
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+    }
+}
+
+// Add error to validation summary
+// Inline red highlights are the only error UI; no summary list.
+function addToValidationSummary(message) {
+    console.warn('Validation:', message);
+}
+
+function validateLessonForm(shouldClear = true) {
+    if (shouldClear) clearValidationErrors();
+    let hasErrors = false;
+    let errorMessages = [];
+    
+    // 1. Check if there's any content at all
+    const contentCards = document.querySelectorAll('.content-card');
+    const questions = document.querySelectorAll('.quiz-question');
+    const hasContent = contentCards.length > 0;
+    const hasQuiz = questions.length > 0;
+    
+    if (!hasContent && !hasQuiz) {
+        errorMessages.push('Please add at least one content slide OR one quiz question.');
+        hasErrors = true;
+        // Show error on the content section
+        const contentSection = document.getElementById('contentContainer');
+        if (contentSection) {
+            contentSection.classList.add('section-error');
+        }
+        // Show error on the quiz section
+        const quizSection = document.getElementById('quizQuestions')?.closest('.section-card');
+        if (quizSection) {
+            quizSection.classList.add('section-error');
+        }
+    }
+    
+    // 2. Validate Lesson Content Cards (only if there are content cards)
+    contentCards.forEach((card, index) => {
+        const cardNum = index + 1;
+        const typeSelect = card.querySelector('.content-type');
+        const contentType = typeSelect ? typeSelect.value : 'text';
+        const titleInput = card.querySelector('input[name*="[title]"]');
+        const contentText = card.querySelector('textarea[name*="[content_text]"]');
+        const mediaInput = card.querySelector('input[name*="[existing_media]"]');
+        const mediaWidget = card.querySelector('.media-upload-widget');
+        let cardHasError = false;
+        
+        // Check title
+        if (!titleInput || !titleInput.value.trim()) {
+            showFieldError(titleInput, 'Please enter a title for this slide');
+            errorMessages.push(`Content Slide ${cardNum}: Missing title`);
+            cardHasError = true;
+            hasErrors = true;
+        }
+        
+        // Check based on content type
+        if (contentType === 'text') {
+            if (!contentText || !contentText.value.trim()) {
+                showFieldError(contentText, 'Please add content text for this slide');
+                errorMessages.push(`Content Slide ${cardNum}: Missing content text`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        } else if (contentType === 'gesture_demo') {
+            const gestureName = card.querySelector('input[name*="[gesture_name]"]');
+            if (!gestureName || !gestureName.value.trim()) {
+                showFieldError(gestureName, 'Please enter a gesture name');
+                errorMessages.push(`Content Slide ${cardNum}: Missing gesture name`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        } else if (contentType === 'image' || contentType === 'video') {
+            if (!mediaInput || !mediaInput.value.trim()) {
+                // Highlight the media widget
+                if (mediaWidget) {
+                    mediaWidget.style.borderColor = '#EF4444';
+                    mediaWidget.style.borderWidth = '2px';
+                    // Remove existing error message
+                    const existingError = mediaWidget.parentElement.querySelector('.error-message');
+                    if (existingError) existingError.remove();
+                    const errorEl = document.createElement('div');
+                    errorEl.className = 'error-message';
+                    errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> Please upload a ${contentType}`;
+                    mediaWidget.parentElement.appendChild(errorEl);
+                }
+                errorMessages.push(`Content Slide ${cardNum}: Missing ${contentType}`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        }
+        
+        if (cardHasError) {
+            card.classList.add('section-error');
+        }
+    });
+    
+    // 3. Validate Quiz Questions (only if there are questions)
+    questions.forEach((question, index) => {
+        const questionNum = index + 1;
+        const questionInput = question.querySelector('input[name*="[question]"]');
+        let questionHasError = false;
+        
+        // Check question text
+        if (!questionInput || !questionInput.value.trim()) {
+            showFieldError(questionInput, 'Please enter a question');
+            errorMessages.push(`Quiz Question ${questionNum}: Missing question text`);
+            questionHasError = true;
+            hasErrors = true;
+        }
+        
+        const typeSelect = question.querySelector('.question-type');
+        const questionType = typeSelect ? typeSelect.value : 'multiple_choice';
+        
+        // Check based on question type
+        if (questionType === 'multiple_choice' || questionType === 'true_false') {
+            const options = question.querySelectorAll('.option-row');
+            const hasValidOption = Array.from(options).some(opt => {
+                const textInput = opt.querySelector('.option-text-input');
+                const imageInput = opt.querySelector('input[name*="[existing_image]"]');
+                return (textInput && textInput.value.trim()) || (imageInput && imageInput.value.trim());
+            });
+            
+            if (options.length < 2) {
+                const optionsContainer = question.querySelector('.options-container');
+                const errorMsg = `Need at least 2 options for ${questionType === 'true_false' ? 'True/False' : 'Multiple Choice'}`;
+                showSectionError(optionsContainer, errorMsg);
+                errorMessages.push(`Quiz Question ${questionNum}: ${errorMsg}`);
+                questionHasError = true;
+                hasErrors = true;
+            } else if (!hasValidOption) {
+                const optionsContainer = question.querySelector('.options-container');
+                showSectionError(optionsContainer, 'Each option needs text OR an image');
+                errorMessages.push(`Quiz Question ${questionNum}: Options need text or images`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+            
+            // Check if correct answer is selected
+            const correctRadio = question.querySelector('input[type="radio"]:checked');
+            if (!correctRadio) {
+                const optionsContainer = question.querySelector('.options-container');
+                showSectionError(optionsContainer, 'Please select the correct answer');
+                errorMessages.push(`Quiz Question ${questionNum}: No correct answer selected`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+            
+        } else if (questionType === 'drag_drop') {
+            const pairs = question.querySelectorAll('.drag-drop-pair');
+            const dragDropContainer = question.querySelector('.drag-drop-container');
+            
+            if (pairs.length < 2) {
+                showSectionError(dragDropContainer, 'Need at least 2 drag & drop pairs');
+                errorMessages.push(`Quiz Question ${questionNum}: Need at least 2 drag & drop pairs`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+            
+            pairs.forEach((pair, pairIndex) => {
+                const leftText = pair.querySelector('input[name*="[left_text]"]');
+                const rightText = pair.querySelector('input[name*="[right_text]"]');
+                const leftImage = pair.querySelector('input[name*="[left_image]"]');
+                const rightImage = pair.querySelector('input[name*="[right_image]"]');
+                
+                const hasLeftContent = (leftText && leftText.value.trim()) || (leftImage && leftImage.value.trim());
+                const hasRightContent = (rightText && rightText.value.trim()) || (rightImage && rightImage.value.trim());
+                
+                if (!hasLeftContent) {
+                    showFieldError(leftText, 'Left item needs text OR an image');
+                    errorMessages.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Left item missing content`);
+                    questionHasError = true;
+                    hasErrors = true;
+                }
+                if (!hasRightContent) {
+                    showFieldError(rightText, 'Right item needs text OR an image');
+                    errorMessages.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Right item missing content`);
+                    questionHasError = true;
+                    hasErrors = true;
+                }
+            });
+            
+        } else if (questionType === 'gesture') {
+            const moduleSelect = question.querySelector('.gesture-module-select');
+            const selectedGestures = question.querySelectorAll('.gesture-checkbox:checked');
+            const gestureContainer = question.querySelector('.gesture-quiz-container');
+            
+            if (!moduleSelect || !moduleSelect.value) {
+                showFieldError(moduleSelect, 'Please select a gesture module');
+                errorMessages.push(`Quiz Question ${questionNum}: No gesture module selected`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+            
+            if (selectedGestures.length === 0) {
+                const checkboxesContainer = question.querySelector('#gestureCheckboxes_' + index);
+                if (checkboxesContainer) {
+                    // Remove existing error message
+                    const existingError = checkboxesContainer.parentElement.querySelector('.error-message');
+                    if (existingError) existingError.remove();
+                    const errorEl = document.createElement('div');
+                    errorEl.className = 'error-message';
+                    errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> Please select at least one gesture`;
+                    checkboxesContainer.parentElement.appendChild(errorEl);
+                }
+                errorMessages.push(`Quiz Question ${questionNum}: No gestures selected`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+        }
+        
+        if (questionHasError) {
+            question.classList.add('section-error');
+        }
+    });
+    
+    // Add all errors to summary
+    if (hasErrors) {
+        errorMessages.forEach(msg => addToValidationSummary(msg));
+    }
+    
+    // Return false if there are errors, true if no errors
+    return !hasErrors;
+}
 async function submitAiQuizGenerate() {
     const numMc = parseInt(document.getElementById('aqm_num_mc').value) || 0;
     const numTf = parseInt(document.getElementById('aqm_num_tf').value) || 0;
@@ -1933,32 +2380,97 @@ document.addEventListener('DOMContentLoaded', function() {
         handleQuestionTypeChange(select);
     });
 
-    // Form validation
-    document.getElementById('lessonForm')?.addEventListener('submit', function(e) {
-        const validation = validateDragDropPairs();
-        if (!validation.isValid) {
-            e.preventDefault();
-            alert(validation.errorMsg);
+    // Clear errors when user starts typing (moved OUTSIDE submit handler)
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('field-error')) {
+            e.target.classList.remove('field-error');
+            const errorMsg = e.target.parentElement.querySelector('.error-message');
+            if (errorMsg) errorMsg.remove();
+        }
+    });
+    
+    // Clear errors on file upload (moved OUTSIDE submit handler)
+    document.addEventListener('change', function(e) {
+        if (e.target.type === 'file') {
+            const widget = e.target.closest('.media-upload-widget');
+            if (widget) {
+                widget.style.borderColor = '';
+                widget.style.borderWidth = '';
+                const errorMsg = widget.parentElement.querySelector('.error-message');
+                if (errorMsg) errorMsg.remove();
+            }
+        }
+    });
+
+    // Form validation with inline errors
+    const lessonForm = document.getElementById('lessonForm');
+    let allowSubmit = false;
+
+    // Remember which button was pressed (draft vs publish)
+    lessonForm?.querySelectorAll('button[type="submit"][data-status]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const field = document.getElementById('lessonStatusField');
+            if (field) field.value = this.dataset.status;
+        });
+    });
+
+    lessonForm?.addEventListener('submit', function(e) {
+        if (allowSubmit) return; // programmatic re-submit after passing validation
+
+        // Block submission first: nothing below can accidentally let it through
+        e.preventDefault();
+
+        let isValid = true;
+        try {
+            clearValidationErrors();
+
+            // Validate module
+            const action = document.getElementById('moduleAction')?.value;
+            if (action === 'existing') {
+                const moduleSelect = document.getElementById('moduleIdSelect');
+                if (!moduleSelect?.value) {
+                    showFieldError(moduleSelect, 'Please select a module');
+                    document.getElementById('existingModuleFields')?.classList.add('section-error');
+                    addToValidationSummary('Please select a module');
+                    moduleSelect?.focus();
+                    isValid = false;
+                }
+            }
+            if (action === 'new') {
+                const newTitle = document.getElementById('newModuleTitle');
+                if (!newTitle?.value.trim()) {
+                    showFieldError(newTitle, 'Please enter a title for the new module');
+                    document.getElementById('newModuleFields')?.classList.add('section-error');
+                    addToValidationSummary('Please enter a new module title');
+                    newTitle?.focus();
+                    isValid = false;
+                }
+            }
+
+            // Run main validation (content slides + quiz questions)
+            if (!validateLessonForm(false)) isValid = false;
+        } catch (err) {
+            // A crash in validation must NEVER result in a silent publish
+            console.error('Validation crashed:', err);
+            addToValidationSummary('Validation could not complete. Please review the form and try again.');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            // Scroll to the first highlighted field / section and focus it
+            const firstBad = document.querySelector('.field-error, .section-error');
+            if (firstBad) {
+                firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof firstBad.focus === 'function' && firstBad.matches('input, select, textarea')) {
+                    setTimeout(() => firstBad.focus({ preventScroll: true }), 350);
+                }
+            }
             return;
         }
 
-        const action = document.getElementById('moduleAction')?.value;
-        if (action === 'existing') {
-            const moduleSelect = document.getElementById('moduleIdSelect');
-            if (!moduleSelect?.value) {
-                e.preventDefault();
-                alert('Please select a module or choose a different module option.');
-                moduleSelect?.focus();
-            }
-        }
-        if (action === 'new') {
-            const newTitle = document.getElementById('newModuleTitle');
-            if (!newTitle?.value.trim()) {
-                e.preventDefault();
-                alert('Please enter a title for the new module.');
-                newTitle?.focus();
-            }
-        }
+        // Passed: let it through
+        allowSubmit = true;
+        lessonForm.submit();
     });
 });
 

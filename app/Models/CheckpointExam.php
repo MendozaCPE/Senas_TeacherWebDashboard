@@ -25,6 +25,7 @@ class CheckpointExam extends Model
         'description',
         'total_points',
         'passing_score',
+        'time_limit_minutes',
         'status',
         'published_at',
     ];

@@ -117,7 +117,15 @@
                             <input type="number" name="passing_score_percentage" id="passingScoreInput" value="{{ old('passing_score_percentage', 60) }}" min="1" max="100"
                                 class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#1a6fd4] focus:ring-2 focus:ring-[#1a6fd4]/20 outline-none text-sm font-semibold text-slate-800">
                         </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Time Limit (Minutes)</label>
+                            <input type="number" name="time_limit_minutes" id="timeLimitInput" value="{{ old('time_limit_minutes', 60) }}" min="1" max="180"
+                                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#1a6fd4] focus:ring-2 focus:ring-[#1a6fd4]/20 outline-none text-sm font-semibold text-slate-800">
+                            <p class="text-xs text-slate-400 mt-1">Students must complete the exam within this time limit.</p>
+                        </div>
                     </div>
+
                 </div>
             </div>
 
@@ -173,51 +181,84 @@
                                     default => 'Question'
                                 };
                             @endphp
-                            <div class="question-item flex items-start gap-4 lesson-q-{{ $lesson->lesson_id }}" id="qContainer_{{ $qIndex }}">
-                                <div class="pt-1">
-                                    <input type="checkbox"
-                                        class="question-checkbox w-5 h-5 rounded border-slate-300 text-[#0d326b] focus:ring-[#1a6fd4] cursor-pointer"
-                                        id="qCheck_{{ $qIndex }}"
-                                        data-qindex="{{ $qIndex }}"
-                                        onchange="toggleQuestion({{ $qIndex }})">
-                                </div>
+                        <div class="question-item flex items-start gap-4 lesson-q-{{ $lesson->lesson_id }}" id="qContainer_{{ $qIndex }}">
+    <div class="pt-1">
+        <input type="checkbox"
+            class="question-checkbox w-5 h-5 rounded border-slate-300 text-[#0d326b] focus:ring-[#1a6fd4] cursor-pointer"
+            id="qCheck_{{ $qIndex }}"
+            data-qindex="{{ $qIndex }}"
+            onchange="toggleQuestion({{ $qIndex }})">
+    </div>
 
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                        <span class="badge-qtype {{ $typeBadgeClass }}">{{ $typeLabel }}</span>
-                                        <span class="text-xs text-slate-400 font-medium">Lesson: {{ $lesson->title }}</span>
-                                    </div>
-                                    <p class="text-sm font-semibold text-slate-800 mb-2">{{ $question->question_text }}</p>
+    <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <span class="badge-qtype {{ $typeBadgeClass }}">{{ $typeLabel }}</span>
+            <span class="text-xs text-slate-400 font-medium">Lesson: {{ $lesson->title }}</span>
+        </div>
+        
+        {{-- Question Media --}}
+        @if($question->media_url)
+        <div class="mb-2">
+            @php
+                $mediaPath = $question->media_url;
+                $isImage = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $mediaPath);
+                $isVideo = preg_match('/\.(mp4|mov|avi|mkv|webm)$/i', $mediaPath);
+            @endphp
+            @if($isImage)
+                <img src="{{ asset('storage/' . $mediaPath) }}" alt="Question media" class="max-h-32 rounded-lg border border-slate-200">
+            @elseif($isVideo)
+                <video src="{{ asset('storage/' . $mediaPath) }}" controls class="max-h-32 rounded-lg border border-slate-200"></video>
+            @else
+                <span class="text-xs text-slate-400">📎 Media attached</span>
+            @endif
+        </div>
+        @endif
+        
+        <p class="text-sm font-semibold text-slate-800 mb-2">{{ $question->question_text }}</p>
 
-                                    <!-- Options summary preview -->
-                                    @if($question->options && $question->options->count() > 0)
-                                    <div class="flex flex-wrap gap-2 text-xs text-slate-500">
-                                        @foreach($question->options as $opt)
-                                        <span class="px-2.5 py-1 rounded-md bg-white border border-slate-200 {{ $opt->is_correct ? 'border-green-300 bg-green-50 text-green-800 font-bold' : '' }}">
-                                            {{ $opt->option_text }}
-                                        </span>
-                                        @endforeach
-                                    </div>
-                                    @endif
-                                </div>
+        {{-- Options --}}
+        @if($question->options && $question->options->count() > 0)
+        <div class="flex flex-wrap gap-2 text-xs text-slate-500">
+            @foreach($question->options as $opt)
+            <span class="px-2.5 py-1 rounded-md bg-white border border-slate-200 flex items-center gap-1 {{ $opt->is_correct ? 'border-green-300 bg-green-50 text-green-800 font-bold' : '' }}">
+                @if($opt->option_media_url)
+                    @php
+                        $optMediaPath = $opt->option_media_url;
+                        $isOptImage = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $optMediaPath);
+                    @endphp
+                    @if($isOptImage)
+                        <img src="{{ asset('storage/' . $optMediaPath) }}" alt="Option" class="h-5 w-5 object-cover rounded">
+                    @else
+                        <span class="text-slate-400">📎</span>
+                    @endif
+                @endif
+                <span>{{ $opt->option_text }}</span>
+                @if($opt->is_correct)
+                    <span class="text-green-600 text-[10px]">✓</span>
+                @endif
+            </span>
+            @endforeach
+        </div>
+        @endif
+    </div>
 
-                                <!-- Points Input -->
-                                <div class="w-28 text-right flex flex-col items-end">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Points</label>
-                                    <input type="number"
-                                        name="questions[{{ $qIndex }}][points]"
-                                        id="qPoints_{{ $qIndex }}"
-                                        value="1" min="1" max="10"
-                                        disabled
-                                        oninput="updateSummary()"
-                                        class="w-16 px-2 py-1 text-center font-bold text-sm rounded-lg border border-slate-200 focus:border-[#1a6fd4] focus:ring-1 focus:ring-[#1a6fd4] outline-none disabled:bg-slate-100 disabled:text-slate-400">
-                                    <input type="hidden"
-                                        name="questions[{{ $qIndex }}][source_question_id]"
-                                        id="qHidden_{{ $qIndex }}"
-                                        value="{{ $question->question_id }}"
-                                        disabled>
-                                </div>
-                            </div>
+    <!-- Points Input -->
+    <div class="w-28 text-right flex flex-col items-end">
+        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Points</label>
+        <input type="number"
+            name="questions[{{ $qIndex }}][points]"
+            id="qPoints_{{ $qIndex }}"
+            value="1" min="1" max="10"
+            disabled
+            oninput="updateSummary()"
+            class="w-16 px-2 py-1 text-center font-bold text-sm rounded-lg border border-slate-200 focus:border-[#1a6fd4] focus:ring-1 focus:ring-[#1a6fd4] outline-none disabled:bg-slate-100 disabled:text-slate-400">
+        <input type="hidden"
+            name="questions[{{ $qIndex }}][source_question_id]"
+            id="qHidden_{{ $qIndex }}"
+            value="{{ $question->question_id }}"
+            disabled>
+    </div>
+</div>
                             @php $qIndex++; @endphp
                             @endforeach
                         </div>

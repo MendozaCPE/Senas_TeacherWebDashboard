@@ -111,20 +111,25 @@
                 Exam Overview
             </h3>
 
-            <div class="p-4 rounded-xl bg-purple-50 border border-purple-100 space-y-3">
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-slate-600 font-medium">Total Questions:</span>
-                    <span class="font-bold text-slate-800">{{ count($questions) }}</span>
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-slate-600 font-medium">Total Points:</span>
-                    <span class="font-bold text-purple-700 text-base">{{ $exam->total_points }} pts</span>
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-slate-600 font-medium">Passing Score:</span>
-                    <span class="font-bold text-slate-800">{{ $exam->passing_score }} pts</span>
-                </div>
-            </div>
+           <div class="p-4 rounded-xl bg-purple-50 border border-purple-100 space-y-3">
+    <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-600 font-medium">Total Questions:</span>
+        <span class="font-bold text-slate-800">{{ count($questions) }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-600 font-medium">Total Points:</span>
+        <span class="font-bold text-purple-700 text-base">{{ $exam->total_points }} pts</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-600 font-medium">Passing Score:</span>
+        <span class="font-bold text-slate-800">{{ $exam->passing_score }} pts</span>
+    </div>
+    <!-- ✅ ADD THIS -->
+    <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-600 font-medium">Time Limit:</span>
+        <span class="font-bold text-amber-600">{{ $exam->time_limit_minutes ?? 60 }} minutes</span>
+    </div>
+</div>
 
             @if($exam->description)
             <div class="text-xs text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
