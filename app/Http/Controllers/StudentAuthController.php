@@ -81,32 +81,33 @@ class StudentAuthController extends Controller
         // Create token for mobile app
         $token = $user->createToken('mobile-app')->plainTextToken;
 
-        return response()->json([
-            'message' => 'Login successful',
-            'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'username' => $user->username,
-                'name' => $user->name,
-                'role' => $user->role,
-                'student' => [
-    'id' => $student->student_id,
-    'lrn' => $student->lrn,
-    'first_name' => $student->first_name,
-    'last_name' => $student->last_name,
-    'program_type' => $student->program_type,
-    'grade_level' => $student->grade_level,
-    'section' => $student->section,
-    'fsl_mastery_level' => $student->fsl_mastery_level,
-    'profile_picture' => $student->profile_picture ?? 'senya', // ← ADD THIS
-],
-'settings' => [
-                    'sound_enabled' => $settings->sound_enabled,
-                    'notifications_enabled' => $settings->notifications_enabled,
-                ],
+       return response()->json([
+        'message' => 'Login successful',
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'username' => $user->username,
+            'name' => $user->name,
+            'role' => $user->role,
+            'student' => [
+                'id' => $student->student_id,
+                'lrn' => $student->lrn,
+                'first_name' => $student->first_name,
+                'last_name' => $student->last_name,
+                'program_type' => $student->program_type,
+                'grade_level' => $student->grade_level,
+                'section' => $student->section,
+                'fsl_mastery_level' => $student->fsl_mastery_level,
+                'profile_picture' => $student->profile_picture ?? 'senya',
+                'teacher_id' => $student->teacher_id, // ✅ ADD THIS LINE
             ],
-        ]);
-    }
+            'settings' => [
+                'sound_enabled' => $settings->sound_enabled,
+                'notifications_enabled' => $settings->notifications_enabled,
+            ],
+        ],
+    ]);
+}
 
     /**
  * Get student settings
@@ -1428,23 +1429,23 @@ public function getLessons(Request $request)
         $xpService = new XPService();
         $xpService->updateStreak($student);
 
-        return response
-        ()->json([
-            'success' => true,
-            'modules' => $modules,
-            'student' => [
-                'first_name' => $student->first_name,
-                'last_name' => $student->last_name,
-                'fsl_mastery_level' => $student->fsl_mastery_level,
-                'total_xp' => $student->total_xp ?? 0,
-                'level' => $student->level ?? 1,
-                'streak_days' => $student->streak_days ?? 0,
-                'next_level_xp' => $xpService->getNextLevelXp($student),
-                'level_progress' => $xpService->getLevelProgress($student),
-                'level_name' => $xpService->getLevelName($student->level ?? 1),
-            ],
-        ]);
-    } catch (\Exception $e) {
+        return response()->json([
+        'success' => true,
+        'modules' => $modules,
+        'student' => [
+            'first_name' => $student->first_name,
+            'last_name' => $student->last_name,
+            'fsl_mastery_level' => $student->fsl_mastery_level,
+            'total_xp' => $student->total_xp ?? 0,
+            'level' => $student->level ?? 1,
+            'streak_days' => $student->streak_days ?? 0,
+            'teacher_id' => $student->teacher_id, // ✅ ADD THIS LINE
+            'next_level_xp' => $xpService->getNextLevelXp($student),
+            'level_progress' => $xpService->getLevelProgress($student),
+            'level_name' => $xpService->getLevelName($student->level ?? 1),
+        ],
+    ]);
+}catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'error' => $e->getMessage(),
@@ -5161,4 +5162,34 @@ public function getCheckpointExamLeaderboard(Request $request, $examId)
     }
 }
 
+/**
+ * Get teacher by ID
+ * GET /api/teacher/{teacherId}
+ */
+public function getTeacher(Request $request, $teacherId)
+{
+    try {
+        $teacher = \App\Models\Teacher::with('user')->find($teacherId);
+        
+        if (!$teacher) {
+            return response()->json(['error' => 'Teacher not found'], 404);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'teacher' => [
+                'id' => $teacher->teacher_id,
+                'first_name' => $teacher->first_name,
+                'last_name' => $teacher->last_name,
+                'email' => $teacher->user->email ?? null,
+                'profile_photo' => $teacher->user->profile_photo ?? null, // ✅ ADD THIS
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
 }

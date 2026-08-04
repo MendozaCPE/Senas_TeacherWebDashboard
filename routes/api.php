@@ -107,4 +107,5 @@ Route::get('/student/checkpoint-exam/{examId}', [StudentAuthController::class, '
 Route::post('/student/checkpoint-exam/{examId}/submit', [StudentAuthController::class, 'submitCheckpointExam']);
 
 Route::get('/student/checkpoint-exam/{examId}/leaderboard', [StudentAuthController::class, 'getCheckpointExamLeaderboard']);
+Route::get('/teacher/{teacherId}', [StudentAuthController::class, 'getTeacher']);
 });
