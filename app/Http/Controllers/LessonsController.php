@@ -679,8 +679,7 @@ public function view($id)
         'quiz' => [],
     ];
 
-    // Format quiz data if exists
-    if ($lesson->quiz) {
+   if ($lesson->quiz) {
         foreach ($lesson->quiz->questions as $question) {
             // Handle gesture_data (decode if double-encoded)
             $gestureData = $question->gesture_data;
@@ -688,21 +687,26 @@ public function view($id)
                 $gestureData = json_decode($gestureData, true) ?? [];
             }
             $gestureIds = $gestureData['gesture_ids'] ?? [];
+            $isFingerspelling = $gestureData['is_fingerspelling'] ?? false;
+            $words = $gestureData['words'] ?? [];
 
             $lessonData['quiz'][] = [
                 'question' => $question->question_text,
                 'type' => $question->question_type,
-                'media' => $question->media_url, // Keep as stored path
+                'media' => $question->media_url,
                 'options' => $question->options->map(function ($opt) {
                     return [
                         'text' => $opt->option_text,
-                        'image' => $opt->option_media_url, // Keep as stored path
+                        'image' => $opt->option_media_url,
                     ];
                 })->toArray(),
                 'correct' => $question->options->search(fn ($opt) => $opt->is_correct),
                 'drag_drop_pairs' => $this->normalizeDragDropPairs($question->drag_drop_pairs ?? []),
                 'gesture_module_id' => $gestureData['module_id'] ?? null,
                 'gesture_details' => $this->buildGestureDetails($gestureIds),
+                // 🆕 Add these lines
+                'is_fingerspelling' => $isFingerspelling,
+                'fingerspelling_words' => $words,
             ];
         }
     }
@@ -748,6 +752,8 @@ public function previewModal($id)
                 $gestureData = json_decode($gestureData, true) ?? [];
             }
             $gestureIds = $gestureData['gesture_ids'] ?? [];
+            $isFingerspelling = $gestureData['is_fingerspelling'] ?? false;
+            $words = $gestureData['words'] ?? [];
 
             $lessonData['quiz'][] = [
                 'question'         => $question->question_text,
@@ -763,6 +769,9 @@ public function previewModal($id)
                 'drag_drop_pairs'  => $this->normalizeDragDropPairs($question->drag_drop_pairs ?? []),
                 'gesture_module_id' => $gestureData['module_id'] ?? null,
                 'gesture_details'  => $this->buildGestureDetails($gestureIds),
+                // 🆕 Add these lines
+                'is_fingerspelling' => $isFingerspelling,
+                'fingerspelling_words' => $words,
             ];
         }
     }
@@ -1568,9 +1577,6 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
         return;
     }
 
-    // 🔍 DEBUG: Log the entire quiz input to see what's being sent
-    \Log::info('📝 Full quiz input:', $quizInput);
-
     $totalPoints = count($validQuestions);
     $passingScore = max(1, round($totalPoints * 0.6));
 
@@ -1607,25 +1613,17 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
         ];
 
         // ==========================================
-        // Handle drag and drop data - FIXED
+        // Handle drag and drop data
         // ==========================================
         if (($q['type'] ?? '') === 'drag_drop') {
-            \Log::info('🔍 Processing drag_drop question', ['question' => $q, 'drag_drop_pairs' => $q['drag_drop_pairs'] ?? 'NOT SET']);
-            
-            // Check for drag_drop_pairs in the request
             if (!empty($q['drag_drop_pairs'])) {
                 $processedPairs = [];
                 foreach ($q['drag_drop_pairs'] as $pairIndex => $pair) {
-                    // Handle both formats: ['left' => '...', 'right' => '...'] OR ['left_text' => '...', 'right_text' => '...']
                     $leftText = $pair['left'] ?? $pair['left_text'] ?? '';
                     $rightText = $pair['right'] ?? $pair['right_text'] ?? '';
                     $leftImage = $pair['left_image'] ?? '';
                     $rightImage = $pair['right_image'] ?? '';
                     
-                    // 🐛 DEBUG: Log each pair
-                    \Log::info('🔍 Pair data:', ['pair' => $pair, 'leftText' => $leftText, 'rightText' => $rightText, 'leftImage' => $leftImage, 'rightImage' => $rightImage]);
-                    
-                    // Only add if at least one field has content
                     if (!empty($leftText) || !empty($rightText) || !empty($leftImage) || !empty($rightImage)) {
                         $processedPairs[] = [
                             'left_text' => $leftText,
@@ -1638,25 +1636,86 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
                 }
                 
                 if (!empty($processedPairs)) {
-                    $questionData['drag_drop_pairs'] = $processedPairs; // array cast handles JSON encoding
-                    \Log::info('✅ Drag drop pairs saved', ['pairs' => $processedPairs]);
-                } else {
-                    \Log::warning('⚠️ No valid drag drop pairs found', ['pairs' => $q['drag_drop_pairs']]);
+                    $questionData['drag_drop_pairs'] = $processedPairs;
                 }
-            } else {
-                \Log::warning('⚠️ drag_drop_pairs is empty for question', ['question_id' => $qi, 'question' => $q]);
             }
         }
 
         // ==========================================
-        // Handle gesture recognition data
+        // Handle gesture recognition data - FIXED
         // ==========================================
         if (($q['type'] ?? '') === 'gesture') {
-            $gestureData = [
-                'module_id' => $q['gesture_module_id'] ?? null,
-                'gesture_ids' => $q['gesture_ids'] ?? [],
-            ];
-            $questionData['gesture_data'] = $gestureData; // array cast handles JSON encoding
+            $isFingerspelling = ($q['gesture_module_id'] ?? '') == '6';
+            
+            if ($isFingerspelling) {
+                // ✅ FIX: Get the words from the request directly
+                // The data is in $q['fingerspelling_words'] as a string with newlines
+                $wordsText = $q['fingerspelling_words'] ?? '';
+                
+                // ✅ If it's empty, try to get it from the raw request (just in case)
+                if (empty($wordsText)) {
+                    $wordsText = $request->input("quiz.{$qi}.fingerspelling_words", '');
+                }
+                
+                \Log::info('📝 FINGERSPELLING WORDS TEXT:', [
+                    'words_text' => $wordsText,
+                    'type' => gettype($wordsText),
+                    'length' => strlen($wordsText),
+                    'raw' => $wordsText
+                ]);
+                
+                // ✅ Process the words - split by newline and clean
+                $words = [];
+                if (!empty($wordsText) && is_string($wordsText)) {
+                    // Split by newline (both \n and \r\n)
+                    $lines = preg_split('/\r\n|\r|\n/', $wordsText);
+                    foreach ($lines as $line) {
+                        $word = trim($line);
+                        // Remove any non-letter characters and convert to uppercase
+                        $word = preg_replace('/[^A-Z]/', '', strtoupper($word));
+                        if (strlen($word) > 0) {
+                            $words[] = $word;
+                        }
+                    }
+                }
+                
+                \Log::info('📝 PROCESSED WORDS:', ['words' => $words]);
+                
+                // Get all unique gesture IDs from all words
+                $allGestureIds = [];
+                foreach ($words as $word) {
+                    foreach (str_split($word) as $letter) {
+                        $id = $this->letterToGestureId($letter);
+                        if ($id) {
+                            $allGestureIds[] = $id;
+                        }
+                    }
+                }
+                $allGestureIds = array_values(array_unique($allGestureIds));
+                
+                \Log::info('📝 GESTURE IDS:', ['ids' => $allGestureIds]);
+                
+                // ✅ Store with full fingerspelling data
+                $gestureData = [
+                    'module_id' => '6',
+                    'gesture_ids' => $allGestureIds,
+                    'is_fingerspelling' => true,
+                    'words' => $words, // Store the array of words
+                ];
+                $questionData['gesture_data'] = $gestureData;
+                
+                // ✅ Update question text to show the words being tested
+                if (!empty($words)) {
+                    $questionData['question_text'] = "Fingerspell: " . implode(' → ', $words);
+                }
+            } else {
+                // Regular gesture
+                $gestureData = [
+                    'module_id' => $q['gesture_module_id'] ?? null,
+                    'gesture_ids' => $q['gesture_ids'] ?? [],
+                ];
+                $questionData['gesture_data'] = $gestureData;
+            }
         }
 
         $question = QuizQuestion::create($questionData);
@@ -1728,6 +1787,19 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
     }
 }
 
+
+/**
+ * Convert a letter to its gesture ID (A=1, B=2, ..., Z=26)
+ */
+private function letterToGestureId(string $letter): ?int
+{
+    $letter = strtoupper(trim($letter));
+    if (strlen($letter) !== 1 || $letter < 'A' || $letter > 'Z') {
+        return null;
+    }
+    return ord($letter) - 64; // A=1, B=2, ...
+}
+
     /**
      * Fetch all gesture names available in the database.
      * Used to constrain the AI so it only recommends gestures that actually exist.
@@ -1743,11 +1815,49 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
             ->toArray();
     }
 
-    private function resolveGestureQuestions(array $quiz): array
-    {
-        foreach ($quiz as &$question) {
-            if (isset($question['type']) && $question['type'] === 'gesture') {
-                $question['gesture_warning'] = false;
+private function resolveGestureQuestions(array $quiz): array
+{
+    foreach ($quiz as &$question) {
+        if (isset($question['type']) && $question['type'] === 'gesture') {
+            $question['gesture_warning'] = false;
+            
+            // 🆕 Check if this is fingerspelling (has fingerspelling_words)
+            if (!empty($question['fingerspelling_words'])) {
+                $wordsText = $question['fingerspelling_words'];
+                
+                // 🔥 FIX: Split by newline ONLY
+                $words = array_filter(
+                    array_map('trim', explode("\n", $wordsText)),
+                    fn($w) => strlen($w) > 0
+                );
+                $words = array_map(
+                    fn($w) => preg_replace('/[^A-Z]/', '', strtoupper($w)),
+                    $words
+                );
+                $words = array_values(array_filter($words, fn($w) => strlen($w) > 0));
+                
+                $allGestureIds = [];
+                foreach ($words as $word) {
+                    foreach (str_split($word) as $letter) {
+                        $id = $this->letterToGestureId($letter);
+                        if ($id) {
+                            $allGestureIds[] = $id;
+                        }
+                    }
+                }
+                $allGestureIds = array_values(array_unique($allGestureIds));
+                
+                $question['gesture_module_id'] = '6';
+                $question['gesture_ids'] = $allGestureIds;
+                $question['gesture_data'] = [
+                    'module_id' => '6',
+                    'gesture_ids' => $allGestureIds,
+                    'is_fingerspelling' => true,
+                    'words' => $words, // ✅ Array of words
+                ];
+                $question['gesture_warning'] = empty($allGestureIds);
+                continue;
+            }
                 if (!empty($question['gesture_names'])) {
                     $names      = array_map('trim', $question['gesture_names']);
                     $namesUpper = array_map('strtoupper', $names);

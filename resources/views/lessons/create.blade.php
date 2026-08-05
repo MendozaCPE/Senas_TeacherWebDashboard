@@ -622,6 +622,47 @@
     }
     .btn-outline-blue:hover { background: rgba(24,72,200,0.06); }
 
+    /* ── Fingerspelling Word Input ────────────────────────────────────── */
+.fingerspelling-words-textarea {
+    min-height: 100px;
+    font-family: 'Inter', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.fingerspelling-words-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    min-height: 50px;
+    background: #F8FAFC;
+    border-radius: 12px;
+    border: 1.5px dashed #E5EAF2;
+}
+.fingerspelling-word-pill {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(24, 72, 200, 0.06);
+    border: 1.5px solid rgba(24, 72, 200, 0.15);
+    border-radius: 14px;
+    padding: 8px 14px;
+    min-width: 60px;
+}
+.fingerspelling-word-pill .word-letters {
+    display: flex;
+    gap: 4px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f3172;
+}
+.fingerspelling-word-pill .word-count {
+    font-size: 9px;
+    color: #4b7bbb;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
 /* Error styles */
 .field-error {
     border-color: #EF4444 !important;
@@ -1013,6 +1054,31 @@
                                     <label class="field-label">Selected Gestures</label>
                                     <div class="flex flex-wrap gap-2" id="selectedGestureTags_0"></div>
                                 </div>
+ <!-- 👇 ADD THIS RIGHT HERE (inside gesture-quiz-container, after selected-gestures-preview) -->
+        <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+            <label class="field-label">📝 Fingerspelling Words</label>
+            <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
+            <div class="space-y-3">
+                <div>
+      <textarea 
+    name="quiz[0][fingerspelling_words]" 
+    class="field-textarea fingerspelling-words-textarea" 
+    placeholder="Enter one word per line&#10;Example:&#10;HELLO&#10;NICE&#10;SENYAS"
+    rows="4"
+    oninput="updateFingerspellingWordPreview(this)"
+></textarea>
+                </div>
+                <div>
+                    <label class="field-label">Preview</label>
+                    <div class="fingerspelling-words-preview" id="fingerspellingPreview_0">
+                        <span class="text-sm text-slate-400">Enter words to see preview</span>
+                    </div>
+                </div>
+                <input type="hidden" name="quiz[0][fingerspelling_letter_ids]" class="fingerspelling-letter-ids" value="">
+            </div>
+        </div>
+        <!-- 👆 END OF ADDED CODE -->
+
                             </div>
                         </div>
                     </div>
@@ -2175,6 +2241,12 @@ function handleQuestionTypeChange(select) {
         const moduleSelect = gestureContainer.querySelector('.gesture-module-select');
         if (moduleSelect && moduleSelect.value) {
             loadGesturesForModule(moduleSelect, qIndex);
+            
+            // 🆕 Check if module is fingerspelling (6)
+            if (moduleSelect.value === '6') {
+                const wordContainer = questionDiv.querySelector('.fingerspelling-word-container');
+                if (wordContainer) wordContainer.classList.remove('hidden');
+            }
         }
     } else if (select.value === 'multiple_choice') {
         if (optionsContainer) optionsContainer.classList.remove('hidden');
@@ -2195,14 +2267,31 @@ function loadGesturesForModule(select, questionIndex) {
     const checkboxesContainer = document.getElementById(`gestureCheckboxes_${questionIndex}`);
     const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
     const tagsContainer = document.getElementById(`selectedGestureTags_${questionIndex}`);
+    
+    // 🆕 Find the fingerspelling word container
+    const wordContainer = questionDiv.querySelector('.fingerspelling-word-container');
+    const wordTextarea = wordContainer ? wordContainer.querySelector('.fingerspelling-words-textarea') : null;
 
     if (!moduleId) {
         checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Select a module first</span>';
         if (previewContainer) previewContainer.style.display = 'none';
+        if (wordContainer) wordContainer.classList.add('hidden');
         return;
     }
 
     checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Loading gestures...</span>';
+
+    // 🆕 Check if this is the fingerspelling module (module_id = 6)
+    if (moduleId === '6') {
+        // Show the word container
+        if (wordContainer) wordContainer.classList.remove('hidden');
+        // Load alphabet letters from both alphabet parts (1 and 2)
+        loadFingerspellingLetters(checkboxesContainer, questionIndex);
+        return;
+    }
+
+    // Regular gesture module loading - hide word container
+    if (wordContainer) wordContainer.classList.add('hidden');
 
     fetch(`/api/gesture-modules/${moduleId}/gestures`, {
         headers: {
@@ -2215,35 +2304,7 @@ function loadGesturesForModule(select, questionIndex) {
         checkboxesContainer.innerHTML = '';
         if (data.gestures && data.gestures.length > 0) {
             data.gestures.forEach(gesture => {
-                const label = document.createElement('label');
-                label.className = 'gesture-checkbox-label';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.name = `quiz[${questionIndex}][gesture_ids][]`;
-                checkbox.value = gesture.gesture_id;
-                checkbox.className = 'gesture-checkbox';
-                checkbox.dataset.displayName = gesture.display_name || gesture.name;
-
-                const checkIcon = document.createElement('span');
-                checkIcon.className = 'check-icon';
-                checkIcon.textContent = '✓';
-
-                checkbox.onchange = function() {
-                    if (this.checked) {
-                        label.classList.add('selected');
-                    } else {
-                        label.classList.remove('selected');
-                    }
-                    updateGesturePreview(questionIndex);
-                };
-
-                const span = document.createElement('span');
-                span.textContent = gesture.display_name || gesture.name;
-
-                label.appendChild(checkbox);
-                label.appendChild(span);
-                label.appendChild(checkIcon);
+                const label = createGestureCheckbox(gesture, questionIndex);
                 checkboxesContainer.appendChild(label);
             });
             updateGesturePreview(questionIndex);
@@ -2255,6 +2316,211 @@ function loadGesturesForModule(select, questionIndex) {
         console.error('Error loading gestures:', error);
         checkboxesContainer.innerHTML = '<span class="text-sm text-red-500">Error loading gestures</span>';
     });
+}
+
+/**
+ * 🆕 Load all alphabet letters (A-Z) from both alphabet modules
+ * for the Fingerspelling module
+ */
+function loadFingerspellingLetters(container, questionIndex) {
+    // We need to fetch gestures from both alphabet_part1 (id=1) and alphabet_part2 (id=2)
+    const alphabetModuleIds = [1, 2];
+    let allGestures = [];
+    let completed = 0;
+
+    container.innerHTML = '<span class="text-sm text-slate-400">Loading alphabet letters...</span>';
+
+    alphabetModuleIds.forEach(modId => {
+        fetch(`/api/gesture-modules/${modId}/gestures`, {
+            headers: {
+                'X-CSRF-TOKEN': CSRF_TOKEN,
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.gestures && data.gestures.length > 0) {
+                // Add module info to each gesture so we know where it came from
+                data.gestures.forEach(g => {
+                    g._module_id = modId;
+                    g._module_label = modId === 1 ? 'A-M' : 'N-Z';
+                });
+                allGestures = allGestures.concat(data.gestures);
+            }
+            completed++;
+            
+            // When both modules are loaded, render the combined list
+            if (completed === alphabetModuleIds.length) {
+                renderFingerspellingGestures(container, allGestures, questionIndex);
+            }
+        })
+        .catch(error => {
+            console.error(`Error loading alphabet module ${modId}:`, error);
+            completed++;
+            if (completed === alphabetModuleIds.length) {
+                if (allGestures.length === 0) {
+                    container.innerHTML = '<span class="text-sm text-red-500">Error loading alphabet letters</span>';
+                } else {
+                    renderFingerspellingGestures(container, allGestures, questionIndex);
+                }
+            }
+        });
+    });
+}
+
+/**
+ * 🆕 Render the combined alphabet gestures with module labels
+ */
+function renderFingerspellingGestures(container, gestures, questionIndex) {
+    container.innerHTML = '';
+
+    if (!gestures || gestures.length === 0) {
+        container.innerHTML = '<span class="text-sm text-slate-400">No alphabet letters found</span>';
+        return;
+    }
+
+    // Sort by gesture_id (A=1, B=2, ... Z=26)
+    gestures.sort((a, b) => a.gesture_id - b.gesture_id);
+
+    // Simple header
+    const headerNote = document.createElement('div');
+    headerNote.style.cssText = 'width:100%;margin-bottom:8px;font-size:12px;color:#64748b;font-weight:600;';
+    headerNote.textContent = 'All 26 letters available for fingerspelling';
+    container.appendChild(headerNote);
+
+    gestures.forEach(gesture => {
+        const label = createGestureCheckbox(gesture, questionIndex);
+        // ❌ No badge - just the letter
+        container.appendChild(label);
+    });
+
+    // DON'T auto-select all - let the words determine what's selected
+    // The updateFingerspellingWordPreview will handle selection
+}
+
+// ─── FINGERSPELLING WORD PREVIEW ───────────────────────────────────────────
+function updateFingerspellingWordPreview(textarea) {
+    const container = textarea.closest('.fingerspelling-word-container');
+    if (!container) return;
+    
+    const questionDiv = container.closest('.quiz-question');
+    const qIndex = getQuizQuestionIndex(questionDiv);
+    const previewDiv = container.querySelector('.fingerspelling-words-preview');
+    const letterIdsInput = container.querySelector('.fingerspelling-letter-ids');
+    
+    // 🟢 FIX: Split by newline first, THEN split by spaces
+    const raw = textarea.value;
+    let words = raw.split('\n')
+        .map(line => line.trim()) // Trim each line
+        .filter(line => line.length > 0) // Remove empty lines
+        .flatMap(line => line.split(' ')) // 🟢 Split each line by spaces too!
+        .map(word => word.toUpperCase().replace(/[^A-Z]/g, '')) // Clean it
+        .filter(word => word.length > 0); // Remove empty words
+    
+    // Remove duplicates
+    words = [...new Set(words)];
+    
+    if (words.length === 0) {
+        previewDiv.innerHTML = '<span class="text-sm text-slate-400">Enter words to spell (one per line)</span>';
+        if (letterIdsInput) letterIdsInput.value = '';
+        
+        // Unselect all checkboxes
+        const checkboxes = questionDiv.querySelectorAll('.gesture-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+            const label = cb.closest('.gesture-checkbox-label');
+            if (label) label.classList.remove('selected');
+        });
+        updateGesturePreview(qIndex);
+        return;
+    }
+    
+    // Build preview
+    let html = '';
+    let allLetterIds = [];
+    
+    words.forEach((word) => {
+        const letters = word.split('');
+        const wordLetterIds = letters.map(letter => {
+            const id = letter.charCodeAt(0) - 64; // A=1, B=2, ...
+            return id >= 1 && id <= 26 ? id : null;
+        }).filter(id => id !== null);
+        
+        allLetterIds = allLetterIds.concat(wordLetterIds);
+        
+        html += `
+            <div class="fingerspelling-word-pill">
+                <div class="word-letters">
+                    ${letters.map(letter => `<span>${letter}</span>`).join('')}
+                </div>
+                <span class="word-count">${letters.length} letters</span>
+            </div>
+        `;
+    });
+    
+    previewDiv.innerHTML = html;
+    
+    // Store the gesture IDs
+    if (letterIdsInput) {
+        letterIdsInput.value = allLetterIds.join(',');
+    }
+    
+    // Auto-select only the letters used in the words
+    const uniqueLetterIds = [...new Set(allLetterIds)];
+    const checkboxes = questionDiv.querySelectorAll('.gesture-checkbox');
+    checkboxes.forEach(cb => {
+        const isChecked = uniqueLetterIds.includes(parseInt(cb.value));
+        cb.checked = isChecked;
+        const label = cb.closest('.gesture-checkbox-label');
+        if (label) {
+            if (isChecked) {
+                label.classList.add('selected');
+            } else {
+                label.classList.remove('selected');
+            }
+        }
+    });
+    
+    // Update the selected gestures preview
+    updateGesturePreview(qIndex);
+    letterIdsInput.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/**
+ * 🆕 Helper to create a gesture checkbox label
+ */
+function createGestureCheckbox(gesture, questionIndex) {
+    const label = document.createElement('label');
+    label.className = 'gesture-checkbox-label';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = `quiz[${questionIndex}][gesture_ids][]`;
+    checkbox.value = gesture.gesture_id;
+    checkbox.className = 'gesture-checkbox';
+    checkbox.dataset.displayName = gesture.display_name || gesture.name;
+
+    const checkIcon = document.createElement('span');
+    checkIcon.className = 'check-icon';
+    checkIcon.textContent = '✓';
+
+    checkbox.onchange = function() {
+        if (this.checked) {
+            label.classList.add('selected');
+        } else {
+            label.classList.remove('selected');
+        }
+        updateGesturePreview(questionIndex);
+    };
+
+    const span = document.createElement('span');
+    span.textContent = gesture.display_name || gesture.name;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    label.appendChild(checkIcon);
+
+    return label;
 }
 
 function updateGesturePreview(questionIndex) {
@@ -2385,6 +2651,32 @@ function addQuizQuestion() {
                         <label class="field-label">Selected Gestures</label>
                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_${qIndex}"></div>
                     </div>
+
+                    <!-- 👇 ADD THIS RIGHT HERE (inside gesture-quiz-container, after selected-gestures-preview) -->
+                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                        <label class="field-label">📝 Fingerspelling Words</label>
+                        <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
+                        <div class="space-y-3">
+                            <div>
+                                <textarea 
+                                    name="quiz[${qIndex}][fingerspelling_words]" 
+                                    class="field-textarea fingerspelling-words-textarea" 
+                                    placeholder="Enter one word per line&#10;Example:&#10;HELLO&#10;NICE&#10;SENYAS"
+                                    rows="4"
+                                    oninput="updateFingerspellingWordPreview(this)"
+                                ></textarea>
+                            </div>
+                            <div>
+                                <label class="field-label">Preview</label>
+                                <div class="fingerspelling-words-preview" id="fingerspellingPreview_${qIndex}">
+                                    <span class="text-sm text-slate-400">Enter words to see preview</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="quiz[${qIndex}][fingerspelling_letter_ids]" class="fingerspelling-letter-ids" value="">
+                        </div>
+                    </div>
+                    <!-- 👆 END OF ADDED CODE -->
+
                 </div>
             </div>
         </div>
@@ -3024,10 +3316,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-   lessonForm?.addEventListener('submit', function(e) {
+lessonForm?.addEventListener('submit', function(e) {
     if (allowSubmit) return;
     e.preventDefault();
 
+    // 🔥 DEBUG: Log all form data before submission
+    const formData = new FormData(this);
+    console.log('🔥 Form Data being submitted:');
+    for (let [key, value] of formData.entries()) {
+        if (key.includes('fingerspelling')) {
+            console.log(`📝 ${key}:`, value);
+        }
+    }
     
     
     // ✅ Check all content cards for missing media
