@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\LessonsController;
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -87,6 +88,12 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::delete('/lessons/{id}', [LessonsController::class, 'destroy'])->name('lessons.destroy');
     Route::get('/lessons/{id}/students', [LessonsController::class, 'manageStudents'])->name('lessons.students');
     Route::post('/lessons/{id}/students', [LessonsController::class, 'updateStudents'])->name('lessons.students.update');
+    // Media
+    Route::get('/media', [MediaController::class, 'index'])->name('media.index');
+    Route::post('/media/upload', [MediaController::class, 'upload'])->name('media.upload');
+    Route::put('/media/{id}', [MediaController::class, 'update'])->name('media.update');
+    Route::delete('/media/{id}', [MediaController::class, 'destroy'])->name('media.destroy');
+
     // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
     Route::post('/analytics/filter', [AnalyticsController::class, 'applyFilter'])->name('analytics.filter');

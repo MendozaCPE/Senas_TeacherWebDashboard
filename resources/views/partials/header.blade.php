@@ -9,7 +9,7 @@
             <input id="global-search-input"
                    type="text"
                    autocomplete="off"
-                   placeholder="Search student records or lessons..."
+                   placeholder="Search students, lessons, or media..."
                    class="w-full bg-white border border-slate-200/80 rounded-full py-2.5 pl-12 pr-10 text-[14px] focus:ring-2 focus:ring-[#0d326b]/20 focus:border-[#0d326b]/30 shadow-sm transition-all text-slate-700 outline-none placeholder:text-slate-400 font-medium"/>
             
             <!-- Clear Button -->
@@ -91,13 +91,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const students = data.students || [];
             const lessons  = data.lessons  || [];
+            const media    = data.media    || [];
 
-            if (students.length === 0 && lessons.length === 0) {
+            if (students.length === 0 && lessons.length === 0 && media.length === 0) {
                 resultsContent.innerHTML = `
                     <div class="p-6 text-center">
                         <span class="material-symbols-outlined text-slate-300 text-[36px] mb-2">search_off</span>
                         <p class="text-[14px] font-bold text-slate-600">No matches found for "${q}"</p>
-                        <p class="text-[12px] text-slate-400 mt-1">Try searching by student name, LRN, grade level, or lesson title.</p>
+                        <p class="text-[12px] text-slate-400 mt-1">Try searching by student name, LRN, grade level, lesson title, or media name.</p>
                     </div>
                 `;
                 dropdown.classList.remove('hidden');
@@ -169,6 +170,55 @@ document.addEventListener('DOMContentLoaded', function () {
                             </div>
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${badgeStyle} shrink-0 ml-2">
                                 ${l.badge}
+                            </span>
+                        </a>
+                    `;
+                });
+
+                html += `</div></div>`;
+            }
+
+            // ── MEDIA SECTION ──
+            if (media.length > 0) {
+                const hasPrev = students.length > 0 || lessons.length > 0;
+                html += `
+                    <div>
+                        <div class="px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase text-slate-400 flex items-center gap-1.5 ${hasPrev ? 'mt-2 border-t border-slate-100 pt-2.5' : ''}">
+                            <span class="material-symbols-outlined text-[14px] text-purple-500">perm_media</span>
+                            <span>Media (${media.length})</span>
+                        </div>
+                        <div class="space-y-0.5 mt-1">
+                `;
+
+                media.forEach((m) => {
+                    const titleHtml = highlightMatch(m.title, q);
+                    const typeIcon  = m.media_type === 'video' ? 'videocam' : (m.media_type === 'gif' ? 'gif' : 'image');
+                    const srcStyle  = m.source === 'system'
+                        ? 'bg-blue-100 text-[#0d326b]'
+                        : 'bg-emerald-100 text-emerald-800';
+
+                    // If already on the media page, fire a JS event instead of navigating
+                    const isMediaPage = window.location.pathname === '/media' || window.location.pathname.startsWith('/media');
+                    const clickHandler = isMediaPage
+                        ? `onclick="event.preventDefault();document.getElementById('global-search-dropdown').classList.add('hidden');document.getElementById('global-search-input').value='';document.getElementById('global-search-clear').classList.add('hidden');window.dispatchEvent(new CustomEvent('mediaSearch',{detail:'${q.replace(/'/g,"\\'")}'}));"`
+                        : '';
+
+                    html += `
+                        <a href="${m.url}" ${clickHandler} class="search-item group flex items-center justify-between p-2.5 rounded-xl hover:bg-purple-50/50 transition-all cursor-pointer text-decoration-none">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-xl overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center group-hover:scale-105 transition-transform relative">
+                                    <img src="${m.thumb}" alt="${m.title}"
+                                         class="w-full h-full object-cover"
+                                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                    <span class="material-symbols-outlined text-slate-400 text-[18px]" style="display:none;">${typeIcon}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-[13.5px] font-bold text-[#0d326b] truncate leading-snug">${titleHtml}</p>
+                                    <p class="text-[11px] font-medium text-slate-400 truncate mt-0.5">${m.subtitle}</p>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${srcStyle} shrink-0 ml-2">
+                                ${m.badge}
                             </span>
                         </a>
                     `;

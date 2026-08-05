@@ -20,9 +20,13 @@
             <span class="material-symbols-outlined {{ request()->is('students') ? '' : 'icon-outline' }} text-[22px]">group</span>
             <span>Students</span>
         </a>
-        <a href="/lessons" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('lessons') ? $activeClass : $inactiveClass }}">
-            <span class="material-symbols-outlined {{ request()->is('lessons') ? '' : 'icon-outline' }} text-[22px]">menu_book</span>
+        <a href="/lessons" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('lessons') || request()->is('lessons/*') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('lessons') || request()->is('lessons/*') ? '' : 'icon-outline' }} text-[22px]">menu_book</span>
             <span>Lessons</span>
+        </a>
+        <a href="/media" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('media') || request()->is('media/*') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('media') || request()->is('media/*') ? '' : 'icon-outline' }} text-[22px]">perm_media</span>
+            <span>Media</span>
         </a>
         <a href="/analytics" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('analytics') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('analytics') ? '' : 'icon-outline' }} text-[22px]">bar_chart</span>
