@@ -9,7 +9,10 @@ use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
+use Illuminate\Http\Request; // ✅ FIXED: Added missing Request class import
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse; 
 
 Route::post('/lessons/upload-media-test', function (Request $request) {
     return response()->json(['message' => 'Upload route is working!']);
@@ -44,6 +47,34 @@ Route::get('/terms', [AuthController::class, 'showTerms'])->name('terms');
 // ── Logout ───────────────────────────────────────────────────────────────────
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+
+// ── Video Proxy Layer ────────────────────────────────────────────────────────
+Route::get('/video-proxy/{path}', function ($path) {
+    $fullPath = storage_path('app/public/' . $path);
+    
+    if (!file_exists($fullPath)) {
+        abort(404, 'Video path cannot be found.');
+    }
+    
+    // ✅ FIXED: Using BinaryFileResponse automates stream splitting + byte range headers for iOS
+    $response = new BinaryFileResponse($fullPath);
+    BinaryFileResponse::trustXSendfileTypeHeader();
+    
+    // Add CORS permissions to allow mobile platforms to load media resources smoothly
+    $response->headers->set('Access-Control-Allow-Origin', '*');
+    $response->headers->set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    $response->headers->set('Access-Control-Allow-Headers', '*');
+    $response->headers->set('Cache-Control', 'public, max-age=86400');
+    
+    return $response;
+})->where('path', '.*');
+
+// ── Media Player Route (WebView) ─────────────────────────────────────────────
+Route::get('/media-player', function () {
+    return view('media-player');
+});
+
+
 // ── Protected Routes (must be logged in) ─────────────────────────────────────
 Route::middleware(['auth', 'no.cache'])->group(function () {
     // Redirect / to /dashboard
@@ -77,6 +108,7 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::post('/lessons/upload-media', [LessonsController::class, 'uploadMedia'])->name('lessons.upload-media');
 
 
+
     // Add these new routes:
     Route::get('/lessons/{lesson}/view', [LessonsController::class, 'view'])->name('lessons.view');
     Route::get('/lessons/{lesson}/preview-modal', [LessonsController::class, 'previewModal'])->name('lessons.preview-modal');
@@ -85,9 +117,22 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
 
     Route::get('/lessons/{lesson}/publish-config', [LessonsController::class, 'showPublishConfig'])->name('lessons.publish.config');
     Route::post('/lessons/{lesson}/publish', [LessonsController::class, 'publishLesson'])->name('lessons.publish');
+    
+    Route::post('/lessons/{id}/soft-delete', [LessonsController::class, 'softDelete'])->name('lessons.soft-delete');
+Route::post('/lessons/{id}/hard-delete', [LessonsController::class, 'hardDelete'])->name('lessons.hard-delete');
+Route::post('/lessons/{id}/restore', [LessonsController::class, 'restore'])->name('lessons.restore');
+
+
     Route::delete('/lessons/{id}', [LessonsController::class, 'destroy'])->name('lessons.destroy');
     Route::get('/lessons/{id}/students', [LessonsController::class, 'manageStudents'])->name('lessons.students');
     Route::post('/lessons/{id}/students', [LessonsController::class, 'updateStudents'])->name('lessons.students.update');
+
+    Route::get('/lessons/media-library', [LessonsController::class, 'mediaLibraryFolders'])
+        ->name('lessons.media-library.folders');
+ 
+    Route::get('/lessons/media-library/{folder}', [LessonsController::class, 'mediaLibraryFiles'])
+        ->name('lessons.media-library.files');
+
     // Media
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     Route::post('/media/upload', [MediaController::class, 'upload'])->name('media.upload');
@@ -139,5 +184,7 @@ Route::prefix('lessons/checkpoint-exam')->name('lessons.checkpoint-exam.')->grou
     Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
     Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
 });
+
+
 
 });

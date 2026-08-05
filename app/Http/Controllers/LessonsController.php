@@ -21,39 +21,44 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LessonsController extends Controller
 {
     /**
      * Show the list of lessons.
      */
-  public function index()
-    {
-        $user = Auth::user();
-        $teacher = $user ? $user->teacher : null;
+ public function index()
+{
+    $user = Auth::user();
+    $teacher = $user ? $user->teacher : null;
+    
+    if ($teacher) {
+        // ✅ Get ALL lessons including archived ones (withTrashed)
+        $lessons = Lesson::withTrashed()
+            ->where('teacher_id', $teacher->id)
+            ->orderBy('module_order')
+            ->get();
         
-        if ($teacher) {
-            // Get all lessons
-            $lessons = Lesson::where('teacher_id', $teacher->id)
-                ->orderBy('module_order')
-                ->get();
-            
-            // Get modules with their lessons
-            $modules = Module::where('teacher_id', $teacher->id)
-                ->with(['lessons' => function($query) {
-                    $query->orderBy('module_order');
-                }])
-                ->with(['checkpointExams' => function($query) {
-                    $query->orderBy('created_at', 'desc');
-                }])
-                ->orderBy('module_order')
-                ->get();
-            
-            // Get orphaned lessons
-            $orphanedLessons = Lesson::where('teacher_id', $teacher->id)
-                ->whereNull('module_id')
-                ->orderBy('module_order')
-                ->get();
+        // ✅ Get modules with lessons (including archived)
+        $modules = Module::where('teacher_id', $teacher->id)
+            ->with(['lessons' => function($query) {
+                $query->withTrashed() // Include archived lessons
+                    ->orderBy('module_order');
+            }])
+            ->with(['checkpointExams' => function($query) {
+                $query->orderBy('created_at', 'desc');
+            }])
+            ->orderBy('module_order')
+            ->get();
+        
+        // ✅ Get orphaned lessons (including archived)
+        $orphanedLessons = Lesson::withTrashed()
+            ->where('teacher_id', $teacher->id)
+            ->whereNull('module_id')
+            ->orderBy('module_order')
+            ->get();
+
 
             // Get all checkpoint exam questions for used lesson IDs check
             $usedLessonIds = CheckpointExamQuestion::whereHas('exam', function($q) use ($teacher) {
@@ -323,19 +328,22 @@ public function store(Request $request)
     \Log::info('Quiz data:', $request->input('quiz', []));
     
     $validated = $request->validate([
-        'title'                       => 'required|string|max:255',
-        'description'                 => 'nullable|string',
-        'lesson_type'                 => 'required|in:text,video,interactive,gesture',
-        'difficulty'                  => 'required|in:beginner,intermediate,advanced',
-        'module_action'               => 'nullable|in:none,existing,new',
-        'module_id'                   => 'nullable|required_if:module_action,existing|exists:modules,module_id',
-        'new_module.title'            => 'nullable|required_if:module_action,new|string|max:255',
-        'new_module.description'      => 'nullable|string|max:1000',
-        'contents'                    => 'nullable|array',
-        'contents.*.media'            => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
-        'quiz'                        => 'nullable|array',
-        'quiz.*.media'                => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
-        'quiz.*.options.*.image'      => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
+        'title' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'lesson_type' => 'required|in:text,video,interactive,gesture',
+        'difficulty' => 'required|in:beginner,intermediate,advanced',
+        'module_action' => 'nullable|in:none,existing,new',
+        'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
+        'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
+        'new_module.description' => 'nullable|string|max:1000',
+        'contents' => 'nullable|array',
+        'contents.*.media' => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv,webm|max:51200', // ✅ Already correct
+        'quiz' => 'nullable|array',
+        'quiz.*.media' => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv,webm|max:51200', // ✅ Already correct
+        'quiz.*.options.*.image' => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv,webm|max:51200', // ✅ Already correct
+        'contents.*.existing_media'   => 'nullable|string',
+        'quiz.*.existing_media'       => 'nullable|string',
+        'quiz.*.options.*.existing_image' => 'nullable|string',
     ]);
 
     // Read which button was clicked: 'draft' or 'published'
@@ -385,7 +393,7 @@ public function store(Request $request)
 {
     try {
         $request->validate([
-            'file' => 'required|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
+            'file' => 'required|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv,webm|max:51200',
             'context' => 'nullable|string|in:lesson_media,quiz_media,quiz_option_media,temp_preview',
         ]);
 
@@ -407,6 +415,98 @@ public function store(Request $request)
         return response()->json(['message' => 'Upload failed: ' . $e->getMessage()], 500);
     }
 }
+
+    /**
+     * List the sign-language media library "folders" (Alphabets, Numbers, Greetings, Survival).
+     * These map 1:1 to the sub-directories under public/storage/sign_language_media.
+     * Note: alphabet gesture modules (module_id 1 & 2) are split in the `modules` table,
+     * but on disk they share a single "Alphabets" folder — this endpoint reads straight
+     * from disk so that split is irrelevant here.
+     * GET /lessons/media-library
+     */
+    public function mediaLibraryFolders()
+    {
+        $base = 'sign_language_media';
+        $disk = Storage::disk('public');
+        $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi', 'mkv'];
+
+        // Preferred order + friendly labels. Any other folder found on disk is appended after these.
+        $labels = [
+            'Alphabets' => 'Alphabets',
+            'Numbers'   => 'Numbers',
+            'Greetings' => 'Greetings',
+            'Survival'  => 'Survival / Conversation',
+        ];
+
+        $folders = [];
+        if ($disk->exists($base)) {
+            foreach ($disk->directories($base) as $dir) {
+                $key = basename($dir);
+                $count = count(array_filter($disk->files($dir), function ($f) use ($allowedExt) {
+                    return in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), $allowedExt);
+                }));
+
+                $folders[$key] = [
+                    'key'   => $key,
+                    'label' => $labels[$key] ?? $key,
+                    'count' => $count,
+                ];
+            }
+        }
+
+        // Sort: known folders first (in the order above), then any extras alphabetically.
+        $ordered = [];
+        foreach (array_keys($labels) as $key) {
+            if (isset($folders[$key])) {
+                $ordered[] = $folders[$key];
+                unset($folders[$key]);
+            }
+        }
+        foreach ($folders as $remaining) {
+            $ordered[] = $remaining;
+        }
+
+        return response()->json(['folders' => $ordered]);
+    }
+
+    /**
+     * List the files inside one sign-language media library folder.
+     * GET /lessons/media-library/{folder}
+     */
+    public function mediaLibraryFiles(string $folder)
+    {
+        // basename() strips any "../" traversal attempts down to a bare folder name.
+        $folder = basename($folder);
+        $base = "sign_language_media/{$folder}";
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($base)) {
+            return response()->json(['files' => []]);
+        }
+
+        $videoExt = ['mp4', 'mov', 'avi', 'mkv'];
+        $imageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+        $files = [];
+        foreach ($disk->files($base) as $path) {
+            $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            if (! in_array($ext, array_merge($videoExt, $imageExt))) {
+                continue;
+            }
+
+            $files[] = [
+                'file_name' => basename($path),
+                'path'      => $path,
+                'url'       => asset('storage/' . $path),
+                'type'      => in_array($ext, $videoExt) ? 'video' : 'image',
+                'size'      => $disk->size($path),
+            ];
+        }
+
+        usort($files, fn ($a, $b) => strnatcasecmp($a['file_name'], $b['file_name']));
+
+        return response()->json(['files' => $files]);
+    }
 
     /**
      * Live preview - render the mobile preview from posted form data
@@ -762,10 +862,13 @@ public function update(Request $request, $id)
         'new_module.title'            => 'nullable|required_if:module_action,new|string|max:255',
         'new_module.description'      => 'nullable|string|max:1000',
         'contents'                    => 'nullable|array',
-        'contents.*.media'            => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv|max:51200',
+        'contents.*.media'            => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv,webm|max:51200',
         'quiz'                        => 'nullable|array',
-        'quiz.*.media'                => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
-        'quiz.*.options.*.image'      => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:10240',
+        'quiz.*.media'                => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv,webm|max:51200',
+        'quiz.*.options.*.image'      => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mkv,webm|max:51200',
+        'contents.*.existing_media'   => 'nullable|string',
+        'quiz.*.existing_media'       => 'nullable|string',
+        'quiz.*.options.*.existing_image' => 'nullable|string',
     ]);
 
     $status = $request->input('status', 'draft');
@@ -1014,34 +1117,131 @@ protected function createLessonNotification($studentId, $lesson)
     ]);
 }
 
-    /**
-     * Delete a lesson and all its related data.
-     */
-    public function destroy($id)
-    {
-        $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
-        $lesson = Lesson::findOrFail($id);
+ /**
+ * Soft delete a lesson (archive - keeps student data for analytics)
+ * POST /lessons/{id}/soft-delete
+ */
+public function softDelete($id)
+{
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::findOrFail($id);
 
-        DB::transaction(function () use ($lesson) {
-            // Remove quiz options → questions → quiz
-            if ($lesson->quiz) {
-                $lesson->quiz->questions()->each(function ($q) {
-                    $q->options()->delete();
-                });
-                $lesson->quiz->questions()->delete();
-                $lesson->quiz()->delete();
-            }
+    // Soft delete - just marks deleted_at
+    $lesson->delete();
 
-            // Remove contents, assignments, then the lesson itself
-            $lesson->contents()->delete();
-            $lesson->assignments()->delete();
-            $lesson->delete();
-        });
+    return redirect()->route('lessons.index')
+        ->with('success', "Lesson '{$lesson->title}' has been archived. Student data is preserved for analytics.");
+}
 
+/**
+ * Permanently delete a lesson AND all related student data
+ * POST /lessons/{id}/hard-delete
+ */
+public function hardDelete($id)
+{
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::with(['quiz', 'contents', 'assignments'])->findOrFail($id);
+    $lessonTitle = $lesson->title;
+
+    \Log::info("🔥 HARD DELETING lesson #{$lesson->lesson_id} - {$lessonTitle}");
+
+    DB::transaction(function () use ($lesson) {
+        $lessonId = $lesson->lesson_id;
+
+        // 1. Delete quiz attempts & student answers
+        if ($lesson->quiz) {
+            $quizId = $lesson->quiz->quiz_id;
+
+            DB::table('student_answers')
+                ->whereIn('attempt_id', function($query) use ($quizId) {
+                    $query->select('attempt_id')
+                        ->from('quiz_attempts')
+                        ->where('quiz_id', $quizId);
+                })
+                ->delete();
+
+            DB::table('quiz_attempts')
+                ->where('quiz_id', $quizId)
+                ->delete();
+
+            $lesson->quiz->questions()->each(function ($question) {
+                $question->options()->delete();
+            });
+            $lesson->quiz->questions()->delete();
+            $lesson->quiz()->delete();
+        }
+
+        // 2. Delete student lesson progress
+        DB::table('student_lesson_progress')
+            ->where('lesson_id', $lessonId)
+            ->delete();
+
+        // 3. Delete lesson assignments
+        DB::table('lesson_assignments')
+            ->where('lesson_id', $lessonId)
+            ->delete();
+
+        // 4. Delete checkpoint exam data
+        DB::table('checkpoint_exam_attempts')
+            ->whereIn('exam_id', function($query) use ($lessonId) {
+                $query->select('exam_id')
+                    ->from('checkpoint_exam_questions')
+                    ->where('source_lesson_id', $lessonId);
+            })
+            ->delete();
+
+        DB::table('checkpoint_exam_questions')
+            ->where('source_lesson_id', $lessonId)
+            ->delete();
+
+        DB::table('checkpoint_exam_assignments')
+            ->whereIn('exam_id', function($query) use ($lessonId) {
+                $query->select('exam_id')
+                    ->from('checkpoint_exam_questions')
+                    ->where('source_lesson_id', $lessonId);
+            })
+            ->delete();
+
+        // 5. Delete lesson contents
+        $lesson->contents()->delete();
+
+        // 6. Force delete (not soft delete)
+        $lesson->forceDelete();
+    });
+
+    return redirect()->route('lessons.index')
+        ->with('success', "Lesson '{$lessonTitle}' has been PERMANENTLY deleted. All student data has been removed.");
+}
+
+/**
+ * Restore a soft-deleted lesson
+ * POST /lessons/{id}/restore
+ */
+public function restore($id)
+{
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::withTrashed()->findOrFail($id);
+
+    if (!$lesson->trashed()) {
         return redirect()->route('lessons.index')
-            ->with('success', 'Lesson deleted successfully.');
+            ->with('error', 'This lesson is not archived.');
     }
 
+    $lesson->restore();
+
+    return redirect()->route('lessons.index')
+        ->with('success', "Lesson '{$lesson->title}' has been restored.");
+}
+
+/**
+ * Modified destroy method - now routes to soft delete
+ * DELETE /lessons/{id}
+ */
+public function destroy($id)
+{
+    // This now does a soft delete by default
+    return $this->softDelete($id);
+}
     /**
      * Return JSON list of all active students + which ones are assigned to this lesson.
      * Used by the inline "Edit Students" modal (GET).
@@ -1230,16 +1430,29 @@ protected function createLessonNotification($studentId, $lesson)
     }
 
     private function uploadPublicFile(?UploadedFile $file, string $directory): ?string
-    {
-        if (! $file || ! $file->isValid()) {
-            return null;
-        }
-
-        $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-        $filename = time().'_'.uniqid().'_'.$safeName;
-
-        return $file->storeAs($directory, $filename, 'public');
+{
+    if (! $file || ! $file->isValid()) {
+        return null;
     }
+
+    // ✅ Log the upload
+    \Log::info('Uploading file:', [
+        'name' => $file->getClientOriginalName(),
+        'type' => $file->getMimeType(),
+        'size' => $file->getSize(),
+        'directory' => $directory,
+    ]);
+
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+    $filename = time().'_'.uniqid().'_'.$safeName;
+
+    // ✅ Store the file
+    $path = $file->storeAs($directory, $filename, 'public');
+    
+    \Log::info('File stored at:', ['path' => $path]);
+    
+    return $path;
+}
 
     private function getQuizUploadedFile(Request $request, int|string $questionIndex, string $relativePath): ?UploadedFile
     {

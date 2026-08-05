@@ -343,6 +343,7 @@
         cursor: pointer;
         width: 100%;
         height: 100%;
+        pointer-events: none; /* clicks fall through to .upload-trigger, which opens the source picker menu instead */
     }
     .media-upload-widget .upload-label {
         font-size: 13px;
@@ -380,6 +381,16 @@
         flex-shrink: 0;
     }
     .media-upload-widget .media-thumb-info {
+    .media-upload-widget .media-thumb-video {
+        width: 148px;
+        height: 92px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1.5px solid #e2e8f0;
+        background: #0f172a;
+        flex-shrink: 0;
+    }
+
         font-size: 12px;
         color: #64748b;
     }
@@ -402,6 +413,139 @@
         color: #dc2626;
         margin-top: 4px;
         display: none;
+    }
+
+    /* ── Media source picker (dropdown menu + library modal) ───────────── */
+    .media-picker-menu {
+        position: absolute;
+        z-index: 10050;
+        background: white;
+        border: 1.5px solid #E5EAF2;
+        border-radius: 14px;
+        box-shadow: 0 12px 32px rgba(15,49,114,0.18);
+        padding: 6px;
+        min-width: 200px;
+        display: flex;
+        flex-direction: column;
+    }
+    .media-picker-menu button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-align: left;
+        padding: 9px 10px;
+        border-radius: 9px;
+        border: none;
+        background: none;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+    }
+    .media-picker-menu button .material-symbols-outlined {
+        font-size: 18px;
+        color: #64748b;
+        flex-shrink: 0;
+    }
+    .media-picker-menu button:hover { background: #F1F5F9; color: #1848c8; }
+    .media-picker-menu button:hover .material-symbols-outlined { color: #1848c8; }
+    .media-picker-menu-divider {
+        height: 1px;
+        background: #E5EAF2;
+        margin: 5px 4px;
+    }
+
+    #libraryModal {
+        position: fixed; inset: 0; z-index: 10055;
+        background: rgba(15,23,42,0.6);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    #libraryModal.active { display: flex; }
+    .library-modal-box {
+        background: white;
+        border-radius: 22px;
+        padding: 24px;
+        width: 100%;
+        max-width: 640px;
+        max-height: 82vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(15,49,114,0.25);
+    }
+    .library-tab {
+        border: 1.5px solid #E5EAF2;
+        background: #FAFBFD;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 8px 14px;
+        border-radius: 99px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .library-tab .material-symbols-outlined { font-size: 16px; }
+    .library-tab.active { background: #1848c8; border-color: #1848c8; color: white; }
+    .library-file-card {
+        border: 1.5px solid #E5EAF2;
+        border-radius: 14px;
+        padding: 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+        background: #FAFBFD;
+    }
+    .library-file-card:hover { border-color: #1848c8; background: #F0F4FF; transform: translateY(-1px); }
+    .library-file-thumb {
+        width: 100%;
+        height: 84px;
+        object-fit: cover;
+        border-radius: 9px;
+        background: #E5EAF2;
+        display: block;
+    }
+    .library-file-thumb-video {
+        position: relative;
+        overflow: hidden;
+    }
+    .library-file-thumb-video video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        background: #0f172a;
+        pointer-events: none;
+    }
+    .library-file-thumb-video .play-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 30px;
+        color: white;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.45);
+        font-variation-settings: 'FILL' 1;
+    }
+    .library-file-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: #475569;
+        margin-top: 6px;
+        word-break: break-word;
+        line-height: 1.3;
+    }
+    .library-loading, .library-empty {
+        grid-column: 1 / -1;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 30px 10px;
     }
 
     /* ── Mobile preview overlay ──────────────────────────────────────── */
@@ -767,9 +911,9 @@
                             <div>
                                 <label class="field-label">Question Image (Optional)</label>
                                 <input type="hidden" name="quiz[0][existing_media]" value="" class="media-path-input">
-                                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:10px;">
+                                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*,video/*" style="padding:10px;">
                                     <div class="upload-trigger" style="gap:8px;">
-                                        <input type="file" accept="image/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
+                                        <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
                                         <span class="upload-icon material-symbols-outlined" style="font-size:18px;color:#94a3b8;">cloud_upload</span>
                                         <div class="upload-spinner"></div>
                                         <span class="upload-label" style="font-size:12px;">Upload image</span>
@@ -793,7 +937,7 @@
                                             <img class="option-image-preview" src="" alt="">
                                             <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
                                                 <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
-                                                <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                                                <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
                                             </label>
                                             <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
                                         </div>
@@ -815,7 +959,7 @@
                                             <img class="option-image-preview" src="" alt="">
                                             <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
                                                 <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
-                                                <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                                                <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
                                             </label>
                                             <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
                                         </div>
@@ -901,6 +1045,23 @@
     </div>
 </div>
 
+<!-- Sign Language Media Library modal -->
+<div id="libraryModal">
+    <div class="library-modal-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div class="section-title" style="font-size:16px;">
+                <div class="section-icon" style="width:32px;height:32px;background: rgba(24,72,200,0.1); color:#1848c8;font-size:16px;">
+                    <span class="material-symbols-outlined" style="font-size:18px;">video_library</span>
+                </div>
+                <span id="libraryModalTitle">Sign Language Library</span>
+            </div>
+            <button type="button" onclick="closeLibraryModal()" style="background:rgba(15,49,114,0.07);border:none;width:30px;height:30px;border-radius:9px;cursor:pointer;color:#64748b;flex-shrink:0;">✕</button>
+        </div>
+        <div id="libraryFoldersBar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+        <div id="libraryFilesGrid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;padding-right:4px;"></div>
+    </div>
+</div>
+
 <script>
 const UPLOAD_URL = '{{ route('lessons.upload-media') }}';
 const CSRF_TOKEN  = document.querySelector('meta[name="csrf-token"]')?.content
@@ -908,57 +1069,205 @@ const CSRF_TOKEN  = document.querySelector('meta[name="csrf-token"]')?.content
 let contentIndex = 1;
 let quizIndex = 1;
 
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB (images + video)
+const MAX_UPLOAD_LABEL = '4MB';
+function tooLargeMessage(file) {
+    return `"${file.name}" is too large (${(file.size / (1024*1024)).toFixed(1)}MB). Max size is ${MAX_UPLOAD_LABEL}.`;
+}
+
 /* ═══════════════════════════════════════════════════════
    AJAX upload helpers
 ═══════════════════════════════════════════════════════ */
 
+
+/* ═══════════════════════════════════════════════════════
+   MEDIA THUMBNAIL RENDERING (images + videos)
+═══════════════════════════════════════════════════════ */
+function isVideoUrl(url) {
+    if (!url) return false;
+    return /\.(mp4|mov|avi|mkv|webm|m4v|ogv)(\?|#|$)/i.test(url);
+}
+
+// Renders a real preview for the selected file: <img> for images,
+// an inline playable <video> for videos (never a broken/gray box).
+function renderMediaThumb(thumbWrap, url, isVideo, altText) {
+    if (!thumbWrap) return null;
+    if (isVideo === undefined || isVideo === null) isVideo = isVideoUrl(url);
+    if (isVideo) {
+        const vid = document.createElement('video');
+        vid.className = 'media-thumb media-thumb-video';
+        vid.src = url;
+        vid.controls = true;
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.preload = 'metadata';
+        thumbWrap.appendChild(vid);
+        return vid;
+    }
+    const img = document.createElement('img');
+    img.className = 'media-thumb';
+    img.src = url;
+    img.alt = altText || 'Selected media';
+    thumbWrap.appendChild(img);
+            upgradeVideoThumbs(thumbWrap);
+    return img;
+}
+
+
+// Small inline preview (quiz option / drag-drop thumbs) that swaps between
+// <img> and <video> depending on the file type, so mp4s show a real player
+// instead of a broken-image icon.
+function setSmallMediaPreview(el, url) {
+    if (!el) return el;
+    const wantVideo = isVideoUrl(url);
+    const isVid = el.tagName === 'VIDEO';
+    if (url && wantVideo !== isVid) {
+        const n = document.createElement(wantVideo ? 'video' : 'img');
+        n.className = el.className;
+        const st = el.getAttribute('style');
+        if (st) n.setAttribute('style', st);
+        if (wantVideo) { n.muted = true; n.playsInline = true; n.controls = true; n.preload = 'metadata'; }
+        el.replaceWith(n);
+        el = n;
+    }
+    if (!url) { el.removeAttribute('src'); el.style.display = 'none'; }
+    else { el.src = url; el.style.display = 'block'; }
+    return el;
+}
+
+// Upgrades any <img> whose src is actually a video (server-rendered markup or
+// thumbs built before the type was known) into an inline <video> player.
+function upgradeVideoThumbs(root) {
+    (root || document).querySelectorAll('img[src]').forEach(function (el) {
+        const src = el.getAttribute('src');
+        if (src && isVideoUrl(src)) setSmallMediaPreview(el, src);
+    });
+}
+document.addEventListener('DOMContentLoaded', function () { upgradeVideoThumbs(document); });
+
+// Gesture Demo: auto-fill the Gesture Name from the selected media file name
+// (still editable — once the user types their own value we stop overwriting it).
+function fileBaseName(name) {
+    if (!name) return '';
+    return String(name).split('/').pop().replace(/\.[^.]+$/, '');
+}
+function autoFillGestureName(widget, fileName) {
+    if (!widget) return;
+    const card = widget.closest('.content-card');
+    if (!card) return;
+    const input = card.querySelector('input[name*="[gesture_name]"]');
+    if (!input) return;
+    const base = fileBaseName(fileName);
+    if (!base) return;
+    if (input.value.trim() !== '' && input.dataset.autofilled !== '1') return;
+    input.value = base;
+    input.dataset.autofilled = '1';
+}
+document.addEventListener('input', function(e) {
+    const t = e.target;
+    if (t && t.name && t.name.indexOf('[gesture_name]') !== -1) t.dataset.autofilled = '0';
+});
+
 async function handleAjaxUpload(input, type) {
     if (!input.files || !input.files[0]) return;
-    const file   = input.files[0];
+    const file = input.files[0];
     const widget = input.closest('.media-upload-widget');
     if (!widget) return;
-    const context   = widget.dataset.context || 'lesson_media';
-    const errorEl   = widget.querySelector('.media-upload-error');
+    
+    const context = widget.dataset.context || 'lesson_media';
+    const errorEl = widget.querySelector('.media-upload-error');
     const thumbWrap = widget.querySelector('.media-thumb-wrap');
-    const label     = widget.querySelector('.upload-label');
+    const label = widget.querySelector('.upload-label');
+    
+    // ✅ FIND THE HIDDEN PATH INPUT - MORE ROBUST
+   let pathInput = widget.parentElement.querySelector('.media-path-input')
+                 || widget.closest('.content-card')?.querySelector('.media-path-input')
+                 || widget.closest('.quiz-question')?.querySelector('.media-path-input');
+    // ✅ LOG what we found
+    console.log('🔍 Path input found:', pathInput ? pathInput.name : 'NOT FOUND');
+    
+    // ✅ Also find the gesture_name field for auto-fill
+    const card = widget.closest('.content-card');
+    const gestureInput = card ? card.querySelector('input[name*="[gesture_name]"]') : null;
+    
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    if (file.size > MAX_UPLOAD_BYTES) {
+        if (errorEl) { errorEl.textContent = '⚠ ' + tooLargeMessage(file); errorEl.style.display = 'block'; }
+        input.value = '';
+        return;
+    }
+    
     widget.classList.add('uploading');
     widget.classList.remove('has-file');
-    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
-
-    let pathInput = widget.closest('div')?.querySelector('.media-path-input');
-    if (!pathInput) {
-        pathInput = widget.closest('.quiz-question')?.querySelector('input[name*="[existing_media]"]');
-    }
 
     const fd = new FormData();
-    fd.append('file', file); fd.append('context', context); fd.append('_token', CSRF_TOKEN);
+    fd.append('file', file);
+    fd.append('context', context);
+    fd.append('_token', CSRF_TOKEN);
+    
     try {
         const resp = await fetch(UPLOAD_URL, { method: 'POST', body: fd });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.message || 'Upload failed');
-        if (pathInput) pathInput.value = data.path;
+        
+        // ✅ CRITICAL: Set the hidden input value
+        if (pathInput) {
+            pathInput.value = data.path;
+            console.log('✅ Media path set:', data.path);
+            
+            // ✅ Trigger a change event so any listeners know the value changed
+            const event = new Event('change', { bubbles: true });
+            pathInput.dispatchEvent(event);
+        } else {
+            console.warn('⚠️ No path input found for:', input.name);
+        }
+        
+        // ✅ Auto-fill gesture name from filename
+        if (gestureInput) {
+            const baseName = fileBaseName(file.name);
+            if (baseName && (!gestureInput.value.trim() || gestureInput.dataset.autofilled !== '1')) {
+                gestureInput.value = baseName;
+                gestureInput.dataset.autofilled = '1';
+                console.log('✅ Gesture name set:', baseName);
+            }
+        }
+        
         widget.classList.remove('uploading');
         widget.classList.add('has-file');
         if (label) label.textContent = 'Click to replace file';
+        
         if (thumbWrap) {
             thumbWrap.innerHTML = '';
             const isVid = file.type.startsWith('video/');
+            
             if (!isVid) {
                 const img = document.createElement('img');
                 img.className = 'media-thumb';
                 img.src = data.url;
                 thumbWrap.appendChild(img);
             } else {
-                thumbWrap.innerHTML = '<span class="material-symbols-outlined" style="font-size:40px;color:#94a3b8;">videocam</span>';
+                // ✅ Video player with controls
+                const video = document.createElement('video');
+                video.className = 'media-thumb media-thumb-video';
+                video.src = data.url;
+                video.controls = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.preload = 'metadata';
+                video.style.cssText = 'width:148px;height:92px;object-fit:cover;border-radius:10px;border:1.5px solid #e2e8f0;background:#0f172a;';
+                thumbWrap.appendChild(video);
             }
+            
             const info = document.createElement('div');
             info.className = 'media-thumb-info';
             info.innerHTML = `<strong>Uploaded</strong>${file.name}<button type="button" class="media-remove-btn" onclick="clearMediaWidget(this)">✕ Remove</button>`;
             thumbWrap.appendChild(info);
         }
+        
     } catch (err) {
         widget.classList.remove('uploading');
         if (errorEl) { errorEl.textContent = '⚠ ' + err.message; errorEl.style.display = 'block'; }
+        console.error('Upload error:', err);
     }
     input.value = '';
 }
@@ -971,6 +1280,11 @@ async function handleOptionImageUpload(input) {
     const spinner   = optBody.querySelector('.option-upload-spinner');
     const preview   = optBody.querySelector('.option-image-preview');
     const pathInput = optBody.querySelector('.media-path-input');
+    if (file.size > MAX_UPLOAD_BYTES) {
+        alert(tooLargeMessage(file));
+        input.value = '';
+        return;
+    }
     if (spinner) spinner.style.display = 'inline';
     const fd = new FormData();
     fd.append('file', file); fd.append('context', 'quiz_option_media'); fd.append('_token', CSRF_TOKEN);
@@ -979,7 +1293,7 @@ async function handleOptionImageUpload(input) {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.message || 'Upload failed');
         if (pathInput) pathInput.value = data.path;
-        if (preview) { preview.src = data.url; preview.style.display = 'block'; }
+        setSmallMediaPreview(preview, data.url);
         let clearBtn = optBody.querySelector('.option-img-clear-btn');
         if (!clearBtn) {
             clearBtn = document.createElement('button');
@@ -1001,7 +1315,9 @@ async function handleOptionImageUpload(input) {
 function clearMediaWidget(btn) {
     const widget = btn.closest('.media-upload-widget'); if (!widget) return;
     const thumbWrap = widget.querySelector('.media-thumb-wrap');
-    const pathInput = widget.closest('div')?.querySelector('.media-path-input');
+    let pathInput = widget.parentElement.querySelector('.media-path-input')
+                 || widget.closest('.content-card')?.querySelector('.media-path-input')
+                 || widget.closest('.quiz-question')?.querySelector('.media-path-input');
     if (thumbWrap) thumbWrap.innerHTML = '';
     if (pathInput) pathInput.value = '';
     const lbl = widget.querySelector('.upload-label'); if (lbl) lbl.textContent = 'Click or drag to upload';
@@ -1012,7 +1328,7 @@ function clearOptionImage(btn) {
     const optBody = btn.closest('.option-body'); if (!optBody) return;
     const preview = optBody.querySelector('.option-image-preview');
     const pathInput = optBody.querySelector('.media-path-input');
-    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    setSmallMediaPreview(preview, '');
     if (pathInput) pathInput.value = '';
     btn.remove();
 }
@@ -1039,9 +1355,15 @@ async function handleDragDropImageUpload(input, qIndex, pairIndex) {
         pathInput = widget.closest('.drag-drop-pair').querySelector('.right-image-path');
     }
 
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    if (file.size > MAX_UPLOAD_BYTES) {
+        if (errorEl) { errorEl.textContent = '⚠ ' + tooLargeMessage(file); errorEl.style.display = 'block'; }
+        input.value = '';
+        return;
+    }
+
     widget.classList.add('uploading');
     widget.classList.remove('has-file');
-    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
 
     const fd = new FormData();
     fd.append('file', file);
@@ -1080,6 +1402,7 @@ async function handleDragDropImageUpload(input, qIndex, pairIndex) {
             img.style.borderRadius = '6px';
             img.style.border = '1.5px solid #e2e8f0';
             thumbWrap.appendChild(img);
+            upgradeVideoThumbs(thumbWrap);
 
             const info = document.createElement('div');
             info.className = 'media-thumb-info';
@@ -1114,6 +1437,292 @@ function clearDragDropImage(btn) {
     if (lbl) lbl.textContent = 'Add image';
     widget.classList.remove('has-file');
 }
+
+/* ═══════════════════════════════════════════════════════
+   MEDIA SOURCE PICKER (Sign Language Library or Upload from Device)
+   Works for every media slot on the page (lesson content, quiz question
+   image, answer option image, drag-and-drop pair image) via event
+   delegation — no need to wire up new cards/questions/options individually.
+═══════════════════════════════════════════════════════ */
+
+const LIBRARY_FOLDERS_URL = '{{ route('lessons.media-library.folders') }}';
+const LIBRARY_FILES_BASE_URL = '{{ url('/lessons/media-library') }}';
+
+// Icon + fallback label for each library folder. The backend is the source of
+// truth for which folders exist and their file counts; this just supplies the
+// icon (and a label to show before that first fetch resolves).
+const LIBRARY_FOLDER_META = {
+    Alphabets: { icon: 'sort_by_alpha', label: 'Alphabets' },
+    Numbers:   { icon: 'tag',           label: 'Numbers' },
+    Greetings: { icon: 'waving_hand',   label: 'Greetings' },
+    Survival:  { icon: 'sos',           label: 'Survival / Conversation' },
+};
+
+let mediaPickerTarget = null;
+let libraryFoldersCache = null;
+
+// Figures out which media slot a click came from and what "kind" of slot it is,
+// so applySelectedMedia() knows how to wire the chosen file back into the form.
+function buildPickerTarget(triggerEl) {
+    const widget = triggerEl.closest('.media-upload-widget');
+    if (widget) {
+        const fileInput = widget.querySelector('.ajax-file-input');
+        if (widget.closest('.drag-drop-pair')) {
+            return { kind: 'dragdrop', el: widget, side: fileInput?.dataset.side || 'left', fileInput };
+        }
+        return { kind: 'widget', el: widget, fileInput };
+    }
+    const optBody = triggerEl.closest('.option-body');
+    if (optBody) {
+        return { kind: 'option', el: optBody, fileInput: optBody.querySelector('.option-image-input') };
+    }
+    return null;
+}
+
+// Intercepts clicks on any upload trigger / "Add image" label across the whole
+// form (current and future cards alike) and opens the source-picker menu instead
+// of letting the browser jump straight to the native file dialog.
+document.addEventListener('click', function(e) {
+    // A programmatic .click() on the hidden <input type="file"> also bubbles up
+    // here; swallowing it with preventDefault() was blocking the native file
+    // dialog ("Upload from Device" appeared to do nothing).
+    if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'file') return;
+    const trigger = e.target.closest('.upload-trigger');
+    if (trigger && trigger.closest('.media-upload-widget')) {
+        e.preventDefault();
+        openMediaPicker(trigger);
+        return;
+    }
+    const optLabel = e.target.closest('.option-image-row label');
+    if (optLabel) {
+        e.preventDefault();
+        openMediaPicker(optLabel);
+    }
+});
+
+function openMediaPicker(triggerEl) {
+    mediaPickerTarget = buildPickerTarget(triggerEl);
+    if (!mediaPickerTarget) return;
+    closeMediaPickerMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'media-picker-menu';
+    menu.innerHTML = `
+        <button type="button" data-folder="Alphabets"><span class="material-symbols-outlined">sort_by_alpha</span> Alphabets</button>
+        <button type="button" data-folder="Numbers"><span class="material-symbols-outlined">tag</span> Numbers</button>
+        <button type="button" data-folder="Greetings"><span class="material-symbols-outlined">waving_hand</span> Greetings</button>
+        <button type="button" data-folder="Survival"><span class="material-symbols-outlined">sos</span> Survival / Conversation</button>
+        <div class="media-picker-menu-divider"></div>
+        <button type="button" data-device="1"><span class="material-symbols-outlined">upload_file</span> Upload from Device</button>
+    `;
+    menu.querySelectorAll('button[data-folder]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            closeMediaPickerMenu();
+            openLibraryModal(btn.dataset.folder);
+        });
+    });
+    menu.querySelector('button[data-device]').addEventListener('click', function() {
+        closeMediaPickerMenu();
+        mediaPickerTarget?.fileInput?.click();
+    });
+
+    document.body.appendChild(menu);
+    const rect = triggerEl.getBoundingClientRect();
+    const menuWidth = 220;
+    let left = window.scrollX + rect.left;
+    if (left + menuWidth > window.scrollX + window.innerWidth - 10) {
+        left = window.scrollX + window.innerWidth - menuWidth - 10;
+    }
+    menu.style.top = (window.scrollY + rect.bottom + 4) + 'px';
+    menu.style.left = left + 'px';
+
+    setTimeout(function() { document.addEventListener('click', outsideMediaPickerMenuClick); }, 0);
+}
+
+function outsideMediaPickerMenuClick(e) {
+    const menu = document.querySelector('.media-picker-menu');
+    if (menu && !menu.contains(e.target)) closeMediaPickerMenu();
+}
+
+function closeMediaPickerMenu() {
+    document.querySelectorAll('.media-picker-menu').forEach(function(m) { m.remove(); });
+    document.removeEventListener('click', outsideMediaPickerMenuClick);
+}
+
+function openLibraryModal(folder) {
+    document.getElementById('libraryModal').classList.add('active');
+    loadLibraryFolder(folder);
+}
+
+function closeLibraryModal() {
+    document.getElementById('libraryModal').classList.remove('active');
+}
+
+function loadLibraryFolder(activeFolder) {
+    const grid = document.getElementById('libraryFilesGrid');
+    const title = document.getElementById('libraryModalTitle');
+    const foldersBar = document.getElementById('libraryFoldersBar');
+
+    const fallbackFolders = Object.keys(LIBRARY_FOLDER_META).map(function(key) {
+        return { key: key, icon: LIBRARY_FOLDER_META[key].icon, label: LIBRARY_FOLDER_META[key].label };
+    });
+
+    function renderTabs(folders) {
+        foldersBar.innerHTML = '';
+        folders.forEach(function(f) {
+            const tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = 'library-tab' + (f.key === activeFolder ? ' active' : '');
+            tab.innerHTML = `<span class="material-symbols-outlined">${f.icon}</span> ${f.label}`;
+            tab.addEventListener('click', function() { loadLibraryFolder(f.key); });
+            foldersBar.appendChild(tab);
+        });
+        const current = folders.find(function(f) { return f.key === activeFolder; });
+        title.textContent = current ? current.label : 'Sign Language Library';
+    }
+
+    if (libraryFoldersCache) {
+        renderTabs(libraryFoldersCache);
+    } else {
+        renderTabs(fallbackFolders);
+        fetch(LIBRARY_FOLDERS_URL, { headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.folders && data.folders.length) {
+                    libraryFoldersCache = data.folders.map(function(f) {
+                        return { key: f.key, icon: (LIBRARY_FOLDER_META[f.key]?.icon) || 'folder', label: f.label };
+                    });
+                    renderTabs(libraryFoldersCache);
+                }
+            })
+            .catch(function() { /* keep the fallback tabs already rendered */ });
+    }
+
+    grid.innerHTML = '<div class="library-loading">Loading files…</div>';
+
+    fetch(`${LIBRARY_FILES_BASE_URL}/${encodeURIComponent(activeFolder)}`, { headers: { 'Accept': 'application/json' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            const files = data.files || [];
+            if (!files.length) {
+                grid.innerHTML = '<div class="library-empty">No files in this folder yet.</div>';
+                return;
+            }
+            grid.innerHTML = '';
+            files.forEach(function(f) {
+                const card = document.createElement('div');
+                card.className = 'library-file-card';
+                if (f.type === 'video') {
+                    card.innerHTML = `
+                        <div class="library-file-thumb library-file-thumb-video">
+                            <video src="${f.url}#t=0.3" muted preload="metadata" playsinline></video>
+                            <span class="material-symbols-outlined play-icon">play_circle</span>
+                        </div>`;
+                } else {
+                    card.innerHTML = `<img class="library-file-thumb" src="${f.url}" alt="" loading="lazy">`;
+                }
+                const nameEl = document.createElement('div');
+                nameEl.className = 'library-file-name';
+                nameEl.textContent = f.file_name;
+                card.appendChild(nameEl);
+                card.addEventListener('click', function() {
+                    if (mediaPickerTarget) applySelectedMedia(mediaPickerTarget, f);
+                    closeLibraryModal();
+                });
+                grid.appendChild(card);
+            });
+        })
+        .catch(function() {
+            grid.innerHTML = '<div class="library-empty">Could not load files. Please try again.</div>';
+        });
+}
+
+// Wires a file already chosen from the library (no upload needed — it's already
+// on the server) into whichever form slot triggered the picker. Mirrors the
+// "success" branch of the equivalent AJAX upload handler for that slot type.
+function applySelectedMedia(target, fileData) {
+    const isVideo = fileData.type === 'video';
+
+    if (target.kind === 'widget') {
+        const widget = target.el;
+        const errorEl = widget.querySelector('.media-upload-error');
+        const thumbWrap = widget.querySelector('.media-thumb-wrap');
+        const label = widget.querySelector('.upload-label');
+        let pathInput = widget.parentElement.querySelector('.media-path-input')
+                     || widget.closest('.content-card')?.querySelector('.media-path-input')
+                     || widget.closest('.quiz-question')?.querySelector('.media-path-input');
+
+        if (!pathInput) pathInput = widget.closest('.quiz-question')?.querySelector('input[name*="[existing_media]"]');
+        if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+        if (pathInput) pathInput.value = fileData.path;
+        widget.classList.remove('uploading');
+        widget.classList.add('has-file');
+        if (label) label.textContent = 'Click to replace file';
+        if (thumbWrap) {
+            thumbWrap.innerHTML = '';
+            if (!isVideo) {
+                const img = document.createElement('img');
+                img.className = 'media-thumb';
+                img.src = fileData.url;
+                thumbWrap.appendChild(img);
+            upgradeVideoThumbs(thumbWrap);
+            } else {
+                renderMediaThumb(thumbWrap, fileData.url, true);
+            }
+            const info = document.createElement('div');
+            info.className = 'media-thumb-info';
+            info.innerHTML = `<strong>From Library</strong>${fileData.file_name}<button type="button" class="media-remove-btn" onclick="clearMediaWidget(this)">✕ Remove</button>`;
+            thumbWrap.appendChild(info);
+            autoFillGestureName(widget, fileData.file_name || fileData.path);
+        }
+    } else if (target.kind === 'dragdrop') {
+        const widget = target.el;
+        const thumbWrap = widget.querySelector('.media-thumb-wrap');
+        const label = widget.querySelector('.upload-label');
+        const pair = widget.closest('.drag-drop-pair');
+        const pathInput = target.side === 'left'
+            ? pair.querySelector('.left-image-path')
+            : pair.querySelector('.right-image-path');
+        if (pathInput) pathInput.value = fileData.path;
+        widget.classList.remove('uploading');
+        widget.classList.add('has-file');
+        if (label) label.textContent = 'Replace image';
+        if (thumbWrap) {
+            thumbWrap.innerHTML = '';
+            const img = document.createElement('img');
+            img.className = 'media-thumb';
+            img.src = fileData.url;
+            img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;';
+            thumbWrap.appendChild(img);
+            upgradeVideoThumbs(thumbWrap);
+            const info = document.createElement('div');
+            info.className = 'media-thumb-info';
+            info.innerHTML = '<button type="button" class="media-remove-btn" onclick="clearDragDropImage(this)">✕ Remove</button>';
+            thumbWrap.appendChild(info);
+        }
+    } else if (target.kind === 'option') {
+        const optBody = target.el;
+        const preview = optBody.querySelector('.option-image-preview');
+        const pathInput = optBody.querySelector('.media-path-input');
+        if (pathInput) pathInput.value = fileData.path;
+        setSmallMediaPreview(preview, fileData.url);
+        let clearBtn = optBody.querySelector('.option-img-clear-btn');
+        if (!clearBtn) {
+            clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'option-img-clear-btn text-xs font-semibold flex-shrink-0';
+            clearBtn.style.color = '#ef4444';
+            clearBtn.textContent = '✕';
+            clearBtn.onclick = function() { clearOptionImage(this); };
+            optBody.querySelector('.option-image-row').appendChild(clearBtn);
+        }
+    }
+}
+
+// Close the library modal on click-outside, same pattern as the other overlays.
+window.addEventListener('click', function(e) {
+    if (e.target === document.getElementById('libraryModal')) closeLibraryModal();
+});
 
 /* ═══════════════════════════════════════════════════════
    PREVIEW
@@ -1266,6 +1875,7 @@ function toggleFields(select) {
     }
     if (select.value === 'gesture_demo') {
         if (gestureField) gestureField.classList.remove('hidden');
+        if (mediaField) mediaField.classList.remove('hidden');
     } else if (select.value === 'image' || select.value === 'video') {
         if (mediaField) mediaField.classList.remove('hidden');
     }
@@ -1373,7 +1983,7 @@ function buildOptionRow(qIndex, optIndex) {
                 <img class="option-image-preview" src="" alt="">
                 <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
                     <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
-                    <input type="file" accept="image/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
+                    <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
                 </label>
                 <span class="option-upload-spinner" style="display:none;font-size:11px;color:#6366f1;">Uploading…</span>
             </div>
@@ -1438,9 +2048,9 @@ function buildDragDropPair(qIndex, pairIndex) {
             <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_text]" placeholder="e.g., Letter A">
             <div style="margin-top:4px;">
                 <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][left_image]" value="" class="drag-drop-image-path left-image-path">
-                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*,video/*" style="padding:6px;border-radius:10px;">
                     <div class="upload-trigger" style="gap:6px;">
-                        <input type="file" accept="image/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <input type="file" accept="image/*,video/*" class="ajax-file-input" data-side="left" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
                         <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
                         <div class="upload-spinner"></div>
                         <span class="upload-label" style="font-size:11px;">Add image</span>
@@ -1457,9 +2067,9 @@ function buildDragDropPair(qIndex, pairIndex) {
             <input type="text" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_text]" placeholder="e.g., Hand sign for A">
             <div style="margin-top:4px;">
                 <input type="hidden" name="quiz[${qIndex}][drag_drop_pairs][${pairIndex}][right_image]" value="" class="drag-drop-image-path right-image-path">
-                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:6px;border-radius:10px;">
+                <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*,video/*" style="padding:6px;border-radius:10px;">
                     <div class="upload-trigger" style="gap:6px;">
-                        <input type="file" accept="image/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
+                        <input type="file" accept="image/*,video/*" class="ajax-file-input" data-side="right" onchange="handleDragDropImageUpload(this, ${qIndex}, ${pairIndex})">
                         <span class="upload-icon material-symbols-outlined" style="font-size:16px;color:#94a3b8;">add_photo_alternate</span>
                         <div class="upload-spinner"></div>
                         <span class="upload-label" style="font-size:11px;">Add image</span>
@@ -1719,9 +2329,9 @@ function addQuizQuestion() {
                 <div>
                     <label class="field-label">Question Image (Optional)</label>
                     <input type="hidden" name="quiz[${qIndex}][existing_media]" value="" class="media-path-input">
-                    <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*" style="padding:10px;">
+                    <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*,video/*" style="padding:10px;">
                         <div class="upload-trigger" style="gap:8px;">
-                            <input type="file" accept="image/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
+                            <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this,'quiz_media')">
                             <span class="upload-icon material-symbols-outlined" style="font-size:18px;color:#94a3b8;">cloud_upload</span>
                             <div class="upload-spinner"></div>
                             <span class="upload-label" style="font-size:12px;">Upload image</span>
@@ -2414,11 +3024,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    lessonForm?.addEventListener('submit', function(e) {
-        if (allowSubmit) return; // programmatic re-submit after passing validation
+   lessonForm?.addEventListener('submit', function(e) {
+    if (allowSubmit) return;
+    e.preventDefault();
 
-        // Block submission first: nothing below can accidentally let it through
-        e.preventDefault();
+    
+    
+    // ✅ Check all content cards for missing media
+    document.querySelectorAll('.content-card').forEach((card, index) => {
+        const typeSelect = card.querySelector('.content-type');
+        const contentType = typeSelect ? typeSelect.value : 'text';
+        const mediaPath = card.querySelector('.media-path-input');
+        
+        if ((contentType === 'image' || contentType === 'video' || contentType === 'gesture_demo') && mediaPath) {
+            console.log(`📁 Content ${index}: media_path = "${mediaPath.value}"`);
+            if (!mediaPath.value) {
+                console.warn(`⚠️ Content ${index} has no media path set!`);
+                // Highlight the widget
+                const widget = card.querySelector('.media-upload-widget');
+                if (widget) {
+                    widget.style.borderColor = '#EF4444';
+                    widget.style.borderWidth = '2px';
+                }
+            }
+        }
+    });
 
         let isValid = true;
         try {

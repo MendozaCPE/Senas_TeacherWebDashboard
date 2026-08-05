@@ -399,30 +399,46 @@
                                             {{ $lesson->difficulty }}
                                         </span>
                                     </td>
-                                    <td>
-                                        <span class="badge-status {{ $lesson->status }}">
-                                            {{ $lesson->status }}
-                                        </span>
-                                    </td>
+                                  <td>
+    @if($lesson->trashed())
+        <span class="badge-status" style="background:#e2e8f0; color:#64748b;">
+            Archived
+        </span>
+    @else
+        <span class="badge-status {{ $lesson->status }}">
+            {{ $lesson->status }}
+        </span>
+    @endif
+</td>
                                     <td style="text-align:right;" onclick="event.stopPropagation();">
-                                        <div class="flex items-center justify-end gap-1">
-                                            <button onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" class="action-link" title="View">View</button>
-                                            <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link" title="Edit">Edit</a>
-                                            @if($lesson->status === 'draft')
-                                            <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary" title="Publish">Publish</a>
-                                            @endif
-                                            @if($lesson->status === 'published')
-                                            <button onclick="openStudentsModal('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
-                                                    class="action-link primary" title="Manage Students">
-                                                Students
-                                            </button>
-                                            @endif
-                                            <button onclick="confirmDelete('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
-                                                    class="action-link danger" title="Delete">
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </td>
+    <div class="flex items-center justify-end gap-1">
+        <button onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" class="action-link" title="View">View</button>
+        <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link" title="Edit">Edit</a>
+        
+        @if($lesson->trashed())
+            {{-- Show Restore button for archived lessons --}}
+            <button onclick="restoreLesson('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
+                    class="action-link primary" title="Restore">
+                Restore
+            </button>
+        @else
+            {{-- Show normal actions for non-archived lessons --}}
+            @if($lesson->status === 'draft')
+            <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary" title="Publish">Publish</a>
+            @endif
+            @if($lesson->status === 'published')
+            <button onclick="openStudentsModal('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
+                    class="action-link primary" title="Manage Students">
+                Students
+            </button>
+            @endif
+            <button onclick="confirmDelete('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
+                    class="action-link danger" title="Delete">
+                Delete
+            </button>
+        @endif
+    </div>
+</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -551,26 +567,42 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($orphanedLessons as $lesson)
-                                <tr onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" style="cursor:pointer;">
-                                    <td class="lesson-title-cell">{{ $lesson->title }}</td>
-                                    <td><span class="badge-difficulty {{ $lesson->difficulty }}">{{ $lesson->difficulty }}</span></td>
-                                    <td><span class="badge-status {{ $lesson->status }}">{{ $lesson->status }}</span></td>
-                                    <td style="text-align:right;" onclick="event.stopPropagation();">
-                                        <div class="flex items-center justify-end gap-1">
-                                            <button onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" class="action-link">View</button>
-                                            <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link">Edit</a>
-                                            <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary">Assign &amp; Publish</a>
-                                            @if($lesson->status === 'published')
-                                            <button onclick="openStudentsModal('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
-                                                    class="action-link primary">Students</button>
-                                            @endif
-                                            <button onclick="confirmDelete('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
-                                                    class="action-link danger">Delete</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @endforeach
+                              @foreach($orphanedLessons as $lesson)
+<tr onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" style="cursor:pointer;">
+    <td class="lesson-title-cell">{{ $lesson->title }}</td>
+    <td><span class="badge-difficulty {{ $lesson->difficulty }}">{{ $lesson->difficulty }}</span></td>
+    <td>
+        @if($lesson->trashed())
+            <span class="badge-status" style="background:#e2e8f0; color:#64748b;">Archived</span>
+        @else
+            <span class="badge-status {{ $lesson->status }}">{{ $lesson->status }}</span>
+        @endif
+    </td>
+    <td style="text-align:right;" onclick="event.stopPropagation();">
+        <div class="flex items-center justify-end gap-1">
+            <button onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" class="action-link">View</button>
+            
+            @if($lesson->trashed())
+                {{-- Show Restore button for archived orphaned lessons --}}
+                <button onclick="restoreLesson('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
+                        class="action-link primary" title="Restore">
+                    Restore
+                </button>
+            @else
+                {{-- Show normal actions for non-archived orphaned lessons --}}
+                <a href="{{ route('lessons.edit', $lesson->hash_id) }}" class="action-link">Edit</a>
+                <a href="{{ route('lessons.publish.config', $lesson->hash_id) }}" class="action-link primary">Assign &amp; Publish</a>
+                @if($lesson->status === 'published')
+                <button onclick="openStudentsModal('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
+                        class="action-link primary">Students</button>
+                @endif
+                <button onclick="confirmDelete('{{ $lesson->hash_id }}', '{{ addslashes($lesson->title) }}')"
+                        class="action-link danger">Delete</button>
+            @endif
+        </div>
+    </td>
+</tr>
+@endforeach
                             </tbody>
                         </table>
                     </div>
@@ -777,17 +809,137 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// ── DELETE ──────────────────────────────────────────────────────────────────
+let _deleteLessonId = null;
+let _deleteLessonTitle = null;
+let _selectedDeleteAction = null;
+
 function confirmDelete(lessonId, lessonTitle) {
-    document.getElementById('deleteLessonTitle').textContent = '"' + lessonTitle + '"';
-    document.getElementById('deleteForm').action = '/lessons/' + lessonId;
+    _deleteLessonId = lessonId;
+    _deleteLessonTitle = lessonTitle;
+    _selectedDeleteAction = null;
+    
+    document.getElementById('deleteLessonTitle').textContent = lessonTitle;
+    document.getElementById('selectedDeleteOption').textContent = 'Click an option above to select';
+    document.getElementById('confirmDeleteBtn').textContent = 'Select an option';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+    document.getElementById('confirmDeleteBtn').className = 'flex-1 py-3 bg-slate-300 text-white font-semibold rounded-2xl transition-colors cursor-not-allowed';
+    
+    // Reset option styles
+    document.getElementById('deleteOptionSoft').className = 'p-4 rounded-2xl border-2 border-slate-200 hover:border-[#0d326b] transition cursor-pointer bg-white hover:bg-[#f8faff]';
+    document.getElementById('deleteOptionHard').className = 'p-4 rounded-2xl border-2 border-slate-200 hover:border-red-500 transition cursor-pointer bg-white hover:bg-red-50/50';
+    
     document.getElementById('deleteModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 }
+
+function selectDeleteOption(type) {
+    _selectedDeleteAction = type;
+    
+    // Reset styles
+    document.getElementById('deleteOptionSoft').className = 'p-4 rounded-2xl border-2 border-slate-200 transition cursor-pointer bg-white';
+    document.getElementById('deleteOptionHard').className = 'p-4 rounded-2xl border-2 border-slate-200 transition cursor-pointer bg-white';
+    
+    if (type === 'soft') {
+        document.getElementById('deleteOptionSoft').className = 'p-4 rounded-2xl border-2 border-[#0d326b] bg-blue-50/50 transition cursor-pointer';
+        document.getElementById('selectedDeleteOption').textContent = '✅ Archive selected - Student data will be preserved';
+        document.getElementById('selectedDeleteOption').className = 'text-center text-xs text-blue-600 font-bold mb-4';
+    } else {
+        document.getElementById('deleteOptionHard').className = 'p-4 rounded-2xl border-2 border-red-500 bg-red-50/50 transition cursor-pointer';
+        document.getElementById('selectedDeleteOption').textContent = '⚠️ PERMANENT DELETE selected - All student data will be removed';
+        document.getElementById('selectedDeleteOption').className = 'text-center text-xs text-red-600 font-bold mb-4';
+    }
+    
+    // Enable confirm button
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = false;
+    btn.className = type === 'soft' 
+        ? 'flex-1 py-3 bg-[#0d326b] hover:bg-[#154188] text-white font-semibold rounded-2xl transition-colors'
+        : 'flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl transition-colors';
+    btn.textContent = type === 'soft' ? 'Archive Lesson' : 'Permanently Delete';
+}
+
+function executeDelete() {
+    if (!_selectedDeleteAction || !_deleteLessonId) return;
+    
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+    
+    const url = _selectedDeleteAction === 'soft' 
+        ? `/lessons/${_deleteLessonId}/soft-delete`
+        : `/lessons/${_deleteLessonId}/hard-delete`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => {
+        if (response.redirected) {
+            // Redirect to the index page with the success message
+            window.location.href = response.url;
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            showToast('success', data.message || 'Operation completed');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast('error', data?.message || 'Something went wrong');
+            btn.disabled = false;
+            btn.textContent = 'Try Again';
+        }
+    })
+    .catch(() => {
+        showToast('error', 'Network error. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Try Again';
+    });
+}
+
 function closeDeleteModal() {
     document.getElementById('deleteModal').classList.add('hidden');
     document.body.style.overflow = '';
+    _deleteLessonId = null;
+    _deleteLessonTitle = null;
+    _selectedDeleteAction = null;
 }
+// ── TOAST NOTIFICATION ──────────────────────────────────────────────────────
+function showToast(type, message) {
+    const toast = document.getElementById('toastNotification');
+    const content = document.getElementById('toastContent');
+    const icon = document.getElementById('toastIcon');
+    const title = document.getElementById('toastTitle');
+    const msg = document.getElementById('toastMessage');
+    
+    // Set colors based on type
+    if (type === 'success') {
+        content.className = 'rounded-2xl px-6 py-4 shadow-lg flex items-center gap-3 min-w-[280px] max-w-md bg-emerald-600';
+        icon.textContent = '✅';
+        title.textContent = 'Success';
+    } else if (type === 'error') {
+        content.className = 'rounded-2xl px-6 py-4 shadow-lg flex items-center gap-3 min-w-[280px] max-w-md bg-red-600';
+        icon.textContent = '❌';
+        title.textContent = 'Error';
+    }
+    
+    msg.textContent = message;
+    toast.classList.remove('hidden');
+    
+    // Auto-hide after 4 seconds
+    clearTimeout(window.toastTimeout);
+    window.toastTimeout = setTimeout(() => {
+        toast.classList.add('hidden');
+    }, 4000);
+}
+
+
 
 // ── STUDENTS MODAL ──────────────────────────────────────────────────────────
 let _currentLessonId = null;
@@ -938,6 +1090,48 @@ function saveStudentAccess() {
         alert('Something went wrong. Please try again.');
     });
 }
+
+// ── RESTORE LESSON ──────────────────────────────────────────────────────────
+function restoreLesson(lessonId, lessonTitle) {
+    if (!confirm(`Restore "${lessonTitle}"? This will make the lesson visible again.`)) return;
+    
+    const btn = event.target;
+    btn.textContent = 'Restoring...';
+    btn.disabled = true;
+    
+    fetch(`/lessons/${lessonId}/restore`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            showToast('success', 'Lesson restored successfully!');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast('error', data?.message || 'Failed to restore lesson');
+            btn.textContent = 'Restore';
+            btn.disabled = false;
+        }
+    })
+    .catch(() => {
+        showToast('error', 'Network error. Please try again.');
+        btn.textContent = 'Restore';
+        btn.disabled = false;
+    });
+}
+
+
 </script>
 
 {{-- ── NEW LESSON MODAL ────────────────────────────────────────────────────── --}}
@@ -988,35 +1182,88 @@ function saveStudentAccess() {
     </div>
 </div>
 
-{{-- ── DELETE CONFIRMATION MODAL ──────────────────────────────────────────── --}}
+{{-- ── DELETE CONFIRMATION MODAL (Enhanced) ──────────────────────────────── --}}
 <div id="deleteModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center">
-    <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl relative">
+    <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl relative">
+        <button onclick="closeDeleteModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+            <span class="material-symbols-outlined text-2xl">close</span>
+        </button>
+        
         <div class="text-center mb-6">
             <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span class="material-symbols-outlined text-red-500 text-3xl">delete_forever</span>
+                <span class="material-symbols-outlined text-red-500 text-3xl">warning</span>
             </div>
-            <h3 class="text-xl font-bold text-slate-800 mb-2">Delete Lesson?</h3>
-            <p class="text-slate-500 text-sm leading-relaxed">
-                You're about to delete <strong id="deleteLessonTitle" class="text-slate-700"></strong>. This will also remove all its content, quiz questions, and student assignments. This cannot be undone.
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Delete "<span id="deleteLessonTitle" class="text-[#0d326b]"></span>"?</h3>
+            <p class="text-slate-500 text-sm leading-relaxed" id="deleteDescription">
+                Choose how you want to delete this lesson.
             </p>
         </div>
-        <form id="deleteForm" method="POST">
-            @csrf
-            @method('DELETE')
-            <div class="flex gap-3">
-                <button type="button" onclick="closeDeleteModal()"
-                        class="flex-1 py-3 border border-slate-200 rounded-2xl text-slate-600 font-semibold hover:bg-slate-50 transition-colors">
-                    Cancel
-                </button>
-                <button type="submit"
-                        class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl transition-colors">
-                    Yes, Delete
-                </button>
+
+        <div class="space-y-3 mb-6">
+            {{-- Option 1: Archive (Soft Delete) --}}
+            <div class="p-4 rounded-2xl border-2 border-slate-200 hover:border-[#0d326b] transition cursor-pointer bg-white hover:bg-[#f8faff]"
+                 onclick="selectDeleteOption('soft')" id="deleteOptionSoft">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[22px]">archive</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-sm font-bold text-[#0d326b]">Archive (Preserve Data)</h4>
+                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Recommended</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">Lesson is hidden but student performances, quiz attempts, and analytics data are preserved.</p>
+                        <p class="text-[10px] text-slate-400 mt-1">✓ Can be restored anytime · ✓ Analytics remain intact</p>
+                    </div>
+                </div>
             </div>
-        </form>
+
+            {{-- Option 2: Hard Delete --}}
+            <div class="p-4 rounded-2xl border-2 border-slate-200 hover:border-red-500 transition cursor-pointer bg-white hover:bg-red-50/50"
+                 onclick="selectDeleteOption('hard')" id="deleteOptionHard">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[22px]">delete_forever</span>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-sm font-bold text-red-600">Permanently Delete (Remove All Data)</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">Deletes the lesson AND all student attempts, quiz scores, and progress data.</p>
+                        <p class="text-[10px] text-red-500 font-semibold mt-1">⚠️ Cannot be undone · ❌ Analytics data will be lost</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Selected option indicator --}}
+        <div id="selectedDeleteOption" class="text-center text-xs text-slate-400 font-medium mb-4">
+            Click an option above to select
+        </div>
+
+        {{-- Action buttons --}}
+        <div class="flex gap-3">
+            <button type="button" onclick="closeDeleteModal()"
+                    class="flex-1 py-3 border border-slate-200 rounded-2xl text-slate-600 font-semibold hover:bg-slate-50 transition-colors">
+                Cancel
+            </button>
+            <button type="button" id="confirmDeleteBtn"
+                    class="flex-1 py-3 bg-slate-300 text-white font-semibold rounded-2xl transition-colors cursor-not-allowed"
+                    disabled>
+                Select an option
+            </button>
+        </div>
     </div>
 </div>
 
+{{-- ── SUCCESS/ERROR TOAST ────────────────────────────────────────────────── --}}
+<div id="toastNotification" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastContent" class="rounded-2xl px-6 py-4 shadow-lg flex items-center gap-3 min-w-[280px] max-w-md">
+        <span id="toastIcon" class="text-white text-[22px]">✅</span>
+        <div>
+            <p id="toastTitle" class="text-white font-bold text-sm">Success</p>
+            <p id="toastMessage" class="text-white/80 text-xs">Operation completed</p>
+        </div>
+    </div>
+</div>
 {{-- ── STUDENTS MODAL ──────────────────────────────────────────────────────── --}}
 <div id="studentsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl mx-4 flex flex-col" style="max-height:90vh;">
@@ -1270,6 +1517,18 @@ function proceedWithChoice(type) {
         window.location.href = `{{ url('/lessons/checkpoint-exam/create') }}?module_id=${currentSelectedModuleId}`;
     }
 }
+
+// ── CONNECT DELETE CONFIRM BUTTON ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmBtn) {
+        // Remove any existing listeners to avoid duplicates
+        const newBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+        newBtn.addEventListener('click', executeDelete);
+    }
+});
+
 </script>
 
 @endsection

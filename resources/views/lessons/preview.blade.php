@@ -1,4 +1,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+@php
+    // Helper function to resolve absolute media URLs correctly
+    $getMediaUrl = function($path) {
+        if (!$path) return null;
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+        $cleanPath = ltrim($path, '/');
+        if (file_exists(public_path($cleanPath))) {
+            return asset($cleanPath);
+        }
+        if (file_exists(public_path('storage/' . $cleanPath))) {
+            return asset('storage/' . $cleanPath);
+        }
+        return asset($cleanPath);
+    };
+
+    // Helper function to check if media path is a video
+    $isVideo = function($path, $contentType = null) {
+        if ($contentType === 'gesture_demo') return true;
+        if (!$path) return false;
+        $ext = strtolower(pathinfo(parse_url($path, PHP_URL_PATH), PATHINFO_EXTENSION));
+        return in_array($ext, ['mp4', 'webm', 'ogg', 'mov', 'm4v', 'avi']);
+    };
+@endphp
 
 <style>
 * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -560,19 +585,25 @@
                                 <div class="glass-card" style="flex:1;">
                                     <div class="slide-accent" style="background: {{ $slideColor }};"></div>
                                     <h3 style="font-size: 17px; font-weight: 800; color: {{ $slideColor }}; margin-bottom: 10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                    @if(!empty($current['media']) && is_string($current['media']))
-                                        @php
-                                            $mediaUrl = formatImageUrl($current['media']);
-                                            $isVideo  = in_array(strtolower(pathinfo($current['media'], PATHINFO_EXTENSION)), ['mp4','mov','avi','mkv','webm']);
-                                        @endphp
-                                        @if($mediaUrl)
-                                            @if($isVideo)
-                                                <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}"></video></div>
-                                            @else
-                                                <div class="media-wrap"><img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" onerror="this.parentElement.style.display='none'"></div>
-                                            @endif
-                                        @endif
-                                    @endif
+                                   @if(!empty($current['media']) && is_string($current['media']))
+    @php
+        $mediaUrl = formatImageUrl($current['media']);
+        // ✅ Use the $isVideo helper function that checks content_type too
+        $isVideoFile = $isVideo($current['media'], $current['content_type'] ?? null);
+    @endphp
+    @if($mediaUrl)
+        <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">
+            @if($isVideoFile)
+                <video controls autoplay muted loop playsinline class="slide-video" style="width:100%;display:block;max-height:220px;background:#000;">
+                    <source src="{{ $mediaUrl }}" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+            @else
+                <img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" style="width:100%;display:block;max-height:220px;object-fit:cover;" onerror="this.parentElement.style.display='none'">
+            @endif
+        </div>
+    @endif
+@endif
                                     <p style="font-size: 14px; color: #334155; line-height: 1.6;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
                                 </div>
                                 <div class="senya-tip">
@@ -617,15 +648,25 @@
                         @php $correctIdx = (int)($q['correct'] ?? 0); @endphp
                         <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="m-q-{{ $qIndex }}" data-correct="{{ $correctIdx }}">
                             <div class="glass-card" style="text-align:center; padding:24px;">
-                                @if(!empty($q['_media']))
-                                    @php $imageUrl = formatImageUrl($q['_media']); @endphp
-                                    @if($imageUrl)
-                                        <div class="quiz-media-wrap">
-                                            <img src="{{ $imageUrl }}" alt="Quiz image" class="quiz-media"
-                                                 onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
-                                        </div>
-                                    @endif
-                                @endif
+                             @if(!empty($q['_media']))
+    @php 
+        $imageUrl = formatImageUrl($q['_media']);
+        $qIsVideo = $isVideo($q['_media'], $q['_type'] ?? null);
+    @endphp
+    @if($imageUrl)
+        <div class="quiz-media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;margin:0 auto 12px;">
+            @if($qIsVideo)
+                <video controls autoplay muted loop playsinline class="quiz-media" style="width:100%;display:block;max-height:160px;background:#000;object-fit:contain;padding:8px;">
+                    <source src="{{ $imageUrl }}" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+            @else
+                <img src="{{ $imageUrl }}" alt="Quiz image" class="quiz-media" style="width:100%;display:block;max-height:160px;object-fit:contain;padding:8px;background:#fff;"
+                     onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
+            @endif
+        </div>
+    @endif
+@endif
                                 <p style="font-size:16px; font-weight:800; color:#0f3172; margin-top:10px;">{{ $q['question'] ?? 'Sample Question' }}</p>
                             </div>
 
@@ -737,12 +778,21 @@
                                 @foreach($q['_opts'] as $optIndex => $option)
                                     <div class="option-card" onclick="selectOption('m', {{ $qIndex }}, {{ $optIndex }})" id="m-opt-{{ $qIndex }}-{{ $optIndex }}">
                                         <div class="option-circle">{{ chr(65+$optIndex) }}</div>
-                                        @if(!empty($option['image']))
-                                            @php $optionImageUrl = formatImageUrl($option['image']); @endphp
-                                            @if($optionImageUrl)
-                                                <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
-                                            @endif
-                                        @endif
+                                   @if(!empty($option['image']))
+    @php 
+        $optionImageUrl = formatImageUrl($option['image']);
+        $optIsVideo = $isVideo($option['image']);
+    @endphp
+    @if($optionImageUrl)
+        @if($optIsVideo)
+            <video muted loop playsinline class="option-image-thumb" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#000;">
+                <source src="{{ $optionImageUrl }}" type="video/mp4">
+            </video>
+        @else
+            <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">
+        @endif
+    @endif
+@endif
                                         <span style="font-size:14px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
                                     </div>
                                 @endforeach
@@ -878,19 +928,24 @@
                                             <div class="glass-card">
                                                 <div class="slide-accent" style="background:{{ $slideColor }};"></div>
                                                 <h3 style="font-size:19px; font-weight:800; color:{{ $slideColor }}; margin-bottom:10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                                @if(!empty($current['media']) && is_string($current['media']))
-                                                    @php
-                                                        $mediaUrl = formatImageUrl($current['media']);
-                                                        $isVideo  = in_array(strtolower(pathinfo($current['media'], PATHINFO_EXTENSION)), ['mp4','mov','avi','mkv','webm']);
-                                                    @endphp
-                                                    @if($mediaUrl)
-                                                        @if($isVideo)
-                                                            <div class="media-wrap"><video controls class="slide-video"><source src="{{ $mediaUrl }}"></video></div>
-                                                        @else
-                                                            <div class="media-wrap"><img src="{{ $mediaUrl }}" class="slide-image" onerror="this.parentElement.style.display='none'"></div>
-                                                        @endif
-                                                    @endif
-                                                @endif
+                                               @if(!empty($current['media']) && is_string($current['media']))
+    @php
+        $mediaUrl = formatImageUrl($current['media']);
+        $isVideoFile = $isVideo($current['media'], $current['content_type'] ?? null);
+    @endphp
+    @if($mediaUrl)
+        <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">
+            @if($isVideoFile)
+                <video controls autoplay muted loop playsinline class="slide-video" style="width:100%;display:block;max-height:220px;background:#000;">
+                    <source src="{{ $mediaUrl }}" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+            @else
+                <img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" style="width:100%;display:block;max-height:220px;object-fit:cover;" onerror="this.parentElement.style.display='none'">
+            @endif
+        </div>
+    @endif
+@endif
                                                 <p style="font-size:14.5px; color:#334155; line-height:1.7;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
                                             </div>
                                             <div class="slide-nav">
@@ -969,12 +1024,23 @@
                                                         <div class="dragdrop-col">
                                                             @foreach($q['_ddPairs'] as $pIndex => $pair)
                                                                 <div class="dragdrop-item dd-left" data-match="{{ $pair['match_id'] }}" onclick="selectDragItem('w', {{ $qIndex }}, 'left', '{{ $pair['match_id'] }}', this)">
-                                                                    @if(!empty($pair['left_image']))
-                                                                        @php $li = formatImageUrl($pair['left_image']); @endphp
-                                                                        @if($li)<img src="{{ $li }}" class="dd-thumb" onerror="this.style.display='none'">@endif
-                                                                    @else
-                                                                        <span style="font-size:18px;flex-shrink:0;">🔵</span>
-                                                                    @endif
+                                                                  @if(!empty($pair['left_image']))
+    @php 
+        $li = formatImageUrl($pair['left_image']);
+        $liIsVideo = $isVideo($pair['left_image']);
+    @endphp
+    @if($li)
+        @if($liIsVideo)
+            <video muted loop playsinline class="dd-thumb" style="width:34px;height:34px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#000;border:1px solid rgba(15,49,114,0.1);">
+                <source src="{{ $li }}" type="video/mp4">
+            </video>
+        @else
+            <img src="{{ $li }}" class="dd-thumb" style="width:34px;height:34px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid rgba(15,49,114,0.1);" onerror="this.style.display='none'">
+        @endif
+    @endif
+@else
+    <span style="font-size:18px;flex-shrink:0;">🔵</span>
+@endif
                                                                     <span>{{ $pair['left_text'] ?: 'Item '.($pIndex+1) }}</span>
                                                                 </div>
                                                             @endforeach

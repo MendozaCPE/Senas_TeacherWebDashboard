@@ -362,22 +362,29 @@ public function getRecommendedLessons(Request $request)
         // 2. GET ALL LESSONS WITH COMPLETION STATUS
         // ============================================================
         
-        $allLessons = Lesson::where('status', 'published')
-            ->with(['contents', 'quiz.questions.options', 'module'])
-            ->get();
+       $allLessons = Lesson::where('status', 'published')
+    ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
+    ->with(['contents', 'quiz.questions.options', 'module'])
+    ->get();
 
         // Get completed lesson IDs for this student
-        $completedLessonIds = LessonAssignment::where('student_id', $student->student_id)
-            ->where('status', 'completed')
-            ->where('score', '>=', 60)
-            ->pluck('lesson_id')
-            ->toArray();
+     $completedLessonIds = LessonAssignment::where('student_id', $student->student_id)
+    ->where('status', 'completed')
+    ->where('score', '>=', 60)
+    ->whereHas('lesson', function($query) {
+        $query->whereNull('deleted_at');  // ✅ ONLY COMPLETED LESSONS THAT EXIST
+    })
+    ->pluck('lesson_id')
+    ->toArray();
 
         // Get in-progress lesson IDs
         $inProgressLessonIds = LessonAssignment::where('student_id', $student->student_id)
-            ->where('status', 'in_progress')
-            ->pluck('lesson_id')
-            ->toArray();
+    ->where('status', 'in_progress')
+    ->whereHas('lesson', function($query) {
+        $query->whereNull('deleted_at');  // ✅ ONLY IN-PROGRESS LESSONS THAT EXIST
+    })
+    ->pluck('lesson_id')
+    ->toArray();
 
         // ============================================================
         // 3. BUILD RECOMMENDATIONS
@@ -520,14 +527,15 @@ public function getRecommendedLessons(Request $request)
         }
 
         // 🔥 FIFTH: Fallback - recommended by module order
-        if (empty($recommendedLessons) || count($recommendedLessons) < 3) {
-            $fallbackLessons = Lesson::where('status', 'published')
-                ->whereNotIn('lesson_id', $completedLessonIds)
-                ->whereNotIn('lesson_id', $lessonIdsAdded)
-                ->with(['contents', 'quiz', 'module'])
-                ->orderBy('module_order', 'asc')
-                ->limit(10)
-                ->get();
+      if (empty($recommendedLessons) || count($recommendedLessons) < 3) {
+    $fallbackLessons = Lesson::where('status', 'published')
+        ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
+        ->whereNotIn('lesson_id', $completedLessonIds)
+        ->whereNotIn('lesson_id', $lessonIdsAdded)
+        ->with(['contents', 'quiz', 'module'])
+        ->orderBy('module_order', 'asc')
+        ->limit(10)
+        ->get();
 
             foreach ($fallbackLessons as $lesson) {
                 if (!in_array($lesson->lesson_id, $lessonIdsAdded)) {
@@ -1145,19 +1153,19 @@ public function updateMasteryAfterPractice(Request $request)
         if ($masteryData['mastery'] >= 0.8) {
             // Check if there are any lessons that require this gesture
             $nextLessons = Lesson::where('status', 'published')
-                ->whereHas('contents', function($query) use ($request) {
-                    $query->where('gesture_name', $request->gesture_name)
-                          ->where('content_type', 'gesture_demo');
-                })
-                ->whereNotIn('lesson_id', function($q) use ($student) {
-                    $q->select('lesson_id')
-                      ->from('lesson_assignments')
-                      ->where('student_id', $student->student_id)
-                      ->where('status', 'completed');
-                })
-                ->limit(2)
-                ->get();
-
+            ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
+            ->whereHas('contents', function($query) use ($request) {
+                $query->where('gesture_name', $request->gesture_name)
+                      ->where('content_type', 'gesture_demo');
+            })
+            ->whereNotIn('lesson_id', function($q) use ($student) {
+                $q->select('lesson_id')
+                  ->from('lesson_assignments')
+                  ->where('student_id', $student->student_id)
+                  ->where('status', 'completed');
+            })
+            ->limit(2)
+            ->get();
             foreach ($nextLessons as $lesson) {
                 $assignment = LessonAssignment::where('student_id', $student->student_id)
                     ->where('lesson_id', $lesson->lesson_id)
@@ -1300,13 +1308,24 @@ public function getLessons(Request $request)
         // 🔥 SYNC: Check and fix any inconsistent lock statuses
         $this->syncLessonLocks($student);
 
-        // Get all lesson assignments for THIS student only
+        // 🔥 ADD: Get all lesson assignments for THIS student ONLY for lessons that exist and are not deleted
         $assignments = LessonAssignment::where('student_id', $student->student_id)
+            ->whereHas('lesson', function($query) {
+                $query->where('status', 'published')
+                      ->whereNull('deleted_at');  // ✅ EXCLUDE SOFT DELETED LESSONS
+            })
             ->with(['lesson' => function ($query) {
                 $query->where('status', 'published')
+                      ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
                       ->with(['contents', 'quiz', 'module']);
             }])
             ->get();
+
+        // Remove any assignments where lesson is null (safety check)
+        $assignments = $assignments->filter(function($assignment) {
+            return $assignment->lesson !== null;
+        });
+
 
         // Group lessons by module
         $modulesMap = [];
@@ -1535,14 +1554,24 @@ public function getAllLessons(Request $request)
             return response()->json(['error' => 'Student not found'], 404);
         }
 
-        // Get all lesson assignments for this student
+        // 🔥 ADD: Get all lesson assignments for this student ONLY for lessons that exist and are not deleted
         $assignments = LessonAssignment::where('student_id', $student->student_id)
+            ->whereHas('lesson', function($query) {
+                $query->where('status', 'published')
+                      ->whereNull('deleted_at');  // ✅ EXCLUDE SOFT DELETED LESSONS
+            })
             ->with(['lesson' => function ($query) {
                 $query->where('status', 'published')
+                      ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
                       ->with(['contents', 'quiz', 'module']);
             }])
             ->orderBy('assigned_at', 'desc')
             ->get();
+
+        // Remove any assignments where lesson is null (safety check)
+        $assignments = $assignments->filter(function($assignment) {
+            return $assignment->lesson !== null;
+        });
 
         $lessons = $assignments->map(function ($assignment) {
             $lesson = $assignment->lesson;
@@ -1686,6 +1715,9 @@ public function getLessonById(Request $request, $lessonId)
         // Check if student has access to this lesson
         $assignment = LessonAssignment::where('student_id', $student->student_id)
             ->where('lesson_id', $lessonId)
+            ->whereHas('lesson', function($query) {
+                $query->whereNull('deleted_at');  // ✅ EXCLUDE SOFT DELETED LESSONS
+            })
             ->first();
 
         if (! $assignment) {
@@ -1696,6 +1728,7 @@ public function getLessonById(Request $request, $lessonId)
         $lesson = Lesson::with(['contents', 'quiz.questions.options'])
             ->where('lesson_id', $lessonId)
             ->where('status', 'published')
+            ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
             ->first();
 
         if (! $lesson) {
@@ -2350,8 +2383,16 @@ public function getLessonLeaderboard(Request $request, $lessonId)
 private function syncLessonLocks($student)
 {
     $assignments = LessonAssignment::where('student_id', $student->student_id)
+        ->whereHas('lesson', function($query) {
+            $query->whereNull('deleted_at');  // ✅ ONLY SYNC FOR EXISTING LESSONS
+        })
         ->with('lesson')
         ->get();
+    
+    // Remove any assignments where lesson is null
+    $assignments = $assignments->filter(function($assignment) {
+        return $assignment->lesson !== null;
+    });
     
     // First, process all lessons to determine their status based on highest score
     foreach ($assignments as $assignment) {
@@ -3014,11 +3055,17 @@ private function isModuleLocked($student, $module)
             }
 
             // Get all published lesson IDs in this module that are assigned to student
-            $lessonIds = LessonAssignment::where('student_id', $student->student_id)
-                ->join('lessons as l', 'lesson_assignments.lesson_id', '=', 'l.lesson_id')
-                ->where('l.module_id', $moduleId)
-                ->where('l.status', 'published')
-                ->pluck('l.lesson_id');
+           $lessonIds = LessonAssignment::where('student_id', $student->student_id)
+            ->whereHas('lesson', function($query) use ($moduleId) {
+                $query->where('module_id', $moduleId)
+                      ->where('status', 'published')
+                      ->whereNull('deleted_at');  // ✅ EXCLUDE SOFT DELETED LESSONS
+            })
+            ->join('lessons as l', 'lesson_assignments.lesson_id', '=', 'l.lesson_id')
+            ->where('l.module_id', $moduleId)
+            ->where('l.status', 'published')
+            ->whereNull('l.deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
+            ->pluck('l.lesson_id');
 
             if ($lessonIds->isEmpty()) {
                 return response()->json(['error' => 'No lessons found for this module'], 404);
@@ -3099,6 +3146,23 @@ private function isModuleLocked($student, $module)
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    public function cleanOrphanedAssignments()
+{
+    // Delete assignments for lessons that no longer exist
+    $orphaned = LessonAssignment::whereDoesntHave('lesson')->delete();
+    
+    // Delete assignments for soft-deleted lessons
+    LessonAssignment::whereHas('lesson', function($query) {
+        $query->whereNotNull('deleted_at');
+    })->delete();
+    
+    // Clean up student progress for deleted lessons
+    DB::table('student_lesson_progress')
+        ->whereDoesntHave('lesson')
+        ->delete();
+}
+
 
     /**
      * POST /student/module/{moduleId}/quiz/submit
