@@ -540,10 +540,10 @@
 
 {{-- ══════════ STUDENT DETAILS MODAL ══════════ --}}
 <div id="student-details-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div id="student-details-card" class="bg-white rounded-[28px] w-[780px] max-w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col" style="max-height:92vh">
+    <div id="student-details-card" class="bg-white rounded-[32px] w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col overflow-hidden" style="max-width:1100px;height:min(94vh,820px)">
 
-        {{-- Top accent bar --}}
-        <div id="sdc-accent" class="h-1.5 w-full rounded-t-[28px] bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] shrink-0"></div>
+        {{-- Top accent bar — overflow-hidden on parent clips it to the card's rounded corners --}}
+        <div id="sdc-accent" class="h-1.5 w-full bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] shrink-0"></div>
 
         {{-- Header --}}
         <div class="flex items-center justify-between px-7 pt-5 pb-4 border-b border-slate-100 shrink-0">
@@ -582,20 +582,20 @@
         </div>
 
         {{-- Content (hidden until loaded) --}}
-        <div id="sdc-content" class="hidden flex-1 overflow-y-auto">
-            <div class="flex flex-col lg:flex-row gap-0">
+        <div id="sdc-content" class="hidden flex-1 overflow-hidden">
+            <div class="flex flex-col lg:flex-row gap-0 h-full">
 
                 {{-- LEFT PANEL --}}
-                <div class="lg:w-[220px] shrink-0 bg-gradient-to-b from-[#f8fafc] to-white border-r border-slate-100 p-6 flex flex-col items-center gap-4">
+                <div class="lg:w-[230px] shrink-0 bg-gradient-to-b from-[#f8fafc] to-white border-r border-slate-100 p-5 flex flex-col items-center gap-3 overflow-y-auto">
                     <div class="relative">
-                        <img id="sdc-avatar" src="" alt="" class="w-20 h-20 rounded-2xl shadow-md object-cover ring-4 ring-white" />
-                        <span id="sdc-status-dot" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white bg-emerald-400"></span>
+                        <img id="sdc-avatar" src="" alt="" class="w-16 h-16 rounded-2xl shadow-md object-cover ring-4 ring-white" />
+                        <span id="sdc-status-dot" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white bg-emerald-400"></span>
                     </div>
                     <div class="text-center">
-                        <p id="sdc-name" class="text-[15px] font-black text-[#0d326b] leading-tight"></p>
-                        <p id="sdc-lrn-display" class="text-[11px] text-slate-400 font-medium mt-1"></p>
+                        <p id="sdc-name" class="text-[14px] font-black text-[#0d326b] leading-tight"></p>
+                        <p id="sdc-lrn-display" class="text-[10px] text-slate-400 font-medium mt-0.5"></p>
                     </div>
-                    <span id="sdc-level-badge" class="lvl-badge beginner text-[11px] px-3 py-1"></span>
+                    <span id="sdc-level-badge" class="lvl-badge beginner text-[10px] px-3 py-1"></span>
                     <span id="sdc-status-badge" class="text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider"></span>
 
                     {{-- XP bar --}}
@@ -611,14 +611,14 @@
                     </div>
 
                     {{-- Quick stats --}}
-                    <div class="w-full space-y-2">
+                    <div class="w-full space-y-1.5">
                         <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
                             <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">bolt</span>Streak</span>
-                            <span id="sdc-streak" class="text-[12px] font-black text-[#0d326b]">0 days</span>
+                            <span id="sdc-streak" class="text-[11px] font-black text-[#0d326b]">0 days</span>
                         </div>
                         <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
                             <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">military_tech</span>Level</span>
-                            <span id="sdc-level-num" class="text-[12px] font-black text-[#0d326b]">1</span>
+                            <span id="sdc-level-num" class="text-[11px] font-black text-[#0d326b]">1</span>
                         </div>
                         <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
                             <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>Active</span>
@@ -628,136 +628,169 @@
                 </div>
 
                 {{-- RIGHT PANEL --}}
-                <div class="flex-1 p-6 space-y-5">
+                <div class="flex-1 flex flex-col overflow-hidden">
 
-                    {{-- Personal Info --}}
-                    <div class="bg-slate-50 rounded-2xl p-4">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">badge</span>Personal Information</p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Full Name <span class="text-red-400 edit-only hidden">*</span></p>
-                                <p id="sdc-fullname" class="text-[13px] font-bold text-slate-700 view-only"></p>
-                                <input id="sdc-edit-fullname" type="text" placeholder="Last Name, First Name"
-                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
+                    {{-- Row 1: Personal + Academic side by side --}}
+                    <div class="flex gap-3 p-5 pb-2.5 flex-1 min-h-0">
+
+                        {{-- Personal Info --}}
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">badge</span>Personal Information</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Full Name <span class="text-red-400 edit-only hidden">*</span></p>
+                                    <p id="sdc-fullname" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                    <input id="sdc-edit-fullname" type="text" placeholder="Last Name, First Name"
+                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Age</p>
+                                    <p id="sdc-age" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                    <input id="sdc-edit-age" type="number" min="1" max="120" placeholder="Age"
+                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                                </div>
+                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Username</p><p id="sdc-username" class="text-[12px] font-bold text-slate-700 truncate"></p></div>
+                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Email / LRN</p><p id="sdc-email" class="text-[12px] font-bold text-slate-700 break-all"></p></div>
                             </div>
-                            <div>
-                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Age</p>
-                                <p id="sdc-age" class="text-[13px] font-bold text-slate-700 view-only"></p>
-                                <input id="sdc-edit-age" type="number" min="1" max="120" placeholder="Age"
-                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
-                            </div>
-                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Username</p><p id="sdc-username" class="text-[13px] font-bold text-slate-700"></p></div>
-                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Email / LRN</p><p id="sdc-email" class="text-[13px] font-bold text-slate-700 break-all"></p></div>
                         </div>
-                    </div>
 
-                    {{-- Academic Info --}}
-                    <div class="bg-slate-50 rounded-2xl p-4">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">school</span>Academic Information</p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Program <span class="text-red-400 edit-only hidden">*</span></p>
-                                <p id="sdc-program" class="text-[13px] font-bold text-slate-700 view-only"></p>
-                                <select id="sdc-edit-program"
-                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none appearance-none transition-all cursor-pointer">
-                                    <option value="Regular">Regular</option>
-                                    <option value="Inclusion">Inclusion</option>
-                                    <option value="SPED">SPED</option>
-                                    <option value="Home-based">Home-based</option>
-                                    <option value="Self-contained">Self-contained</option>
-                                    <option value="Transition">Transition</option>
-                                </select>
-                            </div>
-                            <div>
-                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Grade Level</p>
-                                <p id="sdc-grade" class="text-[13px] font-bold text-slate-700 view-only"></p>
-                                <select id="sdc-edit-grade"
-                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none appearance-none transition-all cursor-pointer">
-                                    <option value="">— None —</option>
-                                    <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
-                                    <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
-                                    <option>SPED A</option><option>SPED B</option>
-                                </select>
-                            </div>
-                            <div>
-                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Section</p>
-                                <p id="sdc-section" class="text-[13px] font-bold text-slate-700 view-only"></p>
-                                <input id="sdc-edit-section" type="text" placeholder="e.g. SPED-A"
-                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
-                            </div>
-                            <div>
-                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">School Year</p>
-                                <p id="sdc-school-year" class="text-[13px] font-bold text-slate-700 view-only"></p>
-                                <div class="edit-only hidden">
-                                    <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2024-2025" maxlength="9"
-                                        class="w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-2 px-3 rounded-xl outline-none transition-all" />
-                                    <p id="sdc-sy-error" class="hidden text-[10px] text-red-500 font-semibold mt-1"></p>
+                        {{-- Academic Info --}}
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">school</span>Academic Information</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Program <span class="text-red-400 edit-only hidden">*</span></p>
+                                    <p id="sdc-program" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                    <select id="sdc-edit-program"
+                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
+                                        <option value="Regular">Regular</option>
+                                        <option value="Inclusion">Inclusion</option>
+                                        <option value="SPED">SPED</option>
+                                        <option value="Home-based">Home-based</option>
+                                        <option value="Self-contained">Self-contained</option>
+                                        <option value="Transition">Transition</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Grade Level</p>
+                                    <p id="sdc-grade" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                    <select id="sdc-edit-grade"
+                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
+                                        <option value="">— None —</option>
+                                        <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
+                                        <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
+                                        <option>SPED A</option><option>SPED B</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Section</p>
+                                    <p id="sdc-section" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                    <input id="sdc-edit-section" type="text" placeholder="e.g. SPED-A"
+                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">School Year</p>
+                                    <p id="sdc-school-year" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                    <div class="edit-only hidden">
+                                        <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2024-2025" maxlength="9"
+                                            class="w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                                        <p id="sdc-sy-error" class="hidden text-[10px] text-red-500 font-semibold mt-1"></p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
                     </div>
 
-                    {{-- Account Info --}}
-                    <div class="bg-slate-50 rounded-2xl p-4">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">info</span>Account Information</p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Student ID</p><p id="sdc-sid" class="text-[13px] font-bold text-slate-700 font-mono"></p></div>
-                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">LRN</p><p id="sdc-lrn" class="text-[13px] font-bold text-slate-700 font-mono"></p></div>
-                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Date Added</p><p id="sdc-created" class="text-[13px] font-bold text-slate-700"></p></div>
-                            <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Last Updated</p><p id="sdc-updated" class="text-[13px] font-bold text-slate-700"></p></div>
+                    {{-- Row 2: Account Info + Promotion History side by side --}}
+                    <div class="flex gap-3 px-5 py-2.5 flex-1 min-h-0">
+
+                        {{-- Account Info --}}
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">info</span>Account Information</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">LRN <span class="text-red-400 edit-only hidden">*</span></p>
+                                    <p id="sdc-lrn" class="text-[12px] font-bold text-slate-700 font-mono view-only"></p>
+                                    <input id="sdc-edit-lrn" type="text" placeholder="e.g. 123456789001" maxlength="12"
+                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all font-mono" />
+                                </div>
+                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Date Added</p><p id="sdc-created" class="text-[12px] font-bold text-slate-700"></p></div>
+                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Last Updated</p><p id="sdc-updated" class="text-[12px] font-bold text-slate-700"></p></div>
+                            </div>
                         </div>
-                    </div>
 
-                    {{-- Promotion History --}}
-                    <div class="bg-slate-50 rounded-2xl p-4">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">history</span>Promotion History</p>
-                        <div id="sdc-history-list" class="space-y-2 max-h-44 overflow-y-auto pr-1"></div>
-                        <div id="sdc-history-empty" class="hidden text-center py-4">
-                            <span class="material-symbols-outlined text-slate-200 text-[28px] block mb-1">history</span>
-                            <p class="text-[11px] text-slate-400">No promotions yet</p>
+                        {{-- Promotion History --}}
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">history</span>Promotion History</p>
+                            <div id="sdc-history-list" class="space-y-1.5 flex-1 overflow-y-auto pr-1"></div>
+                            <div id="sdc-history-empty" class="hidden flex-1 flex flex-col items-center justify-center py-4">
+                                <span class="material-symbols-outlined text-slate-200 text-[28px] block mb-1.5">history</span>
+                                <p class="text-[10px] text-slate-400 font-medium">No promotions yet</p>
+                            </div>
                         </div>
+
                     </div>
 
-                </div>
-            </div>
+                    {{-- Row 3: Student Management (always visible, no scroll needed) --}}
+                    <div class="px-5 pt-2.5 pb-5 shrink-0">
+                        <div class="bg-gradient-to-r from-[#0d326b]/5 to-[#1a6fd4]/5 rounded-[20px] border border-[#0d326b]/10 p-4">
+                            <p class="text-[9px] font-bold text-[#0d326b] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[12px]">settings</span>Student Management
+                            </p>
+                            <div class="grid grid-cols-3 gap-3">
 
-            {{-- ── MANAGEMENT SECTION ── --}}
-            <div class="border-t border-slate-100 px-6 py-5 bg-slate-50/60">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">settings</span>Student Management</p>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {{-- Enrollment --}}
+                                <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                                            <span class="material-symbols-outlined text-emerald-500 text-[16px]">how_to_reg</span>
+                                        </div>
+                                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Enrollment</p>
+                                    </div>
+                                    <p id="sdc-enroll-status-text" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1"></p>
+                                    <div class="flex gap-2">
+                                        <button id="sdc-enroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white">
+                                            <span class="material-symbols-outlined text-[13px]">person_add</span>Enroll
+                                        </button>
+                                        <button id="sdc-unenroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
+                                            <span class="material-symbols-outlined text-[13px]">person_remove</span>Remove
+                                        </button>
+                                    </div>
+                                </div>
 
-                    {{-- Enrollment --}}
-                    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Enrollment</p>
-                        <p id="sdc-enroll-status-text" class="text-[11px] text-slate-500 mb-3"></p>
-                        <div class="flex gap-2">
-                            <button id="sdc-enroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white">
-                                <span class="material-symbols-outlined text-[14px]">person_add</span>Enroll
-                            </button>
-                            <button id="sdc-unenroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
-                                <span class="material-symbols-outlined text-[14px]">person_remove</span>Unenroll
-                            </button>
+                                {{-- Promotion --}}
+                                <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                                            <span class="material-symbols-outlined text-[#0d326b] text-[16px]">trending_up</span>
+                                        </div>
+                                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Promotion</p>
+                                    </div>
+                                    <p id="sdc-promote-hint" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1"></p>
+                                    <button id="sdc-promote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-[#0d326b] hover:bg-[#154188] text-white">
+                                        <span class="material-symbols-outlined text-[13px]">arrow_upward</span>
+                                        <span id="sdc-promote-label">Promote</span>
+                                    </button>
+                                </div>
+
+                                {{-- Demotion --}}
+                                <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                                            <span class="material-symbols-outlined text-red-400 text-[16px]">trending_down</span>
+                                        </div>
+                                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Demotion</p>
+                                    </div>
+                                    <p id="sdc-demote-hint" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1">Move student down one level.</p>
+                                    <button id="sdc-demote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
+                                        <span class="material-symbols-outlined text-[13px]">arrow_downward</span>
+                                        <span id="sdc-demote-label">Demote</span>
+                                    </button>
+                                </div>
+
+                            </div>
                         </div>
-                    </div>
-
-                    {{-- Promotion --}}
-                    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Promotion</p>
-                        <p id="sdc-promote-hint" class="text-[11px] text-slate-500 mb-3"></p>
-                        <button id="sdc-promote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-[#0d326b] hover:bg-[#154188] text-white">
-                            <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
-                            <span id="sdc-promote-label">Promote</span>
-                        </button>
-                    </div>
-
-                    {{-- Demotion --}}
-                    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Demotion</p>
-                        <p id="sdc-demote-hint" class="text-[11px] text-slate-500 mb-3">Move student down one level.</p>
-                        <button id="sdc-demote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
-                            <span class="material-symbols-outlined text-[14px]">arrow_downward</span>
-                            <span id="sdc-demote-label">Demote</span>
-                        </button>
                     </div>
 
                 </div>
@@ -1510,6 +1543,7 @@ function sdcEnterEdit() {
     document.getElementById('sdc-edit-grade').value       = s.grade_level || '';
     document.getElementById('sdc-edit-section').value     = s.section || '';
     document.getElementById('sdc-edit-school-year').value = s.school_year || '';
+    document.getElementById('sdc-edit-lrn').value         = s.lrn || '';
     document.getElementById('sdc-sy-error').classList.add('hidden');
 
     // Show edit fields, hide read-only
@@ -1600,6 +1634,7 @@ document.getElementById('sdc-save-btn').addEventListener('click', async () => {
             grade_level:       document.getElementById('sdc-edit-grade').value || null,
             section:           document.getElementById('sdc-edit-section').value || null,
             school_year:       syVal || null,
+            lrn:               document.getElementById('sdc-edit-lrn').value.trim() || null,
             fsl_mastery_level: _sdCurrent.fsl_mastery_level,
             _method:           'PUT',
         }, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
@@ -1713,7 +1748,6 @@ function populateStudentDetails(s) {
     document.getElementById('sdc-school-year').textContent = s.school_year  || '—';
 
     // Account
-    document.getElementById('sdc-sid').textContent     = '#' + s.student_id;
     document.getElementById('sdc-lrn').textContent     = s.lrn || '—';
     document.getElementById('sdc-created').textContent = s.created_at || '—';
     document.getElementById('sdc-updated').textContent = s.updated_at || '—';

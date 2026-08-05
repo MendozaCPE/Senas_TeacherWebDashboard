@@ -79,36 +79,34 @@ class GestureModulesSeeder extends Seeder
             ->value('module_id');
 
         // ============================================
-        // 4. INSERT gestures for Level 1 Numbers
+        // 4. UPDATE existing gestures for Level 1 Numbers
+        //    (gestures already exist with names '1'-'10', just update descriptions)
         // ============================================
-        $numberGestures = [
-            ['name' => 'ONE', 'display_name' => 'One', 'description' => 'Sign for number 1 in Filipino Sign Language.'],
-            ['name' => 'TWO', 'display_name' => 'Two', 'description' => 'Sign for number 2 in Filipino Sign Language.'],
-            ['name' => 'THREE', 'display_name' => 'Three', 'description' => 'Sign for number 3 in Filipino Sign Language.'],
-            ['name' => 'FOUR', 'display_name' => 'Four', 'description' => 'Sign for number 4 in Filipino Sign Language.'],
-            ['name' => 'FIVE', 'display_name' => 'Five', 'description' => 'Sign for number 5 in Filipino Sign Language.'],
-            ['name' => 'SIX', 'display_name' => 'Six', 'description' => 'Sign for number 6 in Filipino Sign Language.'],
-            ['name' => 'SEVEN', 'display_name' => 'Seven', 'description' => 'Sign for number 7 in Filipino Sign Language.'],
-            ['name' => 'EIGHT', 'display_name' => 'Eight', 'description' => 'Sign for number 8 in Filipino Sign Language.'],
-            ['name' => 'NINE', 'display_name' => 'Nine', 'description' => 'Sign for number 9 in Filipino Sign Language.'],
-            ['name' => 'TEN', 'display_name' => 'Ten', 'description' => 'Sign for number 10 in Filipino Sign Language.'],
-        ];
-
         $level1ModuleId = 3; // The updated module ID
 
-        foreach ($numberGestures as $gesture) {
-            DB::table('gestures')->insert([
-                'module_id' => $level1ModuleId,
-                'name' => $gesture['name'],
-                'display_name' => $gesture['display_name'],
-                'description' => $gesture['description'],
-                'image_url' => null,
-                'video_url' => null,
-                'model_file' => null,
-                'difficulty' => 'beginner',
-                'created_at' => $now,
-                'updated_at' => $now
-            ]);
+        $numberUpdates = [
+            '1'  => ['display_name' => 'One',   'description' => 'Sign for number 1 in Filipino Sign Language.'],
+            '2'  => ['display_name' => 'Two',   'description' => 'Sign for number 2 in Filipino Sign Language.'],
+            '3'  => ['display_name' => 'Three', 'description' => 'Sign for number 3 in Filipino Sign Language.'],
+            '4'  => ['display_name' => 'Four',  'description' => 'Sign for number 4 in Filipino Sign Language.'],
+            '5'  => ['display_name' => 'Five',  'description' => 'Sign for number 5 in Filipino Sign Language.'],
+            '6'  => ['display_name' => 'Six',   'description' => 'Sign for number 6 in Filipino Sign Language.'],
+            '7'  => ['display_name' => 'Seven', 'description' => 'Sign for number 7 in Filipino Sign Language.'],
+            '8'  => ['display_name' => 'Eight', 'description' => 'Sign for number 8 in Filipino Sign Language.'],
+            '9'  => ['display_name' => 'Nine',  'description' => 'Sign for number 9 in Filipino Sign Language.'],
+            '10' => ['display_name' => 'Ten',   'description' => 'Sign for number 10 in Filipino Sign Language.'],
+        ];
+
+        foreach ($numberUpdates as $name => $data) {
+            DB::table('gestures')
+                ->where('module_id', $level1ModuleId)
+                ->where('name', $name)
+                ->update([
+                    'display_name' => $data['display_name'],
+                    'description'  => $data['description'],
+                    'difficulty'   => 'beginner',
+                    'updated_at'   => $now,
+                ]);
         }
 
         // ============================================
@@ -279,11 +277,11 @@ class GestureModulesSeeder extends Seeder
         $this->command->info('   🔵 Level 4: Alphabet Part 1 (A-M) - 13 letters');
         $this->command->info('   🔵 Level 5: Alphabet Part 2 (N-Z) - 13 letters');
         $this->command->info('');
-        $this->command->info('📈 Total gestures: 51');
-        $this->command->info('   - Numbers: 10');
-        $this->command->info('   - Greetings: 5');
-        $this->command->info('   - Survival: 10');
-        $this->command->info('   - Alphabet: 26');
+        $this->command->info('📈 Total gestures: 51 (updated existing 10 numbers, added 15 new)');
+        $this->command->info('   - Numbers: 10 (updated display names)');
+        $this->command->info('   - Greetings: 5 (new)');
+        $this->command->info('   - Survival: 10 (new)');
+        $this->command->info('   - Alphabet: 26 (unchanged)');
         $this->command->info('   - Deleted: fingerspelling module');
     }
 }

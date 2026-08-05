@@ -508,6 +508,15 @@ class StudentsController extends Controller
             'program_type'      => 'required|in:Regular,Inclusion,SPED,Home-based,Self-contained,Transition',
             'grade_level'       => 'nullable|string|max:50',
             'section'           => 'nullable|string|max:100',
+            'lrn'               => ['nullable', 'digits:12',
+                function ($attribute, $value, $fail) use ($student) {
+                    if (empty($value)) return;
+                    $exists = Student::where('lrn', $value)
+                                     ->where('student_id', '!=', $student->student_id)
+                                     ->exists();
+                    if ($exists) $fail('This LRN is already assigned to another student.');
+                },
+            ],
             'school_year'       => ['nullable', 'string', 'max:20',
                 function ($attribute, $value, $fail) {
                     if (empty($value)) return;
@@ -551,13 +560,17 @@ class StudentsController extends Controller
             'grade_level'       => $needGradeSection ? ($validated['grade_level'] ?? null) : ($validated['grade_level'] ?? null),
             'section'           => $validated['section'] ?? null,
             'school_year'       => $validated['school_year'] ?? null,
+            'lrn'               => $validated['lrn'] ?? $student->lrn,
             'fsl_mastery_level' => $validated['fsl_mastery_level'] ?? $student->fsl_mastery_level,
         ]);
 
-        // Also update the linked user's display name
+        // Also update the linked user's display name and email (LRN) if changed
         if ($student->user_id) {
-            \App\Models\User::where('id', $student->user_id)
-                ->update(['name' => trim($firstName . ' ' . $lastName)]);
+            $userUpdate = ['name' => trim($firstName . ' ' . $lastName)];
+            if (!empty($validated['lrn'])) {
+                $userUpdate['email'] = $validated['lrn'];
+            }
+            \App\Models\User::where('id', $student->user_id)->update($userUpdate);
         }
 
         return response()->json([
