@@ -67,8 +67,8 @@
     }
     .media-upload-widget.has-file .media-thumb-wrap { display: flex; }
     .media-upload-widget .media-thumb {
-        width: 80px;
-        height: 80px;
+        width: 130px;
+        height: 130px;
         object-fit: cover;
         border-radius: 10px;
         border: 1.5px solid #e2e8f0;
@@ -76,8 +76,8 @@
     }
     .media-upload-widget .media-thumb-info {
     .media-upload-widget .media-thumb-video {
-        width: 148px;
-        height: 92px;
+        width: 220px;
+        height: 138px;
         object-fit: cover;
         border-radius: 10px;
         border: 1.5px solid #e2e8f0;
@@ -350,6 +350,74 @@
     }
     .gesture-checkbox {
         display: none;
+    }
+
+    /* ── Fingerspelling Word Input ────────────────────────────────────── */
+    .fingerspelling-words-textarea {
+        min-height: 100px;
+        font-family: 'Inter', monospace;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    .fingerspelling-words-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px;
+        min-height: 50px;
+        background: #F8FAFC;
+        border-radius: 12px;
+        border: 1.5px dashed #E5EAF2;
+    }
+    .fingerspelling-word-pill {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(13, 50, 107, 0.06);
+        border: 1.5px solid rgba(13, 50, 107, 0.15);
+        border-radius: 14px;
+        padding: 8px 14px;
+        min-width: 60px;
+    }
+    .fingerspelling-word-pill .word-letters {
+        display: flex;
+        gap: 4px;
+        font-size: 18px;
+        font-weight: 800;
+        color: #0d326b;
+    }
+    .fingerspelling-word-pill .word-count {
+        font-size: 9px;
+        color: #4b7bbb;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    /* ── Validation Error Styles ──────────────────────────────────────── */
+    .field-error {
+        border-color: #EF4444 !important;
+        background-color: #FEF2F2 !important;
+    }
+    .field-error:focus {
+        border-color: #EF4444 !important;
+        box-shadow: 0 0 0 4px rgba(239,68,68,0.08) !important;
+    }
+    .error-message {
+        color: #EF4444;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .error-message .material-symbols-outlined {
+        font-size: 16px;
+    }
+    .section-error {
+        border-color: #EF4444 !important;
+        border-width: 2px !important;
+        background-color: #FEF2F2 !important;
     }
 </style>
 
@@ -657,7 +725,7 @@
                                             <input type="text" name="quiz[{{ $index }}][options][{{ $optIndex }}][text]" value="{{ $optText }}" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Option {{ chr(65 + $optIndex) }} text">
                                             <div class="option-image-row flex items-center gap-2">
                                                 <input type="hidden" name="quiz[{{ $index }}][options][{{ $optIndex }}][existing_image]" value="{{ $optImage }}" class="media-path-input">
-                                                <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200 flex-shrink-0"
+                                                <img class="option-image-preview w-16 h-16 rounded-lg object-cover border border-slate-200 flex-shrink-0"
                                                      src="{{ $optImage ? asset('storage/' . $optImage) : '' }}"
                                                      alt=""
                                                      style="{{ $optImage ? 'display:block;' : 'display:none;' }}"
@@ -725,7 +793,7 @@
                                                         </div>
                                                         <div class="media-thumb-wrap" style="margin-top:4px;">
                                                             @if($leftImage)
-                                                            <img class="media-thumb" src="{{ asset('storage/' . $leftImage) }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;" />
+                                                            <img class="media-thumb" src="{{ asset('storage/' . $leftImage) }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;" />
                                                             @endif
                                                         </div>
                                                     </div>
@@ -748,7 +816,7 @@
                                                         </div>
                                                         <div class="media-thumb-wrap" style="margin-top:4px;">
                                                             @if($rightImage)
-                                                            <img class="media-thumb" src="{{ asset('storage/' . $rightImage) }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;" />
+                                                            <img class="media-thumb" src="{{ asset('storage/' . $rightImage) }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;" />
                                                             @endif
                                                         </div>
                                                     </div>
@@ -793,6 +861,29 @@
                                     <div class="selected-gestures-preview" style="display:none;">
                                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Selected Gestures</label>
                                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_{{ $index }}"></div>
+                                    </div>
+
+                                    <div class="fingerspelling-word-container {{ (($q['gesture_module_id'] ?? null) == 6) ? '' : 'hidden' }}" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">📝 Fingerspelling Words</label>
+                                        <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <textarea
+                                                    name="quiz[{{ $index }}][fingerspelling_words]"
+                                                    class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all fingerspelling-words-textarea"
+                                                    placeholder="Enter one word per line&#10;Example:&#10;HELLO&#10;NICE&#10;SENYAS"
+                                                    rows="4"
+                                                    oninput="updateFingerspellingWordPreview(this)"
+                                                >{{ $q['fingerspelling_words'] ?? '' }}</textarea>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Preview</label>
+                                                <div class="fingerspelling-words-preview" id="fingerspellingPreview_{{ $index }}">
+                                                    <span class="text-sm text-slate-400">Enter words to see preview</span>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" name="quiz[{{ $index }}][fingerspelling_letter_ids]" class="fingerspelling-letter-ids" value="">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -846,7 +937,7 @@
                                             <input type="text" name="quiz[0][options][0][text]" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] outline-none transition-all" placeholder="Option A text">
                                             <div class="option-image-row flex items-center gap-2">
                                                 <input type="hidden" name="quiz[0][options][0][existing_image]" value="" class="media-path-input">
-                                                <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200 flex-shrink-0" src="" alt="" style="display:none;">
+                                                <img class="option-image-preview w-16 h-16 rounded-lg object-cover border border-slate-200 flex-shrink-0" src="" alt="" style="display:none;">
                                                 <label class="text-xs text-[#0d326b] font-semibold cursor-pointer hover:underline flex items-center gap-1 flex-shrink-0">
                                                     <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
                                                     <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
@@ -868,7 +959,7 @@
                                             <input type="text" name="quiz[0][options][1][text]" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] outline-none transition-all" placeholder="Option B text">
                                             <div class="option-image-row flex items-center gap-2">
                                                 <input type="hidden" name="quiz[0][options][1][existing_image]" value="" class="media-path-input">
-                                                <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200 flex-shrink-0" src="" alt="" style="display:none;">
+                                                <img class="option-image-preview w-16 h-16 rounded-lg object-cover border border-slate-200 flex-shrink-0" src="" alt="" style="display:none;">
                                                 <label class="text-xs text-[#0d326b] font-semibold cursor-pointer hover:underline flex items-center gap-1 flex-shrink-0">
                                                     <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
                                                     <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
@@ -922,6 +1013,29 @@
                                     <div class="selected-gestures-preview" style="display:none;">
                                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Selected Gestures</label>
                                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_0"></div>
+                                    </div>
+
+                                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">📝 Fingerspelling Words</label>
+                                        <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <textarea
+                                                    name="quiz[0][fingerspelling_words]"
+                                                    class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all fingerspelling-words-textarea"
+                                                    placeholder="Enter one word per line&#10;Example:&#10;HELLO&#10;NICE&#10;SENYAS"
+                                                    rows="4"
+                                                    oninput="updateFingerspellingWordPreview(this)"
+                                                ></textarea>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Preview</label>
+                                                <div class="fingerspelling-words-preview" id="fingerspellingPreview_0">
+                                                    <span class="text-sm text-slate-400">Enter words to see preview</span>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" name="quiz[0][fingerspelling_letter_ids]" class="fingerspelling-letter-ids" value="">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1596,7 +1710,7 @@ function applySelectedMedia(target, fileData) {
             const img = document.createElement('img');
             img.className = 'media-thumb';
             img.src = fileData.url;
-            img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;';
+            img.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;';
             thumbWrap.appendChild(img);
             upgradeVideoThumbs(thumbWrap);
             const info = document.createElement('div');
@@ -1781,10 +1895,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Form validation on submit
     document.getElementById('lessonForm')?.addEventListener('submit', function(e) {
-        const validation = validateDragDropPairs();
-        if (!validation.isValid) {
+        let isValid = true;
+        try {
+            clearValidationErrors();
+            if (!validateLessonForm(false)) isValid = false;
+        } catch (err) {
+            // A crash in validation must NEVER result in a silent save
+            console.error('Validation crashed:', err);
+            addToValidationSummary('Validation could not complete. Please review the form and try again.');
+            isValid = false;
+        }
+
+        if (!isValid) {
             e.preventDefault();
-            alert(validation.errorMsg);
+            const firstBad = document.querySelector('.field-error, .section-error');
+            if (firstBad) {
+                firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof firstBad.focus === 'function' && firstBad.matches('input, select, textarea')) {
+                    setTimeout(() => firstBad.focus({ preventScroll: true }), 350);
+                }
+            }
             return;
         }
     });
@@ -1920,6 +2050,10 @@ function handleQuestionTypeChange(select) {
         const moduleSelect = gestureContainer.querySelector('.gesture-module-select');
         if (moduleSelect && moduleSelect.value) {
             loadGesturesForModule(moduleSelect, qIndex);
+            if (moduleSelect.value === '6') {
+                const wordContainer = questionDiv.querySelector('.fingerspelling-word-container');
+                if (wordContainer) wordContainer.classList.remove('hidden');
+            }
         }
     } else if (select.value === 'multiple_choice') {
         if (optionsContainer) optionsContainer.classList.remove('hidden');
@@ -1940,7 +2074,7 @@ function buildOptionRow(qIndex, optIndex) {
             <input type="text" name="quiz[${qIndex}][options][${optIndex}][text]" class="option-text-input w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-[#0d326b] outline-none transition-all" placeholder="Option ${letter} text">
             <div class="option-image-row flex items-center gap-2">
                 <input type="hidden" name="quiz[${qIndex}][options][${optIndex}][existing_image]" value="" class="media-path-input">
-                <img class="option-image-preview w-11 h-11 rounded-lg object-cover border border-slate-200 flex-shrink-0" src="" alt="" style="display:none;">
+                <img class="option-image-preview w-16 h-16 rounded-lg object-cover border border-slate-200 flex-shrink-0" src="" alt="" style="display:none;">
                 <label class="text-xs text-[#0d326b] font-semibold cursor-pointer hover:underline flex items-center gap-1 flex-shrink-0">
                     <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
                     <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
@@ -2102,9 +2236,14 @@ function loadGesturesForModule(select, questionIndex) {
     const previewContainer = questionDiv.querySelector('.selected-gestures-preview');
     const tagsContainer = document.getElementById(`selectedGestureTags_${questionIndex}`);
 
+    // Fingerspelling word container (only present for the fingerspelling module)
+    const wordContainer = questionDiv.querySelector('.fingerspelling-word-container');
+    const wordTextarea = wordContainer ? wordContainer.querySelector('.fingerspelling-words-textarea') : null;
+
     if (!moduleId) {
         checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Select a module first</span>';
         if (previewContainer) previewContainer.style.display = 'none';
+        if (wordContainer) wordContainer.classList.add('hidden');
         return;
     }
 
@@ -2121,6 +2260,15 @@ function loadGesturesForModule(select, questionIndex) {
 
     checkboxesContainer.innerHTML = '<span class="text-sm text-slate-400">Loading gestures...</span>';
 
+    // Fingerspelling module (id 6): load the full alphabet instead of the module's own gesture list
+    if (moduleId === '6') {
+        if (wordContainer) wordContainer.classList.remove('hidden');
+        loadFingerspellingLetters(checkboxesContainer, questionIndex, selectedIds);
+        return;
+    }
+
+    if (wordContainer) wordContainer.classList.add('hidden');
+
     fetch(`/api/gesture-modules/${moduleId}/gestures`, {
         headers: {
             'X-CSRF-TOKEN': CSRF_TOKEN,
@@ -2132,40 +2280,8 @@ function loadGesturesForModule(select, questionIndex) {
         checkboxesContainer.innerHTML = '';
         if (data.gestures && data.gestures.length > 0) {
             data.gestures.forEach(gesture => {
-                const label = document.createElement('label');
-                label.className = 'gesture-checkbox-label';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.name = `quiz[${questionIndex}][gesture_ids][]`;
-                checkbox.value = gesture.gesture_id;
-                checkbox.className = 'gesture-checkbox';
-                checkbox.dataset.displayName = gesture.display_name || gesture.name;
-
-                const checkIcon = document.createElement('span');
-                checkIcon.className = 'check-icon';
-                checkIcon.textContent = '✓';
-
-                checkbox.onchange = function() {
-                    if (this.checked) {
-                        label.classList.add('selected');
-                    } else {
-                        label.classList.remove('selected');
-                    }
-                    updateGesturePreview(questionIndex);
-                };
-
-                const span = document.createElement('span');
-                span.textContent = gesture.display_name || gesture.name;
-
-                if (selectedIds.includes(Number(gesture.gesture_id))) {
-                    checkbox.checked = true;
-                    label.classList.add('selected');
-                }
-
-                label.appendChild(checkbox);
-                label.appendChild(span);
-                label.appendChild(checkIcon);
+                const isSelected = selectedIds.includes(Number(gesture.gesture_id));
+                const label = createGestureCheckbox(gesture, questionIndex, isSelected);
                 checkboxesContainer.appendChild(label);
             });
             updateGesturePreview(questionIndex);
@@ -2177,6 +2293,214 @@ function loadGesturesForModule(select, questionIndex) {
         console.error('Error loading gestures:', error);
         checkboxesContainer.innerHTML = '<span class="text-sm text-red-500">Error loading gestures</span>';
     });
+}
+
+/**
+ * Load all alphabet letters (A-Z) from both alphabet modules for the Fingerspelling module.
+ */
+function loadFingerspellingLetters(container, questionIndex, selectedIds) {
+    selectedIds = selectedIds || [];
+    const alphabetModuleIds = [1, 2];
+    let allGestures = [];
+    let completed = 0;
+
+    container.innerHTML = '<span class="text-sm text-slate-400">Loading alphabet letters...</span>';
+
+    alphabetModuleIds.forEach(modId => {
+        fetch(`/api/gesture-modules/${modId}/gestures`, {
+            headers: {
+                'X-CSRF-TOKEN': CSRF_TOKEN,
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.gestures && data.gestures.length > 0) {
+                data.gestures.forEach(g => {
+                    g._module_id = modId;
+                    g._module_label = modId === 1 ? 'A-M' : 'N-Z';
+                });
+                allGestures = allGestures.concat(data.gestures);
+            }
+            completed++;
+            if (completed === alphabetModuleIds.length) {
+                renderFingerspellingGestures(container, allGestures, questionIndex, selectedIds);
+            }
+        })
+        .catch(error => {
+            console.error(`Error loading alphabet module ${modId}:`, error);
+            completed++;
+            if (completed === alphabetModuleIds.length) {
+                if (allGestures.length === 0) {
+                    container.innerHTML = '<span class="text-sm text-red-500">Error loading alphabet letters</span>';
+                } else {
+                    renderFingerspellingGestures(container, allGestures, questionIndex, selectedIds);
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Render the combined alphabet gestures with module labels.
+ */
+function renderFingerspellingGestures(container, gestures, questionIndex, selectedIds) {
+    selectedIds = selectedIds || [];
+    container.innerHTML = '';
+
+    if (!gestures || gestures.length === 0) {
+        container.innerHTML = '<span class="text-sm text-slate-400">No alphabet letters found</span>';
+        return;
+    }
+
+    // Sort by gesture_id (A=1, B=2, ... Z=26)
+    gestures.sort((a, b) => a.gesture_id - b.gesture_id);
+
+    const headerNote = document.createElement('div');
+    headerNote.style.cssText = 'width:100%;margin-bottom:8px;font-size:12px;color:#64748b;font-weight:600;';
+    headerNote.textContent = 'All 26 letters available for fingerspelling';
+    container.appendChild(headerNote);
+
+    gestures.forEach(gesture => {
+        const isSelected = selectedIds.includes(Number(gesture.gesture_id));
+        const label = createGestureCheckbox(gesture, questionIndex, isSelected);
+        container.appendChild(label);
+    });
+
+    updateGesturePreview(questionIndex);
+
+    // If this question already has saved fingerspelling words (edit mode), re-derive the
+    // preview and letter selection from them now that the checkboxes exist.
+    const questionDiv = container.closest('.quiz-question');
+    const wordContainer = questionDiv ? questionDiv.querySelector('.fingerspelling-word-container') : null;
+    const wordTextarea = wordContainer ? wordContainer.querySelector('.fingerspelling-words-textarea') : null;
+    if (wordTextarea && wordTextarea.value.trim()) {
+        updateFingerspellingWordPreview(wordTextarea);
+    }
+}
+
+// ─── FINGERSPELLING WORD PREVIEW ───────────────────────────────────────────
+function updateFingerspellingWordPreview(textarea) {
+    const container = textarea.closest('.fingerspelling-word-container');
+    if (!container) return;
+
+    const questionDiv = container.closest('.quiz-question');
+    const qIndex = getQuizQuestionIndex(questionDiv);
+    const previewDiv = container.querySelector('.fingerspelling-words-preview');
+    const letterIdsInput = container.querySelector('.fingerspelling-letter-ids');
+
+    const raw = textarea.value;
+    let words = raw.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .flatMap(line => line.split(' '))
+        .map(word => word.toUpperCase().replace(/[^A-Z]/g, ''))
+        .filter(word => word.length > 0);
+
+    words = [...new Set(words)];
+
+    if (words.length === 0) {
+        previewDiv.innerHTML = '<span class="text-sm text-slate-400">Enter words to spell (one per line)</span>';
+        if (letterIdsInput) letterIdsInput.value = '';
+
+        const checkboxes = questionDiv.querySelectorAll('.gesture-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+            const label = cb.closest('.gesture-checkbox-label');
+            if (label) label.classList.remove('selected');
+        });
+        updateGesturePreview(qIndex);
+        return;
+    }
+
+    let html = '';
+    let allLetterIds = [];
+
+    words.forEach((word) => {
+        const letters = word.split('');
+        const wordLetterIds = letters.map(letter => {
+            const id = letter.charCodeAt(0) - 64; // A=1, B=2, ...
+            return id >= 1 && id <= 26 ? id : null;
+        }).filter(id => id !== null);
+
+        allLetterIds = allLetterIds.concat(wordLetterIds);
+
+        html += `
+            <div class="fingerspelling-word-pill">
+                <div class="word-letters">
+                    ${letters.map(letter => `<span>${letter}</span>`).join('')}
+                </div>
+                <span class="word-count">${letters.length} letters</span>
+            </div>
+        `;
+    });
+
+    previewDiv.innerHTML = html;
+
+    if (letterIdsInput) {
+        letterIdsInput.value = allLetterIds.join(',');
+    }
+
+    const uniqueLetterIds = [...new Set(allLetterIds)];
+    const checkboxes = questionDiv.querySelectorAll('.gesture-checkbox');
+    checkboxes.forEach(cb => {
+        const isChecked = uniqueLetterIds.includes(parseInt(cb.value));
+        cb.checked = isChecked;
+        const label = cb.closest('.gesture-checkbox-label');
+        if (label) {
+            if (isChecked) {
+                label.classList.add('selected');
+            } else {
+                label.classList.remove('selected');
+            }
+        }
+    });
+
+    updateGesturePreview(qIndex);
+    if (letterIdsInput) letterIdsInput.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/**
+ * Helper to create a gesture checkbox label. `isSelected` pre-checks it (used for
+ * pre-selected gesture IDs when editing an existing question).
+ */
+function createGestureCheckbox(gesture, questionIndex, isSelected) {
+    const label = document.createElement('label');
+    label.className = 'gesture-checkbox-label';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = `quiz[${questionIndex}][gesture_ids][]`;
+    checkbox.value = gesture.gesture_id;
+    checkbox.className = 'gesture-checkbox';
+    checkbox.dataset.displayName = gesture.display_name || gesture.name;
+
+    const checkIcon = document.createElement('span');
+    checkIcon.className = 'check-icon';
+    checkIcon.textContent = '✓';
+
+    checkbox.onchange = function() {
+        if (this.checked) {
+            label.classList.add('selected');
+        } else {
+            label.classList.remove('selected');
+        }
+        updateGesturePreview(questionIndex);
+    };
+
+    const span = document.createElement('span');
+    span.textContent = gesture.display_name || gesture.name;
+
+    if (isSelected) {
+        checkbox.checked = true;
+        label.classList.add('selected');
+    }
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    label.appendChild(checkIcon);
+
+    return label;
 }
 
 function updateGesturePreview(questionIndex) {
@@ -2298,6 +2622,29 @@ function addQuizQuestion() {
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Selected Gestures</label>
                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_${qIndex}"></div>
                     </div>
+
+                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">📝 Fingerspelling Words</label>
+                        <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
+                        <div class="space-y-3">
+                            <div>
+                                <textarea
+                                    name="quiz[${qIndex}][fingerspelling_words]"
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all fingerspelling-words-textarea"
+                                    placeholder="Enter one word per line&#10;Example:&#10;HELLO&#10;NICE&#10;SENYAS"
+                                    rows="4"
+                                    oninput="updateFingerspellingWordPreview(this)"
+                                ></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Preview</label>
+                                <div class="fingerspelling-words-preview" id="fingerspellingPreview_${qIndex}">
+                                    <span class="text-sm text-slate-400">Enter words to see preview</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="quiz[${qIndex}][fingerspelling_letter_ids]" class="fingerspelling-letter-ids" value="">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2372,6 +2719,17 @@ function reindexQuizQuestions() {
             if (tagsContainer) {
                 tagsContainer.id = `selectedGestureTags_${qIndex}`;
             }
+
+            // Relabel fingerspelling fields
+            const wordContainer = gestureContainer.querySelector('.fingerspelling-word-container');
+            if (wordContainer) {
+                const wordTextarea = wordContainer.querySelector('.fingerspelling-words-textarea');
+                if (wordTextarea) wordTextarea.name = `quiz[${qIndex}][fingerspelling_words]`;
+                const letterIdsInput = wordContainer.querySelector('.fingerspelling-letter-ids');
+                if (letterIdsInput) letterIdsInput.name = `quiz[${qIndex}][fingerspelling_letter_ids]`;
+                const previewDiv = wordContainer.querySelector('[id^="fingerspellingPreview_"]');
+                if (previewDiv) previewDiv.id = `fingerspellingPreview_${qIndex}`;
+            }
         }
     });
     quizIndex = document.querySelectorAll('.quiz-question').length;
@@ -2399,6 +2757,386 @@ function updateAiQuizBtnState() {
     btn.style.opacity = hasContent ? '1' : '0.4';
     btn.style.pointerEvents = hasContent ? 'auto' : 'none';
     btn.title = hasContent ? 'Generate quiz questions from your lesson content using AI' : 'Add lesson content first to enable AI quiz generation';
+}
+
+/* ═══════════════════════════════════════════════════════
+   FORM VALIDATION
+═══════════════════════════════════════════════════════ */
+
+function validateLessonContent() {
+    let errors = [];
+
+    const contentCards = document.querySelectorAll('.content-card');
+    if (contentCards.length === 0) {
+        errors.push('Please add at least one content slide.');
+    }
+
+    contentCards.forEach((card, index) => {
+        const typeSelect = card.querySelector('.content-type');
+        const contentType = typeSelect ? typeSelect.value : 'text';
+        const titleInput = card.querySelector('input[name*="[title]"]');
+        const contentText = card.querySelector('textarea[name*="[content_text]"]');
+        const mediaInput = card.querySelector('input[name*="[existing_media]"]');
+
+        if (!titleInput || !titleInput.value.trim()) {
+            errors.push(`Content Slide ${index + 1}: Please add a title.`);
+        }
+
+        if (contentType === 'text') {
+            if (!contentText || !contentText.value.trim()) {
+                errors.push(`Content Slide ${index + 1}: Please add content text.`);
+            }
+        } else if (contentType === 'gesture_demo') {
+            const gestureName = card.querySelector('input[name*="[gesture_name]"]');
+            if (!gestureName || !gestureName.value.trim()) {
+                errors.push(`Content Slide ${index + 1}: Please enter a gesture name.`);
+            }
+        } else if (contentType === 'image' || contentType === 'video') {
+            if (!mediaInput || !mediaInput.value.trim()) {
+                errors.push(`Content Slide ${index + 1}: Please upload a ${contentType}.`);
+            }
+        }
+    });
+
+    return errors;
+}
+
+function validateQuizQuestions() {
+    let errors = [];
+    const questions = document.querySelectorAll('.quiz-question');
+
+    if (questions.length === 0) {
+        errors.push('Please add at least one quiz question.');
+        return errors;
+    }
+
+    questions.forEach((question, index) => {
+        const questionNum = index + 1;
+        const questionInput = question.querySelector('input[name*="[question]"]');
+
+        if (!questionInput || !questionInput.value.trim()) {
+            errors.push(`Quiz Question ${questionNum}: Please enter a question.`);
+        }
+
+        const typeSelect = question.querySelector('.question-type');
+        const questionType = typeSelect ? typeSelect.value : 'multiple_choice';
+
+        if (questionType === 'multiple_choice' || questionType === 'true_false') {
+            const options = question.querySelectorAll('.option-row');
+            const hasValidOption = Array.from(options).some(opt => {
+                const textInput = opt.querySelector('.option-text-input');
+                const imageInput = opt.querySelector('input[name*="[existing_image]"]');
+                return (textInput && textInput.value.trim()) || (imageInput && imageInput.value.trim());
+            });
+
+            if (options.length < 2) {
+                errors.push(`Quiz Question ${questionNum}: Need at least 2 options for ${questionType === 'true_false' ? 'True/False' : 'Multiple Choice'}.`);
+            } else if (!hasValidOption) {
+                errors.push(`Quiz Question ${questionNum}: Each option needs text OR an image.`);
+            }
+
+            const correctRadio = question.querySelector('input[type="radio"]:checked');
+            if (!correctRadio) {
+                errors.push(`Quiz Question ${questionNum}: Please select the correct answer.`);
+            }
+
+        } else if (questionType === 'drag_drop') {
+            const pairs = question.querySelectorAll('.drag-drop-pair');
+
+            if (pairs.length < 2) {
+                errors.push(`Quiz Question ${questionNum}: Need at least 2 drag & drop pairs.`);
+            }
+
+            pairs.forEach((pair, pairIndex) => {
+                const leftText = pair.querySelector('input[name*="[left_text]"]');
+                const rightText = pair.querySelector('input[name*="[right_text]"]');
+                const leftImage = pair.querySelector('input[name*="[left_image]"]');
+                const rightImage = pair.querySelector('input[name*="[right_image]"]');
+
+                const hasLeftContent = (leftText && leftText.value.trim()) || (leftImage && leftImage.value.trim());
+                const hasRightContent = (rightText && rightText.value.trim()) || (rightImage && rightImage.value.trim());
+
+                if (!hasLeftContent) {
+                    errors.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Left item needs text OR an image.`);
+                }
+                if (!hasRightContent) {
+                    errors.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Right item needs text OR an image.`);
+                }
+            });
+
+        } else if (questionType === 'gesture') {
+            const moduleSelect = question.querySelector('.gesture-module-select');
+            const selectedGestures = question.querySelectorAll('.gesture-checkbox:checked');
+
+            if (!moduleSelect || !moduleSelect.value) {
+                errors.push(`Quiz Question ${questionNum}: Please select a gesture module.`);
+            }
+
+            if (selectedGestures.length === 0) {
+                errors.push(`Quiz Question ${questionNum}: Please select at least one gesture.`);
+            }
+        }
+    });
+
+    return errors;
+}
+
+function clearValidationErrors() {
+    document.querySelectorAll('.field-error').forEach(el => {
+        el.classList.remove('field-error');
+    });
+    document.querySelectorAll('.section-error').forEach(el => {
+        el.classList.remove('section-error');
+    });
+    document.querySelectorAll('.error-message').forEach(el => {
+        el.remove();
+    });
+
+    document.querySelectorAll('.media-upload-widget').forEach(widget => {
+        widget.style.borderColor = '';
+        widget.style.borderWidth = '';
+    });
+}
+
+// Show error on a specific field
+function showFieldError(field, message) {
+    if (!field) return;
+
+    field.classList.add('field-error');
+
+    let errorEl = field.parentElement.querySelector('.error-message');
+    if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'error-message';
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+        field.parentElement.appendChild(errorEl);
+    } else {
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+    }
+}
+
+// Show section error (for whole cards)
+function showSectionError(element, message) {
+    if (!element) return;
+    element.classList.add('section-error');
+
+    let errorEl = element.querySelector('.section-error-message');
+    if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'error-message section-error-message';
+        errorEl.style.marginTop = '12px';
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+        element.appendChild(errorEl);
+    } else {
+        errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> ${message}`;
+    }
+}
+
+// Add error to validation summary
+// Inline red highlights are the only error UI; no summary list.
+function addToValidationSummary(message) {
+    console.warn('Validation:', message);
+}
+
+function validateLessonForm(shouldClear = true) {
+    if (shouldClear) clearValidationErrors();
+    let hasErrors = false;
+    let errorMessages = [];
+
+    const contentCards = document.querySelectorAll('.content-card');
+    const questions = document.querySelectorAll('.quiz-question');
+    const hasContent = contentCards.length > 0;
+    const hasQuiz = questions.length > 0;
+
+    if (!hasContent && !hasQuiz) {
+        errorMessages.push('Please add at least one content slide OR one quiz question.');
+        hasErrors = true;
+        const contentSection = document.getElementById('contentCards')?.closest('div');
+        if (contentSection) {
+            contentSection.classList.add('section-error');
+        }
+        const quizSection = document.getElementById('quizQuestions')?.closest('div');
+        if (quizSection) {
+            quizSection.classList.add('section-error');
+        }
+    }
+
+    // Validate Lesson Content Cards
+    contentCards.forEach((card, index) => {
+        const cardNum = index + 1;
+        const typeSelect = card.querySelector('.content-type');
+        const contentType = typeSelect ? typeSelect.value : 'text';
+        const titleInput = card.querySelector('input[name*="[title]"]');
+        const contentText = card.querySelector('textarea[name*="[content_text]"]');
+        const mediaInput = card.querySelector('input[name*="[existing_media]"]');
+        const mediaWidget = card.querySelector('.media-upload-widget');
+        let cardHasError = false;
+
+        if (!titleInput || !titleInput.value.trim()) {
+            showFieldError(titleInput, 'Please enter a title for this slide');
+            errorMessages.push(`Content Slide ${cardNum}: Missing title`);
+            cardHasError = true;
+            hasErrors = true;
+        }
+
+        if (contentType === 'text') {
+            if (!contentText || !contentText.value.trim()) {
+                showFieldError(contentText, 'Please add content text for this slide');
+                errorMessages.push(`Content Slide ${cardNum}: Missing content text`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        } else if (contentType === 'gesture_demo') {
+            const gestureName = card.querySelector('input[name*="[gesture_name]"]');
+            if (!gestureName || !gestureName.value.trim()) {
+                showFieldError(gestureName, 'Please enter a gesture name');
+                errorMessages.push(`Content Slide ${cardNum}: Missing gesture name`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        } else if (contentType === 'image' || contentType === 'video') {
+            if (!mediaInput || !mediaInput.value.trim()) {
+                if (mediaWidget) {
+                    mediaWidget.style.borderColor = '#EF4444';
+                    mediaWidget.style.borderWidth = '2px';
+                    const existingError = mediaWidget.parentElement.querySelector('.error-message');
+                    if (existingError) existingError.remove();
+                    const errorEl = document.createElement('div');
+                    errorEl.className = 'error-message';
+                    errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> Please upload a ${contentType}`;
+                    mediaWidget.parentElement.appendChild(errorEl);
+                }
+                errorMessages.push(`Content Slide ${cardNum}: Missing ${contentType}`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        }
+
+        if (cardHasError) {
+            card.classList.add('section-error');
+        }
+    });
+
+    // Validate Quiz Questions
+    questions.forEach((question, index) => {
+        const questionNum = index + 1;
+        const questionInput = question.querySelector('input[name*="[question]"]');
+        let questionHasError = false;
+
+        if (!questionInput || !questionInput.value.trim()) {
+            showFieldError(questionInput, 'Please enter a question');
+            errorMessages.push(`Quiz Question ${questionNum}: Missing question text`);
+            questionHasError = true;
+            hasErrors = true;
+        }
+
+        const typeSelect = question.querySelector('.question-type');
+        const questionType = typeSelect ? typeSelect.value : 'multiple_choice';
+
+        if (questionType === 'multiple_choice' || questionType === 'true_false') {
+            const options = question.querySelectorAll('.option-row');
+            const hasValidOption = Array.from(options).some(opt => {
+                const textInput = opt.querySelector('.option-text-input');
+                const imageInput = opt.querySelector('input[name*="[existing_image]"]');
+                return (textInput && textInput.value.trim()) || (imageInput && imageInput.value.trim());
+            });
+
+            if (options.length < 2) {
+                const optionsContainer = question.querySelector('.options-container');
+                const errorMsg = `Need at least 2 options for ${questionType === 'true_false' ? 'True/False' : 'Multiple Choice'}`;
+                showSectionError(optionsContainer, errorMsg);
+                errorMessages.push(`Quiz Question ${questionNum}: ${errorMsg}`);
+                questionHasError = true;
+                hasErrors = true;
+            } else if (!hasValidOption) {
+                const optionsContainer = question.querySelector('.options-container');
+                showSectionError(optionsContainer, 'Each option needs text OR an image');
+                errorMessages.push(`Quiz Question ${questionNum}: Options need text or images`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+
+            const correctRadio = question.querySelector('input[type="radio"]:checked');
+            if (!correctRadio) {
+                const optionsContainer = question.querySelector('.options-container');
+                showSectionError(optionsContainer, 'Please select the correct answer');
+                errorMessages.push(`Quiz Question ${questionNum}: No correct answer selected`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+
+        } else if (questionType === 'drag_drop') {
+            const pairs = question.querySelectorAll('.drag-drop-pair');
+            const dragDropContainer = question.querySelector('.drag-drop-container');
+
+            if (pairs.length < 2) {
+                showSectionError(dragDropContainer, 'Need at least 2 drag & drop pairs');
+                errorMessages.push(`Quiz Question ${questionNum}: Need at least 2 drag & drop pairs`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+
+            pairs.forEach((pair, pairIndex) => {
+                const leftText = pair.querySelector('input[name*="[left_text]"]');
+                const rightText = pair.querySelector('input[name*="[right_text]"]');
+                const leftImage = pair.querySelector('input[name*="[left_image]"]');
+                const rightImage = pair.querySelector('input[name*="[right_image]"]');
+
+                const hasLeftContent = (leftText && leftText.value.trim()) || (leftImage && leftImage.value.trim());
+                const hasRightContent = (rightText && rightText.value.trim()) || (rightImage && rightImage.value.trim());
+
+                if (!hasLeftContent) {
+                    showFieldError(leftText, 'Left item needs text OR an image');
+                    errorMessages.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Left item missing content`);
+                    questionHasError = true;
+                    hasErrors = true;
+                }
+                if (!hasRightContent) {
+                    showFieldError(rightText, 'Right item needs text OR an image');
+                    errorMessages.push(`Quiz Question ${questionNum}, Pair ${pairIndex + 1}: Right item missing content`);
+                    questionHasError = true;
+                    hasErrors = true;
+                }
+            });
+
+        } else if (questionType === 'gesture') {
+            const moduleSelect = question.querySelector('.gesture-module-select');
+            const selectedGestures = question.querySelectorAll('.gesture-checkbox:checked');
+            const gestureContainer = question.querySelector('.gesture-quiz-container');
+
+            if (!moduleSelect || !moduleSelect.value) {
+                showFieldError(moduleSelect, 'Please select a gesture module');
+                errorMessages.push(`Quiz Question ${questionNum}: No gesture module selected`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+
+            if (selectedGestures.length === 0) {
+                const checkboxesContainer = question.querySelector('#gestureCheckboxes_' + index);
+                if (checkboxesContainer) {
+                    const existingError = checkboxesContainer.parentElement.querySelector('.error-message');
+                    if (existingError) existingError.remove();
+                    const errorEl = document.createElement('div');
+                    errorEl.className = 'error-message';
+                    errorEl.innerHTML = `<span class="material-symbols-outlined">error</span> Please select at least one gesture`;
+                    checkboxesContainer.parentElement.appendChild(errorEl);
+                }
+                errorMessages.push(`Quiz Question ${questionNum}: No gestures selected`);
+                questionHasError = true;
+                hasErrors = true;
+            }
+        }
+
+        if (questionHasError) {
+            question.classList.add('section-error');
+        }
+    });
+
+    if (hasErrors) {
+        errorMessages.forEach(msg => addToValidationSummary(msg));
+    }
+
+    return !hasErrors;
 }
 
 function openAiQuizModal() {

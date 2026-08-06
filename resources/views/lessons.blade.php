@@ -330,35 +330,43 @@
                 MODULE {{ $padNum }}
             </div>
 
-            {{-- Module Header --}}
-            <div class="module-header">
-                <div class="module-title-wrap">
-                    <div class="module-icon" style="background:{{ $modColor }}15; color:{{ $modColor }};">
-                        {{ $modIcon }}
-                    </div>
-                    <div>
-                        <div class="module-title-text">{{ $module->title }}</div>
-                        <div class="module-meta">
-                            {{ $lessonCount }} lesson{{ $lessonCount !== 1 ? 's' : '' }}
-                            @if($module->description)
-                            <span class="mx-1.5">·</span> {{ $module->description }}
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                <div class="module-stats">
-                    <span class="module-stat-item">
-                        <span class="material-symbols-outlined">check_circle</span>
-                        {{ $published }} published
-                    </span>
-                    <div class="module-progress">
-                        <div class="module-progress-fill" style="width:{{ $progress }}%"></div>
-                    </div>
-                    <span class="module-stat-item" style="font-weight:700;color:#0d326b;min-width:36px;">
-                        {{ $progress }}%
-                    </span>
-                </div>
+   {{-- Module Header --}}
+<div class="module-header" style="position: relative;">
+    <div class="module-title-wrap">
+        <div class="module-icon" style="background:{{ $modColor }}15; color:{{ $modColor }};">
+            {{ $modIcon }}
+        </div>
+        <div>
+            <div class="module-title-text">{{ $module->title }}</div>
+            <div class="module-meta">
+                {{ $lessonCount }} lesson{{ $lessonCount !== 1 ? 's' : '' }}
+                @if($module->description)
+                <span class="mx-1.5">·</span> {{ $module->description }}
+                @endif
             </div>
+        </div>
+    </div>
+    
+    <div class="module-stats" style="padding-right: 48px;">
+        <span class="module-stat-item">
+            <span class="material-symbols-outlined">check_circle</span>
+            {{ $published }} published
+        </span>
+        <div class="module-progress">
+            <div class="module-progress-fill" style="width:{{ $progress }}%"></div>
+        </div>
+        <span class="module-stat-item" style="font-weight:700;color:#0d326b;min-width:36px;">
+            {{ $progress }}%
+        </span>
+    </div>
+    
+    {{-- Delete Module Icon Button - Fixed Top Right --}}
+    <a href="{{ route('modules.delete-options', $module->module_id) }}" 
+       class="absolute top-4 right-4 w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-red-400 hover:bg-red-50 transition-all flex items-center justify-center text-slate-400 hover:text-red-500 flex-shrink-0"
+       title="Delete Module">
+        <span class="material-symbols-outlined text-[18px]">delete</span>
+    </a>
+</div>
 
             {{-- Lessons Table --}}
             <div class="lesson-table-wrap">
@@ -875,29 +883,45 @@ function executeDelete() {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({})
     })
     .then(response => {
+        // First check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json().then(data => {
+                if (!response.ok) {
+                    throw new Error(data.message || 'Server error');
+                }
+                return data;
+            });
+        }
+        // If not JSON, it might be a redirect
         if (response.redirected) {
-            // Redirect to the index page with the success message
             window.location.href = response.url;
             return;
         }
-        return response.json();
+        throw new Error('Unexpected response format');
     })
     .then(data => {
         if (data && data.success) {
             showToast('success', data.message || 'Operation completed');
-            setTimeout(() => window.location.reload(), 1500);
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                setTimeout(() => window.location.reload(), 1500);
+            }
         } else {
             showToast('error', data?.message || 'Something went wrong');
             btn.disabled = false;
             btn.textContent = 'Try Again';
         }
     })
-    .catch(() => {
-        showToast('error', 'Network error. Please try again.');
+    .catch(error => {
+        console.error('Delete error:', error);
+        showToast('error', error.message || 'Network error. Please try again.');
         btn.disabled = false;
         btn.textContent = 'Try Again';
     });

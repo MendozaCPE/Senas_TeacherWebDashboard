@@ -7,16 +7,18 @@ use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\ModulesController; // ✅ ADD THIS IMPORT
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
-use Illuminate\Http\Request; // ✅ FIXED: Added missing Request class import
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\BinaryFileResponse; 
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 Route::post('/lessons/upload-media-test', function (Request $request) {
     return response()->json(['message' => 'Upload route is working!']);
 })->name('lessons.upload-media-test');
+
 // ── Auth Routes (guests only) ────────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -47,7 +49,6 @@ Route::get('/terms', [AuthController::class, 'showTerms'])->name('terms');
 // ── Logout ───────────────────────────────────────────────────────────────────
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-
 // ── Video Proxy Layer ────────────────────────────────────────────────────────
 Route::get('/video-proxy/{path}', function ($path) {
     $fullPath = storage_path('app/public/' . $path);
@@ -56,11 +57,9 @@ Route::get('/video-proxy/{path}', function ($path) {
         abort(404, 'Video path cannot be found.');
     }
     
-    // ✅ FIXED: Using BinaryFileResponse automates stream splitting + byte range headers for iOS
     $response = new BinaryFileResponse($fullPath);
     BinaryFileResponse::trustXSendfileTypeHeader();
     
-    // Add CORS permissions to allow mobile platforms to load media resources smoothly
     $response->headers->set('Access-Control-Allow-Origin', '*');
     $response->headers->set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     $response->headers->set('Access-Control-Allow-Headers', '*');
@@ -73,7 +72,6 @@ Route::get('/video-proxy/{path}', function ($path) {
 Route::get('/media-player', function () {
     return view('media-player');
 });
-
 
 // ── Protected Routes (must be logged in) ─────────────────────────────────────
 Route::middleware(['auth', 'no.cache'])->group(function () {
@@ -107,9 +105,7 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::post('/lessons/ai-generate-quiz', [LessonsController::class, 'aiGenerateQuiz'])->name('lessons.ai-generate-quiz');
     Route::post('/lessons/upload-media', [LessonsController::class, 'uploadMedia'])->name('lessons.upload-media');
 
-
-
-    // Add these new routes:
+    // Lesson management
     Route::get('/lessons/{lesson}/view', [LessonsController::class, 'view'])->name('lessons.view');
     Route::get('/lessons/{lesson}/preview-modal', [LessonsController::class, 'previewModal'])->name('lessons.preview-modal');
     Route::get('/lessons/{lesson}/edit', [LessonsController::class, 'edit'])->name('lessons.edit');
@@ -119,9 +115,8 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::post('/lessons/{lesson}/publish', [LessonsController::class, 'publishLesson'])->name('lessons.publish');
     
     Route::post('/lessons/{id}/soft-delete', [LessonsController::class, 'softDelete'])->name('lessons.soft-delete');
-Route::post('/lessons/{id}/hard-delete', [LessonsController::class, 'hardDelete'])->name('lessons.hard-delete');
-Route::post('/lessons/{id}/restore', [LessonsController::class, 'restore'])->name('lessons.restore');
-
+    Route::post('/lessons/{id}/hard-delete', [LessonsController::class, 'hardDelete'])->name('lessons.hard-delete');
+    Route::post('/lessons/{id}/restore', [LessonsController::class, 'restore'])->name('lessons.restore');
 
     Route::delete('/lessons/{id}', [LessonsController::class, 'destroy'])->name('lessons.destroy');
     Route::get('/lessons/{id}/students', [LessonsController::class, 'manageStudents'])->name('lessons.students');
@@ -159,32 +154,45 @@ Route::post('/lessons/{id}/restore', [LessonsController::class, 'restore'])->nam
     // Global Search Auto-complete API
     Route::get('/api/global-search', [GlobalSearchController::class, 'suggestions'])->name('api.global-search');
 
+    // API: Get gestures for a gesture module
     Route::get('/api/gesture-modules/{moduleId}/gestures', function ($moduleId) {
-    $module = App\Models\GestureModule::with('gestures')->find($moduleId);
-    if (!$module) {
-        return response()->json(['gestures' => []]);
-    }
-    return response()->json([
-        'module' => $module,
-        'gestures' => $module->gestures->map(function ($g) {
-            return [
-                'gesture_id' => $g->gesture_id,
-                'name' => $g->name,
-                'display_name' => $g->display_name ?? $g->name,
-            ];
-        })
-    ]);
-})->name('api.gesture-module.gestures');
+        $module = App\Models\GestureModule::with('gestures')->find($moduleId);
+        if (!$module) {
+            return response()->json(['gestures' => []]);
+        }
+        return response()->json([
+            'module' => $module,
+            'gestures' => $module->gestures->map(function ($g) {
+                return [
+                    'gesture_id' => $g->gesture_id,
+                    'name' => $g->name,
+                    'display_name' => $g->display_name ?? $g->name,
+                ];
+            })
+        ]);
+    })->name('api.gesture-module.gestures');
 
-Route::prefix('lessons/checkpoint-exam')->name('lessons.checkpoint-exam.')->group(function () {
-    Route::get('/create', [LessonsController::class, 'createCheckpointExam'])->name('create');
-    Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
-    Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
-    Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
-    Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
-    Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
-});
+    // Checkpoint Exam Routes
+    Route::prefix('lessons/checkpoint-exam')->name('lessons.checkpoint-exam.')->group(function () {
+        Route::get('/create', [LessonsController::class, 'createCheckpointExam'])->name('create');
+        Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
+        Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
+        Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
+        Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
+        Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
+    });
 
+    // ── Module Management Routes ──────────────────────────────────────────────
+    // Show delete options page
+    Route::get('/modules/{id}/delete-options', [ModulesController::class, 'showDeleteOptions'])
+        ->name('modules.delete-options');
+    
+    // Delete module with options (AJAX)
+    Route::post('/modules/{id}/delete-with-options', [ModulesController::class, 'deleteWithOptions'])
+        ->name('modules.delete-with-options');
+    
+    // Simple delete (redirects to options page)
+    Route::delete('/modules/{id}', [ModulesController::class, 'destroy'])
+        ->name('modules.destroy');
 
-
-});
+}); // END of auth middleware group

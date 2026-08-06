@@ -192,9 +192,9 @@
         color: #6B7280;
     }
     .option-image-preview {
-        width: 44px;
-        height: 44px;
-        border-radius: 9px;
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
         object-fit: cover;
         border: 1.5px solid #E5EAF2;
         display: none;
@@ -373,8 +373,8 @@
     }
     .media-upload-widget.has-file .media-thumb-wrap { display: flex; }
     .media-upload-widget .media-thumb {
-        width: 60px;
-        height: 60px;
+        width: 130px;
+        height: 130px;
         object-fit: cover;
         border-radius: 8px;
         border: 1.5px solid #e2e8f0;
@@ -382,8 +382,8 @@
     }
     .media-upload-widget .media-thumb-info {
     .media-upload-widget .media-thumb-video {
-        width: 148px;
-        height: 92px;
+        width: 220px;
+        height: 138px;
         object-fit: cover;
         border-radius: 10px;
         border: 1.5px solid #e2e8f0;
@@ -2737,6 +2737,28 @@ function reindexQuizQuestions() {
             if (gestureModuleSelect) {
                 gestureModuleSelect.name = `quiz[${qIndex}][gesture_module_id]`;
                 gestureModuleSelect.setAttribute('onchange', `loadGesturesForModule(this, ${qIndex})`);
+            }
+            const checkboxesContainer = gestureContainer.querySelector('[id^="gestureCheckboxes_"]');
+            if (checkboxesContainer) {
+                checkboxesContainer.id = `gestureCheckboxes_${qIndex}`;
+                checkboxesContainer.querySelectorAll('.gesture-checkbox').forEach(checkbox => {
+                    checkbox.name = `quiz[${qIndex}][gesture_ids][]`;
+                });
+            }
+            const tagsContainer = gestureContainer.querySelector('[id^="selectedGestureTags_"]');
+            if (tagsContainer) {
+                tagsContainer.id = `selectedGestureTags_${qIndex}`;
+            }
+
+            // Reindex fingerspelling fields
+            const wordContainer = gestureContainer.querySelector('.fingerspelling-word-container');
+            if (wordContainer) {
+                const wordTextarea = wordContainer.querySelector('.fingerspelling-words-textarea');
+                if (wordTextarea) wordTextarea.name = `quiz[${qIndex}][fingerspelling_words]`;
+                const letterIdsInput = wordContainer.querySelector('.fingerspelling-letter-ids');
+                if (letterIdsInput) letterIdsInput.name = `quiz[${qIndex}][fingerspelling_letter_ids]`;
+                const previewDiv = wordContainer.querySelector('[id^="fingerspellingPreview_"]');
+                if (previewDiv) previewDiv.id = `fingerspellingPreview_${qIndex}`;
             }
         }
     });

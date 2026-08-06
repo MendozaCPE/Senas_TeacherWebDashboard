@@ -1146,6 +1146,10 @@ public function softDelete($id)
  * Permanently delete a lesson AND all related student data
  * POST /lessons/{id}/hard-delete
  */
+/**
+ * Permanently delete a lesson AND all related student data
+ * POST /lessons/{id}/hard-delete
+ */
 public function hardDelete($id)
 {
     $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
@@ -1154,72 +1158,95 @@ public function hardDelete($id)
 
     \Log::info("🔥 HARD DELETING lesson #{$lesson->lesson_id} - {$lessonTitle}");
 
-    DB::transaction(function () use ($lesson) {
-        $lessonId = $lesson->lesson_id;
+    try {
+        DB::transaction(function () use ($lesson) {
+            $lessonId = $lesson->lesson_id;
 
-        // 1. Delete quiz attempts & student answers
-        if ($lesson->quiz) {
-            $quizId = $lesson->quiz->quiz_id;
+            // 1. Delete quiz attempts & student answers
+            if ($lesson->quiz) {
+                $quizId = $lesson->quiz->quiz_id;
 
-            DB::table('student_answers')
-                ->whereIn('attempt_id', function($query) use ($quizId) {
-                    $query->select('attempt_id')
-                        ->from('quiz_attempts')
-                        ->where('quiz_id', $quizId);
+                DB::table('student_answers')
+                    ->whereIn('attempt_id', function($query) use ($quizId) {
+                        $query->select('attempt_id')
+                            ->from('quiz_attempts')
+                            ->where('quiz_id', $quizId);
+                    })
+                    ->delete();
+
+                DB::table('quiz_attempts')
+                    ->where('quiz_id', $quizId)
+                    ->delete();
+
+                $lesson->quiz->questions()->each(function ($question) {
+                    $question->options()->delete();
+                });
+                $lesson->quiz->questions()->delete();
+                $lesson->quiz()->delete();
+            }
+
+            // 2. Delete student lesson progress
+            DB::table('student_lesson_progress')
+                ->where('lesson_id', $lessonId)
+                ->delete();
+
+            // 3. Delete lesson assignments
+            DB::table('lesson_assignments')
+                ->where('lesson_id', $lessonId)
+                ->delete();
+
+            // 4. Delete checkpoint exam data
+            DB::table('checkpoint_exam_attempts')
+                ->whereIn('exam_id', function($query) use ($lessonId) {
+                    $query->select('exam_id')
+                        ->from('checkpoint_exam_questions')
+                        ->where('source_lesson_id', $lessonId);
                 })
                 ->delete();
 
-            DB::table('quiz_attempts')
-                ->where('quiz_id', $quizId)
+            DB::table('checkpoint_exam_questions')
+                ->where('source_lesson_id', $lessonId)
                 ->delete();
 
-            $lesson->quiz->questions()->each(function ($question) {
-                $question->options()->delete();
-            });
-            $lesson->quiz->questions()->delete();
-            $lesson->quiz()->delete();
+            DB::table('checkpoint_exam_assignments')
+                ->whereIn('exam_id', function($query) use ($lessonId) {
+                    $query->select('exam_id')
+                        ->from('checkpoint_exam_questions')
+                        ->where('source_lesson_id', $lessonId);
+                })
+                ->delete();
+
+            // 5. Delete lesson contents
+            $lesson->contents()->delete();
+
+            // 6. Force delete (not soft delete)
+            $lesson->forceDelete();
+        });
+
+        // Check if it's an AJAX request
+        if (request()->ajax() || request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Lesson '{$lessonTitle}' has been PERMANENTLY deleted. All student data has been removed.",
+                'redirect' => route('lessons.index')
+            ]);
         }
 
-        // 2. Delete student lesson progress
-        DB::table('student_lesson_progress')
-            ->where('lesson_id', $lessonId)
-            ->delete();
+        return redirect()->route('lessons.index')
+            ->with('success', "Lesson '{$lessonTitle}' has been PERMANENTLY deleted. All student data has been removed.");
 
-        // 3. Delete lesson assignments
-        DB::table('lesson_assignments')
-            ->where('lesson_id', $lessonId)
-            ->delete();
-
-        // 4. Delete checkpoint exam data
-        DB::table('checkpoint_exam_attempts')
-            ->whereIn('exam_id', function($query) use ($lessonId) {
-                $query->select('exam_id')
-                    ->from('checkpoint_exam_questions')
-                    ->where('source_lesson_id', $lessonId);
-            })
-            ->delete();
-
-        DB::table('checkpoint_exam_questions')
-            ->where('source_lesson_id', $lessonId)
-            ->delete();
-
-        DB::table('checkpoint_exam_assignments')
-            ->whereIn('exam_id', function($query) use ($lessonId) {
-                $query->select('exam_id')
-                    ->from('checkpoint_exam_questions')
-                    ->where('source_lesson_id', $lessonId);
-            })
-            ->delete();
-
-        // 5. Delete lesson contents
-        $lesson->contents()->delete();
-
-        // 6. Force delete (not soft delete)
-        $lesson->forceDelete();
-    });
-
-    return redirect()->route('lessons.index')
-        ->with('success', "Lesson '{$lessonTitle}' has been PERMANENTLY deleted. All student data has been removed.");
+    } catch (\Exception $e) {
+        \Log::error('Hard delete failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        
+        if (request()->ajax() || request()->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete lesson: ' . $e->getMessage()
+            ], 500);
+        }
+        
+        return back()->with('error', 'Failed to delete lesson: ' . $e->getMessage());
+    }
 }
 
 /**
