@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
+Route::get('/landing', function () {
+    return view('landing.landing');
+});
+
 Route::post('/lessons/upload-media-test', function (Request $request) {
     return response()->json(['message' => 'Upload route is working!']);
 })->name('lessons.upload-media-test');
