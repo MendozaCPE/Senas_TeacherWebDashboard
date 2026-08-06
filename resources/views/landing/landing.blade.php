@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>SEÑAS · AI-Powered Filipino Sign Language Learning</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
   <style>
     /* ----- base & reset ----- */
     :root {
@@ -32,6 +32,12 @@
       --shadow-lg: 0 30px 70px -22px rgba(11,20,45,.45);
       --shadow-sm: 0 12px 28px -14px rgba(11,20,45,.22);
       --shadow-xl: 0 40px 80px -24px rgba(11,20,45,.5);
+      /* Refined palette for card tints */
+      --primary-accent: #72383D;
+      --dark-brown: #322D29;
+      --deep-burgundy: #2C0E11;
+      --muted-taupe: #9F8E87;
+      --off-white: #F7F6F5;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     html { scroll-behavior:smooth; font-size:16px; }
@@ -70,6 +76,9 @@
     @keyframes heroFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
     @keyframes shimmer { 0% { background-position:-200% center; } 100% { background-position:200% center; } }
     @keyframes scalePulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.02); } }
+    @keyframes badgeHover { 0% { transform: translateY(0) scale(1); } 100% { transform: translateY(-6px) scale(1.02); } }
+    @keyframes floatSoft { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
+    @keyframes badgeFadeIn { 0% { opacity:0; transform:translateY(8px); } 100% { opacity:1; transform:translateY(0); } }
 
     /* ===== NAV ===== */
     header.nav {
@@ -210,7 +219,7 @@
     .hero::after {
       content:''; position:absolute; left:0; right:0; bottom:0;
       height:clamp(60px,10vw,120px);
-      background:linear-gradient(180deg,transparent,var(--paper));
+      background:linear-gradient(180deg,transparent,#EDF1FA);
       pointer-events:none; z-index:1;
     }
     .hero-clouds {
@@ -300,7 +309,6 @@
       transform-style:preserve-3d;
       animation: heroFloat 4s ease-in-out infinite;
     }
-    /* outer container – carousel positioning */
     .hero-carousel-item {
       position:absolute;
       border-radius:clamp(20px,2.5vw,28px);
@@ -348,7 +356,6 @@
       background: #1a1a2e;
     }
 
-    /* inner container – 3D tilt with strong perspective */
     .carousel-inner {
       width:100%; height:100%;
       display:flex; align-items:center; justify-content:center;
@@ -504,7 +511,7 @@
 
     /* ===== ABOUT – Enhanced ===== */
     #about {
-      background: var(--paper);
+      background: #EDF1FA;
       position: relative;
       overflow: hidden;
     }
@@ -640,9 +647,9 @@
       .about-visual .floating-badge{display:none;}
     }
 
-    /* ===== AI FEATURES – Enhanced ===== */
+    /* ===== AI FEATURES – Enhanced with card tints ===== */
     #ai-features {
-      background: linear-gradient(180deg, var(--paper), var(--paper-2));
+      background: linear-gradient(180deg, #EDF1FA, #FDF3E6);
       position: relative;
       overflow: hidden;
     }
@@ -690,13 +697,22 @@
       gap: clamp(12px,1.2vw,16px);
       position: relative;
       overflow: hidden;
-      transition: transform .4s cubic-bezier(.16,1,.3,1), box-shadow .4s;
+      transition: transform .4s cubic-bezier(.16,1,.3,1), box-shadow .4s, backdrop-filter .3s, border-color .3s;
       cursor: default;
-      background: rgba(255,255,255,.7);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,.8);
+      background: rgba(255,255,255,.6);
+      backdrop-filter: blur(12px) saturate(180%);
+      -webkit-backdrop-filter: blur(12px) saturate(180%);
+      border: 1px solid rgba(255,255,255,.7);
       box-shadow: var(--shadow-sm);
     }
+    /* Individual card tints */
+    .ai-feat-card.afc-1 { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(159,142,135,0.12)); }
+    .ai-feat-card.afc-2 { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(47,191,155,0.10)); }
+    .ai-feat-card.afc-3 { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(245,166,35,0.10)); }
+    .ai-feat-card.afc-4 { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(11,30,61,0.08)); }
+    .ai-feat-card.afc-5 { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(124,58,237,0.10)); }
+    .ai-feat-card.afc-6 { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(30,143,115,0.10)); }
+
     .ai-feat-card::before {
       content: '';
       position: absolute;
@@ -711,8 +727,10 @@
     }
     .ai-feat-card:hover {
       transform: translateY(-12px) scale(1.01);
-      box-shadow: var(--shadow-xl), 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
-      background: rgba(255,255,255,.92);
+      box-shadow: var(--shadow-xl), 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+      backdrop-filter: blur(18px) saturate(200%);
+      -webkit-backdrop-filter: blur(18px) saturate(200%);
+      border-color: rgba(255,255,255,.9);
     }
     .ai-feat-card .icon-wrap {
       width: clamp(48px,4.5vw,58px);
@@ -763,7 +781,7 @@
     @media(max-width:620px){.ai-feat-grid{grid-template-columns:1fr;}}
 
     /* ===== SENYA TIP – Yellow gradient with senyaTip.png ===== */
-    #senya-tip{background:var(--paper);}
+    #senya-tip{background:#FDF3E6;}
     .tip-band {
       border-radius: clamp(24px,3vw,36px);
       padding: clamp(28px,5vw,56px);
@@ -947,9 +965,10 @@
     }
     @media(max-width:480px){.tip-content .tip-slide h3{font-size:1.1rem;}.tip-content .tip-top{flex-direction:column;align-items:center;}}
 
-    /* ===== SENYA GUIDE – Enhanced ===== */
+    /* ============================================================ */
+    /* ===== SENYA GUIDE – Uniform 3-card row with refined styles ===== */
     #senya-guide {
-      background: var(--paper);
+      background: linear-gradient(180deg, #FDF3E6, #EAF7F2);
       position: relative;
       overflow: hidden;
     }
@@ -966,122 +985,438 @@
       pointer-events: none;
       z-index: 0;
     }
-    .senya-scroll {
-      display: flex;
-      flex-direction: column;
-      gap: clamp(48px,6vw,80px);
+    .bento-guide {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: clamp(20px,2.2vw,28px);
       position: relative;
       z-index: 1;
     }
-    .senya-scene {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: clamp(30px,5vw,56px);
-      align-items: center;
+    .bento-guide .guide-card {
+      background: rgba(255,255,255,.5);
+      backdrop-filter: blur(12px) saturate(180%);
+      -webkit-backdrop-filter: blur(12px) saturate(180%);
+      border: 1px solid rgba(255,255,255,.7);
+      border-radius: clamp(20px,2.5vw,28px);
+      padding: clamp(24px,2.8vw,32px);
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.3s cubic-bezier(.16,1,.3,1), 
+                  box-shadow 0.3s ease,
+                  backdrop-filter 0.3s ease,
+                  border-color 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+      min-height: 340px;
+      position: relative;
+      overflow: hidden;
     }
-    .senya-scene.reverse {
-      grid-template-columns: 1fr 1fr;
-      direction: rtl;
+    .bento-guide .guide-card.card-learn {
+      background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(159,142,135,0.15));
     }
-    .senya-scene.reverse > * { direction: ltr; }
-    .senya-scene .scene-media {
+    .bento-guide .guide-card.card-celebrate {
+      background: linear-gradient(145deg, rgba(247,246,245,0.6), rgba(114,56,61,0.12));
+    }
+    .bento-guide .guide-card.card-bridge {
+      background: linear-gradient(145deg, rgba(247,246,245,0.6), rgba(50,45,41,0.10));
+    }
+    .bento-guide .guide-card:hover {
+      transform: translateY(-8px) scale(1.01);
+      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255,255,255,.3);
+      backdrop-filter: blur(18px) saturate(200%);
+      -webkit-backdrop-filter: blur(18px) saturate(200%);
+      border-color: rgba(255,255,255,.9);
+    }
+    .bento-guide .guide-card.card-learn:hover {
+      border-color: rgba(159,142,135,0.5);
+      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(159,142,135,0.3);
+    }
+    .bento-guide .guide-card.card-celebrate:hover {
+      border-color: rgba(114,56,61,0.5);
+      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(114,56,61,0.3);
+    }
+    .bento-guide .guide-card.card-bridge:hover {
+      border-color: rgba(50,45,41,0.5);
+      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(50,45,41,0.3);
+    }
+    .bento-guide .guide-card .card-icon {
+      width: clamp(44px,4vw,54px);
+      height: clamp(44px,4vw,54px);
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      position: relative;
+      font-size: clamp(1.1rem,1.3vw,1.4rem);
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+      flex-shrink: 0;
+      transition: transform 0.3s;
     }
-    .senya-scene .scene-media .media-badge {
-      position: absolute;
-      bottom: -8px;
-      right: -8px;
-      background: rgba(255,255,255,.92);
-      backdrop-filter: blur(12px);
-      border-radius: 12px;
-      padding: 10px 14px;
-      border: 1px solid rgba(255,255,255,.6);
-      box-shadow: var(--shadow-sm);
-      font-size: .75rem;
-      font-weight: 600;
-      color: var(--navy);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .bento-guide .guide-card:hover .card-icon {
+      transform: scale(1.08) rotate(-4deg);
     }
-    .senya-scene .scene-media .media-badge i {
-      color: var(--amber);
+    .bento-guide .guide-card .card-icon.amber {
+      background: linear-gradient(135deg, var(--amber), var(--amber-deep));
     }
-    .senya-scene .scene-media img {
-      max-width: 100%;
-      border-radius: clamp(20px,2.5vw,28px);
-      box-shadow: var(--shadow-xl);
-      transition: transform .5s cubic-bezier(.16,1,.3,1), box-shadow .5s;
+    .bento-guide .guide-card .card-icon.teal {
+      background: linear-gradient(135deg, var(--teal), var(--teal-deep));
     }
-    .senya-scene .scene-media img:hover {
-      transform: scale(1.03);
-      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255,255,255,.5);
+    .bento-guide .guide-card .card-icon.purple {
+      background: linear-gradient(135deg, #7C3AED, #6D28D9);
     }
-    .senya-scene .scene-content {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .senya-scene .scene-content .step-number {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: .75rem;
-      font-weight: 600;
-      color: var(--blue-deep);
-      letter-spacing: .05em;
-    }
-    .senya-scene .scene-content h3 {
+    .bento-guide .guide-card h3 {
       font-family: 'Baloo 2', sans-serif;
-      font-size: clamp(1.4rem,2.2vw,2rem);
-      font-weight: 800;
-      color: var(--navy);
-      line-height: 1.2;
-    }
-    .senya-scene .scene-content p {
-      font-size: clamp(.95rem,1.05vw,1.08rem);
-      color: var(--ink-soft);
-      line-height: 1.7;
-    }
-    .senya-scene .scene-content .highlight {
-      display: inline-block;
-      background: linear-gradient(120deg, rgba(245,166,35,.15), rgba(245,166,35,.05));
-      padding: 2px 12px;
-      border-radius: 6px;
+      font-size: clamp(1.1rem,1.3vw,1.4rem);
       font-weight: 700;
       color: var(--navy);
+      margin: 0;
     }
-    .senya-scene .scene-content .feature-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 4px;
+    .bento-guide .guide-card p {
+      font-size: clamp(.85rem,.9vw,.95rem);
+      color: var(--ink-soft);
+      line-height: 1.6;
+      flex: 1;
+      margin: 0;
     }
-    .senya-scene .scene-content .feature-list .item {
+    .bento-guide .guide-card .badge-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: clamp(.6rem,.7vw,.7rem);
+      font-weight: 600;
+      padding: 4px 14px 4px 10px;
+      border-radius: 100px;
+      background: rgba(11,30,61,.06);
+      color: var(--ink-soft);
+      align-self: flex-start;
+      margin-top: 6px;
+    }
+    .bento-guide .guide-card .badge-tag i {
+      font-size: .65rem;
+      color: var(--amber);
+    }
+    .bento-guide .guide-card .badge-tag .check {
+      color: var(--teal-deep);
+    }
+    .bento-guide .guide-card .card-media {
+      border-radius: 14px;
+      overflow: hidden;
+      margin: 4px 0 8px;
+      background: rgba(0,0,0,.04);
+      box-shadow: var(--shadow-sm);
+      width: 100%;
       display: flex;
       align-items: center;
-      gap: 12px;
-      font-size: .9rem;
-      color: var(--ink-soft);
+      justify-content: center;
+      aspect-ratio: 16/10;
+      min-height: 120px;
     }
-    .senya-scene .scene-content .feature-list .item i {
-      color: var(--teal-deep);
-      font-size: .8rem;
-      width: 20px;
+    .bento-guide .guide-card .card-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transition: transform 0.4s;
+      background: transparent;
     }
-    @media(max-width:780px){
-      .senya-scene, .senya-scene.reverse {
-        grid-template-columns: 1fr;
-        direction: ltr;
+    .bento-guide .guide-card:hover .card-media img {
+      transform: scale(1.02);
+    }
+    @media(max-width:860px){
+      .bento-guide {
+        grid-template-columns: 1fr 1fr;
       }
-      .senya-scene.reverse > * { direction: ltr; }
-      .senya-scene .scene-media { order: -1; }
+      .bento-guide .guide-card:last-child {
+        grid-column: span 2;
+      }
+    }
+    @media(max-width:540px){
+      .bento-guide {
+        grid-template-columns: 1fr;
+      }
+      .bento-guide .guide-card:last-child {
+        grid-column: span 1;
+      }
+      .bento-guide .guide-card {
+        min-height: 280px;
+      }
+      .bento-guide .guide-card .card-media {
+        aspect-ratio: 16/9;
+        min-height: 100px;
+      }
+    }
+
+    /* ============================================================ */
+    /* ===== STUDENT BADGES – fixed layout ===== */
+    #student-badges {
+      background: #EAF7F2;
+      position: relative;
+      overflow: hidden;
+    }
+    #student-badges::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      left: -80px;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(245,166,35,.06), transparent 70%);
+      animation: blobDrift 20s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .badges-two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(30px,4vw,56px);
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    .badges-left {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 8px;
+    }
+    .badges-left .earn-badge-img {
+      width: 100%;
+      max-width: 340px; 
+      border-radius: clamp(20px,2.5vw,30px);
+      background: rgba(255,255,255,.5);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.8);
+      box-shadow: var(--shadow-xl);
+      padding: 10px;
+      animation: floatSoft 5s ease-in-out infinite;
+      transition: transform 0.4s;
+    }
+    .badges-left .earn-badge-img:hover {
+      transform: scale(1.02);
+    }
+    .badges-right {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      justify-content: space-between;
+    }
+    .badges-heading-zone {
+      flex-shrink: 0;
+    }
+    .badges-heading {
+      font-family: 'Baloo 2', sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.3rem,2.4vw,2rem);
+      color: var(--navy);
+      letter-spacing: -.01em;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .badges-desc {
+      font-size: clamp(.9rem,1vw,1.02rem);
+      color: var(--ink-soft);
+      line-height: 1.6;
+      max-width: 480px;
+    }
+    .badge-slider-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      min-height: 320px;
+      height: clamp(320px, 38vw, 400px);
+      perspective: 1000px;
+      overflow: hidden;
+      flex-shrink: 0;
+      margin: 0 auto;
+    }
+    .badge-slider-track {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .badge-slide {
+      position: absolute;
+      width: clamp(200px, 25vw, 280px);
+      height: 100%;
+      max-height: 100%;
+      border-radius: clamp(16px,2vw,22px);
+      transition: all 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
+      opacity: 0;
+      transform: translateX(60px) scale(0.85) rotateY(10deg);
+      pointer-events: none;
+      will-change: transform, opacity;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      background: transparent;
+    }
+    .badge-slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: inherit;
+      display: block;
+      max-height: 100%;
+    }
+    .badge-slide.active {
+      opacity: 1;
+      transform: translateX(0) scale(1) rotateY(0deg);
+      z-index: 10;
+      pointer-events: auto;
+    }
+    .badge-slide.prev {
+      opacity: 0.4;
+      transform: translateX(-50px) scale(0.75) rotateY(-12deg);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .badge-slide.next {
+      opacity: 0.4;
+      transform: translateX(50px) scale(0.75) rotateY(12deg);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .badge-slide.hidden-left {
+      opacity: 0;
+      transform: translateX(-120px) scale(0.5) rotateY(-20deg);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .badge-slide.hidden-right {
+      opacity: 0;
+      transform: translateX(120px) scale(0.5) rotateY(20deg);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .badge-slider-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.5);
+      background: rgba(255,255,255,.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background .2s, transform .2s, box-shadow .2s;
+      z-index: 20;
+      font-size: .9rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .badge-slider-nav:hover {
+      background: rgba(255,255,255,.95);
+      transform: translateY(-50%) scale(1.08);
+      box-shadow: var(--shadow-lg);
+    }
+    .badge-slider-nav.prev {
+      left: -8px;
+    }
+    .badge-slider-nav.next {
+      right: -8px;
+    }
+    .badge-info {
+      text-align: center;
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 4px;
+      flex-shrink: 0;
+      margin-top: 0.5rem;
+    }
+    .badge-info .badge-name {
+      font-family: 'Baloo 2', sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.1rem,1.4vw,1.4rem);
+      color: var(--navy);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .badge-info .badge-desc {
+      font-size: clamp(.8rem,.9rem,.95rem);
+      color: var(--ink-soft);
+      line-height: 1.5;
+      max-width: 360px;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .badge-info .badge-name.fade,
+    .badge-info .badge-desc.fade {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    .badge-info .badge-name.show,
+    .badge-info .badge-desc.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media(max-width:860px){
+      .badges-two-col {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+      .badges-left .earn-badge-img {
+        max-width: 280px;
+        margin: 0 auto;
+      }
+      .badges-right {
+        align-items: center;
+        text-align: center;
+        gap: 1.8rem;
+      }
+      .badges-desc {
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .badge-slider-wrap {
+        max-width: 360px;
+        margin: 0 auto;
+        min-height: 280px;
+        height: clamp(280px, 48vw, 340px);
+      }
+      .badge-slide {
+        width: clamp(160px, 26vw, 210px);
+        height: 100%;
+      }
+    }
+    @media(max-width:480px){
+      .badge-slider-wrap {
+        min-height: 230px;
+        height: clamp(230px, 58vw, 280px);
+        max-width: 280px;
+      }
+      .badge-slide {
+        width: clamp(130px, 32vw, 170px);
+        height: 100%;
+      }
+      .badge-slider-nav {
+        width: 28px;
+        height: 28px;
+        font-size: .7rem;
+      }
+      .badge-slider-nav.prev { left: -4px; }
+      .badge-slider-nav.next { right: -4px; }
+      .badge-info {
+        min-height: 60px;
+      }
     }
 
     /* ===== TEACHER DASHBOARD – Enhanced ===== */
     #teacher-dash {
-      background: var(--paper);
+      background: linear-gradient(180deg, #EAF7F2, #F1EEFB);
       position: relative;
       overflow: hidden;
     }
@@ -1118,6 +1453,12 @@
       padding: 14px 16px;
       text-align: center;
       border: 1px solid rgba(255,255,255,.6);
+      transition: transform .3s, box-shadow .3s, backdrop-filter .3s;
+    }
+    .teacher-content .teacher-stats .stat:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(12px);
     }
     .teacher-content .teacher-stats .stat .num {
       font-family: 'Baloo 2', sans-serif;
@@ -1143,15 +1484,17 @@
       padding: 16px 20px;
       border-radius: 14px;
       background: rgba(255,255,255,.6);
-      backdrop-filter: blur(4px);
-      transition: background .3s, transform .3s, box-shadow .3s;
-      border: 1px solid rgba(255,255,255,.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: background .3s, transform .3s, box-shadow .3s, backdrop-filter .3s;
+      border: 1px solid rgba(255,255,255,.7);
       cursor: default;
     }
     .teacher-content .feature-list .fl-item:hover {
       background: rgba(255,255,255,.85);
       transform: translateX(6px);
       box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(12px);
     }
     .teacher-content .feature-list .fl-item i {
       width: clamp(36px,3vw,42px);
@@ -1201,9 +1544,9 @@
     }
     @media(max-width:780px){.teacher-grid{grid-template-columns:1fr;gap:30px;}.teacher-content .teacher-stats{grid-template-columns:repeat(3,1fr);}}
 
-    /* ===== MOBILE APP – Enhanced (2 screenshots only) ===== */
+    /* ===== MOBILE APP – Enhanced ===== */
     #mobile-app {
-      background: linear-gradient(180deg, var(--paper-2), var(--paper));
+      background: #F1EEFB;
       padding: clamp(56px,8vw,100px) 0;
       position: relative;
       overflow: hidden;
@@ -1307,6 +1650,11 @@
       display: inline-block;
       box-shadow: var(--shadow-sm);
       align-self: flex-start;
+      transition: transform .3s, box-shadow .3s;
+    }
+    .mobile-app-content .app-tagline:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
     }
     .mobile-app-content .app-tagline i {
       color: var(--amber);
@@ -1324,15 +1672,17 @@
       gap: 14px;
       padding: 14px 18px;
       background: rgba(255,255,255,.5);
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       border-radius: 14px;
       border: 1px solid rgba(255,255,255,.6);
-      transition: background .3s, transform .3s, box-shadow .3s;
+      transition: background .3s, transform .3s, box-shadow .3s, backdrop-filter .3s;
     }
     .mobile-app-features .feature-item:hover {
       background: rgba(255,255,255,.85);
       transform: translateY(-3px);
       box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(12px);
     }
     .mobile-app-features .feature-item .fi-icon {
       width: 40px;
@@ -1384,7 +1734,7 @@
 
     /* ===== DEAF COMMUNITY – Enhanced ===== */
     #deaf-community {
-      background: var(--paper);
+      background: linear-gradient(180deg, #F1EEFB, #EDF1FA);
       position: relative;
       overflow: hidden;
     }
@@ -1409,15 +1759,23 @@
       gap: clamp(24px,3vw,40px);
     }
     .deaf-card {
-      background: #fff;
+      background: rgba(255,255,255,.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       border-radius: clamp(20px,2.5vw,28px);
       padding: clamp(24px,3vw,32px);
       box-shadow: var(--shadow-sm);
-      transition: transform .4s cubic-bezier(.16,1,.3,1), box-shadow .4s;
-      border: 1px solid rgba(255,255,255,.8);
+      transition: transform .4s cubic-bezier(.16,1,.3,1), box-shadow .4s, backdrop-filter .3s;
+      border: 1px solid rgba(255,255,255,.7);
       position: relative;
       overflow: hidden;
     }
+    /* Individual card tints for Deaf Community */
+    .deaf-card:nth-child(1) { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(15,61,139,0.08)); }
+    .deaf-card:nth-child(2) { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(245,166,35,0.08)); }
+    .deaf-card:nth-child(3) { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(47,191,155,0.08)); }
+    .deaf-card:nth-child(4) { background: linear-gradient(145deg, rgba(247,246,245,0.7), rgba(11,30,61,0.06)); }
+
     .deaf-card::before {
       content: '';
       position: absolute;
@@ -1435,6 +1793,9 @@
     .deaf-card:hover {
       transform: translateY(-8px);
       box-shadow: var(--shadow-xl);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-color: rgba(255,255,255,.9);
     }
     .deaf-card .icon-wrap {
       width: clamp(52px,5vw,62px);
@@ -1540,6 +1901,9 @@
     @media(max-width:780px){.deaf-grid{grid-template-columns:1fr;}}
 
     /* ===== CTA – Enhanced ===== */
+    #cta-section {
+      background: linear-gradient(180deg, #EDF1FA, #FDF3E6);
+    }
     .cta-band {
       border-radius: clamp(24px,3vw,36px);
       padding: clamp(32px,7vw,76px) clamp(20px,6vw,56px);
@@ -1623,7 +1987,7 @@
     /* ===== FOOTER (no icons) ===== */
     footer {
       padding: clamp(28px,3vw,40px) 0;
-      background: var(--paper);
+      background: #FDF3E6;
       border-top: 1px solid rgba(11,30,61,.08);
     }
     .foot-simple {
@@ -1681,8 +2045,8 @@
       <a href="#senya-tip">Senya Tip</a>
       <a href="#senya-guide">Guide</a>
       <a href="#teacher-dash">Dashboard</a>
-      <a href="#deaf-community">Community</a>
       <a href="#mobile-app">Mobile App</a>
+      <a href="#deaf-community">Community</a>
     </nav>
     <div class="nav-actions">
       <button class="btn btn-ghost-d">Log in</button>
@@ -1696,8 +2060,8 @@
     <a href="#senya-tip">Senya Tip</a>
     <a href="#senya-guide">Guide</a>
     <a href="#teacher-dash">Dashboard</a>
-    <a href="#deaf-community">Community</a>
     <a href="#mobile-app">Mobile App</a>
+    <a href="#deaf-community">Community</a>
     <button class="btn btn-ghost-d">Log in</button>
     <button class="btn btn-amber">Get Started</button>
   </div>
@@ -1895,7 +2259,7 @@
   </div>
 </section>
 
-<!-- ===== SENYA GUIDE ===== -->
+<!-- ===== SENYA GUIDE – Refined 3-card row ===== -->
 <section id="senya-guide">
   <div class="wrap">
     <div class="section-head reveal center" style="max-width:100%;">
@@ -1903,59 +2267,36 @@
       <h2>Your AI learning companion throughout the journey</h2>
       <p>Senya appears at key moments to guide you, celebrate your progress, and make learning FSL feel more human.</p>
     </div>
-    <div class="senya-scroll">
-      <div class="senya-scene reveal">
-        <div class="scene-media">
+
+    <div class="bento-guide stagger">
+      <div class="guide-card card-learn reveal">
+        <div class="card-icon amber"><i class="fa-solid fa-star"></i></div>
+        <h3>Learning together, every step of the way</h3>
+        <p>Senya isn't just a mascot — it's your AI learning companion that appears throughout your journey, offering encouragement and celebrating your wins.</p>
+        <div class="card-media">
           <img src="{{ asset('images/senya_student.png') }}" alt="Senya learning companion" onerror="this.onerror=null;this.src='{{ url('images/senya_student.png') }}';">
-          <div class="media-badge"><i class="fa-solid fa-heart" style="color:#ef4444;"></i> Learning together</div>
         </div>
-        <div class="scene-content">
-          <div class="step-number">01 · Learning Companion</div>
-          <h3>Learning together, every step of the way</h3>
-          <p>Senya isn't just a mascot — it's your AI learning companion that appears throughout your journey, offering encouragement and celebrating your wins. With Senya by your side, every practice session becomes a supportive, guided experience.</p>
-          <div class="feature-list">
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Personalized encouragement tailored to your progress</div>
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Gentle guidance and tips when you need them most</div>
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Motivational messages that keep you engaged</div>
-          </div>
-          <p><span class="highlight">"You're doing great! Let's try that sign again."</span> — Senya provides constructive feedback in a friendly, supportive way.</p>
-        </div>
+        <div class="badge-tag"><i class="fa-regular fa-heart check"></i> Personalized encouragement</div>
       </div>
 
-      <div class="senya-scene reverse reveal">
-        <div class="scene-media">
-          <img src="{{ asset('images/senya_award.png') }}" alt="Senya celebrates achievements" onerror="this.onerror=null;this.src='{{ url('images/senya_award.png') }}';">
-          <div class="media-badge"><i class="fa-solid fa-trophy" style="color:var(--amber);"></i> Celebrating wins</div>
+      <div class="guide-card card-celebrate reveal">
+        <div class="card-icon teal"><i class="fa-solid fa-trophy"></i></div>
+        <h3>Celebrating Milestones</h3>
+        <p>From your first correct sign to completing a full lesson, Senya celebrates your achievements and keeps you motivated.</p>
+        <div class="card-media">
+          <img src="{{ asset('images/senya_award.png') }}" alt="Senya award" onerror="this.onerror=null;this.src='{{ url('images/senya_award.png') }}';">
         </div>
-        <div class="scene-content">
-          <div class="step-number">02 · Celebrating Milestones</div>
-          <h3>Celebrating every milestone</h3>
-          <p>From your first correct sign to completing a full lesson, Senya is there to celebrate your achievements and keep you motivated to continue. Every small victory is acknowledged and celebrated.</p>
-          <div class="feature-list">
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Earn badges and rewards for completing lessons</div>
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Track your learning journey with visual progress indicators</div>
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Share your achievements with the SEÑAS community</div>
-          </div>
-          <p><span class="highlight">Earn badges and track your progress</span> as you advance through the FSL curriculum. Each milestone brings you closer to fluency.</p>
-        </div>
+        <div class="badge-tag"><i class="fa-regular fa-circle-check check"></i> Earn badges</div>
       </div>
 
-      <div class="senya-scene reveal">
-        <div class="scene-media">
-          <img src="{{ asset('images/senya_waving_flag.png') }}" alt="Senya waving" onerror="this.onerror=null;this.src='{{ url('images/senya_waving_flag.png') }}';">
-          <div class="media-badge"><i class="fa-solid fa-flag" style="color:var(--blue);"></i> Bridging communication</div>
+      <div class="guide-card card-bridge reveal">
+        <div class="card-icon purple"><i class="fa-solid fa-flag"></i></div>
+        <h3>Bridging Communication</h3>
+        <p>Join thousands of learners discovering the beauty of FSL and helping create a more inclusive Philippines.</p>
+        <div class="card-media">
+          <img src="{{ asset('images/senya_waving_flag.png') }}" alt="Senya flag" onerror="this.onerror=null;this.src='{{ url('images/senya_waving_flag.png') }}';">
         </div>
-        <div class="scene-content">
-          <div class="step-number">03 · Bridging Communication</div>
-          <h3>Bridging communication, one sign at a time</h3>
-          <p>SEÑAS is more than an app — it's a movement toward a more inclusive Philippines where communication is accessible to everyone. By learning FSL, you're helping build bridges between communities.</p>
-          <div class="feature-list">
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Join thousands of learners making a difference</div>
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Discover the rich culture and beauty of FSL</div>
-            <div class="item"><i class="fa-solid fa-check-circle"></i> Contribute to a more inclusive society</div>
-          </div>
-          <p><span class="highlight">Join thousands of learners</span> who are discovering the beauty of Filipino Sign Language with SEÑAS and helping create a more inclusive Philippines.</p>
-        </div>
+        <div class="badge-tag"><i class="fa-regular fa-circle-check check"></i> Inclusive learning</div>
       </div>
     </div>
   </div>
@@ -1999,7 +2340,7 @@
   </div>
 </section>
 
-<!-- ===== MOBILE APP (2 screenshots only) ===== -->
+<!-- ===== MOBILE APP ===== -->
 <section id="mobile-app">
   <div class="wrap">
     <div class="section-head reveal center" style="max-width:720px;margin-left:auto;margin-right:auto;">
@@ -2070,6 +2411,42 @@
 
         <div class="mobile-app-cta">
           <button class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App — It's Free</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STUDENT BADGES ===== -->
+<section id="student-badges">
+  <div class="wrap">
+    <div class="section-head reveal center" style="max-width:720px;margin-left:auto;margin-right:auto;">
+      <span class="kicker">Gamification &amp; Achievements</span>
+      <h2>Earn badges as you complete lessons and milestones</h2>
+      <p>Every step of your learning journey is rewarded. Collect badges, track your progress, and celebrate your growth in Filipino Sign Language.</p>
+    </div>
+
+    <div class="badges-two-col reveal">
+      <div class="badges-left">
+        <img class="earn-badge-img" src="{{ asset('images/studentEarnBadges.png') }}" alt="Earn Badges" onerror="this.onerror=null;this.src='{{ url('images/studentEarnBadges.png') }}';">
+      </div>
+
+      <div class="badges-right">
+        <div class="badges-heading-zone">
+          <h3 class="badges-heading">Collect Achievement Badges</h3>
+          <p class="badges-desc">Complete lessons and milestones to unlock badges that celebrate your Filipino Sign Language learning journey.</p>
+        </div>
+
+        <div class="badge-slider-wrap" id="badgeSliderWrap">
+          <div class="badge-slider-track" id="badgeSliderTrack">
+          </div>
+          <button class="badge-slider-nav prev" id="badgePrev" aria-label="Previous badge"><i class="fa-solid fa-chevron-left"></i></button>
+          <button class="badge-slider-nav next" id="badgeNext" aria-label="Next badge"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+
+        <div class="badge-info" id="badgeInfo">
+          <div class="badge-name show" id="badgeName">First Steps</div>
+          <div class="badge-desc show" id="badgeDesc">Awarded for completing your very first FSL lesson.</div>
         </div>
       </div>
     </div>
@@ -2149,21 +2526,21 @@
 </section>
 
 <!-- ===== CTA ===== -->
-<section>
+<section id="cta-section">
   <div class="wrap">
     <div class="cta-band reveal">
       <img class="cta-star" src="{{ asset('images/wavingSenya.png') }}" alt="Senya mascot" onerror="this.onerror=null;this.src='{{ url('images/wavingSenya.png') }}';">
       <h2>Start learning Filipino Sign Language today</h2>
       <p>Download the SEÑAS app and experience AI-powered gesture recognition that makes learning FSL accessible, engaging, and fun.</p>
       <div class="hero-ctas">
-        <button class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</button>
-        <button class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Teacher Dashboard</button>
+        <button class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students </button>
+        <button class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Sign up as a Teacher</button>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ===== FOOTER (no icons) ===== -->
+<!-- ===== FOOTER ===== -->
 <footer>
   <div class="wrap">
     <div class="foot-simple">
@@ -2177,20 +2554,17 @@
 
 <script>
   (function(){
-    // Disable scroll restoration & scroll to top
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
     window.scrollTo({ top: 0, behavior: 'instant' });
 
-    // Scroll reveal
     const revealEls = document.querySelectorAll('.reveal');
     const revealIO = new IntersectionObserver((entries)=>{
       entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); });
     },{threshold:.12, rootMargin:'0px 0px -40px 0px'});
     revealEls.forEach(el=>revealIO.observe(el));
 
-    // Nav scroll with color adaptation
     const nav = document.getElementById('mainNav');
     const heroSection = document.querySelector('.hero');
     window.addEventListener('scroll', ()=>{
@@ -2203,7 +2577,6 @@
       }
     });
 
-    // Mobile menu
     const burger = document.getElementById('burgerBtn');
     const menu = document.getElementById('mobileMenu');
     burger.addEventListener('click', ()=>{
@@ -2215,7 +2588,6 @@
       burger.innerHTML = '<i class="fa-solid fa-bars"></i>';
     }));
 
-    // Scrollspy
     const navLinks = document.querySelectorAll('#navLinks a');
     const sections = [...navLinks].map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
     const spyIO = new IntersectionObserver((entries)=>{
@@ -2229,7 +2601,6 @@
     },{rootMargin:'-45% 0px -50% 0px'});
     sections.forEach(s=>spyIO.observe(s));
 
-    // Counters
     const counters = document.querySelectorAll('.stat-num');
     const countIO = new IntersectionObserver((entries)=>{
       entries.forEach(entry=>{
@@ -2249,13 +2620,12 @@
     },{threshold:.5});
     counters.forEach(c=>countIO.observe(c));
 
-    // ===== HERO CAROUSEL – OUTER POSITION + INNER 3D TILT =====
+    // Hero carousel (simplified for brevity – same as before)
     const items = document.querySelectorAll('.hero-carousel-item');
     const total = items.length;
     let activeIndex = 0;
     let isTransitioning = false;
     let transitionTimer = null;
-
     const itemTypes = [];
     items.forEach((item, i) => {
       itemTypes.push(item.dataset.type || 'phone');
@@ -2264,16 +2634,13 @@
     function positionItems(activeIdx, animate = true) {
       const totalItems = items.length;
       const radius = 380;
-
       items.forEach((item, i) => {
         let offset = (i - activeIdx + totalItems) % totalItems;
         let normOffset = offset;
         if (normOffset > totalItems / 2) normOffset = normOffset - totalItems;
-
         item.className = 'hero-carousel-item';
         const typeClass = itemTypes[i] === 'desktop' ? 'desktop' : 'phone';
         item.classList.add(typeClass);
-
         const inner = item.querySelector('.carousel-inner');
         if (normOffset === 0) {
           item.classList.add('active');
@@ -2339,12 +2706,10 @@
           }
         }
       });
-
       activeIndex = activeIdx;
     }
 
     let autoAdvanceTimer = null;
-
     function advanceCarousel() {
       if (isTransitioning) return;
       isTransitioning = true;
@@ -2355,22 +2720,18 @@
         isTransitioning = false;
       }, 700);
     }
-
     function startAutoAdvance() {
       stopAutoAdvance();
       autoAdvanceTimer = setInterval(advanceCarousel, 4500);
     }
-
     function stopAutoAdvance() {
       if (autoAdvanceTimer) {
         clearInterval(autoAdvanceTimer);
         autoAdvanceTimer = null;
       }
     }
-
     positionItems(0, false);
     setTimeout(startAutoAdvance, 2000);
-
     items.forEach(item => {
       item.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -2379,12 +2740,11 @@
       });
     });
 
-    // ===== INNER 3D TILT – leaning back =====
+    // Inner 3D tilt
     const tiltElements = document.querySelectorAll('[data-tilt]');
     tiltElements.forEach(inner => {
       let tiltActive = false;
       const maxTilt = 9;
-
       function updateTilt(x, y) {
         if (!inner.closest('.hero-carousel-item.active')) {
           inner.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
@@ -2397,12 +2757,9 @@
         const normY = (y - centerY) / (rect.height / 2);
         const clampedX = Math.min(1, Math.max(-1, normX));
         const clampedY = Math.min(1, Math.max(-1, normY));
-
         const rotY = clampedX * maxTilt;
         const rotX = -clampedY * maxTilt;
-
         inner.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg) translateZ(5px)`;
-        
         const outer = inner.closest('.hero-carousel-item');
         if (outer) {
           const intensity = Math.min(1, Math.abs(rotX) / maxTilt + Math.abs(rotY) / maxTilt);
@@ -2412,21 +2769,18 @@
           outer.style.borderColor = `rgba(255, 255, 255, ${0.12 + intensity * 0.08})`;
         }
       }
-
       inner.addEventListener('mouseenter', () => {
         const parent = inner.closest('.hero-carousel-item');
         if (!parent || !parent.classList.contains('active')) return;
         tiltActive = true;
         inner.style.transition = 'transform 0.05s cubic-bezier(0.23, 1, 0.32, 1)';
       });
-
       inner.addEventListener('mousemove', (e) => {
         const parent = inner.closest('.hero-carousel-item');
         if (!parent || !parent.classList.contains('active')) return;
         if (!tiltActive) return;
         updateTilt(e.clientX, e.clientY);
       });
-
       inner.addEventListener('mouseleave', () => {
         tiltActive = false;
         const outer = inner.closest('.hero-carousel-item');
@@ -2444,7 +2798,6 @@
     const tipSlides = document.querySelectorAll('.tip-slide');
     const tipDots = document.querySelectorAll('#tipDots span');
     let tipIndex = 0, tipTimer;
-
     function showTip(i){
       tipSlides.forEach(s=>s.classList.remove('active'));
       tipDots.forEach(d=>d.classList.remove('active'));
@@ -2458,6 +2811,124 @@
     document.getElementById('tipPrev').addEventListener('click', ()=>{ showTip(tipIndex-1); resetTipTimer(); });
     tipDots.forEach(d=>d.addEventListener('click', ()=>{ showTip(parseInt(d.dataset.i,10)); resetTipTimer(); }));
     resetTipTimer();
+
+    // Badge slider
+    (function badgeSlider() {
+      const track = document.getElementById('badgeSliderTrack');
+      const prevBtn = document.getElementById('badgePrev');
+      const nextBtn = document.getElementById('badgeNext');
+      const nameEl = document.getElementById('badgeName');
+      const descEl = document.getElementById('badgeDesc');
+      const badges = [
+        { name: 'First Steps', desc: 'Awarded for completing your very first FSL lesson.' },
+        { name: 'Dedicated Learner', desc: 'Earned by consistently completing learning activities.' },
+        { name: 'FSL Champion', desc: 'Unlocked after mastering multiple lessons and milestones.' }
+      ];
+      const fallback = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"%3E%3Crect width="200" height="200" rx="16" fill="%23f5f7fb"/%3E%3Ctext x="100" y="110" font-size="40" text-anchor="middle" fill="%230B1E3D" font-family="sans-serif"%3E🏅%3C/text%3E%3C/svg%3E';
+      const imagePaths = [
+        '{{ asset('images/studentBadge1.png') }}',
+        '{{ asset('images/studentBadge2.png') }}',
+        '{{ asset('images/studentBadge3.png') }}'
+      ];
+      let currentIndex = 0;
+      let autoSlideInterval = null;
+      let isHovering = false;
+      let isAnimating = false;
+      function getImageSrc(i) {
+        return imagePaths[i % imagePaths.length] || fallback;
+      }
+      function renderSlides() {
+        const total = badges.length;
+        const classes = ['hidden-left', 'prev', 'active', 'next', 'hidden-right'];
+        let html = '';
+        for (let i = 0; i < total; i++) {
+          const idx = i;
+          const cls = classes[i] || 'hidden-left';
+          const imgSrc = getImageSrc(i);
+          html += `<div class="badge-slide ${cls}" data-index="${i}"><img src="${imgSrc}" alt="${badges[i].name}" onerror="this.src='${fallback}'"></div>`;
+        }
+        track.innerHTML = html;
+      }
+      function updateSlider(animate = true) {
+        const slides = track.querySelectorAll('.badge-slide');
+        if (slides.length !== 3) return;
+        const total = badges.length;
+        const activeIdx = currentIndex % total;
+        const prevIdx = (activeIdx - 1 + total) % total;
+        const nextIdx = (activeIdx + 1) % total;
+        const hiddenLIdx = (activeIdx - 2 + total) % total;
+        const hiddenRIdx = (activeIdx + 2) % total;
+        slides.forEach((el, i) => {
+          const idx = i;
+          let cls = '';
+          if (idx === activeIdx) cls = 'active';
+          else if (idx === prevIdx) cls = 'prev';
+          else if (idx === nextIdx) cls = 'next';
+          else if (idx === hiddenLIdx) cls = 'hidden-left';
+          else if (idx === hiddenRIdx) cls = 'hidden-right';
+          else cls = 'hidden-left';
+          el.className = `badge-slide ${cls}`;
+          const img = el.querySelector('img');
+          const newSrc = getImageSrc(idx);
+          if (img.src !== newSrc) {
+            img.src = newSrc;
+          }
+          el.dataset.index = idx;
+          if (!animate) {
+            el.style.transition = 'none';
+            void el.offsetHeight;
+            el.style.transition = '';
+          }
+        });
+        const info = badges[activeIdx];
+        if (info) {
+          nameEl.classList.remove('show');
+          descEl.classList.remove('show');
+          nameEl.classList.add('fade');
+          descEl.classList.add('fade');
+          setTimeout(() => {
+            nameEl.textContent = info.name;
+            descEl.textContent = info.desc;
+            nameEl.classList.remove('fade');
+            descEl.classList.remove('fade');
+            nameEl.classList.add('show');
+            descEl.classList.add('show');
+          }, 200);
+        }
+      }
+      function goTo(index) {
+        if (isAnimating) return;
+        isAnimating = true;
+        currentIndex = (index + badges.length) % badges.length;
+        updateSlider(true);
+        setTimeout(() => { isAnimating = false; }, 600);
+      }
+      function goToNext() { goTo(currentIndex + 1); }
+      function goToPrev() { goTo(currentIndex - 1); }
+      function startAutoSlide() {
+        stopAutoSlide();
+        autoSlideInterval = setInterval(() => {
+          if (!isHovering && !isAnimating) {
+            goToNext();
+          }
+        }, 3500);
+      }
+      function stopAutoSlide() {
+        if (autoSlideInterval) {
+          clearInterval(autoSlideInterval);
+          autoSlideInterval = null;
+        }
+      }
+      prevBtn.addEventListener('click', (e) => { e.stopPropagation(); goToPrev(); startAutoSlide(); });
+      nextBtn.addEventListener('click', (e) => { e.stopPropagation(); goToNext(); startAutoSlide(); });
+      const wrap = document.getElementById('badgeSliderWrap');
+      wrap.addEventListener('mouseenter', () => { isHovering = true; });
+      wrap.addEventListener('mouseleave', () => { isHovering = false; });
+      renderSlides();
+      updateSlider(false);
+      setTimeout(() => updateSlider(true), 100);
+      startAutoSlide();
+    })();
   })();
 </script>
 </body>
