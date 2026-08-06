@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
+Route::get('/', function () {
+    return view('landing.landing');
+})->name('home');
+
+// Keep /landing as an alias
 Route::get('/landing', function () {
     return view('landing.landing');
 });
@@ -80,8 +85,7 @@ Route::get('/media-player', function () {
 // ── Protected Routes (must be logged in) ─────────────────────────────────────
 Route::middleware(['auth', 'no.cache'])->group(function () {
     // Redirect / to /dashboard
-    Route::get('/', fn () => redirect()->route('dashboard'));
-
+   
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
