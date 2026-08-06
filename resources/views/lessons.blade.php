@@ -360,6 +360,14 @@
         </span>
     </div>
     
+    {{-- Edit Module Icon Button --}}
+    <button type="button"
+       onclick="openEditModuleModal({{ $module->module_id }}, '{{ addslashes($module->title) }}', '{{ addslashes($module->description ?? '') }}', '{{ $module->mastery_level ?? 'beginner' }}')"
+       class="absolute top-4 right-14 w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-[#1a6fd4] hover:bg-blue-50 transition-all flex items-center justify-center text-slate-400 hover:text-[#1a6fd4] flex-shrink-0"
+       title="Edit Module">
+        <span class="material-symbols-outlined text-[18px]">edit</span>
+    </button>
+
     {{-- Delete Module Icon Button - Fixed Top Right --}}
     <a href="{{ route('modules.delete-options', $module->module_id) }}" 
        class="absolute top-4 right-4 w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-red-400 hover:bg-red-50 transition-all flex items-center justify-center text-slate-400 hover:text-red-500 flex-shrink-0"
@@ -1553,6 +1561,118 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+</script>
+
+{{-- Edit Module Modal --}}
+<div id="editModuleModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-base font-bold text-[#0d326b] flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#1a6fd4]">edit</span>
+                Edit Module
+            </h3>
+            <button onclick="closeEditModuleModal()" class="text-slate-400 hover:text-slate-600">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <form id="editModuleForm" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Title</label>
+                <input type="text" id="editModuleTitle" name="title" maxlength="255" required
+                       class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a6fd4]/30 focus:border-[#1a6fd4]">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
+                <textarea id="editModuleDescription" name="description" maxlength="1000" rows="3"
+                          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a6fd4]/30 focus:border-[#1a6fd4]"></textarea>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Mastery Level</label>
+                <select id="editModuleMasteryLevel" name="mastery_level"
+                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a6fd4]/30 focus:border-[#1a6fd4]">
+                    <option value="beginner">🌱 Beginner</option>
+                    <option value="intermediate">⚡ Intermediate</option>
+                    <option value="advanced">🔥 Advanced</option>
+                </select>
+                <p class="text-[11px] text-slate-400 mt-1">This applies to all lessons inside this module.</p>
+            </div>
+
+            <div id="editModuleError" class="hidden text-xs font-medium text-red-600"></div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeEditModuleModal()"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-100">
+                    Cancel
+                </button>
+                <button type="submit" id="editModuleSaveBtn"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0d326b] hover:bg-[#1a6fd4] transition">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentEditModuleId = null;
+
+function openEditModuleModal(moduleId, title, description, masteryLevel) {
+    currentEditModuleId = moduleId;
+    document.getElementById('editModuleTitle').value = title;
+    document.getElementById('editModuleDescription').value = description;
+    document.getElementById('editModuleMasteryLevel').value = masteryLevel;
+    document.getElementById('editModuleError').classList.add('hidden');
+    document.getElementById('editModuleModal').classList.remove('hidden');
+}
+
+function closeEditModuleModal() {
+    document.getElementById('editModuleModal').classList.add('hidden');
+    currentEditModuleId = null;
+}
+
+document.getElementById('editModuleForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!currentEditModuleId) return;
+
+    const saveBtn = document.getElementById('editModuleSaveBtn');
+    const errorBox = document.getElementById('editModuleError');
+    errorBox.classList.add('hidden');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+
+    fetch(`/modules/${currentEditModuleId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({
+            title: document.getElementById('editModuleTitle').value,
+            description: document.getElementById('editModuleDescription').value,
+            mastery_level: document.getElementById('editModuleMasteryLevel').value,
+        }),
+    })
+        .then(async r => {
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || !data.success) {
+                throw new Error(data.message || 'Failed to update module.');
+            }
+            return data;
+        })
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(err => {
+            errorBox.textContent = err.message;
+            errorBox.classList.remove('hidden');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Changes';
+        });
+});
 </script>
 
 @endsection

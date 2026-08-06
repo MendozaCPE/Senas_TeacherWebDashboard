@@ -147,6 +147,38 @@ class ModulesController extends Controller
     }
 
     /**
+     * Update module details (title, description, mastery_level).
+     * PUT/POST /modules/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'mastery_level' => 'required|in:beginner,intermediate,advanced',
+        ]);
+
+        $module = Module::findOrFail($id);
+        $teacherId = $this->resolveTeacherId();
+
+        if ($module->teacher_id !== $teacherId) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $module->update([
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'mastery_level' => $validated['mastery_level'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Module '{$module->title}' updated successfully.",
+            'module' => $module,
+        ]);
+    }
+
+    /**
      * Simple delete - redirects to the options page.
      */
     public function destroy($id)

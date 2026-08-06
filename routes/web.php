@@ -195,6 +195,12 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::post('/modules/{id}/delete-with-options', [ModulesController::class, 'deleteWithOptions'])
         ->name('modules.delete-with-options');
     
+    // Update module details (AJAX)
+    Route::put('/modules/{id}', [ModulesController::class, 'update'])
+        ->name('modules.update');
+    Route::post('/modules/{id}/update', [ModulesController::class, 'update']);
+
+    
     // Simple delete (redirects to options page)
     Route::delete('/modules/{id}', [ModulesController::class, 'destroy'])
         ->name('modules.destroy');

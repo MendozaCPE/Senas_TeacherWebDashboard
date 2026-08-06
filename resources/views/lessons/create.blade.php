@@ -830,6 +830,14 @@
                         <label class="field-label">New module description</label>
                         <textarea name="new_module[description]" rows="2" class="field-textarea" placeholder="Optional description">{{ old('new_module.description') }}</textarea>
                     </div>
+                    <div>
+                        <label class="field-label">Target Mastery Level *</label>
+                        <select name="new_module[mastery_level]" id="newModuleMasteryLevel" class="field-select">
+                            <option value="beginner" {{ old('new_module.mastery_level') === 'beginner' ? 'selected' : '' }}>🌱 Beginner</option>
+                            <option value="intermediate" {{ old('new_module.mastery_level') === 'intermediate' ? 'selected' : '' }}>⚡ Intermediate</option>
+                            <option value="advanced" {{ old('new_module.mastery_level') === 'advanced' ? 'selected' : '' }}>🔥 Advanced</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
