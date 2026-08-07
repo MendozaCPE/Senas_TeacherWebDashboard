@@ -400,6 +400,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
 
     <script>
         // ============================================================
@@ -517,15 +518,17 @@
                     message: 'Loading model...'
                 });
 
-                // 1. BYPASS MOBILE WEBGL BUNDLE OVERHEADS
+                // 1. USE WASM ON MOBILE (fast, GPU-context-free) INSTEAD OF THE SLOW PLAIN 'cpu' BACKEND
                 const isInsideApp = !!window.ReactNativeWebView || navigator.userAgent.includes('Mobile');
                 if (isInsideApp) {
-                    console.log("📱 Mobile WebView detected! Forcing native CPU allocation mode...");
-                    await tf.setBackend('cpu');
+                    console.log("📱 Mobile WebView detected! Using WASM backend for fast CPU inference...");
+                    tf.wasm.setWasmPaths('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/');
+                    await tf.setBackend('wasm');
                 } else {
                     console.log("🌐 Standalone browser detected! Using default WebGL acceleration.");
                     await tf.setBackend('webgl');
                 }
+                await tf.ready();
                 console.log("⚙️ Active Processing Engine Backend:", tf.getBackend());
 
                 // 2. USE CLEAN URL DIRECTIVES WITH ACCURATE FILE EXTENSIONS

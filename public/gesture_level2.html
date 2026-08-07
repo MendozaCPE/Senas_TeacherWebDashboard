@@ -438,6 +438,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
 
     <script>
         // ============================================================
@@ -692,15 +693,17 @@
                     message: 'Loading Level 2 model...'
                 });
 
-                // 🚀 FIX 1: Force CPU for mobile WebView
+                // 🚀 FIX 1: Use WASM on mobile WebView (fast, GPU-context-free) instead of slow plain 'cpu'
                 const isInsideApp = !!window.ReactNativeWebView || navigator.userAgent.includes('Mobile');
                 if (isInsideApp) {
-                    console.log("📱 Mobile WebView detected! Forcing CPU mode...");
-                    await tf.setBackend('cpu');
+                    console.log("📱 Mobile WebView detected! Using WASM backend for fast CPU inference...");
+                    tf.wasm.setWasmPaths('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/');
+                    await tf.setBackend('wasm');
                 } else {
                     console.log("🌐 Browser detected! Using WebGL.");
                     await tf.setBackend('webgl');
                 }
+                await tf.ready();
                 console.log("⚙️ Backend:", tf.getBackend());
 
                 // 🚀 FIX 2: Dynamic URL with custom headers

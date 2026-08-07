@@ -2843,6 +2843,10 @@ public function getStrugglingLetters(Request $request)
         ], 500);
     }
 }
+/**
+ * Get gesture progress for the mobile app
+ * GET /api/student/gesture-progress
+ */
 public function getGestureProgress(Request $request)
 {
     try {
@@ -2859,6 +2863,12 @@ public function getGestureProgress(Request $request)
                                ->get();
 
         $moduleProgress = [];
+        
+        // Get student's mastery level
+        $studentLevel = strtolower($student->fsl_mastery_level ?? 'beginner');
+        
+        // Define which module levels are accessible based on student level
+        $accessibleLevels = $this->getAccessibleModuleLevels($studentLevel);
 
         foreach ($modules as $module) {
             // Get all gestures in this module
@@ -2871,7 +2881,7 @@ public function getGestureProgress(Request $request)
 
             $totalGestures = $gestureIds->count();
             
-            // ✅ FIX: Count mastered AND proficient as "completed"
+            // Count mastered AND proficient as "completed"
             $completedCount = $performances->whereIn('mastery_level', ['mastered', 'proficient'])->count();
             
             // Calculate progress percentage
@@ -2879,14 +2889,42 @@ public function getGestureProgress(Request $request)
                 ? round(($completedCount / $totalGestures) * 100) 
                 : 0;
 
-            // Check if module is completed (all gestures mastered OR proficient)
+            // Check if module is completed
             $isCompleted = $completedCount === $totalGestures && $totalGestures > 0;
 
-            // Get XP for this module (default 40)
-            $xpAvailable = 40;
+            // 🔥 Check locking conditions with reasons
+            $moduleLevel = strtolower($module->difficulty ?? 'beginner');
+            $isLockedByLevel = !in_array($moduleLevel, $accessibleLevels);
+            $isLockedByProgress = $this->isPreviousModuleLocked($student, $module);
             
-            // Check if module is locked
-            $isLocked = $this->isModuleLocked($student, $module);
+            // Determine lock reason
+            $lockReason = null;
+            if ($isLockedByLevel) {
+                $lockReason = [
+                    'type' => 'level',
+                    'message' => "Requires " . ucfirst($module->difficulty) . " level to unlock this module!",
+                    'required_level' => ucfirst($module->difficulty),
+                    'current_level' => ucfirst($student->fsl_mastery_level ?? 'beginner'),
+                ];
+            } elseif ($isLockedByProgress) {
+                $previousModule = GestureModule::where('order', '<', $module->order)
+                                              ->where('is_active', true)
+                                              ->orderBy('order', 'desc')
+                                              ->first();
+                $lockReason = [
+                    'type' => 'progress',
+                    'message' => "Achieve higher performance on previous module to unlock!",
+                    'previous_module' => $previousModule ? $previousModule->display_name : 'previous module',
+                    'required_progress' => '40%',
+                    'current_progress' => $progress,
+                ];
+            }
+            
+            // Module is locked if EITHER condition is true
+            $isLocked = $isLockedByLevel || $isLockedByProgress;
+
+            // Get XP for this module
+            $xpAvailable = $module->xp_reward ?? 40;
 
             $moduleProgress[] = [
                 'module_id' => $module->module_id,
@@ -2900,11 +2938,17 @@ public function getGestureProgress(Request $request)
                 'is_completed' => $isCompleted,
                 'xp_available' => $xpAvailable,
                 'is_locked' => $isLocked,
+                'requires_level' => $module->difficulty,
+                'student_level' => $student->fsl_mastery_level,
+                'lock_reason' => $lockReason, // 🔥 NEW: Include lock reason
+                'mastery_breakdown' => [
+                    'mastered' => $performances->where('mastery_level', 'mastered')->count(),
+                    'proficient' => $performances->where('mastery_level', 'proficient')->count(),
+                    'developing' => $performances->where('mastery_level', 'developing')->count(),
+                    'needs_practice' => $performances->where('mastery_level', 'needs_practice')->count(),
+                ],
             ];
         }
-
-        // Get total XP from student
-        $totalXp = $student->total_xp ?? 0;
 
         return response()->json([
             'success' => true,
@@ -2912,8 +2956,9 @@ public function getGestureProgress(Request $request)
                 'id' => $student->student_id,
                 'first_name' => $student->first_name,
                 'last_name' => $student->last_name,
-                'total_xp' => $totalXp,
+                'total_xp' => $student->total_xp ?? 0,
                 'level' => $student->level ?? 1,
+                'fsl_mastery_level' => $student->fsl_mastery_level,
             ],
             'modules' => $moduleProgress,
         ]);
@@ -3047,18 +3092,19 @@ public function awardModuleXp(Request $request)
 }
 
 /**
- * Check if a module is locked for a student
- * 🔥 FIXED: Uses the stored mastery_level from the database
+ * Check if previous module is locked
+ * 🔥 Uses 40% threshold (matches your model's "mastered" criteria)
  */
-private function isModuleLocked($student, $module)
+private function isPreviousModuleLocked($student, $module)
 {
-    // First module is always unlocked
+    // First module is always unlocked by progress
     if ($module->order === 1) {
         return false;
     }
 
     // Check if previous module is completed
     $previousModule = GestureModule::where('order', '<', $module->order)
+                                  ->where('is_active', true)
                                   ->orderBy('order', 'desc')
                                   ->first();
 
@@ -3080,34 +3126,58 @@ private function isModuleLocked($student, $module)
                                      ->get()
                                      ->keyBy('gesture_id');
     
-    // 🔥 USE THE STORED MASTERY LEVEL from the database
+    // 🔥 Count mastered AND proficient as "completed" (matches your model)
     $completedCount = 0;
-    $needsPracticeCount = 0;
+    $masteredCount = 0;
+    $proficientCount = 0;
     
     foreach ($gestureIds as $gestureId) {
         $perf = $performances->get($gestureId);
         
-        if (!$perf || $perf->attempts === 0) {
-            $needsPracticeCount++;
-            continue;
-        }
-        
-        // ✅ Use the mastery_level that was already calculated and saved
-        if (in_array($perf->mastery_level, ['mastered', 'proficient'])) {
+        if ($perf && in_array($perf->mastery_level, ['mastered', 'proficient'])) {
             $completedCount++;
-        } else {
-            $needsPracticeCount++;
+            if ($perf->mastery_level === 'mastered') {
+                $masteredCount++;
+            } else {
+                $proficientCount++;
+            }
         }
     }
     
-    // 🎯 UNLOCK when 70% of gestures are "completed" (mastered OR proficient)
-    $unlockThreshold = 0.50; // 70% - change to 0.60 if you want 60%
-    $requiredCompleted = ceil($totalGestures * $unlockThreshold);
-    $maxNeedsPractice = 3;
+    // 🎯 UNLOCK when 40% of gestures are "completed" (mastered OR proficient)
+    // This matches your model's 40% threshold for "mastered"
+    $unlockThreshold = 0.40; // 40% - matches your model
     
-    $isUnlocked = ($completedCount >= $requiredCompleted) || ($needsPracticeCount <= $maxNeedsPractice);
+    // Calculate required count
+    $requiredCompleted = max(1, ceil($totalGestures * $unlockThreshold));
+    
+    $isUnlocked = $completedCount >= $requiredCompleted;
+    
+    // Log for debugging if needed
+    \Log::debug('Module unlock check', [
+        'module' => $module->name,
+        'total_gestures' => $totalGestures,
+        'completed_count' => $completedCount,
+        'mastered_count' => $masteredCount,
+        'proficient_count' => $proficientCount,
+        'required' => $requiredCompleted,
+        'is_unlocked' => $isUnlocked,
+    ]);
     
     return !$isUnlocked;
+}
+
+/**
+ * Check if a module is locked for a student (DEPRECATED - use isPreviousModuleLocked)
+ */
+private function isModuleLocked($student, $module)
+{
+    // This is now handled by the combination of:
+    // 1. Student's mastery level check in getGestureProgress()
+    // 2. Previous module completion check in isPreviousModuleLocked()
+    // 
+    // Keeping this for backward compatibility but it's no longer the primary logic
+    return $this->isPreviousModuleLocked($student, $module);
 }
     // ─────────────────────────────────────────────────────────────────────────
     // MODULE CHECKPOINT QUIZ
@@ -5475,4 +5545,116 @@ public function getTeacher(Request $request, $teacherId)
         ], 500);
     }
 }
+
+/**
+ * Get unlocked gesture modules for the student
+ * GET /api/student/unlocked-modules
+ */
+public function getUnlockedModules(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        // Get student's mastery level
+        $studentLevel = strtolower($student->fsl_mastery_level ?? 'beginner');
+        $accessibleLevels = $this->getAccessibleModuleLevels($studentLevel);
+
+        // Get all gesture modules
+        $modules = GestureModule::where('is_active', true)
+                               ->orderBy('order', 'asc')
+                               ->get();
+
+        $unlockedModules = [];
+
+        foreach ($modules as $module) {
+            $moduleLevel = strtolower($module->difficulty ?? 'beginner');
+            
+            // Check if module is accessible by level
+            $isAccessibleByLevel = in_array($moduleLevel, $accessibleLevels);
+            
+            // Check if previous module is completed (if not first)
+            $isPreviousModuleReady = true;
+            if ($module->order > 1) {
+                $previousModule = GestureModule::where('order', '<', $module->order)
+                                              ->where('is_active', true)
+                                              ->orderBy('order', 'desc')
+                                              ->first();
+                
+                if ($previousModule) {
+                    // Check if student has enough progress (40% threshold)
+                    $gestureIds = $previousModule->gestures->pluck('gesture_id');
+                    $totalGestures = $gestureIds->count();
+                    
+                    if ($totalGestures > 0) {
+                        $performances = GesturePerformance::where('student_id', $student->student_id)
+                                                         ->whereIn('gesture_id', $gestureIds)
+                                                         ->get()
+                                                         ->keyBy('gesture_id');
+                        
+                        $completedCount = 0;
+                        foreach ($gestureIds as $gestureId) {
+                            $perf = $performances->get($gestureId);
+                            if ($perf && in_array($perf->mastery_level, ['mastered', 'proficient'])) {
+                                $completedCount++;
+                            }
+                        }
+                        
+                        $requiredCompleted = ceil($totalGestures * 0.40);
+                        $isPreviousModuleReady = $completedCount >= $requiredCompleted;
+                    }
+                }
+            }
+            
+            // Module is unlocked if accessible by level AND previous module is ready
+            $isUnlocked = $isAccessibleByLevel && $isPreviousModuleReady;
+            
+            if ($isUnlocked) {
+                $unlockedModules[] = [
+                    'module_id' => $module->module_id,
+                    'name' => $module->name,
+                    'display_name' => $module->display_name,
+                    'difficulty' => $module->difficulty,
+                    'order' => $module->order,
+                    // Map to frontend module type
+                    'type' => $this->mapModuleNameToType($module->name),
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'unlocked_modules' => $unlockedModules,
+            'student_level' => $student->fsl_mastery_level,
+            'accessible_levels' => $accessibleLevels,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Map database module name to frontend type
+ */
+private function mapModuleNameToType(string $moduleName): string
+{
+    $map = [
+        'alphabet_part1' => 'alphabet',
+        'alphabet_part2' => 'alphabet',
+        'level1_numbers' => 'numbers',
+        'level2_greetings' => 'greetings',
+        'level3_survival' => 'survival',
+    ];
+    
+    return $map[$moduleName] ?? $moduleName;
+}
+
 }

@@ -796,7 +796,7 @@
             const offX = (displayWidth - scaledW) / 2;
             const offY = (displayHeight - scaledH) / 2;
             return {
-                x: (1 - landmark.x) * videoWidth * s + offX,
+                x: (currentFacingMode === 'user' ? (1 - landmark.x) : landmark.x) * videoWidth * s + offX,
                 y: landmark.y * videoHeight * s + offY
             };
         }
