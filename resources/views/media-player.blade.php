@@ -39,16 +39,53 @@
         .media-wrapper img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
             display: block;
             background: transparent !important;
         }
         .media-wrapper video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
             display: block;
             background: transparent !important;
+        }
+        /* ✅ Object fit classes */
+        .media-wrapper.fit-cover img,
+        .media-wrapper.fit-cover video {
+            object-fit: cover;
+        }
+        .media-wrapper.fit-contain img,
+        .media-wrapper.fit-contain video {
+            object-fit: contain;
+        }
+        .media-wrapper.fit-fill img,
+        .media-wrapper.fit-fill video {
+            object-fit: fill;
+        }
+        /* ✅ Object position classes - including percentage support */
+        .media-wrapper.position-center img,
+        .media-wrapper.position-center video {
+            object-position: center;
+        }
+        .media-wrapper.position-left img,
+        .media-wrapper.position-left video {
+            object-position: left center;
+        }
+        .media-wrapper.position-right img,
+        .media-wrapper.position-right video {
+            object-position: right center;
+        }
+        .media-wrapper.position-top img,
+        .media-wrapper.position-top video {
+            object-position: center top;
+        }
+        .media-wrapper.position-bottom img,
+        .media-wrapper.position-bottom video {
+            object-position: center bottom;
+        }
+        /* ✅ For custom percentage positions (e.g., "70% center") */
+        .media-wrapper.position-custom img,
+        .media-wrapper.position-custom video {
+            object-position: var(--custom-position, center);
         }
         /* ✅ Hide controls for option videos */
         .media-wrapper.hide-controls video::-webkit-media-controls {
@@ -99,25 +136,49 @@
 
     <script>
         // Parse URL parameters
-        const params = new URLSearchParams(window.location.search);
-        const mediaUrl = params.get('url');
-        const isVideo = params.get('isVideo') === 'true';
-        const autoplay = params.get('autoplay') !== 'false';
-        const aspect = params.get('aspect') || '16:9';
-        const hideControls = params.get('hideControls') === 'true';
+        var params = new URLSearchParams(window.location.search);
+        var mediaUrl = params.get('url');
+        var isVideo = params.get('isVideo') === 'true';
+        var autoplay = params.get('autoplay') !== 'false';
+        var aspect = params.get('aspect') || '16:9';
+        var hideControls = params.get('hideControls') === 'true';
+        var fit = params.get('fit') || 'cover';
+        var position = params.get('position') || 'center';
 
-        const contentEl = document.getElementById('content');
-        const captionEl = document.getElementById('caption');
+        var contentEl = document.getElementById('content');
+        var captionEl = document.getElementById('caption');
 
-        // ✅ Hide caption completely
+        // Hide caption completely
         captionEl.style.display = 'none';
 
-        // ✅ Add classes based on parameters
+        // Add classes based on parameters
         if (hideControls) {
             contentEl.classList.add('hide-controls');
         }
 
-        // ✅ Set aspect ratio class
+        // Add fit class
+        contentEl.classList.add('fit-' + fit);
+
+        // Handle position - check if it's a percentage or named value
+        var positionMap = {
+            'center': 'center',
+            'left': 'left center',
+            'right': 'right center',
+            'top': 'center top',
+            'bottom': 'center bottom'
+        };
+
+        // If position is a percentage or custom value (e.g., "70% center")
+        if (position in positionMap) {
+            contentEl.classList.add('position-' + position);
+        } else {
+            // Custom position like "70% center" or "75% center"
+            contentEl.classList.add('position-custom');
+            // Set CSS custom property for the position
+            contentEl.style.setProperty('--custom-position', position);
+        }
+
+        // Set aspect ratio class
         if (aspect === '1:1') {
             contentEl.classList.add('square');
         } else {
@@ -127,8 +188,7 @@
         if (!mediaUrl) {
             contentEl.innerHTML = '<div class="error-msg">⚠️ No media URL provided</div>';
         } else if (isVideo) {
-            // ✅ Use controls based on hideControls parameter
-            const controlsAttr = hideControls ? '' : 'controls';
+            var controlsAttr = hideControls ? '' : 'controls';
             
             contentEl.innerHTML = `
                 <video 
@@ -140,19 +200,17 @@
                     muted="true"
                     playsinline="true"
                     preload="metadata"
-                    style="width:100%; height:100%; object-fit:cover; background:transparent;"
+                    style="width:100%; height:100%; background:transparent;"
                 >
                     Your browser does not support video playback.
                 </video>
             `;
             
-            // Auto-play with fallback
-            const video = document.getElementById('videoPlayer');
+            var video = document.getElementById('videoPlayer');
             if (video && autoplay) {
-                video.play().catch(() => {
-                    // Only show tap-to-play if controls are shown
+                video.play().catch(function() {
                     if (!hideControls) {
-                        const overlay = document.createElement('div');
+                        var overlay = document.createElement('div');
                         overlay.style.cssText = `
                             position: absolute; inset: 0; 
                             display: flex; 
@@ -180,7 +238,7 @@
                                 pointer-events: auto;
                             ">▶</button>
                         `;
-                        overlay.onclick = (e) => {
+                        overlay.onclick = function(e) {
                             e.stopPropagation();
                             video.play();
                             overlay.remove();
@@ -195,7 +253,7 @@
                     src="${mediaUrl}" 
                     alt=""
                     loading="lazy"
-                    style="width:100%; height:100%; object-fit:cover; background:transparent;"
+                    style="width:100%; height:100%; background:transparent;"
                     onerror="this.parentElement.innerHTML='<div class=\\'error-msg\\'>⚠️ Image failed to load</div>'"
                 />
             `;
