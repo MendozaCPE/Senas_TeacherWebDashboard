@@ -3434,7 +3434,7 @@ public function getWeakSigns(Request $request)
                 'name' => $module->name,
                 'display_name' => $module->display_name,
             ],
-            'weak_signs' => $weakSigns,
+            'weak_signs' => $weakSigns,  // ← This is what the frontend expects
             'count' => count($weakSigns),
         ]);
 
@@ -3445,6 +3445,7 @@ public function getWeakSigns(Request $request)
         ], 500);
     }
 }
+
 
 /**
  * Award XP for challenge mode (no cap)
