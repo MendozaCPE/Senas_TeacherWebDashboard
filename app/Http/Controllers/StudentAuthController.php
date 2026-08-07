@@ -1290,6 +1290,29 @@ private function lessonMatchesLearningGoal($goal, $lesson, $module, $gesturesByN
     return false;
 }
 
+/**
+ * Get accessible module levels based on student's mastery level
+ */
+private function getAccessibleModuleLevels(string $studentLevel): array
+{
+    $levelMap = [
+        'beginner' => ['beginner'],
+        'intermediate' => ['beginner', 'intermediate'],
+        'advanced' => ['beginner', 'intermediate', 'advanced'],
+    ];
+
+    $normalizedLevel = strtolower($studentLevel);
+    return $levelMap[$normalizedLevel] ?? ['beginner'];
+}
+/**
+ * Check if a student can access a specific module based on their level
+ */
+private function canAccessModule($studentLevel, $moduleLevel): bool
+{
+    $accessibleLevels = $this->getAccessibleModuleLevels($studentLevel);
+    return in_array(strtolower($moduleLevel), $accessibleLevels);
+}
+
 public function getLessons(Request $request)
 {
     try {
@@ -1308,15 +1331,26 @@ public function getLessons(Request $request)
         // 🔥 SYNC: Check and fix any inconsistent lock statuses
         $this->syncLessonLocks($student);
 
-        // 🔥 ADD: Get all lesson assignments for THIS student ONLY for lessons that exist and are not deleted
+        // 🔥 GET STUDENT'S MASTERY LEVEL
+        $studentLevel = strtolower($student->fsl_mastery_level ?? 'beginner');
+
+        // 🔥 Determine which module levels are accessible
+        $accessibleLevels = $this->getAccessibleModuleLevels($studentLevel);
+
+        // 🔥 GET ALL MODULES
+        $allModules = Module::where('teacher_id', $student->teacher_id)
+            ->orderBy('module_order')
+            ->get();
+
+        // 🔥 ADD: Get all lesson assignments for THIS student
         $assignments = LessonAssignment::where('student_id', $student->student_id)
             ->whereHas('lesson', function($query) {
                 $query->where('status', 'published')
-                      ->whereNull('deleted_at');  // ✅ EXCLUDE SOFT DELETED LESSONS
+                      ->whereNull('deleted_at');
             })
             ->with(['lesson' => function ($query) {
                 $query->where('status', 'published')
-                      ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
+                      ->whereNull('deleted_at')
                       ->with(['contents', 'quiz', 'module']);
             }])
             ->get();
@@ -1326,92 +1360,139 @@ public function getLessons(Request $request)
             return $assignment->lesson !== null;
         });
 
-
         // Group lessons by module
         $modulesMap = [];
         
-        foreach ($assignments as $assignment) {
-            $lesson = $assignment->lesson;
+        // First, add ALL modules with their lessons
+        foreach ($allModules as $module) {
+            $moduleId = $module->module_id;
+            $moduleLevel = strtolower($module->mastery_level ?? 'beginner');
             
-            if (!$lesson) {
-                continue;
+            // 🔥 CRITICAL FIX: Check if this module is accessible
+            // Use the student's level to determine if they can access this module
+            $isAccessible = in_array($moduleLevel, $accessibleLevels);
+            
+            // Get lessons for this module from assignments
+            $moduleLessons = $assignments->filter(function($assignment) use ($moduleId) {
+                return $assignment->lesson && $assignment->lesson->module_id === $moduleId;
+            });
+            
+            // Get quiz result for this module
+            $quizResult = null;
+            if ($moduleId) {
+                $quizResult = DB::table('module_quiz_results')
+                    ->where('student_id', $student->student_id)
+                    ->where('module_id', $moduleId)
+                    ->orderByDesc('percentage')
+                    ->first();
             }
             
-            $module = $lesson->module;
-            $moduleId = $module ? $module->module_id : null;
-            $moduleTitle = $module ? $module->title : 'General Lessons';
-            $moduleDescription = $module ? $module->description : 'Default module for lessons';
+            $modulesMap[$moduleId] = [
+                'module_id' => $moduleId,
+                'title' => $module->title,
+                'description' => $module->description,
+                'mastery_level' => $module->mastery_level,
+                'is_locked' => !$isAccessible,  // 🔥 TRUE if student can't access
+                'requires_level' => $moduleLevel,  // What level is required
+                'student_level' => $studentLevel,  // Student's current level
+                'quiz_passed' => $quizResult ? (bool) $quizResult->passed : false,
+                'quiz_score' => $quizResult ? $quizResult->percentage : null,
+                'lessons' => [],
+                'module_order' => $module->module_order ?? 0,
+            ];
             
-            if (!isset($modulesMap[$moduleId])) {
-                $quizResult = null;
-                if ($moduleId) {
-                    $quizResult = DB::table('module_quiz_results')
-                        ->where('student_id', $student->student_id)
-                        ->where('module_id', $moduleId)
-                        ->orderByDesc('percentage')
-                        ->first();
+            // Add lessons to the module
+            foreach ($moduleLessons as $assignment) {
+                $lesson = $assignment->lesson;
+                
+                if (!$lesson) {
+                    continue;
                 }
-
-                $modulesMap[$moduleId] = [
-                    'module_id' => $moduleId,
-                    'title' => $moduleTitle,
-                    'description' => $moduleDescription,
-                    'quiz_passed' => $quizResult ? (bool) $quizResult->passed : false,
-                    'quiz_score' => $quizResult ? $quizResult->percentage : null,
-                    'lessons' => []
+                
+                // 🔥 Get the HIGHEST score from ALL quiz attempts for this lesson
+                $highestScore = DB::table('quiz_attempts as qa')
+                    ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                    ->where('qa.student_id', $student->student_id)
+                    ->where('q.lesson_id', $lesson->lesson_id)
+                    ->where('qa.status', 'completed')
+                    ->max('qa.percentage');
+                
+                // If no completed attempts, check student_lesson_progress as backup
+                if ($highestScore === null) {
+                    $progress = DB::table('student_lesson_progress')
+                        ->where('student_id', $student->student_id)
+                        ->where('lesson_id', $lesson->lesson_id)
+                        ->first();
+                    $highestScore = $progress ? $progress->quiz_score : null;
+                }
+                
+                // 🔥 Determine status based on highest score
+                $hasPassed = $highestScore !== null && $highestScore >= 60;
+                $hasFailed = $highestScore !== null && $highestScore < 60;
+                
+                // Determine status
+                $status = $assignment->status;
+                if ($hasPassed) {
+                    $status = 'completed';
+                } elseif ($hasFailed) {
+                    $status = 'failed';
+                }
+                
+                // 🔥 CRITICAL FIX: If module is locked, ALL lessons are locked
+                $isLessonLocked = !$isAccessible || (bool) $assignment->is_locked;
+                
+                $modulesMap[$moduleId]['lessons'][] = [
+                    'is_checkpoint_exam' => false,
+                    'assignment_id' => $assignment->id,
+                    'lesson_id' => $lesson->lesson_id,
+                    'title' => $lesson->title,
+                    'description' => $lesson->description,
+                    'lesson_type' => $lesson->lesson_type,
+                    'difficulty' => $lesson->difficulty,
+                    'status' => $status,
+                    'score' => $highestScore,
+                    'is_locked' => $isLessonLocked,
+                    'assigned_at' => $assignment->assigned_at,
+                    'module_order' => $lesson->module_order ?? 0,
+                    'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
+                    'has_quiz' => $lesson->quiz ? true : false,
                 ];
             }
             
-            // 🔥 Get the HIGHEST score from ALL quiz attempts for this lesson
-            $highestScore = DB::table('quiz_attempts as qa')
-                ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
-                ->where('qa.student_id', $student->student_id)
-                ->where('q.lesson_id', $lesson->lesson_id)
-                ->where('qa.status', 'completed')
-                ->max('qa.percentage');
-            
-            // If no completed attempts, check student_lesson_progress as backup
-            if ($highestScore === null) {
-                $progress = DB::table('student_lesson_progress')
-                    ->where('student_id', $student->student_id)
-                    ->where('lesson_id', $lesson->lesson_id)
-                    ->first();
-                $highestScore = $progress ? $progress->quiz_score : null;
+            // If no lessons from assignments, but module has lessons, add them
+            if (empty($modulesMap[$moduleId]['lessons'])) {
+                $moduleLessons = Lesson::where('module_id', $moduleId)
+                    ->where('status', 'published')
+                    ->whereNull('deleted_at')
+                    ->orderBy('module_order')
+                    ->get();
+                
+                foreach ($moduleLessons as $lesson) {
+                    $modulesMap[$moduleId]['lessons'][] = [
+                        'is_checkpoint_exam' => false,
+                        'assignment_id' => null,
+                        'lesson_id' => $lesson->lesson_id,
+                        'title' => $lesson->title,
+                        'description' => $lesson->description,
+                        'lesson_type' => $lesson->lesson_type,
+                        'difficulty' => $lesson->difficulty,
+                        'status' => !$isAccessible ? 'locked' : 'pending',
+                        'score' => null,
+                        'is_locked' => !$isAccessible, // 🔥 Locked if module is locked
+                        'assigned_at' => null,
+                        'module_order' => $lesson->module_order ?? 0,
+                        'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
+                        'has_quiz' => $lesson->quiz ? true : false,
+                    ];
+                }
             }
-            
-            // 🔥 Determine status based on highest score
-            $hasPassed = $highestScore !== null && $highestScore >= 60;
-            $hasFailed = $highestScore !== null && $highestScore < 60;
-            
-            // Determine status
-            $status = $assignment->status;
-            if ($hasPassed) {
-                $status = 'completed';
-            } elseif ($hasFailed) {
-                $status = 'failed';
-            }
-            
-            $modulesMap[$moduleId]['lessons'][] = [
-                'is_checkpoint_exam' => false,
-                'assignment_id' => $assignment->id,
-                'lesson_id' => $lesson->lesson_id,
-                'title' => $lesson->title,
-                'description' => $lesson->description,
-                'lesson_type' => $lesson->lesson_type,
-                'difficulty' => $lesson->difficulty,
-                'status' => $status,
-                'score' => $highestScore, // 🔥 Send the highest score
-                'is_locked' => (bool) $assignment->is_locked,
-                'assigned_at' => $assignment->assigned_at,
-                'module_order' => $lesson->module_order ?? 0,
-                'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
-                'has_quiz' => $lesson->quiz ? true : false,
-            ];
         }
 
         // 🔥 Attach published Checkpoint Exams assigned to this student for each module
         foreach ($modulesMap as $mId => &$moduleData) {
             if (!$mId) continue;
+            
+            $isModuleLocked = $moduleData['is_locked'] ?? true;
 
             $checkpointExams = CheckpointExam::where('module_id', $mId)
                 ->where('status', 'published')
@@ -1442,7 +1523,7 @@ public function getLessons(Request $request)
                     ->first();
 
                 $isPassed = $bestAttempt && $bestAttempt->percentage >= 60;
-                $isExamLocked = true;
+                $isExamLocked = $isModuleLocked;
 
                 if ($isPassed) {
                     $isExamLocked = false;
@@ -1476,7 +1557,7 @@ public function getLessons(Request $request)
                     'description' => $exam->description ?? 'Checkpoint Exam for this module',
                     'lesson_type' => 'checkpoint_exam',
                     'difficulty' => 'Exam',
-                    'status' => $examStatus,
+                    'status' => $isModuleLocked ? 'locked' : $examStatus,
                     'score' => $bestAttempt ? $bestAttempt->percentage : null,
                     'is_locked' => (bool)$isExamLocked,
                     'assigned_at' => $examAssignment->assigned_at ?? $exam->published_at,
@@ -1502,8 +1583,8 @@ public function getLessons(Request $request)
         }
         unset($module);
         
-        // Sort modules by module_id (ASCENDING)
-        ksort($modulesMap);
+        // Sort modules by module_order (ASCENDING)
+        $modulesMap = collect($modulesMap)->sortBy('module_order')->toArray();
         
         // Convert map to array
         $modules = array_values($modulesMap);
@@ -1512,29 +1593,28 @@ public function getLessons(Request $request)
         $xpService->updateStreak($student);
 
         return response()->json([
-        'success' => true,
-        'modules' => $modules,
-        'student' => [
-            'first_name' => $student->first_name,
-            'last_name' => $student->last_name,
-            'fsl_mastery_level' => $student->fsl_mastery_level,
-            'total_xp' => $student->total_xp ?? 0,
-            'level' => $student->level ?? 1,
-            'streak_days' => $student->streak_days ?? 0,
-            'teacher_id' => $student->teacher_id, // ✅ ADD THIS LINE
-            'next_level_xp' => $xpService->getNextLevelXp($student),
-            'level_progress' => $xpService->getLevelProgress($student),
-            'level_name' => $xpService->getLevelName($student->level ?? 1),
-        ],
-    ]);
-}catch (\Exception $e) {
+            'success' => true,
+            'modules' => $modules,
+            'student' => [
+                'first_name' => $student->first_name,
+                'last_name' => $student->last_name,
+                'fsl_mastery_level' => $student->fsl_mastery_level,
+                'total_xp' => $student->total_xp ?? 0,
+                'level' => $student->level ?? 1,
+                'streak_days' => $student->streak_days ?? 0,
+                'teacher_id' => $student->teacher_id,
+                'next_level_xp' => $xpService->getNextLevelXp($student),
+                'level_progress' => $xpService->getLevelProgress($student),
+                'level_name' => $xpService->getLevelName($student->level ?? 1),
+            ],
+        ]);
+    } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'error' => $e->getMessage(),
         ], 500);
     }
 }
-
 /**
  * Get all lessons as a flat list (for dashboard)
  * This returns lessons directly without module grouping

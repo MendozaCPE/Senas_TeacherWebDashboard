@@ -2049,8 +2049,8 @@
       <a href="#deaf-community">Community</a>
     </nav>
     <div class="nav-actions">
-      <button class="btn btn-ghost-d">Log in</button>
-      <button class="btn btn-amber">Get Started</button>
+     <a href="{{ route('login') }}" class="btn btn-ghost-d">Log in</a>
+<a href="{{ route('register') }}" class="btn btn-amber">Get Started</a>
       <button class="burger" id="burgerBtn" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button>
     </div>
   </div>
@@ -2062,8 +2062,8 @@
     <a href="#teacher-dash">Dashboard</a>
     <a href="#mobile-app">Mobile App</a>
     <a href="#deaf-community">Community</a>
-    <button class="btn btn-ghost-d">Log in</button>
-    <button class="btn btn-amber">Get Started</button>
+   <a href="{{ route('login') }}" class="btn btn-ghost-d">Log in</a>
+<a href="{{ route('register') }}" class="btn btn-amber">Get Started</a>
   </div>
 </header>
 
@@ -2078,8 +2078,8 @@
       <h1>Learn FSL with <span class="accent">real-time AI</span> gesture recognition</h1>
       <p class="lead">SEÑAS uses artificial intelligence to recognize your hand gestures instantly, giving you real-time feedback as you learn Filipino Sign Language — anytime, anywhere.</p>
       <div class="hero-ctas">
-        <button class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</button>
-        <button class="btn btn-white btn-lg"><i class="fa-solid fa-play"></i> See how it works</button>
+      <a href="{{ route('login') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</a>
+<a href="{{ route('login') }}" class="btn btn-white btn-lg"><i class="fa-solid fa-play"></i> See how it works</a>
       </div>
       <div class="hero-stats">
         <div><div class="stat-num" data-count="98">0</div><div class="stat-label">% gesture accuracy</div></div>
@@ -2250,7 +2250,7 @@
         <div class="tip-dots" id="tipDots">
           <span class="active" data-i="0"></span><span data-i="1"></span><span data-i="2"></span>
         </div>
-        <button class="btn"><i class="fa-solid fa-chalkboard-user"></i> Explore Teacher Dashboard</button>
+<a href="{{ route('login') }}" class="btn"><i class="fa-solid fa-chalkboard-user"></i> Explore Teacher Dashboard</a>
       </div>
       <div class="tip-image">
         <img src="{{ asset('images/senyaTip.png') }}" alt="Senya Tip" onerror="this.onerror=null;this.src='{{ url('images/senyaTip.png') }}';">
@@ -2410,7 +2410,7 @@
         </div>
 
         <div class="mobile-app-cta">
-          <button class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App — It's Free</button>
+        <a href="{{ route('login') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App — It's Free</a>
         </div>
       </div>
     </div>
@@ -2532,10 +2532,10 @@
       <img class="cta-star" src="{{ asset('images/wavingSenya.png') }}" alt="Senya mascot" onerror="this.onerror=null;this.src='{{ url('images/wavingSenya.png') }}';">
       <h2>Start learning Filipino Sign Language today</h2>
       <p>Download the SEÑAS app and experience AI-powered gesture recognition that makes learning FSL accessible, engaging, and fun.</p>
-      <div class="hero-ctas">
-        <button class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students </button>
-        <button class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Sign up as a Teacher</button>
-      </div>
+  <div class="hero-ctas">
+    <a href="{{ route('register') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students</a>
+    <a href="{{ route('register') }}" class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Sign up as a Teacher</a>
+</div>
     </div>
   </div>
 </section>

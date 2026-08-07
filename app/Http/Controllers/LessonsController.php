@@ -976,6 +976,7 @@ public function publishLesson(Request $request, $id)
         'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
         'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
         'new_module.description' => 'nullable|string|max:1000',
+        'new_module.mastery_level' => 'nullable|in:beginner,intermediate,advanced', // ← ADD THIS
         'publish_option' => 'required|in:all,program,mastery,selected',
         'program' => 'required_if:publish_option,program|nullable|string',
         'mastery_level' => 'required_if:publish_option,mastery|nullable|string',
@@ -1382,38 +1383,40 @@ public function destroy($id)
         return $firstTeacher ? (int) $firstTeacher->id : 1;
     }
 
-    private function resolveModuleId(Request $request, int $teacherId): ?int
-    {
-        $action = $request->input('module_action', 'none');
+  private function resolveModuleId(Request $request, int $teacherId): ?int
+{
+    $action = $request->input('module_action', 'none');
 
-        if ($action === 'new') {
-            $request->validate([
-                'new_module.title' => 'required|string|max:255',
-                'new_module.description' => 'nullable|string|max:1000',
-            ]);
+    if ($action === 'new') {
+        $request->validate([
+            'new_module.title' => 'required|string|max:255',
+            'new_module.description' => 'nullable|string|max:1000',
+            'new_module.mastery_level' => 'nullable|in:beginner,intermediate,advanced', // ← ADD THIS
+        ]);
 
-            $nextOrder = (int) Module::where('teacher_id', $teacherId)->max('module_order') + 1;
+        $nextOrder = (int) Module::where('teacher_id', $teacherId)->max('module_order') + 1;
 
-            return Module::create([
-                'teacher_id' => $teacherId,
-                'title' => $request->input('new_module.title'),
-                'description' => $request->input('new_module.description'),
-                'module_order' => $nextOrder,
-                'status' => 'draft',
-            ])->module_id;
-        }
-
-        if ($action === 'existing' && $request->filled('module_id')) {
-            $moduleId = (int) $request->input('module_id');
-            Module::where('module_id', $moduleId)
-                ->where('teacher_id', $teacherId)
-                ->firstOrFail();
-
-            return $moduleId;
-        }
-
-        return null;
+        return Module::create([
+            'teacher_id' => $teacherId,
+            'title' => $request->input('new_module.title'),
+            'description' => $request->input('new_module.description'),
+            'mastery_level' => $request->input('new_module.mastery_level', 'beginner'), // ← ADD THIS
+            'module_order' => $nextOrder,
+            'status' => 'draft',
+        ])->module_id;
     }
+
+    if ($action === 'existing' && $request->filled('module_id')) {
+        $moduleId = (int) $request->input('module_id');
+        Module::where('module_id', $moduleId)
+            ->where('teacher_id', $teacherId)
+            ->firstOrFail();
+
+        return $moduleId;
+    }
+
+    return null;
+}
 
     private function getContentUploadedFile(Request $request, int|string $index): ?UploadedFile
     {

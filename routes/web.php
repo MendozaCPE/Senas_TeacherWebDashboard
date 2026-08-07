@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
+Route::get('/', function () {
+    return view('landing.landing');
+})->name('home');
+
+// Keep /landing as an alias
 Route::get('/landing', function () {
     return view('landing.landing');
 });
@@ -80,8 +85,7 @@ Route::get('/media-player', function () {
 // ── Protected Routes (must be logged in) ─────────────────────────────────────
 Route::middleware(['auth', 'no.cache'])->group(function () {
     // Redirect / to /dashboard
-    Route::get('/', fn () => redirect()->route('dashboard'));
-
+   
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -194,6 +198,12 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     // Delete module with options (AJAX)
     Route::post('/modules/{id}/delete-with-options', [ModulesController::class, 'deleteWithOptions'])
         ->name('modules.delete-with-options');
+    
+    // Update module details (AJAX)
+    Route::put('/modules/{id}', [ModulesController::class, 'update'])
+        ->name('modules.update');
+    Route::post('/modules/{id}/update', [ModulesController::class, 'update']);
+
     
     // Simple delete (redirects to options page)
     Route::delete('/modules/{id}', [ModulesController::class, 'destroy'])
