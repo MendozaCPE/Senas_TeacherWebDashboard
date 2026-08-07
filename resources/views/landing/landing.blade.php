@@ -633,13 +633,19 @@
       font-size: .65rem;
       color: var(--ink-faint);
     }
-    .about-visual img {
+    .about-visual video {
       max-width: 100%;
       border-radius: clamp(20px,2.5vw,28px);
       box-shadow: var(--shadow-xl);
       transition: transform .4s ease;
+      display: block;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      width: 100%;
+      height: auto;
+      background: #1a1a2e;
     }
-    .about-visual img:hover {
+    .about-visual video:hover {
       transform: scale(1.02);
     }
     @media(max-width:720px){
@@ -1903,6 +1909,26 @@
     /* ===== CTA – Enhanced ===== */
     #cta-section {
       background: linear-gradient(180deg, #EDF1FA, #FDF3E6);
+      position: relative;
+      overflow: hidden;
+    }
+    #cta-section .cta-clouds {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.35;
+      background-image: url('{{ asset('images/senya_clouds.png') }}');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      mix-blend-mode: overlay;
+    }
+    @media (max-width: 768px) {
+      #cta-section .cta-clouds {
+        background-size: contain;
+        opacity: 0.04;
+      }
     }
     .cta-band {
       border-radius: clamp(24px,3vw,36px);
@@ -1913,6 +1939,25 @@
       background: linear-gradient(140deg, #0B1E3D, #193072, #2c50d2);
       color: #fff;
       box-shadow: var(--shadow-xl);
+      z-index: 1;
+    }
+    .cta-band-clouds {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.2;
+      background-image: url('{{ asset('images/senya_clouds.png') }}');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      mix-blend-mode: screen;
+    }
+    @media (max-width: 768px) {
+      .cta-band-clouds {
+        background-size: contain;
+        opacity: 0.08;
+      }
     }
     .cta-band::before {
       content: '';
@@ -2150,7 +2195,7 @@
     </div>
 
     <div class="about-visual reveal">
-      <img src="{{ asset('images/intro_senya.png') }}" alt="SEÑAS learning platform" onerror="this.onerror=null;this.src='{{ url('images/intro_senya.png') }}';">
+      <video src="{{ asset('images/senya_waving.mp4') }}" alt="SEÑAS learning platform" onerror="this.onerror=null;this.src='{{ url('images/senya_waving.mp4') }}';" autoplay muted loop playsinline></video>
       <div class="floating-badge top-right">
         <div class="icon"><i class="fa-solid fa-star" style="color:var(--amber);"></i></div>
         <div>
@@ -2527,8 +2572,10 @@
 
 <!-- ===== CTA ===== -->
 <section id="cta-section">
+  <div class="cta-clouds"></div>
   <div class="wrap">
     <div class="cta-band reveal">
+      <div class="cta-band-clouds"></div>
       <img class="cta-star" src="{{ asset('images/wavingSenya.png') }}" alt="Senya mascot" onerror="this.onerror=null;this.src='{{ url('images/wavingSenya.png') }}';">
       <h2>Start learning Filipino Sign Language today</h2>
       <p>Download the SEÑAS app and experience AI-powered gesture recognition that makes learning FSL accessible, engaging, and fun.</p>
