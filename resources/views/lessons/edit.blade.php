@@ -136,9 +136,9 @@
         position: absolute;
         z-index: 10050;
         background: white;
-        border: 1.5px solid #E5EAF2;
+        border: 1.5px solid #e2e8f0;
         border-radius: 14px;
-        box-shadow: 0 12px 32px rgba(15,49,114,0.18);
+        box-shadow: 0 12px 32px rgba(13,50,107,0.18);
         padding: 6px;
         min-width: 200px;
         display: flex;
@@ -155,7 +155,7 @@
         background: none;
         font-size: 13px;
         font-weight: 600;
-        color: #334155;
+        color: #475569;
         cursor: pointer;
     }
     .media-picker-menu button .material-symbols-outlined {
@@ -163,11 +163,11 @@
         color: #64748b;
         flex-shrink: 0;
     }
-    .media-picker-menu button:hover { background: #F1F5F9; color: #0d326b; }
+    .media-picker-menu button:hover { background: #f1f5f9; color: #0d326b; }
     .media-picker-menu button:hover .material-symbols-outlined { color: #0d326b; }
     .media-picker-menu-divider {
         height: 1px;
-        background: #E5EAF2;
+        background: #e2e8f0;
         margin: 5px 4px;
     }
 
@@ -190,12 +190,12 @@
         max-height: 82vh;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 20px 60px rgba(15,49,114,0.25);
+        box-shadow: 0 20px 60px rgba(13,50,107,0.25);
     }
     .library-tab {
-        border: 1.5px solid #E5EAF2;
-        background: #FAFBFD;
-        color: #334155;
+        border: 1.5px solid #e2e8f0;
+        background: #fafbfc;
+        color: #475569;
         font-size: 12px;
         font-weight: 700;
         padding: 8px 14px;
@@ -208,21 +208,21 @@
     .library-tab .material-symbols-outlined { font-size: 16px; }
     .library-tab.active { background: #0d326b; border-color: #0d326b; color: white; }
     .library-file-card {
-        border: 1.5px solid #E5EAF2;
+        border: 1.5px solid #e2e8f0;
         border-radius: 14px;
         padding: 8px;
         cursor: pointer;
         transition: all 0.15s;
         text-align: center;
-        background: #FAFBFD;
+        background: #fafbfc;
     }
-    .library-file-card:hover { border-color: #0d326b; background: #F0F4FF; transform: translateY(-1px); }
+    .library-file-card:hover { border-color: #0d326b; background: #f0f4ff; transform: translateY(-1px); }
     .library-file-thumb {
         width: 100%;
         height: 84px;
         object-fit: cover;
         border-radius: 9px;
-        background: #E5EAF2;
+        background: #e2e8f0;
         display: block;
     }
     .library-file-thumb-video {
@@ -294,7 +294,7 @@
         gap: 12px;
         align-items: center;
         background: white;
-        border: 1.5px solid #E5EAF2;
+        border: 1.5px solid #e2e8f0;
         border-radius: 14px;
         padding: 12px;
         margin-bottom: 8px;
@@ -316,7 +316,7 @@
     .drag-drop-pair .pair-side label {
         font-size: 12px;
         font-weight: 600;
-        color: #6B7280;
+        color: #64748b;
         display: block;
         margin-bottom: 4px;
     }
@@ -324,13 +324,13 @@
         padding: 8px 12px;
         font-size: 13px;
         width: 100%;
-        border: 1.5px solid #E5EAF2;
+        border: 1.5px solid #e2e8f0;
         border-radius: 11px;
         outline: none;
         transition: border-color 0.2s;
     }
     .drag-drop-pair .pair-side input[type="text"]:focus {
-        border-color: #1848c8;
+        border-color: #0d326b;
     }
 
     /* ── Gesture Selection Styles ────────────────────────────────────── */
@@ -340,7 +340,7 @@
         gap: 6px;
         padding: 8px 14px;
         border-radius: 12px;
-        border: 2px solid #E5EAF2;
+        border: 2px solid #e2e8f0;
         background: white;
         cursor: pointer;
         transition: all 0.2s;
@@ -386,7 +386,7 @@
         min-height: 50px;
         background: #F8FAFC;
         border-radius: 12px;
-        border: 1.5px dashed #E5EAF2;
+        border: 1.5px dashed #e2e8f0;
     }
     .fingerspelling-word-pill {
         display: inline-flex;
@@ -438,78 +438,239 @@
         border-width: 2px !important;
         background-color: #FEF2F2 !important;
     }
+
+    /* ── Shared section-card / section-header system (matches create) ─── */
+    .section-card {
+        background: white;
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: 0 1px 3px rgba(13,50,107,0.05), 0 4px 20px rgba(13,50,107,0.04);
+        border: 1px solid rgba(13,50,107,0.07);
+        margin-bottom: 24px;
+    }
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 22px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .section-title-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 16px;
+        font-weight: 800;
+        color: #0d326b;
+    }
+    .section-icon-box {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .section-subtitle {
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: 500;
+        margin-top: 2px;
+    }
+    .field-label-sm {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: #475569;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .step-number-badge {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: #0d326b;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+    .content-type-pill {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 99px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        background: rgba(13,50,107,0.08);
+        color: #0d326b;
+    }
+    .add-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 7px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0d326b;
+        background: rgba(13,50,107,0.05);
+        border: 1px solid rgba(13,50,107,0.12);
+        transition: all 0.15s;
+        cursor: pointer;
+    }
+    .add-link-btn:hover {
+        background: rgba(13,50,107,0.09);
+        border-color: rgba(13,50,107,0.22);
+    }
+    .quiz-question-card {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+        background: #fafbfc;
+        margin-bottom: 16px;
+        transition: border-color 0.2s;
+    }
+    .quiz-question-card:focus-within {
+        border-color: rgba(13,50,107,0.2);
+    }
+    .dashed-add {
+        width: 100%;
+        padding: 13px;
+        border: 2px dashed rgba(13,50,107,0.18);
+        border-radius: 14px;
+        color: #0d326b;
+        font-weight: 700;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s;
+        background: rgba(13,50,107,0.02);
+        cursor: pointer;
+        margin-top: 12px;
+    }
+    .dashed-add:hover {
+        background: rgba(13,50,107,0.05);
+        border-color: rgba(13,50,107,0.32);
+    }
 </style>
 
-<div class="max-w-4xl mx-auto">
+<div class="max-w-4xl mx-auto pb-10">
+
+    {{-- ── Page Header ─────────────────────────────────────────────── --}}
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h2 class="text-3xl font-bold text-[#0d326b]">Edit Lesson</h2>
-            <p class="text-slate-500 text-sm mt-1">Update your lesson content and quiz questions</p>
+            <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-2">
+                <a href="{{ route('lessons.index') }}" class="hover:text-[#0d326b] transition-colors">Lessons</a>
+                <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+                <span class="text-[#0d326b] truncate max-w-[260px]">{{ $lessonData['title'] }}</span>
+            </div>
+            <h2 class="text-[28px] font-black text-[#0d326b] tracking-tight leading-none">Edit Lesson</h2>
+            <p class="text-slate-400 text-sm mt-1.5 font-medium">Update content, quiz questions and settings</p>
         </div>
-        <button type="button" onclick="window.location.href='{{ route('lessons.index') }}'"
-                class="px-6 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors">
-            Cancel
-        </button>
+        <div class="flex items-center gap-3">
+            {{-- Status badge --}}
+            @php $st = $lessonData['status'] ?? 'draft'; @endphp
+            <span class="px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider
+                {{ $st === 'published' ? 'bg-[#0d326b] text-white' : 'bg-amber-100 text-amber-700' }}">
+                {{ $st === 'published' ? '✓ Published' : '✎ Draft' }}
+            </span>
+            <a href="{{ route('lessons.index') }}"
+               class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-[13px] text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all">
+                <span class="material-symbols-outlined text-[16px]">close</span>
+                Cancel
+            </a>
+        </div>
     </div>
 
     <form action="{{ route('lessons.update', $lessonData['hash_id']) }}" method="POST" id="lessonForm" enctype="multipart/form-data">
         @csrf
         @method('PUT')
 
-        {{-- Lesson Details --}}
-        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
-            <h3 class="font-bold text-[#0d326b] text-lg mb-4">📝 Lesson Details</h3>
-            <div class="space-y-4">
+        {{-- ── Lesson Details ──────────────────────────────────────── --}}
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title-group">
+                    <div class="section-icon-box" style="background:rgba(13,50,107,0.08);">
+                        <span class="material-symbols-outlined text-[20px] text-[#0d326b]">edit_note</span>
+                    </div>
+                    <div>
+                        Lesson Details
+                        <div class="section-subtitle">Title, description, type and difficulty</div>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-5">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lesson Title *</label>
+                    <label class="field-label-sm">Lesson Title <span class="text-red-500">*</span></label>
                     <input type="text" name="title" required value="{{ old('title', $lessonData['title']) }}"
-                           class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
+                           class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]"
+                           placeholder="Lesson title">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Description</label>
+                    <label class="field-label-sm">Description</label>
                     <textarea name="description" rows="3"
-                              class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">{{ old('description', $lessonData['description']) }}</textarea>
+                              class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]"
+                              placeholder="Brief overview of what students will learn...">{{ old('description', $lessonData['description']) }}</textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Difficulty</label>
-                        <select name="difficulty" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
-                            <option value="beginner" {{ (old('difficulty', $lessonData['difficulty']) == 'beginner') ? 'selected' : '' }}>Beginner</option>
-                            <option value="intermediate" {{ (old('difficulty', $lessonData['difficulty']) == 'intermediate') ? 'selected' : '' }}>Intermediate</option>
-                            <option value="advanced" {{ (old('difficulty', $lessonData['difficulty']) == 'advanced') ? 'selected' : '' }}>Advanced</option>
+                        <label class="field-label-sm">Difficulty</label>
+                        <select name="difficulty" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]">
+                            <option value="beginner"     {{ old('difficulty', $lessonData['difficulty']) == 'beginner'     ? 'selected' : '' }}>🌱 Beginner</option>
+                            <option value="intermediate" {{ old('difficulty', $lessonData['difficulty']) == 'intermediate' ? 'selected' : '' }}>⚡ Intermediate</option>
+                            <option value="advanced"     {{ old('difficulty', $lessonData['difficulty']) == 'advanced'     ? 'selected' : '' }}>🔥 Advanced</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lesson Type</label>
-                        <select name="lesson_type" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
-                            <option value="gesture" {{ (old('lesson_type', $lessonData['lesson_type']) == 'gesture') ? 'selected' : '' }}>Gesture Lesson</option>
-                            <option value="interactive" {{ (old('lesson_type', $lessonData['lesson_type']) == 'interactive') ? 'selected' : '' }}>Interactive Lesson</option>
-                            <option value="video" {{ (old('lesson_type', $lessonData['lesson_type']) == 'video') ? 'selected' : '' }}>Video Lesson</option>
+                        <label class="field-label-sm">Lesson Type</label>
+                        <select name="lesson_type" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]">
+                            <option value="gesture"     {{ old('lesson_type', $lessonData['lesson_type']) == 'gesture'     ? 'selected' : '' }}>👋 Gesture Lesson</option>
+                            <option value="interactive" {{ old('lesson_type', $lessonData['lesson_type']) == 'interactive' ? 'selected' : '' }}>🎯 Interactive Lesson</option>
+                            <option value="video"       {{ old('lesson_type', $lessonData['lesson_type']) == 'video'       ? 'selected' : '' }}>🎥 Video Lesson</option>
                         </select>
                     </div>
                 </div>
             </div>
         </div>
 
-        {{-- Lesson Content --}}
-        <div id="contentContainer" class="space-y-4">
-            <div class="flex items-center justify-between">
-                <h3 class="font-bold text-[#0d326b] text-lg">📖 Lesson Content</h3>
-                <button type="button" onclick="addContentCard()" class="text-sm text-[#0d326b] font-semibold hover:underline flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">add</span> Add Slide
+        {{-- ── Lesson Content ──────────────────────────────────────── --}}
+        <div id="contentContainer" class="section-card">
+            <div class="section-header">
+                <div class="section-title-group">
+                    <div class="section-icon-box" style="background:rgba(5,150,105,0.1);">
+                        <span class="material-symbols-outlined text-[20px] text-emerald-600">menu_book</span>
+                    </div>
+                    <div>
+                        Lesson Content
+                        <div class="section-subtitle">Slides — text, gestures, images, videos, or YouTube</div>
+                    </div>
+                </div>
+                <button type="button" onclick="addContentCard()"
+                        class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-[#0d326b] bg-[#f0f4ff] hover:bg-[#e0e8ff] border border-[#c7d2fe] transition-all">
+                    <span class="material-symbols-outlined text-[15px]">add</span> Add Slide
                 </button>
             </div>
-            <div id="contentCards">
+            <div id="contentCards" class="space-y-4">
                 @if(isset($lessonData['contents']) && count($lessonData['contents']) > 0)
                     @foreach($lessonData['contents'] as $index => $content)
-                    <div class="content-card bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative mt-4">
+                    <div class="content-card bg-white rounded-2xl p-5 border border-slate-100 shadow-sm relative">
                         <div class="flex items-start justify-between mb-4">
                             <div class="flex items-center gap-3">
-                                <span class="text-sm font-bold text-slate-400 step-number">Step {{ $index + 1 }}</span>
-                                <span class="text-xs bg-blue-50 text-[#0d326b] px-3 py-1 rounded-full font-semibold">{{ ucfirst($content['content_type'] ?? 'text') }}</span>
+                                <div class="step-number-badge step-number">{{ $index + 1 }}</div>
+                                <span class="content-type-pill">{{ ucfirst(str_replace('_', ' ', $content['content_type'] ?? 'text')) }}</span>
                             </div>
-                            <button type="button" onclick="removeContentCard(this)" class="text-red-400 hover:text-red-600">
-                                <span class="material-symbols-outlined text-sm">close</span>
+                            <button type="button" onclick="removeContentCard(this)"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                                <span class="material-symbols-outlined text-[16px]">close</span>
                             </button>
                         </div>
                         <div class="space-y-4">
@@ -633,14 +794,15 @@
                     @endforeach
                 @else
                     {{-- Default empty content card --}}
-                    <div class="content-card bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative mt-4">
+                    <div class="content-card bg-white rounded-2xl p-5 border border-slate-100 shadow-sm relative">
                         <div class="flex items-start justify-between mb-4">
                             <div class="flex items-center gap-3">
-                                <span class="text-sm font-bold text-slate-400 step-number">Step 1</span>
-                                <span class="text-xs bg-blue-50 text-[#0d326b] px-3 py-1 rounded-full font-semibold">Text</span>
+                                <div class="step-number-badge step-number">1</div>
+                                <span class="content-type-pill">Text</span>
                             </div>
-                            <button type="button" onclick="removeContentCard(this)" class="text-red-400 hover:text-red-600">
-                                <span class="material-symbols-outlined text-sm">close</span>
+                            <button type="button" onclick="removeContentCard(this)"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                                <span class="material-symbols-outlined text-[16px]">close</span>
                             </button>
                         </div>
                         <div class="space-y-4">
@@ -691,51 +853,68 @@
                         </div>
                     </div>
                 @endif
-            </div>
-            <button type="button" onclick="addContentCard()" class="w-full py-4 border-2 border-dashed border-[#0d326b]/30 rounded-2xl text-[#0d326b] font-semibold hover:bg-[#f0f4ff] transition-colors flex items-center justify-center gap-2">
-                <span class="material-symbols-outlined text-sm">add</span> Add Another Slide
+            </div>{{-- /#contentCards --}}
+            <button type="button" onclick="addContentCard()" class="dashed-add">
+                <span class="material-symbols-outlined text-[16px]">add</span> Add Another Slide
             </button>
-        </div>
+        </div>{{-- /.section-card #contentContainer --}}
 
-        {{-- Quiz Questions --}}
-        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mt-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-[#0d326b] text-lg">📝 Quiz Questions</h3>
+        {{-- ── Quiz Questions ───────────────────────────────────────── --}}
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title-group">
+                    <div class="section-icon-box" style="background:rgba(245,158,11,0.1);">
+                        <span class="material-symbols-outlined text-[20px] text-amber-600">quiz</span>
+                    </div>
+                    <div>
+                        Quiz Questions
+                        <div class="section-subtitle">Multiple choice, true/false, drag &amp; drop, or gesture</div>
+                    </div>
+                </div>
                 <div class="flex items-center gap-2">
                     <button type="button" id="aiQuizGenerateBtn" onclick="openAiQuizModal()"
                             title="Add lesson content first to enable AI quiz generation"
-                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:8px 16px;border-radius:11px;font-weight:700;font-size:12px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;opacity:0.4;pointer-events:none;"
-                            onmouseover="if(!this.disabled&&this.style.opacity==='1'){this.style.transform='translateY(-1px)'}"
-                            onmouseout="this.style.transform=''">
-                        ✨ Generate Quiz with AI
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-white transition-all"
+                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);opacity:0.4;pointer-events:none;"
+                            onmouseover="if(this.style.opacity==='1')this.style.opacity='0.9'"
+                            onmouseout="if(this.style.opacity!=='0.4')this.style.opacity='1'">
+                        <span class="material-symbols-outlined text-[15px]">auto_awesome</span> Generate Quiz with AI
                     </button>
-                    <button type="button" onclick="addQuizQuestion()" class="text-sm text-[#0d326b] font-semibold hover:underline flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">add</span> Add Question
+                    <button type="button" onclick="addQuizQuestion()"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-[#0d326b] bg-[#f0f4ff] hover:bg-[#e0e8ff] border border-[#c7d2fe] transition-all">
+                        <span class="material-symbols-outlined text-[15px]">add</span> Add Question
                     </button>
                 </div>
             </div>
             <div id="quizQuestions">
                 @if(isset($lessonData['quiz']) && count($lessonData['quiz']) > 0)
                     @foreach($lessonData['quiz'] as $index => $q)
-                    <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100" data-question-index="{{ $index }}">
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-sm font-bold text-slate-500 question-label">Question {{ $index + 1 }}</span>
-                            <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
-                                <span class="material-symbols-outlined text-sm">close</span>
+                    <div class="quiz-question-card" data-question-index="{{ $index }}">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="step-number-badge" style="background:#0d326b;">{{ $index + 1 }}</div>
+                                <span class="text-sm font-bold text-slate-600 question-label">Question {{ $index + 1 }}</span>
+                            </div>
+                            <button type="button" onclick="removeQuizQuestion(this)"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                                <span class="material-symbols-outlined text-[16px]">close</span>
                             </button>
                         </div>
                         <div class="space-y-3">
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question</label>
-                                <input type="text" name="quiz[{{ $index }}][question]" value="{{ $q['question'] ?? '' }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Enter your question">
+                                <label class="field-label-sm">Question</label>
+                                <input type="text" name="quiz[{{ $index }}][question]" value="{{ $q['question'] ?? '' }}"
+                                       class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]"
+                                       placeholder="Enter your question">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Type</label>
-                                <select name="quiz[{{ $index }}][type]" onchange="handleQuestionTypeChange(this)" class="question-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
+                                <label class="field-label-sm">Question Type</label>
+                                <select name="quiz[{{ $index }}][type]" onchange="handleQuestionTypeChange(this)"
+                                        class="question-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]">
                                     <option value="multiple_choice" {{ ($q['type'] ?? 'multiple_choice') == 'multiple_choice' ? 'selected' : '' }}>Multiple Choice</option>
-                                    <option value="true_false" {{ ($q['type'] ?? '') == 'true_false' ? 'selected' : '' }}>True / False</option>
-                                    <option value="drag_drop" {{ ($q['type'] ?? '') == 'drag_drop' ? 'selected' : '' }}>Drag and Drop</option>
-                                    <option value="gesture" {{ ($q['type'] ?? '') == 'gesture' ? 'selected' : '' }}>Gesture Recognition</option>
+                                    <option value="true_false"     {{ ($q['type'] ?? '') == 'true_false'     ? 'selected' : '' }}>True / False</option>
+                                    <option value="drag_drop"      {{ ($q['type'] ?? '') == 'drag_drop'      ? 'selected' : '' }}>Drag and Drop</option>
+                                    <option value="gesture"        {{ ($q['type'] ?? '') == 'gesture'        ? 'selected' : '' }}>Gesture Recognition</option>
                                 </select>
                             </div>
                             {{-- Question media AJAX widget --}}
@@ -924,7 +1103,7 @@
                                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_{{ $index }}"></div>
                                     </div>
 
-                                    <div class="fingerspelling-word-container {{ (($q['gesture_module_id'] ?? null) == 6) ? '' : 'hidden' }}" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                                    <div class="fingerspelling-word-container {{ (($q['gesture_module_id'] ?? null) == 6) ? '' : 'hidden' }}" style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">📝 Fingerspelling Words</label>
                                         <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
                                         <div class="space-y-3">
@@ -953,7 +1132,17 @@
                     @endforeach
                 @else
                     {{-- Default empty quiz question --}}
-                    <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
+                    <div class="quiz-question-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="step-number-badge">1</div>
+                                <span class="text-sm font-bold text-slate-600 question-label">Question 1</span>
+                            </div>
+                            <button type="button" onclick="removeQuizQuestion(this)"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                                <span class="material-symbols-outlined text-[16px]">close</span>
+                            </button>
+                        </div>
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-sm font-bold text-slate-500 question-label">Question 1</span>
                             <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
@@ -1076,7 +1265,7 @@
                                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_0"></div>
                                     </div>
 
-                                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">📝 Fingerspelling Words</label>
                                         <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
                                         <div class="space-y-3">
@@ -1103,28 +1292,32 @@
                         </div>
                     </div>
                 @endif
-            </div>
-            <button type="button" onclick="addQuizQuestion()" class="w-full mt-4 py-4 border-2 border-dashed border-[#0d326b]/30 rounded-2xl text-[#0d326b] font-semibold hover:bg-[#f0f4ff] transition-colors flex items-center justify-center gap-2">
-                <span class="material-symbols-outlined text-sm">add</span> Add Another Question
+            </div>{{-- /#quizQuestions --}}
+            <button type="button" onclick="addQuizQuestion()" class="dashed-add">
+                <span class="material-symbols-outlined text-[16px]">add</span> Add Another Question
             </button>
-        </div>
+        </div>{{-- /.section-card quiz --}}
 
-        {{-- Form Actions --}}
-        <div class="flex items-center justify-between mt-8 pt-6 border-t border-slate-200">
-            <button type="button" onclick="openPreview()" class="px-6 py-3 border border-[#0d326b] text-[#0d326b] rounded-xl font-semibold hover:bg-[#f0f4ff] transition-colors">
-                <span class="material-symbols-outlined text-sm align-middle">visibility</span> Preview
+        {{-- ── Sticky Form Footer ──────────────────────────────────── --}}
+        <div class="sticky bottom-0 bg-white border-t border-slate-100 rounded-2xl shadow-[0_-4px_24px_rgba(13,50,107,0.07)] px-7 py-4 flex items-center justify-between mt-0">
+            <button type="button" onclick="openPreview()"
+                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[13px] text-[#0d326b] border-2 border-[#0d326b] bg-white hover:bg-[#f0f4ff] transition-all">
+                <span class="material-symbols-outlined text-[16px]">visibility</span> Preview
             </button>
             <div class="flex gap-3">
-                <button type="submit" name="status" value="draft" class="px-6 py-3 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition-colors">
-                    💾 Save Draft
+                <button type="submit" name="status" value="draft"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-[13px] text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all">
+                    <span class="material-symbols-outlined text-[16px]">save</span> Save Draft
                 </button>
-                <button type="submit" name="status" value="published" class="px-8 py-3 bg-[#0d326b] text-white rounded-xl font-semibold hover:bg-[#154188] transition-colors shadow-sm">
-                    🚀 Publish Lesson
+                <button type="submit" name="status" value="published"
+                        class="inline-flex items-center gap-2 px-7 py-2.5 rounded-xl font-bold text-[13px] text-white shadow-md transition-all hover:opacity-90"
+                        style="background:linear-gradient(135deg,#0d326b,#1e4b8f,#1a6fd4);">
+                    <span class="material-symbols-outlined text-[16px]">rocket_launch</span> Update &amp; Publish
                 </button>
             </div>
         </div>
     </form>
-</div>
+</div>{{-- /.max-w-4xl --}}
 
 {{-- Preview Overlay --}}
 <div id="previewOverlay">
@@ -1138,8 +1331,8 @@
 <div id="libraryModal">
     <div class="library-modal-box">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-            <div style="display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;color:#0d326b;">
-                <div style="width:32px;height:32px;border-radius:11px;background:rgba(13,50,107,0.1);color:#0d326b;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;color:#0d326b;">
+                <div style="width:32px;height:32px;border-radius:11px;background:rgba(13,50,107,0.08);color:#0d326b;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <span class="material-symbols-outlined" style="font-size:18px;">video_library</span>
                 </div>
                 <span id="libraryModalTitle">Sign Language Library</span>
@@ -2065,21 +2258,22 @@ function buildMediaWidget(index) {
 function addContentCard() {
     const container = document.getElementById('contentCards');
     const card = document.createElement('div');
-    card.className = 'content-card bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative mt-4';
+    card.className = 'content-card bg-white rounded-2xl p-5 border border-slate-100 shadow-sm relative';
     card.innerHTML = `
         <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
-                <span class="text-sm font-bold text-slate-400 step-number">Step ${contentIndex + 1}</span>
-                <span class="text-xs bg-blue-50 text-[#0d326b] px-3 py-1 rounded-full font-semibold">Text</span>
+                <div class="step-number-badge step-number">${contentIndex + 1}</div>
+                <span class="content-type-pill">Text</span>
             </div>
-            <button type="button" onclick="removeContentCard(this)" class="text-red-400 hover:text-red-600">
-                <span class="material-symbols-outlined text-sm">close</span>
+            <button type="button" onclick="removeContentCard(this)"
+                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                <span class="material-symbols-outlined text-[16px]">close</span>
             </button>
         </div>
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Content Type</label>
-                <select name="contents[${contentIndex}][content_type]" class="content-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" onchange="toggleFields(this)">
+                <label class="field-label-sm">Content Type</label>
+                <select name="contents[${contentIndex}][content_type]" class="content-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]" onchange="toggleFields(this)">
                     <option value="text">Text</option>
                     <option value="gesture_demo">Gesture Demo</option>
                     <option value="image">Image</option>
@@ -2088,24 +2282,24 @@ function addContentCard() {
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Title</label>
-                <input type="text" name="contents[${contentIndex}][title]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="e.g., Introduction to FSL Alphabet">
+                <label class="field-label-sm">Title</label>
+                <input type="text" name="contents[${contentIndex}][title]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]" placeholder="e.g., Introduction to FSL Alphabet">
             </div>
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Content</label>
-                <textarea name="contents[${contentIndex}][content_text]" rows="3" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Write your lesson content here..."></textarea>
+                <label class="field-label-sm">Content</label>
+                <textarea name="contents[${contentIndex}][content_text]" rows="3" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]" placeholder="Write your lesson content here..."></textarea>
             </div>
             <div class="gesture-field hidden">
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Name</label>
-                <input type="text" name="contents[${contentIndex}][gesture_name]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="e.g., letter_a">
+                <label class="field-label-sm">Gesture Name</label>
+                <input type="text" name="contents[${contentIndex}][gesture_name]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]" placeholder="e.g., letter_a">
             </div>
             <div class="media-field hidden">
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Upload Media</label>
+                <label class="field-label-sm">Upload Media</label>
                 ${buildMediaWidget(contentIndex)}
             </div>
             <div class="youtube-field hidden">
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">YouTube Video URL</label>
-                <input type="text" name="contents[${contentIndex}][youtube_url]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all youtube-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID" autocomplete="off">
+                <label class="field-label-sm">YouTube Video URL</label>
+                <input type="text" name="contents[${contentIndex}][youtube_url]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc] youtube-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID" autocomplete="off">
                 <div class="youtube-url-error" style="display:none; color:#EF4444; font-size:12px; font-weight:600; margin-top:4px;"></div>
                 <div class="youtube-preview-wrap" style="display:none; margin-top:12px; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(13,50,107,0.12);">
                     <iframe class="youtube-preview-iframe" width="100%" height="250" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block; border-radius:14px;"></iframe>
@@ -2127,7 +2321,7 @@ function removeContentCard(btn) {
 
 function updateStepNumbers() {
     document.querySelectorAll('.content-card .step-number').forEach((el, i) => {
-        el.textContent = `Step ${i + 1}`;
+        el.textContent = i + 1;
     });
 }
 
@@ -2345,7 +2539,7 @@ function validateDragDropPairs() {
             questionDiv.style.borderColor = '#EF4444';
             questionDiv.style.borderWidth = '2px';
         } else {
-            questionDiv.style.borderColor = '#E5EAF2';
+            questionDiv.style.borderColor = '#e2e8f0';
             questionDiv.style.borderWidth = '1.5px';
         }
     });
@@ -2674,22 +2868,26 @@ function addQuizQuestion() {
     const container = document.getElementById('quizQuestions');
     const qIndex = quizIndex;
     const question = document.createElement('div');
-    question.className = 'quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100';
+    question.className = 'quiz-question-card';
     question.innerHTML = `
-        <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-bold text-slate-500 question-label">Question ${qIndex + 1}</span>
-            <button type="button" onclick="removeQuizQuestion(this)" class="text-red-400 hover:text-red-600">
-                <span class="material-symbols-outlined text-sm">close</span>
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="step-number-badge" style="background:#0d326b;">${qIndex + 1}</div>
+                <span class="text-sm font-bold text-slate-600 question-label">Question ${qIndex + 1}</span>
+            </div>
+            <button type="button" onclick="removeQuizQuestion(this)"
+                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                <span class="material-symbols-outlined text-[16px]">close</span>
             </button>
         </div>
         <div class="space-y-3">
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question</label>
-                <input type="text" name="quiz[${qIndex}][question]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="Enter your question">
+                <label class="field-label-sm">Question</label>
+                <input type="text" name="quiz[${qIndex}][question]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]" placeholder="Enter your question">
             </div>
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Type</label>
-                <select name="quiz[${qIndex}][type]" onchange="handleQuestionTypeChange(this)" class="question-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
+                <label class="field-label-sm">Question Type</label>
+                <select name="quiz[${qIndex}][type]" onchange="handleQuestionTypeChange(this)" class="question-type w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]">
                     <option value="multiple_choice">Multiple Choice</option>
                     <option value="true_false">True / False</option>
                     <option value="drag_drop">Drag and Drop</option>
@@ -2697,7 +2895,7 @@ function addQuizQuestion() {
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Question Image (Optional)</label>
+                <label class="field-label-sm">Question Image (Optional)</label>
                 <input type="hidden" name="quiz[${qIndex}][existing_media]" value="" class="media-path-input">
                 <div class="media-upload-widget" data-context="quiz_media" data-accept="image/*,video/*">
                     <div class="upload-trigger">
@@ -2711,28 +2909,28 @@ function addQuizQuestion() {
                 </div>
             </div>
             <div class="options-container">
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Options</label>
+                <label class="field-label-sm">Answer Options</label>
                 <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image.</p>
                 <div class="space-y-2 options-list"></div>
-                <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">+ Add Option</button>
+                <button type="button" onclick="addOption(this)"
+                        class="inline-flex items-center gap-1 mt-2 text-[12px] font-bold text-[#0d326b] hover:underline">+ Add Option</button>
             </div>
             <!-- Drag and Drop Pairs -->
             <div class="drag-drop-container hidden">
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Drag and Drop Pairs</label>
+                <label class="field-label-sm">Drag and Drop Pairs</label>
                 <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
                 <div class="space-y-2 drag-drop-pairs-list"></div>
-                <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#0d326b] font-semibold hover:underline mt-2">
-                    + Add Pair
-                </button>
+                <button type="button" onclick="addDragDropPair(this)"
+                        class="inline-flex items-center gap-1 mt-2 text-[12px] font-bold text-[#0d326b] hover:underline">+ Add Pair</button>
             </div>
             <!-- Gesture Recognition Fields -->
             <div class="gesture-quiz-container hidden">
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Recognition Settings</label>
+                <label class="field-label-sm">Gesture Recognition Settings</label>
                 <p class="text-xs text-slate-400 mb-2">Select a gesture module and the specific gestures students need to perform.</p>
                 <div class="space-y-3">
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Module</label>
-                        <select name="quiz[${qIndex}][gesture_module_id]" class="field-select gesture-module-select w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" onchange="loadGesturesForModule(this, ${qIndex})">
+                        <label class="field-label-sm">Gesture Module</label>
+                        <select name="quiz[${qIndex}][gesture_module_id]" class="field-select gesture-module-select w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/10 outline-none transition-all text-[14px] bg-[#fafbfc]" onchange="loadGesturesForModule(this, ${qIndex})">
                             <option value="">Select a module...</option>
                             @foreach($gestureModules as $module)
                                 <option value="{{ $module->module_id }}">{{ $module->display_name ?? $module->name }}</option>
@@ -2740,7 +2938,7 @@ function addQuizQuestion() {
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Select Gestures to Recognize</label>
+                        <label class="field-label-sm">Select Gestures to Recognize</label>
                         <p class="text-xs text-slate-400 mb-2">Click to select gestures. Students will need to perform all selected gestures.</p>
                         <div id="gestureCheckboxes_${qIndex}" class="flex flex-wrap gap-2 mt-2" style="min-height:60px;">
                             <span class="text-sm text-slate-400">Select a module first</span>
@@ -2751,7 +2949,7 @@ function addQuizQuestion() {
                         <div class="flex flex-wrap gap-2" id="selectedGestureTags_${qIndex}"></div>
                     </div>
 
-                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">📝 Fingerspelling Words</label>
                         <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
                         <div class="space-y-3">
@@ -3391,9 +3589,9 @@ window.addEventListener('click', function(e) {
 
 {{-- AI Quiz from Content Modal --}}
 <div id="aiQuizModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
-    <div style="background:white;border-radius:24px;padding:32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(15,49,114,0.2);position:relative;">
+    <div style="background:white;border-radius:24px;padding:32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(13,50,107,0.2);position:relative;">
         <button onclick="closeAiQuizModal()" type="button"
-                style="position:absolute;top:16px;right:16px;background:rgba(15,49,114,0.07);border:none;width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#64748b;">✕</button>
+                style="position:absolute;top:16px;right:16px;background:rgba(13,50,107,0.07);border:none;width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#64748b;">✕</button>
 
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
             <div style="width:42px;height:42px;background:linear-gradient(135deg,#6d28d9,#4f46e5);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>
@@ -3419,7 +3617,7 @@ window.addEventListener('click', function(e) {
                     <span style="font-size:12px;font-weight:600;color:#64748b;">Progress</span>
                     <span id="aqm_progressPct" style="font-size:13px;font-weight:800;color:#6d28d9;">0%</span>
                 </div>
-                <div style="background:#E5EAF2;border-radius:99px;height:8px;overflow:hidden;">
+                <div style="background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden;">
                     <div id="aqm_progressBar" style="background:linear-gradient(90deg,#6d28d9,#4f46e5);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
                 </div>
             </div>
@@ -3428,28 +3626,28 @@ window.addEventListener('click', function(e) {
         <div id="aqm_form">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
             <div>
-                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
+                <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Multiple Choice Qs</label>
                 <input id="aqm_num_mc" type="number" min="0" max="15" value="2"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
-                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
+                <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">True / False Qs</label>
                 <input id="aqm_num_tf" type="number" min="0" max="15" value="1"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
-                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Drag & Drop Qs</label>
+                <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Drag & Drop Qs</label>
                 <input id="aqm_num_dd" type="number" min="0" max="15" value="1"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
-                <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Gesture Qs</label>
+                <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Gesture Qs</label>
                 <input id="aqm_num_gt" type="number" min="0" max="15" value="1"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
         </div>
 
@@ -3461,7 +3659,7 @@ window.addEventListener('click', function(e) {
                 ✨ Generate Questions
             </button>
             <button onclick="closeAiQuizModal()" type="button"
-                    style="background:white;color:#64748b;padding:13px 24px;border-radius:14px;font-weight:700;font-size:14px;border:1.5px solid #E5EAF2;cursor:pointer;width:100%;transition:all 0.2s;"
+                    style="background:white;color:#64748b;padding:13px 24px;border-radius:14px;font-weight:700;font-size:14px;border:1.5px solid #e2e8f0;cursor:pointer;width:100%;transition:all 0.2s;"
                     onmouseover="this.style.background='#F8FAFC';" onmouseout="this.style.background='white';">Cancel</button>
         </div>
         </div>

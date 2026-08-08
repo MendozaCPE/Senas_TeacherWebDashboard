@@ -25,144 +25,194 @@
         vertical-align: middle;
     }
 
+    /* ── Section Cards ──────────────────────────────────────────────── */
     .section-card {
         background: white;
-        border-radius: 22px;
-        padding: 26px;
-        box-shadow: 0 2px 16px rgba(15,49,114,0.07);
-        border: 1px solid rgba(15,49,114,0.06);
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: 0 1px 3px rgba(13,50,107,0.05), 0 4px 20px rgba(13,50,107,0.04);
+        border: 1px solid rgba(13,50,107,0.07);
         margin-bottom: 24px;
     }
     .section-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 18px;
+        margin-bottom: 22px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #f1f5f9;
     }
     .section-title {
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 17px;
+        gap: 12px;
+        font-size: 16px;
         font-weight: 800;
-        color: #0f3172;
+        color: #0d326b;
     }
     .section-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 11px;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 17px;
         flex-shrink: 0;
     }
+    .section-subtitle {
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: 500;
+        margin-top: 2px;
+    }
+
+    /* ── Form Fields ────────────────────────────────────────────────── */
     .field-label {
         display: block;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
-        color: #334155;
+        color: #475569;
         margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
     .field-input, .field-select, .field-textarea {
         width: 100%;
-        padding: 12px 16px;
-        border: 1.5px solid #E5EAF2;
-        border-radius: 14px;
+        padding: 11px 15px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
         outline: none;
         transition: all 0.2s;
         font-size: 14px;
-        background: #FAFBFD;
+        background: #fafbfc;
+        color: #1e293b;
+        font-family: inherit;
     }
     .field-input:focus, .field-select:focus, .field-textarea:focus {
-        border-color: #1848c8;
+        border-color: #0d326b;
         background: white;
-        box-shadow: 0 0 0 4px rgba(24,72,200,0.08);
+        box-shadow: 0 0 0 4px rgba(13,50,107,0.08);
     }
+    .field-input::placeholder, .field-textarea::placeholder { color: #94a3b8; }
+
+    /* ── Badges & Pills ─────────────────────────────────────────────── */
     .badge-pill {
-        font-size: 11px;
-        font-weight: 800;
-        padding: 4px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 10px;
         border-radius: 99px;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
     }
+
+    /* ── Step Numbers ───────────────────────────────────────────────── */
     .step-circle {
-        width: 30px;
-        height: 30px;
-        border-radius: 10px;
-        background: #1848c8;
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        background: #0d326b;
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 800;
-        font-size: 13px;
+        font-size: 12px;
         flex-shrink: 0;
     }
+
+    /* ── Content / Quiz Cards ───────────────────────────────────────── */
     .content-card {
-        border: 1.5px solid #E5EAF2;
-        border-radius: 18px;
-        padding: 22px;
-        background: #FAFBFD;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+        background: #fafbfc;
         position: relative;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .content-card:focus-within {
+        border-color: rgba(13,50,107,0.25);
+        box-shadow: 0 0 0 3px rgba(13,50,107,0.06);
+    }
+
+    .quiz-question {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+        background: #fafbfc;
+        margin-bottom: 16px;
         transition: border-color 0.2s;
     }
-    .content-card:focus-within { border-color: rgba(24,72,200,0.3); }
+    .quiz-question:focus-within {
+        border-color: rgba(13,50,107,0.2);
+    }
+
+    /* ── Remove Buttons ─────────────────────────────────────────────── */
     .icon-btn-remove {
         width: 30px;
         height: 30px;
-        border-radius: 9px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(239,68,68,0.08);
-        color: #EF4444;
+        background: rgba(239,68,68,0.07);
+        color: #ef4444;
         transition: all 0.2s;
+        border: none;
+        cursor: pointer;
     }
-    .icon-btn-remove:hover { background: rgba(239,68,68,0.15); }
+    .icon-btn-remove:hover { background: rgba(239,68,68,0.14); }
 
+    /* ── Dashed Add Button ──────────────────────────────────────────── */
     .dashed-add-btn {
         width: 100%;
-        padding: 16px;
-        border: 2px dashed rgba(24,72,200,0.25);
-        border-radius: 18px;
-        color: #1848c8;
+        padding: 14px;
+        border: 2px dashed rgba(13,50,107,0.2);
+        border-radius: 14px;
+        color: #0d326b;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 13px;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
         transition: all 0.2s;
-        background: rgba(24,72,200,0.02);
+        background: rgba(13,50,107,0.02);
+        cursor: pointer;
     }
-    .dashed-add-btn:hover { background: rgba(24,72,200,0.06); border-color: rgba(24,72,200,0.4); }
+    .dashed-add-btn:hover {
+        background: rgba(13,50,107,0.05);
+        border-color: rgba(13,50,107,0.35);
+    }
 
     .quiz-question {
-        border: 1.5px solid #E5EAF2;
-        border-radius: 18px;
-        padding: 22px;
-        background: #FAFBFD;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+        background: #fafbfc;
         margin-bottom: 16px;
+        transition: border-color 0.2s;
     }
 
-    /* --- Option rows with image upload --- */
+    /* ── Option Rows ────────────────────────────────────────────────── */
     .option-row {
         display: flex;
         align-items: flex-start;
         gap: 10px;
         background: white;
-        border: 1.5px solid #E5EAF2;
-        border-radius: 14px;
-        padding: 12px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px 12px;
         margin-bottom: 8px;
+        transition: border-color 0.15s;
     }
+    .option-row:focus-within { border-color: rgba(13,50,107,0.25); }
     .option-letter {
         width: 28px;
         height: 28px;
         border-radius: 8px;
-        background: rgba(15,49,114,0.08);
-        color: #1848c8;
+        background: rgba(13,50,107,0.08);
+        color: #0d326b;
         font-weight: 800;
         font-size: 12px;
         display: flex;
@@ -174,13 +224,15 @@
     .option-body { flex: 1; display: flex; flex-direction: column; gap: 8px; }
     .option-text-input {
         width: 100%;
-        padding: 10px 14px;
-        border: 1.5px solid #E5EAF2;
-        border-radius: 11px;
+        padding: 9px 13px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
         font-size: 14px;
         outline: none;
+        background: #fafbfc;
+        font-family: inherit;
     }
-    .option-text-input:focus { border-color: #1848c8; }
+    .option-text-input:focus { border-color: #0d326b; box-shadow: 0 0 0 3px rgba(13,50,107,0.07); }
     .option-image-row {
         display: flex;
         align-items: center;
@@ -192,11 +244,11 @@
         color: #6B7280;
     }
     .option-image-preview {
-        width: 64px;
-        height: 64px;
-        border-radius: 10px;
+        width: 56px;
+        height: 56px;
+        border-radius: 9px;
         object-fit: cover;
-        border: 1.5px solid #E5EAF2;
+        border: 1.5px solid #e2e8f0;
         display: none;
         flex-shrink: 0;
     }
@@ -208,25 +260,25 @@
         padding-top: 4px;
     }
     .option-correct-row label {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
-        color: #6B7280;
+        color: #64748b;
     }
     .option-correct-row input[type="radio"] {
-        width: 18px;
-        height: 18px;
-        accent-color: #1848c8;
+        width: 16px;
+        height: 16px;
+        accent-color: #0d326b;
     }
     .option-remove-btn {
         background: none;
         border: none;
-        color: #CBD5E1;
+        color: #cbd5e1;
         cursor: pointer;
         flex-shrink: 0;
         margin-top: 4px;
         transition: color 0.2s;
     }
-    .option-remove-btn:hover { color: #EF4444; }
+    .option-remove-btn:hover { color: #ef4444; }
 
     /* ── Drag & Drop Pair Styles ────────────────────────────────────────── */
     .drag-drop-pair {
@@ -234,8 +286,8 @@
         gap: 12px;
         align-items: center;
         background: white;
-        border: 1.5px solid #E5EAF2;
-        border-radius: 14px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
         padding: 12px;
         margin-bottom: 8px;
         flex-wrap: wrap;
@@ -245,24 +297,28 @@
         min-width: 120px;
     }
     .drag-drop-pair .pair-side label {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
-        color: #6B7280;
+        color: #64748b;
         display: block;
         margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
     .drag-drop-pair .pair-side input[type="text"] {
         padding: 8px 12px;
         font-size: 13px;
         width: 100%;
-        border: 1.5px solid #E5EAF2;
-        border-radius: 11px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
         outline: none;
         transition: border-color 0.2s;
-        background: white;
+        background: #fafbfc;
+        font-family: inherit;
     }
     .drag-drop-pair .pair-side input[type="text"]:focus {
-        border-color: #1848c8;
+        border-color: #0d326b;
+        box-shadow: 0 0 0 3px rgba(13,50,107,0.07);
     }
     .drag-drop-pair .pair-arrow {
         display: flex;
@@ -279,20 +335,21 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 14px;
-        border-radius: 12px;
-        border: 2px solid #E5EAF2;
+        padding: 7px 13px;
+        border-radius: 10px;
+        border: 2px solid #e2e8f0;
         background: white;
         cursor: pointer;
         transition: all 0.2s;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
         color: #475569;
         user-select: none;
     }
     .gesture-checkbox-label:hover:not(.selected) {
-        border-color: #1848c8;
+        border-color: #0d326b;
         background: #f0f4ff;
+        color: #0d326b;
     }
     .gesture-checkbox-label.selected {
         border-color: #10B981;
@@ -303,7 +360,7 @@
         display: none;
         color: #10B981;
         font-weight: 800;
-        font-size: 14px;
+        font-size: 13px;
     }
     .gesture-checkbox-label.selected .check-icon {
         display: inline;
@@ -315,14 +372,14 @@
     /* ── AJAX Upload Widget ─────────────────────────────────────────── */
     .media-upload-widget {
         border: 2px dashed #cbd5e1;
-        border-radius: 14px;
+        border-radius: 12px;
         padding: 12px;
         background: #f8fafc;
         transition: border-color 0.2s, background 0.2s;
         position: relative;
     }
     .media-upload-widget.has-file {
-        border-color: #1848c8;
+        border-color: #0d326b;
         background: #f0f4ff;
     }
     .media-upload-widget.uploading {
@@ -420,7 +477,7 @@
         position: absolute;
         z-index: 10050;
         background: white;
-        border: 1.5px solid #E5EAF2;
+        border: 1.5px solid #e2e8f0;
         border-radius: 14px;
         box-shadow: 0 12px 32px rgba(15,49,114,0.18);
         padding: 6px;
@@ -447,11 +504,11 @@
         color: #64748b;
         flex-shrink: 0;
     }
-    .media-picker-menu button:hover { background: #F1F5F9; color: #1848c8; }
-    .media-picker-menu button:hover .material-symbols-outlined { color: #1848c8; }
+    .media-picker-menu button:hover { background: #f1f5f9; color: #0d326b; }
+    .media-picker-menu button:hover .material-symbols-outlined { color: #0d326b; }
     .media-picker-menu-divider {
         height: 1px;
-        background: #E5EAF2;
+        background: #e2e8f0;
         margin: 5px 4px;
     }
 
@@ -477,8 +534,8 @@
         box-shadow: 0 20px 60px rgba(15,49,114,0.25);
     }
     .library-tab {
-        border: 1.5px solid #E5EAF2;
-        background: #FAFBFD;
+        border: 1.5px solid #e2e8f0;
+        background: #fafbfc;
         color: #334155;
         font-size: 12px;
         font-weight: 700;
@@ -490,23 +547,23 @@
         gap: 6px;
     }
     .library-tab .material-symbols-outlined { font-size: 16px; }
-    .library-tab.active { background: #1848c8; border-color: #1848c8; color: white; }
+    .library-tab.active { background: #0d326b; border-color: #0d326b; color: white; }
     .library-file-card {
-        border: 1.5px solid #E5EAF2;
-        border-radius: 14px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
         padding: 8px;
         cursor: pointer;
         transition: all 0.15s;
         text-align: center;
-        background: #FAFBFD;
+        background: #fafbfc;
     }
-    .library-file-card:hover { border-color: #1848c8; background: #F0F4FF; transform: translateY(-1px); }
+    .library-file-card:hover { border-color: #0d326b; background: #f0f4ff; transform: translateY(-1px); }
     .library-file-thumb {
         width: 100%;
         height: 84px;
         object-fit: cover;
         border-radius: 9px;
-        background: #E5EAF2;
+        background: #e2e8f0;
         display: block;
     }
     .library-file-thumb-video {
@@ -575,52 +632,52 @@
         position: sticky;
         bottom: 0;
         background: white;
-        border-top: 1px solid #E5EAF2;
-        padding: 18px 26px;
-        border-radius: 22px;
-        box-shadow: 0 -4px 20px rgba(15,49,114,0.06);
+        border-top: 1px solid #e2e8f0;
+        padding: 16px 28px;
+        border-radius: 20px;
+        box-shadow: 0 -4px 24px rgba(13,50,107,0.07);
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-top: 24px;
     }
     .btn-primary {
-        background: #1848c8;
+        background: linear-gradient(135deg, #0d326b, #1e4b8f);
         color: white;
-        padding: 13px 28px;
-        border-radius: 14px;
+        padding: 12px 26px;
+        border-radius: 12px;
         font-weight: 700;
         font-size: 14px;
         transition: all 0.2s;
-        box-shadow: 0 5px 16px rgba(24,72,200,0.25);
+        box-shadow: 0 4px 14px rgba(13,50,107,0.25);
         border: none;
         cursor: pointer;
     }
-    .btn-primary:hover { background: #0f3172; transform: translateY(-1px); }
+    .btn-primary:hover { opacity: 0.92; transform: translateY(-1px); }
     .btn-ghost {
         background: white;
         color: #475569;
-        padding: 13px 22px;
-        border-radius: 14px;
-        font-weight: 700;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 600;
         font-size: 14px;
-        border: 1.5px solid #E5EAF2;
+        border: 1.5px solid #e2e8f0;
         transition: all 0.2s;
         cursor: pointer;
     }
-    .btn-ghost:hover { background: #F8FAFC; }
+    .btn-ghost:hover { background: #f8fafc; border-color: #cbd5e1; }
     .btn-outline-blue {
         background: white;
-        color: #1848c8;
-        padding: 13px 22px;
-        border-radius: 14px;
+        color: #0d326b;
+        padding: 12px 20px;
+        border-radius: 12px;
         font-weight: 700;
         font-size: 14px;
-        border: 1.5px solid #1848c8;
+        border: 1.5px solid #0d326b;
         transition: all 0.2s;
         cursor: pointer;
     }
-    .btn-outline-blue:hover { background: rgba(24,72,200,0.06); }
+    .btn-outline-blue:hover { background: rgba(13,50,107,0.05); }
 
     /* ── Fingerspelling Word Input ────────────────────────────────────── */
 .fingerspelling-words-textarea {
@@ -637,7 +694,7 @@
     min-height: 50px;
     background: #F8FAFC;
     border-radius: 12px;
-    border: 1.5px dashed #E5EAF2;
+    border: 1.5px dashed #e2e8f0;
 }
 .fingerspelling-word-pill {
     display: inline-flex;
@@ -654,7 +711,7 @@
     gap: 4px;
     font-size: 18px;
     font-weight: 800;
-    color: #0f3172;
+    color: #0d326b;
 }
 .fingerspelling-word-pill .word-count {
     font-size: 9px;
@@ -724,21 +781,32 @@
 </style>
 
 <div class="max-w-4xl mx-auto pb-10">
+
+    {{-- ── Page Header ───────────────────────────────────────────────── --}}
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h2 class="text-3xl font-bold text-[#0f3172]">Create New Lesson</h2>
-            <p class="text-slate-500 text-sm mt-1">Build your lesson content and quiz questions</p>
+            <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-2">
+                <a href="{{ route('lessons.index') }}" class="hover:text-[#0d326b] transition-colors">Lessons</a>
+                <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+                <span class="text-[#0d326b]">Create</span>
+            </div>
+            <h2 class="text-[28px] font-black text-[#0d326b] tracking-tight leading-none">Create New Lesson</h2>
+            <p class="text-slate-400 text-sm mt-1.5 font-medium">Build your lesson content, quiz, and settings</p>
         </div>
         <div class="flex items-center gap-3">
             <button type="button" onclick="openAiModal()"
-                    style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:12px 22px;border-radius:14px;font-weight:800;font-size:14px;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 5px 18px rgba(109,40,217,0.35);transition:all 0.2s;"
-                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px rgba(109,40,217,0.45)';"
-                    onmouseout="this.style.transform='';this.style.boxShadow='0 5px 18px rgba(109,40,217,0.35)';">
-                ✨ Generate with AI
+                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[13px] text-white transition-all"
+                    style="background:linear-gradient(135deg,#6d28d9,#4f46e5);box-shadow:0 4px 16px rgba(109,40,217,0.3);"
+                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(109,40,217,0.4)'"
+                    onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(109,40,217,0.3)'">
+                <span class="material-symbols-outlined text-[17px]">auto_awesome</span>
+                Generate with AI
             </button>
-            <button onclick="window.location.href='{{ route('lessons.index') }}'" class="btn-ghost">
+            <a href="{{ route('lessons.index') }}"
+               class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-[13px] text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all">
+                <span class="material-symbols-outlined text-[16px]">close</span>
                 Cancel
-            </button>
+            </a>
         </div>
     </div>
 
@@ -762,39 +830,49 @@
         <!-- ============ LESSON DETAILS ============ -->
         <div class="section-card">
             <div class="section-header">
-                <div class="section-title">
-                    <div class="section-icon" style="background: rgba(24,72,200,0.1); color:#1848c8;">📝</div>
-                    Lesson Details
+                <div>
+                    <div class="section-title">
+                        <div class="section-icon" style="background: rgba(13,50,107,0.08); color:#0d326b;">
+                            <span class="material-symbols-outlined text-[20px]">edit_note</span>
+                        </div>
+                        <div>
+                            Lesson Details
+                            <div class="section-subtitle">Title, description, type and difficulty</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="space-y-4">
+            <div class="space-y-5">
                 <div>
-                    <label class="field-label">Lesson Title *</label>
-                    <input type="text" name="title" required class="field-input">
+                    <label class="field-label">Lesson Title <span class="text-red-500">*</span></label>
+                    <input type="text" name="title" required class="field-input" placeholder="e.g., Introduction to FSL Alphabet">
                 </div>
                 <div>
                     <label class="field-label">Description</label>
-                    <textarea name="description" rows="3" class="field-textarea"></textarea>
+                    <textarea name="description" rows="3" class="field-textarea" placeholder="Brief overview of what students will learn..."></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Difficulty</label>
                         <select name="difficulty" class="field-select">
-                            <option value="beginner">Beginner</option>
-                            <option value="intermediate">Intermediate</option>
-                            <option value="advanced">Advanced</option>
+                            <option value="beginner">🌱 Beginner</option>
+                            <option value="intermediate">⚡ Intermediate</option>
+                            <option value="advanced">🔥 Advanced</option>
                         </select>
                     </div>
                     <div>
                         <label class="field-label">Lesson Type</label>
                         <select name="lesson_type" class="field-select">
-                            <option value="gesture">Gesture Lesson</option>
-                            <option value="interactive">Interactive Lesson</option>
-                            <option value="video">Video Lesson</option>
+                            <option value="gesture">👋 Gesture Lesson</option>
+                            <option value="interactive">🎯 Interactive Lesson</option>
+                            <option value="video">🎥 Video Lesson</option>
                         </select>
                     </div>
                 </div>
-                <p class="text-xs text-slate-400">Choose a module now or leave unassigned until publish.</p>
+                <p class="text-xs text-slate-400 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[14px]">info</span>
+                    You can assign a module now or leave it unassigned until publish.
+                </p>
             </div>
         </div>
 
@@ -803,19 +881,26 @@
             $preselectedModuleId = old('module_id', request()->query('module_id'));
             $moduleActionDefault = old('module_action', $preselectedModuleId ? 'existing' : 'none');
         @endphp
-        <div class="section-card" @if($preselectedModuleId) style="border-color:rgba(99,102,241,0.35);background:rgba(99,102,241,0.02);" @endif>
+        <div class="section-card" @if($preselectedModuleId) style="border-color:rgba(13,50,107,0.2);background:rgba(13,50,107,0.01);" @endif>
             <div class="section-header">
-                <div class="section-title">
-                    <div class="section-icon" style="background: rgba(99,102,241,0.12); color:#6366F1;">📁</div>
-                    Module
-                    @if($preselectedModuleId)
-                        @php $preModule = $modules->firstWhere('module_id', $preselectedModuleId); @endphp
-                        @if($preModule)
-                            <span style="background:#EEF2FF;color:#4F46E5;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;margin-left:4px;">
-                                📌 {{ $preModule->title }}
-                            </span>
-                        @endif
-                    @endif
+                <div>
+                    <div class="section-title">
+                        <div class="section-icon" style="background: rgba(99,102,241,0.1); color:#6366F1;">
+                            <span class="material-symbols-outlined text-[20px]">folder</span>
+                        </div>
+                        <div>
+                            Module Assignment
+                            @if($preselectedModuleId)
+                                @php $preModule = $modules->firstWhere('module_id', $preselectedModuleId); @endphp
+                                @if($preModule)
+                                    <span class="ml-2 text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                                        📌 {{ $preModule->title }}
+                                    </span>
+                                @endif
+                            @endif
+                            <div class="section-subtitle">Organise this lesson into a module</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="space-y-4">
@@ -865,12 +950,20 @@
         <!-- ============ LESSON CONTENT ============ -->
         <div class="section-card" id="contentContainer">
             <div class="section-header">
-                <div class="section-title">
-                    <div class="section-icon" style="background: rgba(5,150,105,0.1); color:#059669;">📖</div>
-                    Lesson Content
+                <div>
+                    <div class="section-title">
+                        <div class="section-icon" style="background: rgba(5,150,105,0.1); color:#059669;">
+                            <span class="material-symbols-outlined text-[20px]">menu_book</span>
+                        </div>
+                        <div>
+                            Lesson Content
+                            <div class="section-subtitle">Add slides — text, gestures, images, videos, or YouTube</div>
+                        </div>
+                    </div>
                 </div>
-                <button type="button" onclick="addContentCard()" class="text-sm text-[#1848c8] font-bold hover:underline flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">add</span> Add Slide
+                <button type="button" onclick="addContentCard()"
+                        class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-[#0d326b] bg-[#f0f4ff] hover:bg-[#e0e8ff] border border-[#c7d2fe] transition-all">
+                    <span class="material-symbols-outlined text-[15px]">add</span> Add Slide
                 </button>
             </div>
             <div id="contentCards" class="space-y-4">
@@ -878,7 +971,7 @@
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
                             <div class="step-circle step-number">1</div>
-                            <span class="badge-pill" style="background: rgba(24,72,200,0.1); color:#1848c8;">Text</span>
+                            <span class="badge-pill" style="background: rgba(13,50,107,0.08); color:#0d326b;">Text</span>
                         </div>
                         <button type="button" onclick="removeContentCard(this)" class="icon-btn-remove">
                             <span class="material-symbols-outlined text-sm">close</span>
@@ -940,20 +1033,29 @@
         <!-- ============ QUIZ QUESTIONS ============ -->
         <div class="section-card">
             <div class="section-header">
-                <div class="section-title">
-                    <div class="section-icon" style="background: rgba(245,158,11,0.12); color:#D97706;">📝</div>
-                    Quiz Questions
+                <div>
+                    <div class="section-title">
+                        <div class="section-icon" style="background: rgba(245,158,11,0.1); color:#d97706;">
+                            <span class="material-symbols-outlined text-[20px]">quiz</span>
+                        </div>
+                        <div>
+                            Quiz Questions
+                            <div class="section-subtitle">Multiple choice, true/false, drag &amp; drop, or gesture</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <button type="button" id="aiQuizGenerateBtn" onclick="openAiQuizModal()"
                             title="Add lesson content first to enable AI quiz generation"
-                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:8px 16px;border-radius:11px;font-weight:700;font-size:12px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;opacity:0.4;pointer-events:none;"
-                            onmouseover="if(!this.disabled&&this.style.opacity==='1'){this.style.transform='translateY(-1px)'}"
-                            onmouseout="this.style.transform=''">
-                        ✨ Generate Quiz with AI
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-white transition-all"
+                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);opacity:0.4;pointer-events:none;"
+                            onmouseover="if(this.style.opacity==='1'){this.style.opacity='0.9'}"
+                            onmouseout="if(this.style.opacity!=='0.4'){this.style.opacity='1'}">
+                        <span class="material-symbols-outlined text-[15px]">auto_awesome</span> Generate Quiz with AI
                     </button>
-                    <button type="button" onclick="addQuizQuestion()" class="text-sm text-[#1848c8] font-bold hover:underline flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">add</span> Add Question
+                    <button type="button" onclick="addQuizQuestion()"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-[#0d326b] bg-[#f0f4ff] hover:bg-[#e0e8ff] border border-[#c7d2fe] transition-all">
+                        <span class="material-symbols-outlined text-[15px]">add</span> Add Question
                     </button>
                 </div>
             </div>
@@ -964,7 +1066,7 @@
                 <div class="quiz-question">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-3">
-                            <div class="step-circle" style="background:#D97706;">1</div>
+                            <div class="step-circle" style="background:#0d326b;">1</div>
                             <span class="text-sm font-bold text-slate-500 question-label">Question 1</span>
                         </div>
                         <button type="button" onclick="removeQuizQuestion(this)" class="icon-btn-remove">
@@ -1013,7 +1115,7 @@
                                         <div class="option-image-row">
                                             <input type="hidden" name="quiz[0][options][0][existing_image]" value="" class="media-path-input">
                                             <img class="option-image-preview" src="" alt="">
-                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#0d326b;flex-shrink:0;">
                                                 <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
                                                 <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
                                             </label>
@@ -1035,7 +1137,7 @@
                                         <div class="option-image-row">
                                             <input type="hidden" name="quiz[0][options][1][existing_image]" value="" class="media-path-input">
                                             <img class="option-image-preview" src="" alt="">
-                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                                            <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#0d326b;flex-shrink:0;">
                                                 <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
                                                 <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
                                             </label>
@@ -1051,7 +1153,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
+                            <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-bold hover:underline mt-2">
                                 + Add Option
                             </button>
                         </div>
@@ -1061,7 +1163,7 @@
                             <label class="field-label">Drag and Drop Pairs</label>
                             <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
                             <div class="space-y-2 drag-drop-pairs-list"></div>
-                            <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
+                            <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#0d326b] font-bold hover:underline mt-2">
                                 + Add Pair
                             </button>
                         </div>
@@ -1092,7 +1194,7 @@
                                     <div class="flex flex-wrap gap-2" id="selectedGestureTags_0"></div>
                                 </div>
  <!-- 👇 ADD THIS RIGHT HERE (inside gesture-quiz-container, after selected-gestures-preview) -->
-        <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+        <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
             <label class="field-label">📝 Fingerspelling Words</label>
             <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
             <div class="space-y-3">
@@ -1129,12 +1231,20 @@
         </div>
 
         <div class="form-footer">
-            <button type="button" onclick="openPreview()" class="btn-outline-blue flex items-center gap-2">
-                <span class="material-symbols-outlined text-sm">visibility</span> Preview
+            <button type="button" onclick="openPreview()"
+                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[13px] text-[#0d326b] border-2 border-[#0d326b] bg-white hover:bg-[#f0f4ff] transition-all">
+                <span class="material-symbols-outlined text-[16px]">visibility</span> Preview
             </button>
             <div class="flex gap-3">
-                <button type="submit" data-status="draft" class="btn-ghost">💾 Save Draft</button>
-                <button type="submit" data-status="published" class="btn-primary">🚀 Publish Lesson</button>
+                <button type="submit" data-status="draft"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-[13px] text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all">
+                    <span class="material-symbols-outlined text-[16px]">save</span> Save Draft
+                </button>
+                <button type="submit" data-status="published"
+                        class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-[13px] text-white transition-all shadow-md"
+                        style="background: linear-gradient(135deg,#0d326b,#1e4b8f,#1a6fd4);">
+                    <span class="material-symbols-outlined text-[16px]">rocket_launch</span> Publish Lesson
+                </button>
             </div>
         </div>
     </form>
@@ -1152,13 +1262,13 @@
 <div id="libraryModal">
     <div class="library-modal-box">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-            <div class="section-title" style="font-size:16px;">
-                <div class="section-icon" style="width:32px;height:32px;background: rgba(24,72,200,0.1); color:#1848c8;font-size:16px;">
+            <div class="section-title" style="font-size:15px;">
+                <div class="section-icon" style="width:32px;height:32px;background:rgba(13,50,107,0.08);color:#0d326b;font-size:16px;">
                     <span class="material-symbols-outlined" style="font-size:18px;">video_library</span>
                 </div>
                 <span id="libraryModalTitle">Sign Language Library</span>
             </div>
-            <button type="button" onclick="closeLibraryModal()" style="background:rgba(15,49,114,0.07);border:none;width:30px;height:30px;border-radius:9px;cursor:pointer;color:#64748b;flex-shrink:0;">✕</button>
+            <button type="button" onclick="closeLibraryModal()" style="background:rgba(13,50,107,0.07);border:none;width:30px;height:30px;border-radius:9px;cursor:pointer;color:#64748b;flex-shrink:0;">✕</button>
         </div>
         <div id="libraryFoldersBar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
         <div id="libraryFilesGrid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;padding-right:4px;"></div>
@@ -2048,7 +2158,7 @@ function toggleFields(select) {
     const typeLabel = card.querySelector('.badge-pill');
     
     // Hide validation indicators
-    card.style.borderColor = '#E5EAF2';
+    card.style.borderColor = '#e2e8f0';
     
     if (gestureField) gestureField.classList.add('hidden');
     if (mediaField) mediaField.classList.add('hidden');
@@ -2082,7 +2192,7 @@ function addContentCard() {
         <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
                 <div class="step-circle step-number">${contentIndex + 1}</div>
-                <span class="badge-pill" style="background: rgba(24,72,200,0.1); color:#1848c8;">Text</span>
+                <span class="badge-pill" style="background: rgba(13,50,107,0.08); color:#0d326b;">Text</span>
             </div>
             <button type="button" onclick="removeContentCard(this)" class="icon-btn-remove">
                 <span class="material-symbols-outlined text-sm">close</span>
@@ -2176,7 +2286,7 @@ function buildOptionRow(qIndex, optIndex) {
             <div class="option-image-row">
                 <input type="hidden" name="quiz[${qIndex}][options][${optIndex}][existing_image]" value="" class="media-path-input">
                 <img class="option-image-preview" src="" alt="">
-                <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#1848c8;flex-shrink:0;">
+                <label class="text-xs font-semibold cursor-pointer hover:underline flex items-center gap-1" style="color:#0d326b;flex-shrink:0;">
                     <span class="material-symbols-outlined" style="font-size:16px;">add_photo_alternate</span> Add image
                     <input type="file" accept="image/*,video/*" class="option-image-input hidden" onchange="handleOptionImageUpload(this)">
                 </label>
@@ -2315,7 +2425,7 @@ function validateDragDropPairs() {
             questionDiv.style.borderColor = '#EF4444';
             questionDiv.style.borderWidth = '2px';
         } else {
-            questionDiv.style.borderColor = '#E5EAF2';
+            questionDiv.style.borderColor = '#e2e8f0';
             questionDiv.style.borderWidth = '1.5px';
         }
     });
@@ -2699,7 +2809,7 @@ function addQuizQuestion() {
     question.innerHTML = `
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
-                <div class="step-circle" style="background:#D97706;">${qIndex + 1}</div>
+                <div class="step-circle" style="background:#0d326b;">${qIndex + 1}</div>
                 <span class="text-sm font-bold text-slate-500 question-label">Question ${qIndex + 1}</span>
             </div>
             <button type="button" onclick="removeQuizQuestion(this)" class="icon-btn-remove">
@@ -2740,7 +2850,7 @@ function addQuizQuestion() {
                 <label class="field-label">Answer Options</label>
                 <p class="text-xs text-slate-400 mb-2">Each option can have text and/or an image (e.g. for FSL hand-sign choices).</p>
                 <div class="space-y-2 options-list"></div>
-                <button type="button" onclick="addOption(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
+                <button type="button" onclick="addOption(this)" class="text-sm text-[#0d326b] font-bold hover:underline mt-2">
                     + Add Option
                 </button>
             </div>
@@ -2750,7 +2860,7 @@ function addQuizQuestion() {
                 <label class="field-label">Drag and Drop Pairs</label>
                 <p class="text-xs text-slate-400 mb-2">Match items from the left column to the right column.</p>
                 <div class="space-y-2 drag-drop-pairs-list"></div>
-                <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#1848c8] font-bold hover:underline mt-2">
+                <button type="button" onclick="addDragDropPair(this)" class="text-sm text-[#0d326b] font-bold hover:underline mt-2">
                     + Add Pair
                 </button>
             </div>
@@ -2782,7 +2892,7 @@ function addQuizQuestion() {
                     </div>
 
                     <!-- 👇 ADD THIS RIGHT HERE (inside gesture-quiz-container, after selected-gestures-preview) -->
-                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #E5EAF2; padding-top: 16px;">
+                    <div class="fingerspelling-word-container hidden" style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                         <label class="field-label">📝 Fingerspelling Words</label>
                         <p class="text-xs text-slate-400 mb-2">Enter words one per line. Students will fingerspell each word.</p>
                         <div class="space-y-3">
@@ -3588,7 +3698,7 @@ window.addEventListener('click', function(e) {
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
             <div style="width:42px;height:42px;background:linear-gradient(135deg,#6d28d9,#4f46e5);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>
             <div>
-                <h3 style="font-size:17px;font-weight:800;color:#0f3172;margin:0;">Generate Quiz with AI</h3>
+                <h3 style="font-size:17px;font-weight:800;color:#0d326b;margin:0;">Generate Quiz with AI</h3>
                 <p style="font-size:12px;color:#64748b;margin:2px 0 0;">Based on your lesson content</p>
             </div>
         </div>
@@ -3609,7 +3719,7 @@ window.addEventListener('click', function(e) {
                     <span style="font-size:12px;font-weight:600;color:#64748b;">Progress</span>
                     <span id="aqm_progressPct" style="font-size:13px;font-weight:800;color:#6d28d9;">0%</span>
                 </div>
-                <div style="background:#E5EAF2;border-radius:99px;height:8px;overflow:hidden;">
+                <div style="background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden;">
                     <div id="aqm_progressBar" style="background:linear-gradient(90deg,#6d28d9,#4f46e5);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
                 </div>
             </div>
@@ -3620,26 +3730,26 @@ window.addEventListener('click', function(e) {
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
                 <input id="aqm_num_mc" type="number" min="0" max="15" value="2"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
                 <input id="aqm_num_tf" type="number" min="0" max="15" value="1"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Drag & Drop Qs</label>
                 <input id="aqm_num_dd" type="number" min="0" max="15" value="1"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Gesture Qs</label>
                 <input id="aqm_num_gt" type="number" min="0" max="15" value="1"
-                       style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                       style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
+                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
         </div>
 
@@ -3651,7 +3761,7 @@ window.addEventListener('click', function(e) {
                 ✨ Generate Questions
             </button>
             <button onclick="closeAiQuizModal()" type="button"
-                    style="background:white;color:#64748b;padding:13px 24px;border-radius:14px;font-weight:700;font-size:14px;border:1.5px solid #E5EAF2;cursor:pointer;width:100%;transition:all 0.2s;"
+                    style="background:white;color:#64748b;padding:13px 24px;border-radius:14px;font-weight:700;font-size:14px;border:1.5px solid #e2e8f0;cursor:pointer;width:100%;transition:all 0.2s;"
                     onmouseover="this.style.background='#F8FAFC';" onmouseout="this.style.background='white';">Cancel</button>
         </div>
         </div>
