@@ -31,10 +31,27 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | AI Provider Selection
+    |--------------------------------------------------------------------------
+    | Set AI_PROVIDER in your .env to switch between AI backends:
+    |   AI_PROVIDER=deepseek  (default) — uses DEEPSEEK_API_KEY
+    |   AI_PROVIDER=gemini              — uses GEMINI_API_KEY
+    |
+    | Get DeepSeek keys : https://openrouter.ai/  (or https://platform.deepseek.com)
+    | Get Gemini keys   : https://aistudio.google.com/app/apikey
+    */
+
     'deepseek' => [
         'api_key'  => env('DEEPSEEK_API_KEY'),
-        'model'    => env('DEEPSEEK_MODEL', 'deepseek-chat'),
-        'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+        'model'    => env('DEEPSEEK_MODEL', 'deepseek/deepseek-chat'),
+        'base_url' => env('DEEPSEEK_BASE_URL', 'https://openrouter.ai/api/v1'),
+    ],
+
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model'   => env('GEMINI_MODEL', 'gemini-2.0-flash'),
     ],
 
     /*

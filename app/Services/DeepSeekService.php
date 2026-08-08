@@ -88,10 +88,11 @@ class DeepSeekService
         $totalQuestions = $numMc + $numTf + $numDd + $numGt;
 
         return <<<PROMPT
-You are an expert Filipino Sign Language (FSL) curriculum designer for the SENAS learning app. Generate complete, structured FSL lesson plans for children.
+You are an expert curriculum designer for the SENAS learning app. Generate complete, structured lesson plans on any topic requested by the teacher.
 
-CRITICAL: You must ONLY generate lesson content and quiz questions that focus on Filipino Sign Language (FSL). Do NOT include ASL (American Sign Language), BSL (British Sign Language), or any other sign/spoken language. All sign names, alphabet signs, vocabulary, and grammar must be FSL-specific.
-If the topic requested is general or unrelated to FSL (e.g. "Science", "Math", "Animals"), you MUST adapt it to teach FSL vocabulary and FSL signs for the terms related to that topic (e.g., teach FSL signs for "dog", "cat", "fish" if the topic is Animals). Do not teach non-FSL concepts.
+You can generate lessons about ANY subject: Filipino Sign Language (FSL), Science, Math, History, English, Arts, Health, Technology, or any other topic. Do not limit yourself to FSL — create rich educational content for whatever topic is given.
+
+If the topic is FSL or Sign Language related, include gesture_name values in snake_case (e.g. "letter_a", "hello"). For all other topics, set gesture_name to null.
 
 Respond with ONLY valid JSON — no markdown, no explanation, just raw JSON.
 
@@ -128,16 +129,16 @@ Schema:
 }
 
 Rules:
-- gesture_name must be snake_case (e.g. "letter_a", "hello", "thank_you")
-- content_text must be educational, encouraging, and clear for deaf/HoH learners — use simple words, short sentences, and positive tone
-- difficulty: beginner = alphabet/numbers/basic signs, intermediate = common phrases, advanced = full sentences/conversations
+- gesture_name must be snake_case when provided (e.g. "letter_a", "hello", "thank_you"), or null for non-FSL topics
+- content_text must be educational, encouraging, and clear — use simple words, short sentences, and positive tone
+- difficulty: beginner = foundational concepts, intermediate = applied knowledge, advanced = complex topics/synthesis
 - Generate EXACTLY the number of content steps requested.
 - Generate EXACTLY {$totalQuestions} quiz questions:
   - Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options, and correct_index must be the 0-based index of correct option)
   - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True", "False"], and correct_index must be 0 or 1)
   - Generate EXACTLY {$numDd} of type "drag_drop" (each must have a "drag_drop_pairs" array with at least 2 pairs and up to 5 pairs, mapping left items to right match items. Options/correct_index must be null/empty)
   - Generate EXACTLY {$numGt} of type "gesture" (each must have a "gesture_names" array containing FSL letters A-Z or numbers 1-10 that students need to perform, e.g. ["A", "B"] or ["5"]. Options/correct_index must be null/empty)
-- Make quizzes fun and age-appropriate for school children learning FSL
+- Make quizzes fun and age-appropriate for school children
 PROMPT;
     }
 
@@ -189,11 +190,11 @@ PROMPT;
         $total = $numMc + $numTf + $numDd + $numGt;
 
         $systemPrompt = <<<PROMPT
-You are an expert Filipino Sign Language (FSL) quiz designer for the SENAS learning app.
+You are an expert quiz designer for the SENAS learning app.
 You will receive lesson content written by a teacher, and your job is to generate quiz questions based ONLY on that content.
 
 CRITICAL RULES:
-- Only generate questions about Filipino Sign Language (FSL) concepts present in the content.
+- Only generate questions about concepts present in the content.
 - Do NOT invent information not present in the lesson content.
 - All questions must be age-appropriate for school children.
 - Respond with ONLY valid JSON — no markdown, no explanation.
@@ -294,8 +295,8 @@ PROMPT;
         $totalQuestions = $numMc + $numTf + $numDd + $numGt;
 
         $userPrompt = <<<TEXT
-Generate a complete FSL lesson from the following document content.
-Adapt it for children learning Filipino Sign Language — keep language simple, friendly, and encouraging.
+Generate a complete lesson from the following document content.
+Adapt it for learners — keep language simple, friendly, and encouraging.
 
 Difficulty: {$params['difficulty']}
 Lesson Type: {$params['lesson_type']}
@@ -306,7 +307,7 @@ Additional instructions: {$extra}
 {$pdfText}
 --- DOCUMENT CONTENT END ---
 
-Capture the key ideas from the document and turn them into engaging FSL lesson slides and {$totalQuestions} quiz questions.
+Capture the key ideas from the document and turn them into engaging lesson slides and {$totalQuestions} quiz questions.
 TEXT;
 
         $response = Http::withHeaders([

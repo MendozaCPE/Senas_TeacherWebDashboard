@@ -16,7 +16,7 @@
                     <div style="width:42px;height:42px;background:rgba(255,255,255,0.2);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;">✨</div>
                     <div>
                         <h3 style="color:white;font-size:18px;font-weight:800;margin:0;">AI Lesson Generator</h3>
-                        <p style="color:rgba(255,255,255,0.75);font-size:12px;margin:0;">Powered by DeepSeek</p>
+                        <p style="color:rgba(255,255,255,0.75);font-size:12px;margin:0;">Powered by {{ ucfirst(strtolower(env('AI_PROVIDER', 'DeepSeek'))) === 'gemini' ? '✨ Google Gemini' : '🤖 DeepSeek' }}</p>
                     </div>
                 </div>
                 <button onclick="closeAiModalDirect()"
@@ -50,7 +50,7 @@
             <div id="aiLoadingState" style="display:none; text-align:center; padding:40px 20px;">
                 <div style="display:inline-block; width:48px; height:48px; border:4px solid rgba(109,40,217,0.2); border-top-color:#6d28d9; border-radius:50%; animation:aiSpin 0.8s linear infinite;"></div>
                 <p style="color:#6d28d9; font-weight:700; font-size:15px; margin:18px 0 6px;" id="aiLoadingText">Generating your lesson...</p>
-                <p style="color:#94a3b8; font-size:13px; margin:0 0 16px;" id="aiLoadingSubtext">DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.</p>
+                <p style="color:#94a3b8; font-size:13px; margin:0 0 16px;" id="aiLoadingSubtext">AI is crafting your lesson content.<br>This may take up to 30 seconds.</p>
                 <div style="max-width:280px;margin:0 auto;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                         <span style="font-size:12px;font-weight:600;color:#64748b;">Progress</span>
@@ -70,12 +70,12 @@
                     </label>
                     <input id="ai_topic" type="text" maxlength="200"
                            style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;transition:all 0.2s;box-sizing:border-box;"
-                           placeholder="e.g. FSL Alphabet A to E"
+                           placeholder="e.g. FSL Alphabet, Animals, Math, Science, History..."
                            onfocus="this.style.borderColor='#6d28d9'; this.style.boxShadow='0 0 0 4px rgba(109,40,217,0.1)';"
                            onblur="this.style.borderColor='#E5EAF2'; this.style.boxShadow='none';">
                     <div style="display:flex;align-items:center;gap:6px;margin-top:6px;background:#F5F3FF;border-radius:10px;padding:8px 12px;">
-                        <span style="font-size:14px;flex-shrink:0;">🇵🇭</span>
-                        <p style="font-size:11px;color:#6d28d9;font-weight:700;margin:0;">FSL Only — AI generates Filipino Sign Language content exclusively. Topics like Animals, Numbers, and Greetings will be taught using FSL signs.</p>
+                        <span style="font-size:14px;flex-shrink:0;">{{ strtolower(env('AI_PROVIDER', 'deepseek')) === 'gemini' ? '✨' : '🤖' }}</span>
+                        <p style="font-size:11px;color:#6d28d9;font-weight:700;margin:0;">Powered by {{ strtolower(env('AI_PROVIDER', 'deepseek')) === 'gemini' ? 'Google Gemini' : 'DeepSeek' }}</p>
                     </div>
                 </div>
 
@@ -408,7 +408,7 @@ function submitAiGenerate() {
     const numGt = parseInt(document.getElementById('ai_num_gt').value) || 0;
     if (numMc + numTf + numDd + numGt < 1) { showAiError('Please request at least 1 quiz question.'); return; }
     hideAiError();
-    setAiLoading(true, 'Generating your lesson...', 'DeepSeek is crafting your FSL content.<br>This may take up to 30 seconds.');
+    setAiLoading(true, 'Generating your lesson...', 'AI is crafting your lesson content.<br>This may take up to 30 seconds.');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value;
     fetch('{{ route("lessons.ai-generate") }}', {
         method:'POST',

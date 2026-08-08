@@ -15,6 +15,7 @@ use App\Models\GestureModule;
 use App\Models\CheckpointExam;
 use App\Models\CheckpointExamQuestion;
 use App\Models\CheckpointExamAssignment;
+use App\Services\AiService;
 use App\Services\DeepSeekService;
 use App\Services\GestureMediaResolver;
 use Illuminate\Http\Request;
@@ -144,8 +145,8 @@ class LessonsController extends Controller
                     . '. The document appears to be image-based. Generate an FSL lesson based on the filename topic.';
             }
 
-            $deepSeek = new DeepSeekService();
-            $lesson   = $deepSeek->generateFromPdfText($pdfText, [
+            $aiService = AiService::make();
+            $lesson   = $aiService->generateFromPdfText($pdfText, [
                 'difficulty'   => $request->input('difficulty'),
                 'lesson_type'  => $request->input('lesson_type'),
                 'num_slides'   => (int) $request->input('num_slides'),
@@ -256,8 +257,8 @@ class LessonsController extends Controller
         }
 
         try {
-            $deepSeek = new DeepSeekService();
-            $lesson   = $deepSeek->generate($validated);
+            $aiService = AiService::make();
+            $lesson   = $aiService->generate($validated);
 
             if (isset($lesson['quiz'])) {
                 $lesson['quiz'] = $this->resolveGestureQuestions($lesson['quiz']);
@@ -297,8 +298,8 @@ class LessonsController extends Controller
         }
 
         try {
-            $deepSeek = new DeepSeekService();
-            $questions = $deepSeek->generateQuizOnly(
+            $aiService = AiService::make();
+            $questions = $aiService->generateQuizOnly(
                 $validated['content_text'],
                 (int) $validated['num_mc'],
                 (int) $validated['num_tf'],

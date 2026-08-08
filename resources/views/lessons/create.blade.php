@@ -25,6 +25,14 @@
         vertical-align: middle;
     }
 
+    /* Sidebar icons must keep their own fill state (active = filled, inactive = outline) */
+    aside .material-symbols-outlined {
+        font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    aside .material-symbols-outlined.icon-outline {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
     /* ── Section Cards ──────────────────────────────────────────────── */
     .section-card {
         background: white;
