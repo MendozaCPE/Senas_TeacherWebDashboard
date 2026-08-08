@@ -344,6 +344,7 @@ public function store(Request $request)
         'contents.*.existing_media'   => 'nullable|string',
         'quiz.*.existing_media'       => 'nullable|string',
         'quiz.*.options.*.existing_image' => 'nullable|string',
+        'contents.*.youtube_url'      => 'nullable|string|max:500',
     ]);
 
     // Read which button was clicked: 'draft' or 'published'
@@ -528,7 +529,10 @@ public function store(Request $request)
         $contents = $request->input('contents', []);
         foreach ($contents as $index => $c) {
             if (empty($c['title']) && empty($c['content_text']) && empty($c['gesture_name'])) {
-                continue;
+                // Allow a youtube_video slide that only has a URL and no other text
+                if (($c['content_type'] ?? '') !== 'youtube_video' || empty($c['youtube_url'])) {
+                    continue;
+                }
             }
 
             $mediaUrl = null;
@@ -540,6 +544,12 @@ public function store(Request $request)
                 $isTemp = true;
             } elseif (! empty($c['existing_media'])) {
                 $mediaUrl = $c['existing_media'];
+            } elseif (($c['content_type'] ?? '') === 'youtube_video' && !empty($c['youtube_url'])) {
+                // For youtube_video, normalise the URL into a canonical watch URL
+                $ytId = \App\Models\LessonContent::extractYoutubeId($c['youtube_url']);
+                if ($ytId) {
+                    $mediaUrl = 'https://www.youtube.com/watch?v=' . $ytId;
+                }
             }
 
             $lessonData['contents'][] = [
@@ -878,6 +888,7 @@ public function update(Request $request, $id)
         'contents.*.existing_media'   => 'nullable|string',
         'quiz.*.existing_media'       => 'nullable|string',
         'quiz.*.options.*.existing_image' => 'nullable|string',
+        'contents.*.youtube_url'      => 'nullable|string|max:500',
     ]);
 
     $status = $request->input('status', 'draft');
@@ -1440,30 +1451,47 @@ public function destroy($id)
         $step = 1;
         foreach ($contents as $i => $c) {
             if (empty($c['title']) && empty($c['content_text']) && empty($c['gesture_name'])) {
-                continue;
+                // Also allow a youtube_video slide with just a URL
+                if (($c['content_type'] ?? '') !== 'youtube_video' || empty($c['youtube_url'])) {
+                    continue;
+                }
             }
 
-            $uploadedFile = $this->getContentUploadedFile($request, $i);
-            $mediaUrl = $this->uploadPublicFile($uploadedFile, 'lesson_media');
-            if (! $mediaUrl && ! empty($c['existing_media'])) {
-                $mediaUrl = $c['existing_media'];
+            $contentType = $c['content_type'] ?? 'text';
+            $mediaUrl    = null;
+
+            if ($contentType === 'youtube_video') {
+                // Validate and normalise the YouTube URL — store the standard watch URL
+                $rawYtUrl = trim($c['youtube_url'] ?? '');
+                $ytId = \App\Models\LessonContent::extractYoutubeId($rawYtUrl);
+                if ($ytId) {
+                    // Store as the canonical watch URL so it can be reformatted later
+                    $mediaUrl = 'https://www.youtube.com/watch?v=' . $ytId;
+                }
+                // If invalid URL just skip media (shouldn't happen if client-side validated)
+            } else {
+                $uploadedFile = $this->getContentUploadedFile($request, $i);
+                $mediaUrl = $this->uploadPublicFile($uploadedFile, 'lesson_media');
+                if (!$mediaUrl && !empty($c['existing_media'])) {
+                    $mediaUrl = $c['existing_media'];
+                }
             }
 
             // Auto-clear media_missing when a file has been successfully uploaded
             $mediaMissing = isset($c['media_missing']) ? (int) $c['media_missing'] : 0;
-            if ($uploadedFile && $mediaUrl) {
+            if ($contentType !== 'youtube_video' && isset($uploadedFile) && $uploadedFile && $mediaUrl) {
                 $mediaMissing = 0;
             }
 
             LessonContent::create([
-                'lesson_id' => $lesson->lesson_id,
-                'step_number' => $step++,
-                'content_type' => $c['content_type'] ?? 'text',
-                'title' => $c['title'] ?? null,
+                'lesson_id'    => $lesson->lesson_id,
+                'step_number'  => $step++,
+                'content_type' => $contentType,
+                'title'        => $c['title'] ?? null,
                 'content_text' => $c['content_text'] ?? null,
-                'media_url' => $mediaUrl,
+                'media_url'    => $mediaUrl,
                 'gesture_name' => $c['gesture_name'] ?? null,
-                'media_missing' => $mediaMissing,
+                'media_missing'=> $mediaMissing,
             ]);
         }
     }

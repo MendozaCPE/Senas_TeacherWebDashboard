@@ -702,6 +702,25 @@
     
 
     .hidden { display: none !important; }
+
+    /* ── YouTube embed ───────────────────────────────────────────────── */
+    .youtube-embed-wrap {
+        position: relative;
+        width: 100%;
+        padding-bottom: 56.25%;
+        margin: 10px 0;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 6px 20px rgba(15,49,114,0.14);
+        background: #0f0f0f;
+    }
+    .youtube-embed-wrap iframe {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        border: none;
+        display: block;
+    }
 </style>
 
 <div class="max-w-4xl mx-auto pb-10">
@@ -771,6 +790,7 @@
                         <select name="lesson_type" class="field-select">
                             <option value="gesture">Gesture Lesson</option>
                             <option value="interactive">Interactive Lesson</option>
+                            <option value="video">Video Lesson</option>
                         </select>
                     </div>
                 </div>
@@ -872,6 +892,7 @@
                                 <option value="gesture_demo">Gesture Demo</option>
                                 <option value="image">Image</option>
                                 <option value="video">Video</option>
+                                <option value="youtube_video">YouTube Video</option>
                             </select>
                         </div>
                         <div>
@@ -898,6 +919,14 @@
                                 </div>
                                 <div class="media-thumb-wrap"></div>
                                 <div class="media-upload-error"></div>
+                            </div>
+                        </div>
+                        <div class="youtube-field hidden">
+                            <label class="field-label">YouTube Video URL</label>
+                            <input type="text" name="contents[0][youtube_url]" class="field-input youtube-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID" autocomplete="off">
+                            <div class="youtube-url-error" style="display:none; color:#EF4444; font-size:12px; font-weight:600; margin-top:4px;"></div>
+                            <div class="youtube-preview-wrap" style="display:none; margin-top:12px; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(15,49,114,0.12);">
+                                <iframe class="youtube-preview-iframe" width="100%" height="250" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block; border-radius:14px;"></iframe>
                             </div>
                         </div>
                     </div>
@@ -1929,6 +1958,85 @@ function toggleModuleFields() {
 }
 
 /* ═══════════════════════════════════════════════════════
+   YOUTUBE VIDEO HELPERS
+═══════════════════════════════════════════════════════ */
+
+/**
+ * Extract a YouTube video ID from a variety of URL formats.
+ * Returns null if the URL is not a recognised YouTube URL.
+ */
+function extractYoutubeId(url) {
+    if (!url) return null;
+    url = url.trim();
+    // youtu.be/VIDEO_ID
+    let m = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    // ?v=VIDEO_ID  or  &v=VIDEO_ID
+    m = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    // youtube.com/embed/VIDEO_ID
+    m = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    // youtube.com/shorts/VIDEO_ID
+    m = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    return null;
+}
+
+/**
+ * Returns the standard embed URL for a given YouTube URL, or null if invalid.
+ */
+function buildYoutubeEmbedUrl(url) {
+    const id = extractYoutubeId(url);
+    if (!id) return null;
+    return 'https://www.youtube.com/embed/' + id + '?rel=0&modestbranding=1';
+}
+
+/**
+ * Validates a YouTube URL and updates the live preview iframe in the card.
+ * Called on input/paste events on youtube-url-input fields.
+ */
+function handleYoutubeUrlInput(input) {
+    const card = input.closest('.content-card');
+    if (!card) return;
+    const errorEl = card.querySelector('.youtube-url-error');
+    const previewWrap = card.querySelector('.youtube-preview-wrap');
+    const iframe = card.querySelector('.youtube-preview-iframe');
+
+    const url = input.value.trim();
+
+    if (!url) {
+        if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+        if (previewWrap) previewWrap.style.display = 'none';
+        if (iframe) iframe.src = '';
+        return;
+    }
+
+    const embedUrl = buildYoutubeEmbedUrl(url);
+    if (!embedUrl) {
+        if (errorEl) {
+            errorEl.textContent = '⚠ Invalid or unsupported YouTube URL. Please use a youtube.com or youtu.be link.';
+            errorEl.style.display = 'block';
+        }
+        if (previewWrap) previewWrap.style.display = 'none';
+        if (iframe) iframe.src = '';
+        return;
+    }
+
+    // Valid URL
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    if (iframe) iframe.src = embedUrl;
+    if (previewWrap) previewWrap.style.display = 'block';
+}
+
+// Wire up live validation for dynamically added YouTube URL inputs via event delegation
+document.addEventListener('input', function(e) {
+    if (e.target && e.target.classList.contains('youtube-url-input')) {
+        handleYoutubeUrlInput(e.target);
+    }
+});
+
+/* ═══════════════════════════════════════════════════════
    CONTENT CARDS
 ═══════════════════════════════════════════════════════ */
 function toggleFields(select) {
@@ -1936,6 +2044,7 @@ function toggleFields(select) {
     if (!card) return;
     const gestureField = card.querySelector('.gesture-field');
     const mediaField = card.querySelector('.media-field');
+    const youtubeField = card.querySelector('.youtube-field');
     const typeLabel = card.querySelector('.badge-pill');
     
     // Hide validation indicators
@@ -1943,8 +2052,9 @@ function toggleFields(select) {
     
     if (gestureField) gestureField.classList.add('hidden');
     if (mediaField) mediaField.classList.add('hidden');
+    if (youtubeField) youtubeField.classList.add('hidden');
     if (typeLabel) {
-        const map = { 'text': 'Text', 'gesture_demo': 'Gesture', 'image': 'Image', 'video': 'Video' };
+        const map = { 'text': 'Text', 'gesture_demo': 'Gesture', 'image': 'Image', 'video': 'Video', 'youtube_video': 'YouTube' };
         typeLabel.textContent = map[select.value] || 'Text';
     }
     if (select.value === 'gesture_demo') {
@@ -1952,6 +2062,8 @@ function toggleFields(select) {
         if (mediaField) mediaField.classList.remove('hidden');
     } else if (select.value === 'image' || select.value === 'video') {
         if (mediaField) mediaField.classList.remove('hidden');
+    } else if (select.value === 'youtube_video') {
+        if (youtubeField) youtubeField.classList.remove('hidden');
     }
     const mediaMissingInput = card.querySelector('input[name*="[media_missing]"]');
     if (mediaMissingInput && mediaMissingInput.value === '1') {
@@ -1984,6 +2096,7 @@ function addContentCard() {
                     <option value="gesture_demo">Gesture Demo</option>
                     <option value="image">Image</option>
                     <option value="video">Video</option>
+                    <option value="youtube_video">YouTube Video</option>
                 </select>
             </div>
             <div>
@@ -2010,6 +2123,14 @@ function addContentCard() {
                     </div>
                     <div class="media-thumb-wrap"></div>
                     <div class="media-upload-error"></div>
+                </div>
+            </div>
+            <div class="youtube-field hidden">
+                <label class="field-label">YouTube Video URL</label>
+                <input type="text" name="contents[${contentIndex}][youtube_url]" class="field-input youtube-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID" autocomplete="off">
+                <div class="youtube-url-error" style="display:none; color:#EF4444; font-size:12px; font-weight:600; margin-top:4px;"></div>
+                <div class="youtube-preview-wrap" style="display:none; margin-top:12px; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(15,49,114,0.12);">
+                    <iframe class="youtube-preview-iframe" width="100%" height="250" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block; border-radius:14px;"></iframe>
                 </div>
             </div>
         </div>
@@ -3073,6 +3194,20 @@ function validateLessonForm(shouldClear = true) {
                     mediaWidget.parentElement.appendChild(errorEl);
                 }
                 errorMessages.push(`Content Slide ${cardNum}: Missing ${contentType}`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        } else if (contentType === 'youtube_video') {
+            const ytInput = card.querySelector('.youtube-url-input');
+            const ytUrl = ytInput ? ytInput.value.trim() : '';
+            if (!ytUrl) {
+                showFieldError(ytInput, 'Please enter a YouTube video URL');
+                errorMessages.push(`Content Slide ${cardNum}: Missing YouTube URL`);
+                cardHasError = true;
+                hasErrors = true;
+            } else if (!extractYoutubeId(ytUrl)) {
+                showFieldError(ytInput, 'Invalid or unsupported YouTube URL. Use a youtube.com or youtu.be link.');
+                errorMessages.push(`Content Slide ${cardNum}: Invalid YouTube URL`);
                 cardHasError = true;
                 hasErrors = true;
             }

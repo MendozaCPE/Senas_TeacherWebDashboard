@@ -23,6 +23,19 @@
         $ext = strtolower(pathinfo(parse_url($path, PHP_URL_PATH), PATHINFO_EXTENSION));
         return in_array($ext, ['mp4', 'webm', 'ogg', 'mov', 'm4v', 'avi']);
     };
+
+    // Helper: build a YouTube embed URL from a stored watch URL or video ID
+    $youtubeEmbedUrl = function($url) {
+        if (!$url) return null;
+        // extract video ID
+        $id = null;
+        if (preg_match('/youtu\.be\/([a-zA-Z0-9_-]{11})/', $url, $m))       $id = $m[1];
+        elseif (preg_match('/[?&]v=([a-zA-Z0-9_-]{11})/', $url, $m))        $id = $m[1];
+        elseif (preg_match('/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/', $url, $m)) $id = $m[1];
+        elseif (preg_match('/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/', $url, $m)) $id = $m[1];
+        if (!$id) return null;
+        return 'https://www.youtube.com/embed/' . $id . '?rel=0&modestbranding=1';
+    };
 @endphp
 
 <style>
@@ -254,6 +267,8 @@
 .media-wrap { margin: 10px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); background: #0f3172; }
 .slide-image { width: 100%; display: block; max-height: 220px; object-fit: cover; }
 .slide-video { width: 100%; display: block; max-height: 220px; background: #000; }
+.youtube-embed-wrap { position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */ margin: 10px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); background: #0f0f0f; }
+.youtube-embed-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: block; }
 .hero-image { width: 80px; height: 80px; flex-shrink: 0; object-fit: contain; }
 .quiz-media-wrap { border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); margin: 0 auto 12px; background: #f8f9fa; }
 .quiz-media { width: 100%; display: block; max-height: 160px; object-fit: contain; padding: 8px; background: #fff; }
@@ -585,11 +600,18 @@
                                 <div class="glass-card" style="flex:1;">
                                     <div class="slide-accent" style="background: {{ $slideColor }};"></div>
                                     <h3 style="font-size: 17px; font-weight: 800; color: {{ $slideColor }}; margin-bottom: 10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                   @if(!empty($current['media']) && is_string($current['media']))
+                                   @php $currentContentType = $current['content_type'] ?? 'text'; @endphp
+@if($currentContentType === 'youtube_video' && !empty($current['media']))
+    @php $ytEmbed = $youtubeEmbedUrl($current['media']); @endphp
+    @if($ytEmbed)
+        <div class="youtube-embed-wrap">
+            <iframe src="{{ $ytEmbed }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+    @endif
+@elseif(!empty($current['media']) && is_string($current['media']))
     @php
         $mediaUrl = formatImageUrl($current['media']);
-        // ✅ Use the $isVideo helper function that checks content_type too
-        $isVideoFile = $isVideo($current['media'], $current['content_type'] ?? null);
+        $isVideoFile = $isVideo($current['media'], $currentContentType);
     @endphp
     @if($mediaUrl)
         <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">
@@ -928,10 +950,18 @@
                                             <div class="glass-card">
                                                 <div class="slide-accent" style="background:{{ $slideColor }};"></div>
                                                 <h3 style="font-size:19px; font-weight:800; color:{{ $slideColor }}; margin-bottom:10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                               @if(!empty($current['media']) && is_string($current['media']))
+                                               @php $currentContentType = $current['content_type'] ?? 'text'; @endphp
+@if($currentContentType === 'youtube_video' && !empty($current['media']))
+    @php $ytEmbed = $youtubeEmbedUrl($current['media']); @endphp
+    @if($ytEmbed)
+        <div class="youtube-embed-wrap">
+            <iframe src="{{ $ytEmbed }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+    @endif
+@elseif(!empty($current['media']) && is_string($current['media']))
     @php
         $mediaUrl = formatImageUrl($current['media']);
-        $isVideoFile = $isVideo($current['media'], $current['content_type'] ?? null);
+        $isVideoFile = $isVideo($current['media'], $currentContentType);
     @endphp
     @if($mediaUrl)
         <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">

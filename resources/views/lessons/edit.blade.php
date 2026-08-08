@@ -112,6 +112,25 @@
         display: none;
     }
 
+    /* ── YouTube embed ─────────────────────────────────────────────────── */
+    .youtube-embed-wrap {
+        position: relative;
+        width: 100%;
+        padding-bottom: 56.25%; /* 16:9 */
+        margin: 10px 0;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 6px 20px rgba(13,50,107,0.14);
+        background: #0f0f0f;
+    }
+    .youtube-embed-wrap iframe {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        border: none;
+        display: block;
+    }
+
     /* ── Media source picker (dropdown menu + library modal) ───────────── */
     .media-picker-menu {
         position: absolute;
@@ -465,6 +484,7 @@
                         <select name="lesson_type" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
                             <option value="gesture" {{ (old('lesson_type', $lessonData['lesson_type']) == 'gesture') ? 'selected' : '' }}>Gesture Lesson</option>
                             <option value="interactive" {{ (old('lesson_type', $lessonData['lesson_type']) == 'interactive') ? 'selected' : '' }}>Interactive Lesson</option>
+                            <option value="video" {{ (old('lesson_type', $lessonData['lesson_type']) == 'video') ? 'selected' : '' }}>Video Lesson</option>
                         </select>
                     </div>
                 </div>
@@ -500,6 +520,7 @@
                                     <option value="gesture_demo" {{ $content['content_type'] == 'gesture_demo' ? 'selected' : '' }}>Gesture Demo</option>
                                     <option value="image" {{ $content['content_type'] == 'image' ? 'selected' : '' }}>Image</option>
                                     <option value="video" {{ $content['content_type'] == 'video' ? 'selected' : '' }}>Video</option>
+                                    <option value="youtube_video" {{ $content['content_type'] == 'youtube_video' ? 'selected' : '' }}>YouTube Video</option>
                                 </select>
                             </div>
                             <div>
@@ -513,6 +534,37 @@
                             <div class="gesture-field {{ $content['content_type'] == 'gesture_demo' ? '' : 'hidden' }}">
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Gesture Name</label>
                                 <input type="text" name="contents[{{ $index }}][gesture_name]" value="{{ $content['gesture_name'] ?? '' }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all" placeholder="e.g., letter_a">
+                            </div>
+                            {{-- YouTube Video URL field --}}
+                            @php
+                                $isYoutubeSlide = ($content['content_type'] ?? '') === 'youtube_video';
+                                $existingYtUrl  = $isYoutubeSlide ? ($content['media_url'] ?? '') : '';
+                                // Build embed URL for existing youtube slides to show a preview
+                                $existingYtEmbed = null;
+                                if ($existingYtUrl) {
+                                    $ytIdEdit = \App\Models\LessonContent::extractYoutubeId($existingYtUrl);
+                                    if ($ytIdEdit) {
+                                        $existingYtEmbed = 'https://www.youtube.com/embed/' . $ytIdEdit . '?rel=0&modestbranding=1';
+                                    }
+                                }
+                            @endphp
+                            <div class="youtube-field {{ $isYoutubeSlide ? '' : 'hidden' }}">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">YouTube Video URL</label>
+                                <input type="text"
+                                       name="contents[{{ $index }}][youtube_url]"
+                                       value="{{ $existingYtUrl }}"
+                                       class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all youtube-url-input"
+                                       placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID"
+                                       autocomplete="off">
+                                <div class="youtube-url-error" style="display:none; color:#EF4444; font-size:12px; font-weight:600; margin-top:4px;"></div>
+                                <div class="youtube-preview-wrap" style="{{ $existingYtEmbed ? '' : 'display:none;' }} margin-top:12px; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(13,50,107,0.12);">
+                                    <iframe class="youtube-preview-iframe"
+                                            src="{{ $existingYtEmbed ?? '' }}"
+                                            width="100%" height="250" frameborder="0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowfullscreen
+                                            style="display:block; border-radius:14px;"></iframe>
+                                </div>
                             </div>
                             {{-- AJAX Media Upload Widget --}}
                             <div class="media-field {{ (in_array($content['content_type'], ['image', 'video', 'gesture_demo']) || !empty($content['media_missing'])) ? '' : 'hidden' }}">
@@ -599,6 +651,7 @@
                                     <option value="gesture_demo">Gesture Demo</option>
                                     <option value="image">Image</option>
                                     <option value="video">Video</option>
+                                    <option value="youtube_video">YouTube Video</option>
                                 </select>
                             </div>
                             <div>
@@ -625,6 +678,14 @@
                                     </div>
                                     <div class="media-thumb-wrap"></div>
                                     <div class="media-upload-error"></div>
+                                </div>
+                            </div>
+                            <div class="youtube-field hidden">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1.5">YouTube Video URL</label>
+                                <input type="text" name="contents[0][youtube_url]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all youtube-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID" autocomplete="off">
+                                <div class="youtube-url-error" style="display:none; color:#EF4444; font-size:12px; font-weight:600; margin-top:4px;"></div>
+                                <div class="youtube-preview-wrap" style="display:none; margin-top:12px; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(13,50,107,0.12);">
+                                    <iframe class="youtube-preview-iframe" width="100%" height="250" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block; border-radius:14px;"></iframe>
                                 </div>
                             </div>
                         </div>
@@ -1849,6 +1910,60 @@ function closePreview() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
 
 /* ═══════════════════════════════════════════════════════
+   YOUTUBE VIDEO HELPERS
+═══════════════════════════════════════════════════════ */
+function extractYoutubeId(url) {
+    if (!url) return null;
+    url = url.trim();
+    let m = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    m = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    m = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    m = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    return null;
+}
+
+function buildYoutubeEmbedUrl(url) {
+    const id = extractYoutubeId(url);
+    if (!id) return null;
+    return 'https://www.youtube.com/embed/' + id + '?rel=0&modestbranding=1';
+}
+
+function handleYoutubeUrlInput(input) {
+    const card = input.closest('.content-card');
+    if (!card) return;
+    const errorEl    = card.querySelector('.youtube-url-error');
+    const previewWrap = card.querySelector('.youtube-preview-wrap');
+    const iframe     = card.querySelector('.youtube-preview-iframe');
+    const url = input.value.trim();
+    if (!url) {
+        if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+        if (previewWrap) previewWrap.style.display = 'none';
+        if (iframe) iframe.src = '';
+        return;
+    }
+    const embedUrl = buildYoutubeEmbedUrl(url);
+    if (!embedUrl) {
+        if (errorEl) { errorEl.textContent = '⚠ Invalid or unsupported YouTube URL. Use a youtube.com or youtu.be link.'; errorEl.style.display = 'block'; }
+        if (previewWrap) previewWrap.style.display = 'none';
+        if (iframe) iframe.src = '';
+        return;
+    }
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    if (iframe) iframe.src = embedUrl;
+    if (previewWrap) previewWrap.style.display = 'block';
+}
+
+document.addEventListener('input', function(e) {
+    if (e.target && e.target.classList.contains('youtube-url-input')) {
+        handleYoutubeUrlInput(e.target);
+    }
+});
+
+/* ═══════════════════════════════════════════════════════
    CONTENT CARDS
 ═══════════════════════════════════════════════════════ */
 
@@ -1857,11 +1972,13 @@ function toggleFields(select) {
     if (!card) return;
     const gestureField = card.querySelector('.gesture-field');
     const mediaField   = card.querySelector('.media-field');
+    const youtubeField = card.querySelector('.youtube-field');
     const typeLabel    = card.querySelector('.text-xs.bg-blue-50');
     if (gestureField) gestureField.classList.add('hidden');
     if (mediaField)   mediaField.classList.add('hidden');
+    if (youtubeField) youtubeField.classList.add('hidden');
     if (typeLabel) {
-        const map = { text: 'Text', gesture_demo: 'Gesture', image: 'Image', video: 'Video' };
+        const map = { text: 'Text', gesture_demo: 'Gesture', image: 'Image', video: 'Video', youtube_video: 'YouTube' };
         typeLabel.textContent = map[select.value] || 'Text';
     }
     if (select.value === 'gesture_demo') {
@@ -1869,6 +1986,8 @@ function toggleFields(select) {
         if (mediaField)   mediaField.classList.remove('hidden');
     } else if (select.value === 'image' || select.value === 'video') {
         if (mediaField) mediaField.classList.remove('hidden');
+    } else if (select.value === 'youtube_video') {
+        if (youtubeField) youtubeField.classList.remove('hidden');
     }
     const mediaMissingInput = card.querySelector('input[name*="[media_missing]"]');
     if (mediaMissingInput && mediaMissingInput.value === '1') {
@@ -1965,6 +2084,7 @@ function addContentCard() {
                     <option value="gesture_demo">Gesture Demo</option>
                     <option value="image">Image</option>
                     <option value="video">Video</option>
+                    <option value="youtube_video">YouTube Video</option>
                 </select>
             </div>
             <div>
@@ -1982,6 +2102,14 @@ function addContentCard() {
             <div class="media-field hidden">
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Upload Media</label>
                 ${buildMediaWidget(contentIndex)}
+            </div>
+            <div class="youtube-field hidden">
+                <label class="block text-sm font-semibold text-slate-700 mb-1.5">YouTube Video URL</label>
+                <input type="text" name="contents[${contentIndex}][youtube_url]" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all youtube-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID" autocomplete="off">
+                <div class="youtube-url-error" style="display:none; color:#EF4444; font-size:12px; font-weight:600; margin-top:4px;"></div>
+                <div class="youtube-preview-wrap" style="display:none; margin-top:12px; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(13,50,107,0.12);">
+                    <iframe class="youtube-preview-iframe" width="100%" height="250" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block; border-radius:14px;"></iframe>
+                </div>
             </div>
         </div>`;
     container.appendChild(card);
@@ -2795,6 +2923,14 @@ function validateLessonContent() {
             if (!mediaInput || !mediaInput.value.trim()) {
                 errors.push(`Content Slide ${index + 1}: Please upload a ${contentType}.`);
             }
+        } else if (contentType === 'youtube_video') {
+            const ytInput = card.querySelector('.youtube-url-input');
+            const ytUrl = ytInput ? ytInput.value.trim() : '';
+            if (!ytUrl) {
+                errors.push(`Content Slide ${index + 1}: Please enter a YouTube video URL.`);
+            } else if (!extractYoutubeId(ytUrl)) {
+                errors.push(`Content Slide ${index + 1}: Invalid YouTube URL. Use a youtube.com or youtu.be link.`);
+            }
         }
     });
 
@@ -3007,6 +3143,20 @@ function validateLessonForm(shouldClear = true) {
                     mediaWidget.parentElement.appendChild(errorEl);
                 }
                 errorMessages.push(`Content Slide ${cardNum}: Missing ${contentType}`);
+                cardHasError = true;
+                hasErrors = true;
+            }
+        } else if (contentType === 'youtube_video') {
+            const ytInput = card.querySelector('.youtube-url-input');
+            const ytUrl = ytInput ? ytInput.value.trim() : '';
+            if (!ytUrl) {
+                showFieldError(ytInput, 'Please enter a YouTube video URL');
+                errorMessages.push(`Content Slide ${cardNum}: Missing YouTube URL`);
+                cardHasError = true;
+                hasErrors = true;
+            } else if (!extractYoutubeId(ytUrl)) {
+                showFieldError(ytInput, 'Invalid YouTube URL. Use a youtube.com or youtu.be link.');
+                errorMessages.push(`Content Slide ${cardNum}: Invalid YouTube URL`);
                 cardHasError = true;
                 hasErrors = true;
             }
