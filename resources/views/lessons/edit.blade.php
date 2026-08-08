@@ -875,7 +875,7 @@
                     <button type="button" id="aiQuizGenerateBtn" onclick="openAiQuizModal()"
                             title="Add lesson content first to enable AI quiz generation"
                             class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-white transition-all"
-                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);opacity:0.4;pointer-events:none;"
+                            style="background:linear-gradient(135deg,#0d326b,#1a6fd4);opacity:0.4;pointer-events:none;"
                             onmouseover="if(this.style.opacity==='1')this.style.opacity='0.9'"
                             onmouseout="if(this.style.opacity!=='0.4')this.style.opacity='1'">
                         <span class="material-symbols-outlined text-[15px]">auto_awesome</span> Generate Quiz with AI
@@ -3551,7 +3551,7 @@ async function submitAiQuizGenerate() {
         closeAiQuizModal();
 
         const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(109,40,217,0.4);z-index:20000;transition:all 0.4s;';
+        toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#0d326b,#1a6fd4);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(13,50,107,0.4);z-index:20000;transition:all 0.4s;';
         toast.textContent = `✨ ${data.quiz.length} quiz questions generated!`;
         document.body.appendChild(toast);
         setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(10px)'; }, 3000);
@@ -3594,31 +3594,31 @@ window.addEventListener('click', function(e) {
                 style="position:absolute;top:16px;right:16px;background:rgba(13,50,107,0.07);border:none;width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#64748b;">✕</button>
 
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-            <div style="width:42px;height:42px;background:linear-gradient(135deg,#6d28d9,#4f46e5);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>
+            <div style="width:42px;height:42px;background:linear-gradient(135deg,#0d326b,#1a6fd4);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>
             <div>
                 <h3 style="font-size:17px;font-weight:800;color:#0f3172;margin:0;">Generate Quiz with AI</h3>
                 <p style="font-size:12px;color:#64748b;margin:2px 0 0;">Based on your lesson content</p>
             </div>
         </div>
 
-        <div style="background:#F5F3FF;border-radius:12px;padding:10px 14px;margin:14px 0 20px;display:flex;gap:8px;align-items:flex-start;">
+        <div style="background:#F0F7FF;border-radius:12px;padding:10px 14px;margin:14px 0 20px;display:flex;gap:8px;align-items:flex-start;">
             <span style="font-size:16px;flex-shrink:0;">🇵🇭</span>
-            <p style="font-size:11px;color:#6d28d9;font-weight:600;margin:0;line-height:1.5;">AI will read your lesson content and create quiz questions about the FSL concepts you wrote.</p>
+            <p style="font-size:11px;color:#0d326b;font-weight:600;margin:0;line-height:1.5;">AI will read your lesson content and create quiz questions about the FSL concepts you wrote.</p>
         </div>
 
         <div id="aqm_error" style="display:none;background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:12px;padding:10px 14px;margin-bottom:16px;color:#B91C1C;font-size:13px;font-weight:600;"></div>
 
         <div id="aqm_loading" style="display:none;text-align:center;padding:24px 8px 8px;">
-            <div style="display:inline-block;width:40px;height:40px;border:4px solid rgba(109,40,217,0.2);border-top-color:#6d28d9;border-radius:50%;animation:aiSpin 0.8s linear infinite;"></div>
-            <p style="color:#6d28d9;font-weight:700;font-size:14px;margin:14px 0 4px;">Generating quiz questions...</p>
+            <div style="display:inline-block;width:40px;height:40px;border:4px solid rgba(13,50,107,0.15);border-top-color:#0d326b;border-radius:50%;animation:aiSpin 0.8s linear infinite;"></div>
+            <p style="color:#0d326b;font-weight:700;font-size:14px;margin:14px 0 4px;">Generating quiz questions...</p>
             <p style="color:#94a3b8;font-size:12px;margin:0 0 16px;">AI is reading your lesson content.<br>This may take up to 30 seconds.</p>
             <div style="max-width:260px;margin:0 auto;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                     <span style="font-size:12px;font-weight:600;color:#64748b;">Progress</span>
-                    <span id="aqm_progressPct" style="font-size:13px;font-weight:800;color:#6d28d9;">0%</span>
+                    <span id="aqm_progressPct" style="font-size:13px;font-weight:800;color:#0d326b;">0%</span>
                 </div>
                 <div style="background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden;">
-                    <div id="aqm_progressBar" style="background:linear-gradient(90deg,#6d28d9,#4f46e5);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
+                    <div id="aqm_progressBar" style="background:linear-gradient(90deg,#0d326b,#1a6fd4);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
                 </div>
             </div>
         </div>
@@ -3629,31 +3629,31 @@ window.addEventListener('click', function(e) {
                 <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Multiple Choice Qs</label>
                 <input id="aqm_num_mc" type="number" min="0" max="15" value="2"
                        style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
+                       onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">True / False Qs</label>
                 <input id="aqm_num_tf" type="number" min="0" max="15" value="1"
                        style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
+                       onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Drag & Drop Qs</label>
                 <input id="aqm_num_dd" type="number" min="0" max="15" value="1"
                        style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
+                       onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
             <div>
                 <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Gesture Qs</label>
                 <input id="aqm_num_gt" type="number" min="0" max="15" value="1"
                        style="width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                       onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#e2e8f0';">
+                       onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#e2e8f0';">
             </div>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:10px;">
             <button id="aqm_generateBtn" onclick="submitAiQuizGenerate()" type="button"
-                    style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(109,40,217,0.35);"
+                    style="background:linear-gradient(135deg,#0d326b,#1a6fd4);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(13,50,107,0.35);"
                     onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)'}"
                     onmouseout="this.style.transform=''">
                 ✨ Generate Questions

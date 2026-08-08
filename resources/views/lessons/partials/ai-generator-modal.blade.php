@@ -10,13 +10,12 @@
                 display:flex; flex-direction:column; overflow:hidden;">
 
         {{-- Header --}}
-        <div style="background: linear-gradient(135deg,#6d28d9,#4f46e5); padding:24px 28px; flex-shrink:0;">
+        <div style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%); padding:24px 28px; flex-shrink:0;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
                 <div style="display:flex; align-items:center; gap:12px;">
                     <div style="width:42px;height:42px;background:rgba(255,255,255,0.2);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;">✨</div>
                     <div>
                         <h3 style="color:white;font-size:18px;font-weight:800;margin:0;">AI Lesson Generator</h3>
-                        <p style="color:rgba(255,255,255,0.75);font-size:12px;margin:0;">Powered by {{ ucfirst(strtolower(env('AI_PROVIDER', 'DeepSeek'))) === 'gemini' ? '✨ Google Gemini' : '🤖 DeepSeek' }}</p>
                     </div>
                 </div>
                 <button onclick="closeAiModalDirect()"
@@ -28,7 +27,7 @@
             {{-- Mode Tabs --}}
             <div style="display:flex;gap:6px;">
                 <button id="tabTopic" onclick="switchAiTab('topic')"
-                        style="flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:white;color:#6d28d9;">
+                        style="flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:white;color:#0d326b;">
                     ✏️ By Topic
                 </button>
                 <button id="tabPdf" onclick="switchAiTab('pdf')"
@@ -48,16 +47,16 @@
 
             {{-- Loading State --}}
             <div id="aiLoadingState" style="display:none; text-align:center; padding:40px 20px;">
-                <div style="display:inline-block; width:48px; height:48px; border:4px solid rgba(109,40,217,0.2); border-top-color:#6d28d9; border-radius:50%; animation:aiSpin 0.8s linear infinite;"></div>
-                <p style="color:#6d28d9; font-weight:700; font-size:15px; margin:18px 0 6px;" id="aiLoadingText">Generating your lesson...</p>
+                <div style="display:inline-block; width:48px; height:48px; border:4px solid rgba(13,50,107,0.15); border-top-color:#0d326b; border-radius:50%; animation:aiSpin 0.8s linear infinite;"></div>
+                <p style="color:#0d326b; font-weight:700; font-size:15px; margin:18px 0 6px;" id="aiLoadingText">Generating your lesson...</p>
                 <p style="color:#94a3b8; font-size:13px; margin:0 0 16px;" id="aiLoadingSubtext">AI is crafting your lesson content.<br>This may take up to 30 seconds.</p>
                 <div style="max-width:280px;margin:0 auto;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                         <span style="font-size:12px;font-weight:600;color:#64748b;">Progress</span>
-                        <span id="aiProgressPct" style="font-size:13px;font-weight:800;color:#6d28d9;">0%</span>
+                        <span id="aiProgressPct" style="font-size:13px;font-weight:800;color:#0d326b;">0%</span>
                     </div>
                     <div style="background:#E5EAF2;border-radius:99px;height:8px;overflow:hidden;">
-                        <div id="aiProgressBar" style="background:linear-gradient(90deg,#6d28d9,#4f46e5);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
+                        <div id="aiProgressBar" style="background:linear-gradient(90deg,#0d326b,#1a6fd4);height:100%;width:0%;border-radius:99px;transition:width 0.4s ease;"></div>
                     </div>
                 </div>
             </div>
@@ -71,12 +70,8 @@
                     <input id="ai_topic" type="text" maxlength="200"
                            style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;transition:all 0.2s;box-sizing:border-box;"
                            placeholder="e.g. FSL Alphabet, Animals, Math, Science, History..."
-                           onfocus="this.style.borderColor='#6d28d9'; this.style.boxShadow='0 0 0 4px rgba(109,40,217,0.1)';"
+                           onfocus="this.style.borderColor='#1a6fd4'; this.style.boxShadow='0 0 0 4px rgba(26,111,212,0.15)';"
                            onblur="this.style.borderColor='#E5EAF2'; this.style.boxShadow='none';">
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px;background:#F5F3FF;border-radius:10px;padding:8px 12px;">
-                        <span style="font-size:14px;flex-shrink:0;">{{ strtolower(env('AI_PROVIDER', 'deepseek')) === 'gemini' ? '✨' : '🤖' }}</span>
-                        <p style="font-size:11px;color:#6d28d9;font-weight:700;margin:0;">Powered by {{ strtolower(env('AI_PROVIDER', 'deepseek')) === 'gemini' ? 'Google Gemini' : 'DeepSeek' }}</p>
-                    </div>
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
@@ -107,7 +102,7 @@
                     </label>
                     <input id="ai_num_slides" type="number" min="3" max="30" value="5"
                            style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;transition:all 0.2s;box-sizing:border-box;"
-                           onfocus="this.style.borderColor='#6d28d9'; this.style.boxShadow='0 0 0 4px rgba(109,40,217,0.1)';"
+                           onfocus="this.style.borderColor='#1a6fd4'; this.style.boxShadow='0 0 0 4px rgba(26,111,212,0.15)';"
                            onblur="this.style.borderColor='#E5EAF2'; this.style.boxShadow='none';">
                 </div>
 
@@ -116,25 +111,25 @@
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
                         <input id="ai_num_mc" type="number" min="0" max="15" value="2"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
                         <input id="ai_num_tf" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Drag & Drop Qs</label>
                         <input id="ai_num_dd" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Gesture Qs</label>
                         <input id="ai_num_gt" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                 </div>
 
@@ -146,15 +141,15 @@
                     <textarea id="ai_special_instructions" rows="3" maxlength="500"
                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;resize:vertical;transition:all 0.2s;box-sizing:border-box;"
                               placeholder="e.g. Include stories for young learners, focus on greetings..."
-                              onfocus="this.style.borderColor='#6d28d9'; this.style.boxShadow='0 0 0 4px rgba(109,40,217,0.1)';"
+                              onfocus="this.style.borderColor='#1a6fd4'; this.style.boxShadow='0 0 0 4px rgba(26,111,212,0.15)';"
                               onblur="this.style.borderColor='#E5EAF2'; this.style.boxShadow='none';"></textarea>
                 </div>
 
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     <button id="aiGenerateBtn" onclick="submitAiGenerate()"
-                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(109,40,217,0.35);"
-                            onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px rgba(109,40,217,0.45)';}"
-                            onmouseout="this.style.transform='';this.style.boxShadow='0 5px 20px rgba(109,40,217,0.35)';">
+                            style="background:linear-gradient(135deg,#0d326b,#1a6fd4);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(13,50,107,0.35);"
+                            onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px rgba(13,50,107,0.45)';}"
+                            onmouseout="this.style.transform='';this.style.boxShadow='0 5px 20px rgba(13,50,107,0.35)';">
                         ✨ Generate Lesson
                     </button>
                     <button onclick="closeAiModalDirect()"
@@ -172,23 +167,23 @@
                 {{-- Drop Zone --}}
                 <div id="pdfDropZone"
                      onclick="document.getElementById('pdfFileInput').click()"
-                     ondrop="handlePdfDrop(event)" ondragover="event.preventDefault();this.style.borderColor='#6d28d9';this.style.background='rgba(109,40,217,0.05)';" ondragleave="this.style.borderColor='#c4b5fd';this.style.background='rgba(109,40,217,0.02)';"
-                     style="border:2.5px dashed #c4b5fd;border-radius:16px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(109,40,217,0.02);margin-bottom:20px;">
+                     ondrop="handlePdfDrop(event)" ondragover="event.preventDefault();this.style.borderColor='#1a6fd4';this.style.background='rgba(26,111,212,0.08)';" ondragleave="this.style.borderColor='#93c5fd';this.style.background='rgba(26,111,212,0.03)';"
+                     style="border:2.5px dashed #93c5fd;border-radius:16px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(26,111,212,0.03);margin-bottom:20px;">
                     <div style="font-size:40px;margin-bottom:10px;">📄</div>
-                    <p style="font-size:14px;font-weight:700;color:#6d28d9;margin:0 0 4px;">Drop your PDF here</p>
+                    <p style="font-size:14px;font-weight:700;color:#0d326b;margin:0 0 4px;">Drop your PDF here</p>
                     <p style="font-size:12px;color:#94a3b8;margin:0;">or click to browse — max 10MB</p>
                     <input type="file" id="pdfFileInput" accept=".pdf" style="display:none;" onchange="handlePdfSelect(this)">
                 </div>
 
                 {{-- Selected File Badge --}}
-                <div id="pdfFileBadge" style="display:none;align-items:center;gap:10px;background:#F5F3FF;border:1.5px solid #c4b5fd;border-radius:12px;padding:12px 14px;margin-bottom:20px;">
+                <div id="pdfFileBadge" style="display:none;align-items:center;gap:10px;background:#F0F7FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:12px 14px;margin-bottom:20px;">
                     <span style="font-size:20px;flex-shrink:0;">📄</span>
                     <div style="flex:1;min-width:0;">
-                        <p id="pdfFileName" style="font-size:13px;font-weight:700;color:#5b21b6;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></p>
-                        <p id="pdfFileSize" style="font-size:11px;color:#7c3aed;margin:0;"></p>
+                        <p id="pdfFileName" style="font-size:13px;font-weight:700;color:#0d326b;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></p>
+                        <p id="pdfFileSize" style="font-size:11px;color:#1e4b8f;margin:0;"></p>
                     </div>
                     <button onclick="clearPdfFile()" type="button"
-                            style="background:rgba(109,40,217,0.1);border:none;color:#7c3aed;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
+                            style="background:rgba(13,50,107,0.1);border:none;color:#0d326b;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
                 </div>
 
                 {{-- PDF Settings --}}
@@ -220,7 +215,7 @@
                     </label>
                     <input id="pdf_num_slides" type="number" min="3" max="30" value="5"
                            style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;transition:all 0.2s;box-sizing:border-box;"
-                           onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                           onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
@@ -228,25 +223,25 @@
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Multiple Choice Qs</label>
                         <input id="pdf_num_mc" type="number" min="0" max="15" value="2"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">True / False Qs</label>
                         <input id="pdf_num_tf" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Drag & Drop Qs</label>
                         <input id="pdf_num_dd" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">Gesture Qs</label>
                         <input id="pdf_num_gt" type="number" min="0" max="15" value="1"
                                style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';">
+                               onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';">
                     </div>
                 </div>
 
@@ -258,14 +253,14 @@
                     <textarea id="pdf_instructions" rows="3" maxlength="500"
                               style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;resize:vertical;box-sizing:border-box;"
                               placeholder="e.g. Focus on the signs mentioned on page 3, simplify for young learners..."
-                              onfocus="this.style.borderColor='#6d28d9';" onblur="this.style.borderColor='#E5EAF2';"></textarea>
+                              onfocus="this.style.borderColor='#1a6fd4';" onblur="this.style.borderColor='#E5EAF2';"></textarea>
                 </div>
 
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     <button id="aiPdfGenerateBtn" onclick="submitPdfGenerate()"
-                            style="background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(109,40,217,0.35);"
-                            onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)';}"
-                            onmouseout="this.style.transform='';">
+                            style="background:linear-gradient(135deg,#0d326b,#1a6fd4);color:white;padding:14px 24px;border-radius:14px;font-weight:800;font-size:15px;border:none;cursor:pointer;width:100%;transition:all 0.2s;box-shadow:0 5px 20px rgba(13,50,107,0.35);"
+                            onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px rgba(13,50,107,0.45)';}"
+                            onmouseout="this.style.transform='';this.style.boxShadow='0 5px 20px rgba(13,50,107,0.35)';">
                         📄 Generate from PDF
                     </button>
                     <button onclick="closeAiModalDirect()"
@@ -328,7 +323,7 @@ function stopAiProgress() {
 /* ── Tab switching ───────────────────────────────────────────────── */
 function switchAiTab(tab) {
     const isTopic = (tab === 'topic');
-    const activeStyle   = 'flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:white;color:#6d28d9;';
+    const activeStyle   = 'flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:white;color:#0d326b;';
     const inactiveStyle = 'flex:1;padding:9px 6px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;background:rgba(255,255,255,0.15);color:white;';
     document.getElementById('tabTopic').style.cssText = isTopic  ? activeStyle : inactiveStyle;
     document.getElementById('tabPdf').style.cssText   = !isTopic ? activeStyle : inactiveStyle;
@@ -344,8 +339,8 @@ function handlePdfSelect(input) {
 function handlePdfDrop(e) {
     e.preventDefault();
     const zone = document.getElementById('pdfDropZone');
-    zone.style.borderColor = '#c4b5fd';
-    zone.style.background  = 'rgba(109,40,217,0.02)';
+    zone.style.borderColor = '#93c5fd';
+    zone.style.background  = 'rgba(26,111,212,0.03)';
     const file = e.dataTransfer.files[0];
     if (file && file.type === 'application/pdf') setPdfFile(file);
     else showAiError('Please drop a PDF file.');
@@ -452,7 +447,7 @@ function setAiLoading(loading, title, sub) {
     ls.style.display = loading ? 'block' : 'none';
     if (loading && title) ls.querySelector('p').textContent = title;
     if (loading && sub)   ls.querySelectorAll('p')[1].innerHTML = sub;
-    const isTopicActive = document.getElementById('tabTopic').style.color.includes('109');
+    const isTopicActive = document.getElementById('tabTopic').style.background === 'white';
     document.getElementById('aiFormTopic').style.display = loading ? 'none' : (isTopicActive ? 'block' : 'none');
     document.getElementById('aiFormPdf').style.display   = loading ? 'none' : (!isTopicActive ? 'block' : 'none');
     document.getElementById('aiGenerateBtn').disabled    = loading;
@@ -468,7 +463,7 @@ function showAiError(msg) { const b=document.getElementById('aiErrorBanner'); b.
 function hideAiError()     { document.getElementById('aiErrorBanner').style.display='none'; }
 function showAiSuccessToast() {
     const t=document.createElement('div');
-    t.style.cssText='position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(109,40,217,0.4);z-index:20000;transition:all 0.4s;';
+    t.style.cssText='position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#0d326b,#1a6fd4);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(13,50,107,0.4);z-index:20000;transition:all 0.4s;';
     t.textContent='✨ Lesson generated! Review and edit below.';
     document.body.appendChild(t);
     setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(10px)';},3000);
@@ -822,7 +817,7 @@ function escapeHtml(str) {
 
 function showAiSuccessToast() {
     const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(109,40,217,0.4);z-index:20000;transition:all 0.4s;';
+    toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#0d326b,#1a6fd4);color:white;padding:14px 22px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 8px 30px rgba(13,50,107,0.4);z-index:20000;transition:all 0.4s;';
     toast.textContent = '✨ Lesson generated! Review and edit below.';
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(10px)'; }, 3000);

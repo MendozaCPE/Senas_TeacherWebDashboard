@@ -5,34 +5,34 @@
 <style>
     /* ── Module Card Styles ────────────────────────────────────────────── */
     .module-card {
-        border-radius: 20px;
-        border: 1px solid #f1f5f9;
-        background: #fff;
-        box-shadow: 0 1px 2px rgba(13,50,107,.04);
+        border-radius: 24px;
+        border: 1.5px solid #e5eaf2;
+        background: #ffffff;
+        box-shadow: 0 4px 20px rgba(13, 50, 107, 0.03);
         overflow: hidden;
-        transition: transform .2s, box-shadow .2s;
+        transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s cubic-bezier(.4,0,.2,1);
     }
     .module-card:hover {
-        box-shadow: 0 12px 32px rgba(13,50,107,.08);
-        transform: translateY(-2px);
+        box-shadow: 0 16px 40px rgba(13, 50, 107, 0.08);
+        transform: translateY(-3px);
     }
 
     /* ── Trapezoid Tab ──────────────────────────────────────────────────── */
     .module-tab {
         display: inline-block;
-        padding: 6px 20px 6px 24px;
-        font-size: 9px;
+        padding: 6px 22px;
+        font-size: 10px;
         font-weight: 800;
         color: #ffffff;
         text-transform: uppercase;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.14em;
         clip-path: polygon(0 0, 100% 0, 88% 100%, 0% 100%);
-        background: #0d326b !important;
-        min-width: 80px;
+        background: linear-gradient(90deg, #0d326b, #1e4b8f) !important;
+        min-width: 90px;
     }
 
     .module-header {
-        padding: 20px 24px 16px 24px;
+        padding: 20px 24px 18px 24px;
         border-bottom: 1px solid #f1f5f9;
         display: flex;
         align-items: center;
@@ -44,64 +44,71 @@
     .module-title-wrap {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 16px;
     }
 
     .module-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 14px;
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 800;
-        font-size: 18px;
+        font-size: 20px;
+        box-shadow: 0 4px 12px rgba(13, 50, 107, 0.06);
     }
 
     .module-title-text {
-        font-size: 17px;
-        font-weight: 700;
+        font-size: 18px;
+        font-weight: 800;
         color: #0d326b;
+        letter-spacing: -0.01em;
     }
 
     .module-meta {
-        font-size: 12px;
-        color: #94a3b8;
+        font-size: 12.5px;
+        color: #64748b;
         font-weight: 500;
+        margin-top: 2px;
     }
 
     .module-stats {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 14px;
         font-size: 12px;
+        background: #fafcff;
+        padding: 6px 14px;
+        border-radius: 14px;
+        border: 1px solid #e5eaf2;
     }
 
     .module-stat-item {
         display: flex;
         align-items: center;
-        gap: 4px;
-        color: #64748b;
-        font-weight: 600;
+        gap: 5px;
+        color: #475569;
+        font-weight: 700;
     }
 
     .module-stat-item .material-symbols-outlined {
-        font-size: 16px;
-        color: #94a3b8;
+        font-size: 17px;
+        color: #1a6fd4;
     }
 
     .module-progress {
-        width: 80px;
-        height: 4px;
+        width: 90px;
+        height: 6px;
         border-radius: 9999px;
-        background: #f1f5f9;
+        background: #e2e8f0;
         overflow: hidden;
     }
 
     .module-progress-fill {
         height: 100%;
         border-radius: 9999px;
-        background: linear-gradient(90deg, #1a6fd4, #0d326b);
+        background: linear-gradient(90deg, #1a6fd4, #3b82f6);
         transition: width .6s ease;
     }
 
@@ -118,86 +125,101 @@
     }
 
     .lesson-table thead th {
-        padding: 14px 12px;
+        padding: 14px 16px;
         text-align: left;
-        font-size: 10px;
-        font-weight: 700;
-        color: #94a3b8;
+        font-size: 10.5px;
+        font-weight: 800;
+        color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
-        border-bottom: 1px solid #f1f5f9;
-        background: #fafcff;
+        letter-spacing: 0.07em;
+        border-bottom: 1.5px solid #f1f5f9;
+        background: #f8fafc;
     }
 
     .lesson-table tbody td {
-        padding: 14px 12px;
-        border-bottom: 1px solid #f8fafc;
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
         vertical-align: middle;
     }
 
     .lesson-table tbody tr {
-        transition: background .15s;
+        transition: all .2s ease;
     }
     .lesson-table tbody tr:hover {
-        background: #f8fafc;
+        background: #f0f7ff;
     }
 
     .lesson-title-cell {
-        font-weight: 600;
+        font-weight: 700;
         color: #0d326b;
+        font-size: 14px;
     }
 
     .badge-type {
-        display: inline-block;
-        padding: 3px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
         border-radius: 9999px;
-        font-size: 9px;
-        font-weight: 700;
+        font-size: 10px;
+        font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
-        background: #dbeafe;
-        color: #1e4b8f;
+        letter-spacing: 0.05em;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
     }
 
     .badge-difficulty {
-        display: inline-block;
-        padding: 3px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
         border-radius: 9999px;
-        font-size: 9px;
-        font-weight: 700;
+        font-size: 10px;
+        font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.05em;
     }
-    .badge-difficulty.beginner { background: #eff6ff; color: #1e4b8f; }
-    .badge-difficulty.intermediate { background: #dbeafe; color: #0d326b; }
-    .badge-difficulty.advanced { background: #bfdbfe; color: #0d326b; }
+    .badge-difficulty.beginner { background: #eff6ff; color: #1e4b8f; border: 1px solid #bfdbfe; }
+    .badge-difficulty.intermediate { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+    .badge-difficulty.advanced { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 
     .badge-status {
-        display: inline-block;
-        padding: 3px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
         border-radius: 9999px;
-        font-size: 9px;
-        font-weight: 700;
+        font-size: 10px;
+        font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.05em;
     }
-    .badge-status.published { background: #0d326b; color: #fff; }
-    .badge-status.draft { background: #fef3c7; color: #92400e; }
-    .badge-status.archived { background: #f1f5f9; color: #64748b; }
+    .badge-status.published { background: #0d326b; color: #ffffff; box-shadow: 0 2px 6px rgba(13,50,107,0.18); }
+    .badge-status.draft { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-status.archived { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
     .action-link {
         font-size: 12px;
-        font-weight: 600;
-        color: #64748b;
-        transition: color .15s;
+        font-weight: 700;
+        color: #475569;
+        transition: all .2s;
         text-decoration: none;
-        padding: 4px 6px;
-        border-radius: 6px;
+        padding: 5px 12px;
+        border-radius: 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         white-space: nowrap; 
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
-    .action-link:hover { color: #0d326b; background: #f1f5f9; }
-    .action-link.danger:hover { color: #dc2626; background: #fef2f2; }
-    .action-link.primary:hover { color: #1a6fd4; background: #eff6ff; }
+    .action-link:hover { color: #0d326b; background: #e0e8ff; border-color: #bfdbfe; transform: translateY(-1px); }
+    .action-link.danger { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+    .action-link.danger:hover { color: #b91c1c; background: #fee2e2; border-color: #fca5a5; transform: translateY(-1px); }
+    .action-link.primary { color: #fff; background: linear-gradient(135deg, #0d326b, #1a6fd4); border: none; box-shadow: 0 3px 10px rgba(13,50,107,0.2); }
+    .action-link.primary:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 5px 14px rgba(13,50,107,0.3); }
 
     /* ── Pagination ────────────────────────────────────────────────────── */
     .table-pagination {
@@ -211,24 +233,24 @@
     }
 
     .pagination-info {
-        font-size: 12px;
-        color: #94a3b8;
-        font-weight: 500;
+        font-size: 12.5px;
+        color: #64748b;
+        font-weight: 600;
     }
 
     .pagination-buttons {
         display: flex;
-        gap: 4px;
+        gap: 6px;
     }
 
     .pagination-btn {
         width: 36px;
         height: 36px;
         border-radius: 10px;
-        border: 1px solid #f1f5f9;
+        border: 1px solid #e2e8f0;
         background: #fff;
-        color: #64748b;
-        font-weight: 600;
+        color: #475569;
+        font-weight: 700;
         font-size: 13px;
         cursor: pointer;
         transition: all .15s;
@@ -236,8 +258,8 @@
         align-items: center;
         justify-content: center;
     }
-    .pagination-btn:hover { background: #f1f5f9; border-color: #e2e8f0; }
-    .pagination-btn.active { background: #0d326b; color: #fff; border-color: #0d326b; }
+    .pagination-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #0d326b; }
+    .pagination-btn.active { background: linear-gradient(135deg, #0d326b, #1a6fd4); color: #fff; border: none; box-shadow: 0 3px 10px rgba(13,50,107,0.2); }
     .pagination-btn:disabled { opacity: .4; cursor: not-allowed; }
 
     /* ── Sticky Sidebar ────────────────────────────────────────────────── */
@@ -262,15 +284,15 @@
         margin-top: 32px;
     }
     .orphan-section .module-card {
-        border-color: #f1f5f9;
+        border-color: #e2e8f0;
     }
     .orphan-section .module-header {
         background: #fafcff;
         padding-top: 0;
     }
     .orphan-section .module-tab {
-        background: #e2e8f0;
-        color: #475569;
+        background: linear-gradient(90deg, #64748b, #475569);
+        color: #ffffff;
     }
 
     /* ── Scrollable table container ───────────────────────────────────── */
@@ -279,7 +301,7 @@
         overflow-y: auto;
     }
     .table-scroll::-webkit-scrollbar {
-        width: 4px;
+        width: 5px;
     }
     .table-scroll::-webkit-scrollbar-track {
         background: #f1f5f9;
@@ -292,11 +314,13 @@
 </style>
 
 @if(session('success'))
-<div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm font-semibold text-green-700 flex items-center gap-2">
-    <span class="material-symbols-outlined icon-outline text-[18px]">check_circle</span>
+<div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 flex items-center gap-3 shadow-sm">
+    <span class="material-symbols-outlined icon-outline text-[20px] text-emerald-600">check_circle</span>
     {{ session('success') }}
 </div>
 @endif
+
+
 
 <div class="flex flex-col lg:flex-row gap-6">
 
@@ -331,7 +355,7 @@
             </div>
 
    {{-- Module Header --}}
-<div class="module-header" style="position: relative;">
+<div class="module-header flex items-center justify-between flex-wrap gap-4">
     <div class="module-title-wrap">
         <div class="module-icon" style="background:{{ $modColor }}15; color:{{ $modColor }};">
             {{ $modIcon }}
@@ -347,33 +371,37 @@
         </div>
     </div>
     
-    <div class="module-stats" style="padding-right: 48px;">
-        <span class="module-stat-item">
-            <span class="material-symbols-outlined">check_circle</span>
-            {{ $published }} published
-        </span>
-        <div class="module-progress">
-            <div class="module-progress-fill" style="width:{{ $progress }}%"></div>
+    <div class="flex items-center gap-4 flex-wrap">
+        <div class="module-stats">
+            <span class="module-stat-item">
+                <span class="material-symbols-outlined">check_circle</span>
+                {{ $published }} published
+            </span>
+            <div class="module-progress">
+                <div class="module-progress-fill" style="width:{{ $progress }}%"></div>
+            </div>
+            <span class="module-stat-item" style="font-weight:700;color:#0d326b;min-width:36px;">
+                {{ $progress }}%
+            </span>
         </div>
-        <span class="module-stat-item" style="font-weight:700;color:#0d326b;min-width:36px;">
-            {{ $progress }}%
-        </span>
-    </div>
-    
-    {{-- Edit Module Icon Button --}}
-    <button type="button"
-       onclick="openEditModuleModal({{ $module->module_id }}, '{{ addslashes($module->title) }}', '{{ addslashes($module->description ?? '') }}', '{{ $module->mastery_level ?? 'beginner' }}')"
-       class="absolute top-4 right-14 w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-[#1a6fd4] hover:bg-blue-50 transition-all flex items-center justify-center text-slate-400 hover:text-[#1a6fd4] flex-shrink-0"
-       title="Edit Module">
-        <span class="material-symbols-outlined text-[18px]">edit</span>
-    </button>
 
-    {{-- Delete Module Icon Button - Fixed Top Right --}}
-    <a href="{{ route('modules.delete-options', $module->module_id) }}" 
-       class="absolute top-4 right-4 w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-red-400 hover:bg-red-50 transition-all flex items-center justify-center text-slate-400 hover:text-red-500 flex-shrink-0"
-       title="Delete Module">
-        <span class="material-symbols-outlined text-[18px]">delete</span>
-    </a>
+        <div class="flex items-center gap-2">
+            {{-- Edit Module Icon Button --}}
+            <button type="button"
+               onclick="openEditModuleModal({{ $module->module_id }}, '{{ addslashes($module->title) }}', '{{ addslashes($module->description ?? '') }}', '{{ $module->mastery_level ?? 'beginner' }}')"
+               class="w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-[#1a6fd4] hover:bg-blue-50 transition-all flex items-center justify-center text-slate-400 hover:text-[#1a6fd4] flex-shrink-0"
+               title="Edit Module">
+                <span class="material-symbols-outlined text-[18px]">edit</span>
+            </button>
+
+            {{-- Delete Module Icon Button --}}
+            <a href="{{ route('modules.delete-options', $module->module_id) }}" 
+               class="w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-red-400 hover:bg-red-50 transition-all flex items-center justify-center text-slate-400 hover:text-red-500 flex-shrink-0"
+               title="Delete Module">
+                <span class="material-symbols-outlined text-[18px]">delete</span>
+            </a>
+        </div>
+    </div>
 </div>
 
             {{-- Lessons Table --}}
@@ -648,12 +676,17 @@
     </div><!-- /Left column -->
 
     <!-- Right Side: Insights panel (STICKY) -->
-    <div class="w-[280px] flex-shrink-0 insights-sticky">
-        <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
+    <div class="w-[300px] flex-shrink-0 insights-sticky">
+        <div class="bg-white rounded-[24px] p-6 shadow-md border border-slate-100">
 
-            <div class="flex items-center gap-2.5 mb-5">
-                <span class="material-symbols-outlined text-[22px] text-[#0d326b]">auto_awesome</span>
-                <span class="text-[15px] font-bold text-[#0d326b]">Lesson Insights</span>
+            <div class="flex items-center gap-2.5 mb-5 pb-4 border-b border-slate-100">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center font-bold">
+                    <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                </div>
+                <div>
+                    <span class="text-[15px] font-extrabold text-[#0d326b] block">Lesson Insights</span>
+                    <span class="text-[11px] text-slate-400 font-medium">Curriculum Overview</span>
+                </div>
             </div>
 
             @php
@@ -666,51 +699,52 @@
                                  + $orphanedLessons->where('status','archived')->count();
             @endphp
 
-            <div class="space-y-2.5 mb-6">
-                <div class="flex items-center justify-between bg-[#f8fafc] rounded-2xl px-4 py-3">
-                    <span class="text-[12px] font-semibold text-slate-500 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px] text-[#0d326b]">folder</span>
+            <div class="space-y-3 mb-6">
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
+                    <span class="text-[12px] font-bold text-slate-600 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-[#1a6fd4]">folder</span>
                         Total Modules
                     </span>
                     <span class="text-[18px] font-black text-[#0d326b]">{{ $totalModules }}</span>
                 </div>
-                <div class="flex items-center justify-between bg-[#f8fafc] rounded-2xl px-4 py-3">
-                    <span class="text-[12px] font-semibold text-slate-500 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px] text-[#0d326b]">menu_book</span>
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
+                    <span class="text-[12px] font-bold text-slate-600 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-[#1a6fd4]">menu_book</span>
                         Total Lessons
                     </span>
                     <span class="text-[18px] font-black text-[#0d326b]">{{ $totalLessons }}</span>
                 </div>
-                <div class="flex items-center justify-between bg-[#0d326b] rounded-2xl px-4 py-3">
-                    <span class="text-[12px] font-semibold text-white/80 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px] text-white/60">check_circle</span>
+                <div class="flex items-center justify-between rounded-2xl px-4 py-3 text-white shadow-sm"
+                     style="background: linear-gradient(135deg, #0d326b, #1a6fd4);">
+                    <span class="text-[12px] font-bold text-white/90 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-white">check_circle</span>
                         Published
                     </span>
                     <span class="text-[18px] font-black text-white">{{ $totalPublished }}</span>
                 </div>
-                <div class="flex items-center justify-between bg-[#fef3c7] rounded-2xl px-4 py-3">
-                    <span class="text-[12px] font-semibold text-amber-700 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px] text-amber-500">edit_note</span>
+                <div class="flex items-center justify-between bg-amber-50/80 border border-amber-200/70 rounded-2xl px-4 py-3">
+                    <span class="text-[12px] font-bold text-amber-800 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-amber-600">edit_note</span>
                         Drafts
                     </span>
-                    <span class="text-[18px] font-black text-amber-700">{{ $totalDraft }}</span>
+                    <span class="text-[18px] font-black text-amber-800">{{ $totalDraft }}</span>
                 </div>
                 @if($archivedCount > 0)
-                <div class="flex items-center justify-between bg-[#f1f5f9] rounded-2xl px-4 py-3">
-                    <span class="text-[12px] font-semibold text-slate-500 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px] text-slate-400">archive</span>
+                <div class="flex items-center justify-between bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3">
+                    <span class="text-[12px] font-bold text-slate-600 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-slate-500">archive</span>
                         Archived
                     </span>
-                    <span class="text-[18px] font-black text-slate-500">{{ $archivedCount }}</span>
+                    <span class="text-[18px] font-black text-slate-600">{{ $archivedCount }}</span>
                 </div>
                 @endif
             </div>
 
             @if($orphanedLessons->isNotEmpty())
-            <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100 mb-5">
-                <div class="flex items-start gap-2">
-                    <span class="material-symbols-outlined text-amber-500 text-[18px] mt-0.5">warning</span>
-                    <p class="text-[12px] text-amber-800 font-medium leading-relaxed">
+            <div class="bg-amber-50/90 rounded-2xl p-4 border border-amber-200 mb-5">
+                <div class="flex items-start gap-2.5">
+                    <span class="material-symbols-outlined text-amber-600 text-[18px] mt-0.5 flex-shrink-0">warning</span>
+                    <p class="text-[12px] text-amber-900 font-medium leading-relaxed">
                         <strong>{{ $orphanedLessons->count() }} lesson{{ $orphanedLessons->count() !== 1 ? 's are' : ' is' }}</strong> not assigned to any module. Assign them when you publish.
                     </p>
                 </div>
@@ -718,14 +752,14 @@
             @endif
 
             <button onclick="openNewLessonModal()"
-                    class="w-full bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white py-3.5 rounded-2xl text-[13px] font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
+                    class="w-full bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-95 text-white py-3.5 rounded-2xl text-[13px] font-extrabold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.99]">
                 <span class="material-symbols-outlined icon-outline text-[18px]">add</span>
-                New Lesson
+                Create New Lesson
             </button>
 
-            <div class="mt-4 pt-4 border-t border-slate-100">
-                <a href="{{ route('analytics') }}" class="text-[12px] font-semibold text-[#0d326b] hover:underline flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px]">bar_chart</span>
+            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <a href="{{ route('analytics') }}" class="text-[12px] font-bold text-[#0d326b] hover:text-[#1a6fd4] transition-all flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[17px]">bar_chart</span>
                     View Analytics
                 </a>
             </div>
@@ -1195,7 +1229,7 @@ function restoreLesson(lessonId, lessonTitle) {
             </button>
             <button onclick="openAiFromModal()"
                     class="w-full p-5 rounded-2xl hover:shadow-xl transition-all"
-                    style="background: linear-gradient(135deg, #6d28d9, #4f46e5); border: none; cursor: pointer;">
+                    style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%); border: none; cursor: pointer;">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white" style="background: rgba(255,255,255,0.2);">
                         <span class="material-symbols-outlined text-2xl">auto_awesome</span>
