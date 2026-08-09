@@ -80,7 +80,7 @@ class AnalyticsController extends Controller
     {
         $teacherId  = $teacher->id;
         $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
-        $lessonIds  = Lesson::where('teacher_id', $teacherId)->pluck('lesson_id');
+        $lessonIds  = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->whereNull('deleted_at')->pluck('lesson_id');
         $totalStudents = $studentIds->count();
 
         if ($totalStudents === 0) {
@@ -110,10 +110,14 @@ class AnalyticsController extends Controller
         $year   = (int) $request->get('year', date('Y'));
         $month  = (int) $request->get('month', date('n'));
 
-        // Base quiz attempt query for top stats
+        // Base quiz attempt query for top stats (only from published, active lessons)
         $quizQuery = DB::table('quiz_attempts')
-            ->whereIn('student_id', $studentIds)
-            ->where('status', 'completed');
+            ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+            ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+            ->whereIn('quiz_attempts.student_id', $studentIds)
+            ->where('quiz_attempts.status', 'completed')
+            ->where('lessons.status', 'published')
+            ->whereNull('lessons.deleted_at');
 
         if ($period === 'weekly') {
             $startDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks(7)->startOfDay();
@@ -134,8 +138,8 @@ class AnalyticsController extends Controller
         }
 
         $avgQuizScore = (clone $quizQuery)
-            ->whereBetween('completed_at', [$startDate, $endDate])
-            ->avg('percentage') ?? 0;
+            ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
+            ->avg('quiz_attempts.percentage') ?? 0;
 
         $totalGesturesAttempted = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
@@ -217,10 +221,14 @@ class AnalyticsController extends Controller
                 $wStart = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks($weeksAgo);
                 $wEnd   = $wStart->copy()->endOfWeek(Carbon::SUNDAY);
                 $val    = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$wStart->copy()->startOfDay(), $wEnd->copy()->endOfDay()])
-                    ->avg('percentage') ?: 0;
+                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                    ->whereIn('quiz_attempts.student_id', $studentIds)
+                    ->where('quiz_attempts.status', 'completed')
+                    ->where('lessons.status', 'published')
+                    ->whereNull('lessons.deleted_at')
+                    ->whereBetween('quiz_attempts.completed_at', [$wStart->copy()->startOfDay(), $wEnd->copy()->endOfDay()])
+                    ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
                     'label' => $wStart->format('M d'),
                     'value' => round($val, 1),
@@ -233,10 +241,14 @@ class AnalyticsController extends Controller
                 $dStart = $mStart->copy()->addDays($i * 7);
                 $dEnd   = ($i === 3) ? $mStart->copy()->endOfMonth() : $mStart->copy()->addDays(($i + 1) * 7 - 1);
                 $val    = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$dStart->copy()->startOfDay(), $dEnd->copy()->endOfDay()])
-                    ->avg('percentage') ?: 0;
+                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                    ->whereIn('quiz_attempts.student_id', $studentIds)
+                    ->where('quiz_attempts.status', 'completed')
+                    ->where('lessons.status', 'published')
+                    ->whereNull('lessons.deleted_at')
+                    ->whereBetween('quiz_attempts.completed_at', [$dStart->copy()->startOfDay(), $dEnd->copy()->endOfDay()])
+                    ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
                     'label' => $dStart->format('M d'),
                     'value' => round($val, 1),
@@ -247,10 +259,14 @@ class AnalyticsController extends Controller
             for ($m = 0; $m < 3; $m++) {
                 $curM = Carbon::create($year, $qStartMonth + $m, 1);
                 $val  = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
-                    ->avg('percentage') ?: 0;
+                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                    ->whereIn('quiz_attempts.student_id', $studentIds)
+                    ->where('quiz_attempts.status', 'completed')
+                    ->where('lessons.status', 'published')
+                    ->whereNull('lessons.deleted_at')
+                    ->whereBetween('quiz_attempts.completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
+                    ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
                     'label' => $curM->format('M Y'),
                     'value' => round($val, 1),
@@ -260,10 +276,14 @@ class AnalyticsController extends Controller
             for ($m = 1; $m <= 12; $m++) {
                 $curM = Carbon::create($year, $m, 1);
                 $val  = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
-                    ->avg('percentage') ?: 0;
+                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                    ->whereIn('quiz_attempts.student_id', $studentIds)
+                    ->where('quiz_attempts.status', 'completed')
+                    ->where('lessons.status', 'published')
+                    ->whereNull('lessons.deleted_at')
+                    ->whereBetween('quiz_attempts.completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
+                    ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
                     'label' => $curM->format('M'),
                     'value' => round($val, 1),
@@ -276,6 +296,8 @@ class AnalyticsController extends Controller
             ->whereIn('lesson_assignments.lesson_id', $lessonIds)
             ->whereNotNull('lesson_assignments.score')
             ->join('lessons', 'lesson_assignments.lesson_id', '=', 'lessons.lesson_id')
+            ->where('lessons.status', 'published')
+            ->whereNull('lessons.deleted_at')
             ->select('lesson_assignments.lesson_id', 'lessons.title', DB::raw('avg(lesson_assignments.score) as avg_score'), DB::raw('count(*) as attempts'))
             ->groupBy('lesson_assignments.lesson_id', 'lessons.title')
             ->orderBy('avg_score')
@@ -359,13 +381,17 @@ class AnalyticsController extends Controller
         $completionTotal = $completionFunnel->sum('count');
 
         $scoreBucketsRaw = DB::table('quiz_attempts')
-            ->whereIn('student_id', $studentIds)
-            ->where('status', 'completed')
+            ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+            ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+            ->whereIn('quiz_attempts.student_id', $studentIds)
+            ->where('quiz_attempts.status', 'completed')
+            ->where('lessons.status', 'published')
+            ->whereNull('lessons.deleted_at')
             ->selectRaw("CASE
-                WHEN percentage <= 20 THEN '0-20'
-                WHEN percentage <= 40 THEN '21-40'
-                WHEN percentage <= 60 THEN '41-60'
-                WHEN percentage <= 80 THEN '61-80'
+                WHEN quiz_attempts.percentage <= 20 THEN '0-20'
+                WHEN quiz_attempts.percentage <= 40 THEN '21-40'
+                WHEN quiz_attempts.percentage <= 60 THEN '41-60'
+                WHEN quiz_attempts.percentage <= 80 THEN '61-80'
                 ELSE '81-100'
             END AS bucket")
             ->selectRaw('count(*) as count')
@@ -386,10 +412,19 @@ class AnalyticsController extends Controller
         $studentRanking = Student::where('teacher_id', $teacherId)
             ->where('status', 'active')
             ->withCount(['quizAttempts as attempts' => function ($q) {
-                $q->where('status', 'completed');
+                $q->where('quiz_attempts.status', 'completed')
+                  ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                  ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                  ->where('lessons.status', 'published')
+                  ->whereNull('lessons.deleted_at');
             }])
             ->with(['quizAttempts' => function ($q) {
-                $q->where('status', 'completed')->select('attempt_id', 'student_id', 'percentage');
+                $q->where('quiz_attempts.status', 'completed')
+                  ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                  ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                  ->where('lessons.status', 'published')
+                  ->whereNull('lessons.deleted_at')
+                  ->select('quiz_attempts.attempt_id', 'quiz_attempts.student_id', 'quiz_attempts.percentage');
             }])
             ->get()
             ->map(function ($student) {

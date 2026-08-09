@@ -47,6 +47,14 @@ class Lesson extends Model
         return $this->where($field ?? $this->getKeyName(), $id)->first();
     }
 
+    /**
+     * Scope query to only include published, non-deleted lessons.
+     */
+    public function scopePublished($query)
+    {
+        return $query->where('status', 'published')->whereNull('deleted_at');
+    }
+
 
     public function teacher()
 {

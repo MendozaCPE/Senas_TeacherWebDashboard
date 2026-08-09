@@ -194,7 +194,9 @@ class AchievementService
         $query = DB::table('student_lesson_progress as slp')
             ->join('lessons as l', 'slp.lesson_id', '=', 'l.lesson_id')
             ->where('slp.student_id', $student->student_id)
-            ->where('slp.lesson_completed', true);
+            ->where('slp.lesson_completed', true)
+            ->where('l.status', 'published')
+            ->whereNull('l.deleted_at');
         
         // Filter by difficulty/level
         if (isset($filters['difficulty'])) {
@@ -213,9 +215,12 @@ class AchievementService
     {
         $query = DB::table('quiz_attempts as qa')
             ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+            ->join('lessons as l', 'q.lesson_id', '=', 'l.lesson_id')
             ->where('qa.student_id', $student->student_id)
             ->where('qa.status', 'completed')
-            ->where('qa.percentage', '>=', 60);
+            ->where('qa.percentage', '>=', 60)
+            ->where('l.status', 'published')
+            ->whereNull('l.deleted_at');
         
         // Filter by minimum percentage (e.g., 80%)
         if (isset($filters['min_percentage'])) {
@@ -230,8 +235,11 @@ class AchievementService
     {
         $query = DB::table('quiz_attempts as qa')
             ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+            ->join('lessons as l', 'q.lesson_id', '=', 'l.lesson_id')
             ->where('qa.student_id', $student->student_id)
-            ->where('qa.percentage', '=', 100);
+            ->where('qa.percentage', '=', 100)
+            ->where('l.status', 'published')
+            ->whereNull('l.deleted_at');
         
         // Filter by difficulty
         if (isset($filters['difficulty'])) {
@@ -279,11 +287,14 @@ class AchievementService
 
     protected function getLeaderboardTop(Student $student, array $filters = []): int
     {
-        // Check if student has ever been #1 on any lesson leaderboard
+        // Check if student has ever been #1 on any lesson leaderboard (only for published active lessons)
         $rank = DB::table('quiz_attempts as qa')
             ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+            ->join('lessons as l', 'q.lesson_id', '=', 'l.lesson_id')
             ->where('qa.student_id', $student->student_id)
             ->where('qa.status', 'completed')
+            ->where('l.status', 'published')
+            ->whereNull('l.deleted_at')
             ->groupBy('q.lesson_id')
             ->select('q.lesson_id', DB::raw('MAX(qa.percentage) as best_score'))
             ->having('best_score', '>=', 80)

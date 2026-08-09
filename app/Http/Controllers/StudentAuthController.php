@@ -2276,10 +2276,13 @@ public function getLessonLeaderboard(Request $request, $lessonId)
             return response()->json(['error' => 'Student not found'], 404);
         }
 
-        // First, verify the lesson exists
-        $lesson = Lesson::find($lessonId);
+        // First, verify the lesson exists and is active/published
+        $lesson = Lesson::where('lesson_id', $lessonId)
+            ->where('status', 'published')
+            ->whereNull('deleted_at')
+            ->first();
         if (!$lesson) {
-            return response()->json(['error' => 'Lesson not found'], 404);
+            return response()->json(['error' => 'Lesson not found or not active'], 404);
         }
 
         // Get the quiz for this lesson
@@ -3812,11 +3815,14 @@ protected function createPromotionNotification(Student $student, $promotion)
      */
     private function getPerformanceSummary($student)
     {
-        // Get quiz performance
+        // Get quiz performance (only from published, active lessons)
         $quizStats = DB::table('quiz_attempts')
             ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+            ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
             ->where('quiz_attempts.student_id', $student->student_id)
             ->where('quiz_attempts.status', 'completed')
+            ->where('lessons.status', 'published')
+            ->whereNull('lessons.deleted_at')
             ->select(
                 DB::raw('COUNT(DISTINCT quiz_attempts.quiz_id) as quizzes_taken'),
                 DB::raw('AVG(quiz_attempts.percentage) as avg_score'),
@@ -3834,10 +3840,13 @@ protected function createPromotionNotification(Student $student, $promotion)
             )
             ->first();
 
-        // Get lessons completed
+        // Get lessons completed (only from published, active lessons)
         $lessonsCompleted = DB::table('student_lesson_progress')
-            ->where('student_id', $student->student_id)
-            ->where('lesson_completed', true)
+            ->join('lessons', 'student_lesson_progress.lesson_id', '=', 'lessons.lesson_id')
+            ->where('student_lesson_progress.student_id', $student->student_id)
+            ->where('student_lesson_progress.lesson_completed', true)
+            ->where('lessons.status', 'published')
+            ->whereNull('lessons.deleted_at')
             ->count();
 
         // Get total XP

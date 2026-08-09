@@ -73,7 +73,7 @@ class DashboardController extends Controller
         if ($teacher) {
             $teacherId  = $teacher->id;
             $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
-            $lessonIds  = Lesson::where('teacher_id', $teacherId)->pluck('lesson_id');
+            $lessonIds  = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->whereNull('deleted_at')->pluck('lesson_id');
 
             // ── Stat Cards ───────────────────────────────────────────────────────
             $totalStudents = $studentIds->count();
@@ -136,7 +136,7 @@ class DashboardController extends Controller
             // ── Your Modules (grouped, for dashboard folder cards) ───────────────
             $modules = Module::where('teacher_id', $teacherId)
                 ->with(['lessons' => function ($q) {
-                    $q->orderBy('module_order');
+                    $q->where('status', 'published')->whereNull('deleted_at')->orderBy('module_order');
                 }])
                 ->orderBy('module_order')
                 ->get()
@@ -169,6 +169,8 @@ class DashboardController extends Controller
 
             // ── Your Lessons (with enrolled count + completion %) ────────────────
             $lessons = Lesson::where('teacher_id', $teacherId)
+                ->where('status', 'published')
+                ->whereNull('deleted_at')
                 ->orderBy('module_order')
                 ->get()
                 ->map(function ($lesson) use ($studentIds) {
@@ -201,6 +203,8 @@ class DashboardController extends Controller
 
             // ── Student Mastery per lesson (all lessons, not just top 3) ─────────
             $lessonMastery = Lesson::where('teacher_id', $teacherId)
+                ->where('status', 'published')
+                ->whereNull('deleted_at')
                 ->orderBy('module_order')
                 ->take(4)
                 ->get()

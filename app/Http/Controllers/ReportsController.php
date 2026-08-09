@@ -40,6 +40,8 @@ class ReportsController extends Controller
             $teacherModuleIds = $modules->pluck('module_id');
 
             $lessons = Lesson::where('teacher_id', $teacherId)
+                ->where('status', 'published')
+                ->whereNull('deleted_at')
                 ->where(function($q) use ($teacherModuleIds) {
                     $q->whereIn('module_id', $teacherModuleIds)
                       ->orWhereNull('module_id');
@@ -201,6 +203,8 @@ class ReportsController extends Controller
         $teacherModuleIds = $modules->pluck('module_id');
 
         $lessons = Lesson::where('teacher_id', $teacherId)
+            ->where('status', 'published')
+            ->whereNull('deleted_at')
             ->where(function($q) use ($teacherModuleIds) {
                 $q->whereIn('module_id', $teacherModuleIds)
                   ->orWhereNull('module_id');
