@@ -2196,7 +2196,7 @@
     </div>
 
     <div class="about-visual reveal">
-      <video src="{{ asset('images/senya_waving.mp4') }}" alt="SEÑAS learning platform" onerror="this.onerror=null;this.src='{{ url('images/senya_waving.mp4') }}';" autoplay muted loop playsinline></video>
+      <video src="{{ asset('images/senya_animation.mp4') }}" alt="SEÑAS learning platform" onerror="this.onerror=null;this.src='{{ url('images/senya_waving.mp4') }}';" autoplay muted loop playsinline></video>
       <div class="floating-badge top-right">
         <div class="icon"><i class="fa-solid fa-star" style="color:var(--amber);"></i></div>
         <div>

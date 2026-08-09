@@ -32,7 +32,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/student/update-profile-picture', [StudentAuthController::class, 'updateProfilePicture']);
 
-     // Notification routes
+    // ─── HELP & SUPPORT ROUTES ──────────────────────────────────────
+    Route::post('/student/help-request', [StudentAuthController::class, 'submitHelpRequest']);
+    Route::get('/student/help-requests', [StudentAuthController::class, 'getHelpRequests']);
+    Route::get('/student/help-request/{id}', [StudentAuthController::class, 'getHelpRequestById']);
+
+    // ─── ADMIN HELP REQUEST ROUTES ──────────────────────────────────
+    // These routes check roles inside the controller methods
+    Route::get('/admin/help-requests', [StudentAuthController::class, 'adminGetHelpRequests']);
+    Route::post('/admin/help-request/{id}/respond', [StudentAuthController::class, 'adminRespondToHelpRequest']);
+
+    // Notification routes
     Route::get('/student/notifications', [StudentAuthController::class, 'getNotifications']);
     Route::post('/student/notifications/save', [StudentAuthController::class, 'saveNotifications']);
     Route::post('/student/notifications/{id}/read', [StudentAuthController::class, 'markNotificationRead']);
@@ -75,7 +85,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/award-challenge-xp', [StudentAuthController::class, 'awardChallengeXp']);
 
     // ─── STREAK ROUTE ─────────────────────────────────────────────
-    // 🔥 ADD THIS LINE - Get student's current streak
     Route::get('/student/streak', [StudentAuthController::class, 'getStreak']);
 
     // ═══════════════════════════════════════════════════════════════
@@ -93,21 +102,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/student/achievements/check', [StudentAuthController::class, 'checkAchievements']);
 
     Route::get('/student/daily-challenge', [StudentAuthController::class, 'getDailyChallenge']);
-Route::post('/student/daily-challenge/progress', [StudentAuthController::class, 'updateChallengeProgress']);
-Route::post('/student/daily-challenge/track-time', [StudentAuthController::class, 'trackChallengeTime']);
-Route::get('/student/settings', [StudentAuthController::class, 'getSettings']);
-Route::post('/student/settings', [StudentAuthController::class, 'updateSettings']);
+    Route::post('/student/daily-challenge/progress', [StudentAuthController::class, 'updateChallengeProgress']);
+    Route::post('/student/daily-challenge/track-time', [StudentAuthController::class, 'trackChallengeTime']);
+    Route::get('/student/settings', [StudentAuthController::class, 'getSettings']);
+    Route::post('/student/settings', [StudentAuthController::class, 'updateSettings']);
 
-Route::get('/student/mastery', [StudentAuthController::class, 'getMasteryData']);
+    Route::get('/student/mastery', [StudentAuthController::class, 'getMasteryData']);
     Route::post('/student/mastery/update', [StudentAuthController::class, 'updateMasteryAfterPractice']);
     
     // Updated route - replace the existing getRecommendedLessons
     Route::get('/student/adaptive-lessons', [StudentAuthController::class, 'getRecommendedLessons']);
     
     Route::get('/student/checkpoint-exams', [StudentAuthController::class, 'getCheckpointExams']);
-Route::get('/student/checkpoint-exam/{examId}', [StudentAuthController::class, 'getCheckpointExamById']);
-Route::post('/student/checkpoint-exam/{examId}/submit', [StudentAuthController::class, 'submitCheckpointExam']);
+    Route::get('/student/checkpoint-exam/{examId}', [StudentAuthController::class, 'getCheckpointExamById']);
+    Route::post('/student/checkpoint-exam/{examId}/submit', [StudentAuthController::class, 'submitCheckpointExam']);
 
-Route::get('/student/checkpoint-exam/{examId}/leaderboard', [StudentAuthController::class, 'getCheckpointExamLeaderboard']);
-Route::get('/teacher/{teacherId}', [StudentAuthController::class, 'getTeacher']);
+    Route::get('/student/checkpoint-exam/{examId}/leaderboard', [StudentAuthController::class, 'getCheckpointExamLeaderboard']);
+    Route::get('/teacher/{teacherId}', [StudentAuthController::class, 'getTeacher']);
 });

@@ -26,6 +26,7 @@ use App\Models\CheckpointExam;
 use App\Models\CheckpointExamAssignment;
 use App\Models\CheckpointExamQuestion;
 use App\Models\CheckpointExamAttempt;
+use App\Models\HelpRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -5586,6 +5587,298 @@ private function mapModuleNameToType(string $moduleName): string
     ];
     
     return $map[$moduleName] ?? $moduleName;
+}
+/**
+ * Submit a help request
+ * POST /api/student/help-request
+ */
+public function submitHelpRequest(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'message' => 'required|string|min:5|max:5000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $helpRequest = HelpRequest::create([
+            'student_id' => $student->student_id,
+            'message' => $request->message,
+            'status' => 'pending',
+        ]);
+
+        // Notify admins (optional)
+        $this->notifyAdminsOfHelpRequest($helpRequest);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Help request submitted successfully. We\'ll get back to you within 24 hours.',
+            'help_request' => [
+                'id' => $helpRequest->help_request_id,
+                'status' => $helpRequest->status,
+                'created_at' => $helpRequest->created_at,
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get student's help request history
+ * GET /api/student/help-requests
+ */
+public function getHelpRequests(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        $helpRequests = HelpRequest::forStudent($student->student_id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($request) {
+                return [
+                    'id' => $request->help_request_id,
+                    'subject' => $request->subject,
+                    'message' => $request->message,
+                    'status' => $request->status,
+                    'admin_response' => $request->admin_response,
+                    'created_at' => $request->created_at->toISOString(),
+                    'resolved_at' => $request->resolved_at ? $request->resolved_at->toISOString() : null,
+                    'responded_at' => $request->responded_at ? $request->responded_at->toISOString() : null,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'help_requests' => $helpRequests,
+            'count' => $helpRequests->count(),
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get a specific help request
+ * GET /api/student/help-request/{id}
+ */
+public function getHelpRequestById(Request $request, $id)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $helpRequest = HelpRequest::forStudent($student->student_id)
+            ->where('help_request_id', $id)
+            ->first();
+
+        if (!$helpRequest) {
+            return response()->json(['error' => 'Help request not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'help_request' => [
+                'id' => $helpRequest->help_request_id,
+                'message' => $helpRequest->message,
+                'status' => $helpRequest->status,
+                'admin_response' => $helpRequest->admin_response,
+                'created_at' => $helpRequest->created_at->toISOString(),
+                'resolved_at' => $helpRequest->resolved_at ? $helpRequest->resolved_at->toISOString() : null,
+                'responded_at' => $helpRequest->responded_at ? $helpRequest->responded_at->toISOString() : null,
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+/**
+ * Notify admins (helper method)
+ */
+private function notifyAdminsOfHelpRequest($helpRequest)
+{
+    try {
+        \Log::info('New help request submitted', [
+            'help_request_id' => $helpRequest->help_request_id,
+            'student_id' => $helpRequest->student_id,
+            'created_at' => $helpRequest->created_at,
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Failed to log help request: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Admin: Get all help requests
+ * GET /api/admin/help-requests
+ */
+public function adminGetHelpRequests(Request $request)
+{
+    try {
+        $user = Auth::user();
+        if (!in_array($user->role, ['admin', 'teacher'])) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $query = HelpRequest::with(['student']);
+
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $helpRequests = $query->orderBy('created_at', 'desc')
+            ->paginate($request->per_page ?? 20);
+
+        $transformed = $helpRequests->map(function ($request) {
+            return [
+                'id' => $request->help_request_id,
+                'student_name' => $request->student ? $request->student->first_name . ' ' . $request->student->last_name : 'Unknown',
+                'student_lrn' => $request->student ? $request->student->lrn : null,
+                'message' => $request->message,
+                'status' => $request->status,
+                'admin_response' => $request->admin_response,
+                'created_at' => $request->created_at->toISOString(),
+                'resolved_at' => $request->resolved_at ? $request->resolved_at->toISOString() : null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'help_requests' => $transformed,
+            'pagination' => [
+                'total' => $helpRequests->total(),
+                'per_page' => $helpRequests->perPage(),
+                'current_page' => $helpRequests->currentPage(),
+                'last_page' => $helpRequests->lastPage(),
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Admin: Respond to help request
+ * POST /api/admin/help-request/{id}/respond
+ */
+public function adminRespondToHelpRequest(Request $request, $id)
+{
+    try {
+        $user = Auth::user();
+        if (!in_array($user->role, ['admin', 'teacher'])) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $helpRequest = HelpRequest::find($id);
+        if (!$helpRequest) {
+            return response()->json(['error' => 'Help request not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'response' => 'required|string|min:5',
+            'status' => 'nullable|in:in_progress,resolved,closed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $helpRequest->admin_response = $request->response;
+        $helpRequest->responded_at = now();
+
+        if ($request->has('status')) {
+            $helpRequest->status = $request->status;
+            if ($request->status === 'resolved') {
+                $helpRequest->resolved_at = now();
+                $helpRequest->resolved_by = $user->id;
+            }
+        } else {
+            $helpRequest->status = 'in_progress';
+        }
+
+        $helpRequest->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Response sent successfully',
+            'help_request' => [
+                'id' => $helpRequest->help_request_id,
+                'status' => $helpRequest->status,
+                'admin_response' => $helpRequest->admin_response,
+                'responded_at' => $helpRequest->responded_at,
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Create notification for help response
+ */
+private function createHelpResponseNotification($helpRequest)
+{
+    if (!$helpRequest->student_id) {
+        return;
+    }
+
+    $student = Student::find($helpRequest->student_id);
+    if (!$student) {
+        return;
+    }
+
+    $this->createNotification(
+        $student->student_id,
+        'system',
+        '📬 Support Response Received',
+        "A support team member has responded to your help request: \"{$helpRequest->subject}\". Please check your email for more details.",
+        [
+            'help_request_id' => $helpRequest->help_request_id,
+            'action_url' => '/help-requests/' . $helpRequest->help_request_id,
+        ],
+        '/help-requests'
+    );
 }
 
 }
