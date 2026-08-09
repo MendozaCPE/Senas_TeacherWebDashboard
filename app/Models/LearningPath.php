@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class LearningPath extends Model
 {
+    // ✅ Specify the correct table name
+    protected $table = 'learning_paths';
+    
     protected $fillable = [
         'student_id',
         'fsl_level',
@@ -20,8 +23,16 @@ class LearningPath extends Model
         'completed_at' => 'datetime'
     ];
 
+    // Add constants for the enum values
+    const GOALS = [
+        'ALPHABETS_NUMBERS' => 'Alphabet_Numbers',
+        'FINGERSPELLING' => 'Fingerspelling',
+        'GREETINGS_FSL_WORDS' => 'Greetings_FSL_Words',
+        'EVERYTHING' => 'Everything',
+    ];
+
     public function student()
     {
-        return $this->belongsTo(Student::class, 'student_id', 'student_id');  // ✅ Specify foreign key
+        return $this->belongsTo(Student::class, 'student_id', 'student_id');
     }
 }

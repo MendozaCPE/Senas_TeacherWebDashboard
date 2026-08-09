@@ -263,19 +263,19 @@ public function updateSettings(Request $request)
     }
 
     public function saveLearningPath(Request $request)
-    {
-        $user = $request->user();
-        $student = Student::where('user_id', $user->id)->first();
+{
+    $user = $request->user();
+    $student = Student::where('user_id', $user->id)->first();
 
-        if (! $student) {
-            return response()->json(['message' => 'Student not found'], 404);
-        }
+    if (! $student) {
+        return response()->json(['message' => 'Student not found'], 404);
+    }
 
-        $validator = Validator::make($request->all(), [
-            'fsl_level' => 'required|string|in:Beginner,Intermediate,Advanced',
-            'learning_goal' => 'required|string|in:Alphabet_Numbers,Greetings,Classroom_Words,Everything',
-            'practice_time' => 'required|string|in:5_10_min,15_20_min,30_min,1_hour_plus',
-        ]);
+    $validator = Validator::make($request->all(), [
+        'fsl_level' => 'required|string|in:Beginner,Intermediate,Advanced',
+        'learning_goal' => 'required|string|in:Alphabet_Numbers,Fingerspelling,Greetings_FSL_Words,Everything',
+        'practice_time' => 'required|string|in:5_10_min,15_20_min,30_min,1_hour_plus',
+    ]);
 
         if ($validator->fails()) {
             return response()->json(['message' => 'Invalid data', 'errors' => $validator->errors()], 422);
@@ -331,533 +331,412 @@ public function updateSettings(Request $request)
     // - Extracts gesture names from lesson content (not just text matching)
     // - Matches weak skills to what the lesson ACTUALLY teaches
     // - Understands context (Greetings lesson vs Alphabet lesson)
-public function getRecommendedLessons(Request $request)
-{
-    try {
-        $user = Auth::user();
+    public function getRecommendedLessons(Request $request)
+    {
+        try {
+            $user = Auth::user();
 
-        if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
+            if (!$user) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
 
-        $student = Student::where('user_id', $user->id)->first();
+            $student = Student::where('user_id', $user->id)->first();
 
-        if (!$student) {
-            return response()->json(['error' => 'Student not found'], 404);
-        }
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
 
-        // ============================================================
-        // 1. GET ADAPTIVE DATA
-        // ============================================================
-        $masteryService = new \App\Services\MasteryService();
-        
-        $weakSkills = $masteryService->getWeakSkills($student->student_id, 0.6, 20);
-        $overallMastery = $masteryService->getOverallMastery($student->student_id);
-        
-        $learningPath = LearningPath::where('student_id', $student->student_id)->first();
-        $goal = $learningPath->learning_goal ?? 'Everything';
-        $level = $learningPath->fsl_level ?? ($student->fsl_mastery_level ?? 'Beginner');
+            // ============================================================
+            // 1. GET ADAPTIVE DATA
+            // ============================================================
+            $masteryService = new \App\Services\MasteryService();
 
-        // ============================================================
-        // 2. GET ALL LESSONS WITH COMPLETION STATUS
-        // ============================================================
-        
-       $allLessons = Lesson::where('status', 'published')
-    ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
-    ->with(['contents', 'quiz.questions.options', 'module'])
-    ->get();
+            $weakSkills = $masteryService->getWeakSkills($student->student_id, 0.6, 20);
+            $overallMastery = $masteryService->getOverallMastery($student->student_id);
 
-        // Get completed lesson IDs for this student
-     $completedLessonIds = LessonAssignment::where('student_id', $student->student_id)
-    ->where('status', 'completed')
-    ->where('score', '>=', 60)
-    ->whereHas('lesson', function($query) {
-        $query->whereNull('deleted_at');  // ✅ ONLY COMPLETED LESSONS THAT EXIST
-    })
-    ->pluck('lesson_id')
-    ->toArray();
+            $learningPath = LearningPath::where('student_id', $student->student_id)->first();
+            $goal = $learningPath->learning_goal ?? 'Everything';
+            $level = $learningPath->fsl_level ?? ($student->fsl_mastery_level ?? 'Beginner');
 
-        // Get in-progress lesson IDs
-        $inProgressLessonIds = LessonAssignment::where('student_id', $student->student_id)
-    ->where('status', 'in_progress')
-    ->whereHas('lesson', function($query) {
-        $query->whereNull('deleted_at');  // ✅ ONLY IN-PROGRESS LESSONS THAT EXIST
-    })
-    ->pluck('lesson_id')
-    ->toArray();
+            // ============================================================
+            // 2. DETERMINE ACCESSIBLE MODULES & LESSONS
+            // ============================================================
+            $studentLevel = strtolower($level);
+            $accessibleLevels = $this->getAccessibleModuleLevels($studentLevel);
+            $allModules = Module::where('teacher_id', $student->teacher_id)
+                ->orderBy('module_order')
+                ->get();
 
-        // ============================================================
-        // 3. BUILD RECOMMENDATIONS
-        // ============================================================
-        
-        $recommendedLessons = [];
-        $recommendationReasons = [];
-        $lessonIdsAdded = [];
+            $accessibleModuleIds = [];
+            $lockedModuleNames = [];
+            $previousModuleCompleted = true;
+            $lastModuleLevel = null;
 
-        // 🔥 FIRST: Add IN-PROGRESS lessons (resume these next)
-        foreach ($allLessons as $lesson) {
-            if (in_array($lesson->lesson_id, $inProgressLessonIds) && 
-                !in_array($lesson->lesson_id, $lessonIdsAdded)) {
-                $recommendedLessons[] = $lesson;
-                $lessonIdsAdded[] = $lesson->lesson_id;
-                $recommendationReasons[$lesson->lesson_id] = [
-                    'type' => 'in_progress',
-                    'reason' => '📖 Continue where you left off',
-                    'covered_skills' => [],
-                    'priority' => 9,
+            $allAssignments = LessonAssignment::where('student_id', $student->student_id)
+                ->whereHas('lesson', function ($query) {
+                    $query->where('status', 'published')->whereNull('deleted_at');
+                })
+                ->with(['lesson'])
+                ->get();
+
+            foreach ($allModules as $mod) {
+                $modId = $mod->module_id;
+                $modLevel = strtolower($mod->mastery_level ?? 'beginner');
+
+                $isLevelAccessible = in_array($modLevel, $accessibleLevels);
+
+                if ($lastModuleLevel !== null && $modLevel !== $lastModuleLevel) {
+                    if ($isLevelAccessible && $studentLevel === $modLevel) {
+                        $previousModuleCompleted = true;
+                    }
+                }
+                $lastModuleLevel = $modLevel;
+
+                $isAccessible = $isLevelAccessible && $previousModuleCompleted;
+
+                if ($isAccessible) {
+                    $accessibleModuleIds[] = $modId;
+                } else {
+                    $lockedModuleNames[] = $mod->title;
+                }
+
+                // Check 100% completion of this module
+                $modLessonsAssignments = $allAssignments->filter(fn($a) => $a->lesson && $a->lesson->module_id === $modId);
+                $totalInMod = $modLessonsAssignments->count();
+                $completedInMod = 0;
+
+                foreach ($modLessonsAssignments as $a) {
+                    $scoreVal = DB::table('quiz_attempts as qa')
+                        ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                        ->where('qa.student_id', $student->student_id)
+                        ->where('q.lesson_id', $a->lesson->lesson_id)
+                        ->where('qa.status', 'completed')
+                        ->max('qa.percentage');
+
+                    if ($scoreVal === null && $a->status === 'completed' && $a->score >= 60) {
+                        $scoreVal = $a->score;
+                    }
+
+                    if ($scoreVal !== null && $scoreVal >= 60) {
+                        $completedInMod++;
+                    }
+                }
+
+                $previousModuleCompleted = ($totalInMod > 0) && ($completedInMod === $totalInMod);
+            }
+
+            // 🔥 ONLY FETCH LESSONS FROM ACCESSIBLE / UNLOCKED MODULES
+            $allLessons = Lesson::where('status', 'published')
+                ->whereNull('deleted_at')
+                ->whereIn('module_id', $accessibleModuleIds)
+                ->with(['contents', 'quiz.questions.options', 'module'])
+                ->get();
+
+            // Sort lessons strictly by module_order ASC, then lesson module_order ASC, then lesson_id ASC
+            $allLessons = $allLessons->sort(function ($a, $b) {
+                $modOrderA = $a->module->module_order ?? 0;
+                $modOrderB = $b->module->module_order ?? 0;
+                if ($modOrderA !== $modOrderB) {
+                    return $modOrderA - $modOrderB;
+                }
+                $lesOrderA = $a->module_order ?? 0;
+                $lesOrderB = $b->module_order ?? 0;
+                if ($lesOrderA !== $lesOrderB) {
+                    return $lesOrderA - $lesOrderB;
+                }
+                return $a->lesson_id - $b->lesson_id;
+            })->values();
+
+            // Get completed & in-progress statuses
+            $completedAssignments = LessonAssignment::where('student_id', $student->student_id)
+                ->where('status', 'completed')
+                ->where('score', '>=', 60)
+                ->whereHas('lesson', function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->pluck('score', 'lesson_id')
+                ->toArray();
+
+            $inProgressLessonIds = LessonAssignment::where('student_id', $student->student_id)
+                ->where('status', 'in_progress')
+                ->whereHas('lesson', function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->pluck('lesson_id')
+                ->toArray();
+
+            // ============================================================
+            // 3. CLASSIFY LESSONS INTO TOPIC CATEGORIES
+            // ============================================================
+            $categorizedLessons = [];
+            foreach ($allLessons as $lesson) {
+                $concepts = $this->extractLessonConcepts($lesson);
+                $flags = $this->classifyLessonGoalFlags($concepts);
+
+                $titleLower = strtolower($lesson->title ?? '');
+                $descLower = strtolower($lesson->description ?? '');
+
+                $isIntro = str_contains($titleLower, 'welcome') ||
+                           str_contains($titleLower, 'intro') ||
+                           (($lesson->module->module_order ?? 0) === 1 && ($lesson->module_order ?? 0) === 1);
+
+                $isFingerspelling = str_contains($titleLower, 'fingerspelling') || str_contains($descLower, 'fingerspelling');
+
+                if ($isIntro) {
+                    $category = 'intro';
+                } elseif ($isFingerspelling) {
+                    $category = 'fingerspelling';
+                } elseif ($flags['is_alphabet']) {
+                    $category = 'alphabet';
+                } elseif ($flags['is_number']) {
+                    $category = 'numbers';
+                } elseif ($flags['is_greeting']) {
+                    $category = 'greetings';
+                } else {
+                    $category = 'other';
+                }
+
+                $categorizedLessons[] = [
+                    'lesson' => $lesson,
+                    'category' => $category,
+                    'concepts' => $concepts,
+                    'flags' => $flags,
                 ];
             }
-        }
 
-        // 🔥 SECOND: Add WEAK SKILL lessons (these should come next)
-        foreach ($allLessons as $lesson) {
-            if (in_array($lesson->lesson_id, $lessonIdsAdded)) {
-                continue;
+            // ============================================================
+            // 4. ORDER TOPICS BY STUDENT'S LEARNING GOAL
+            // ============================================================
+            switch ($goal) {
+                case 'Alphabet_Numbers':
+                    $groupOrder = ['intro', 'alphabet', 'numbers', 'fingerspelling', 'greetings', 'other'];
+                    break;
+                case 'Fingerspelling':
+                    // Alphabets must come first as prerequisite!
+                    $groupOrder = ['intro', 'alphabet', 'fingerspelling', 'numbers', 'greetings', 'other'];
+                    break;
+                case 'Greetings_FSL_Words':
+                    $groupOrder = ['intro', 'greetings', 'other', 'alphabet', 'numbers', 'fingerspelling'];
+                    break;
+                case 'Everything':
+                default:
+                    $groupOrder = ['intro', 'alphabet', 'numbers', 'fingerspelling', 'greetings', 'other'];
+                    break;
             }
-            
-            $lessonConcepts = $this->extractLessonConcepts($lesson);
-            
-            if (empty($lessonConcepts)) {
-                continue;
+
+            $buckets = array_fill_keys(['intro', 'alphabet', 'numbers', 'fingerspelling', 'greetings', 'other'], []);
+            foreach ($categorizedLessons as $item) {
+                $buckets[$item['category']][] = $item;
             }
-            
-            $coveredSkills = [];
-            $skillIdsFound = [];
-            
-            foreach ($lessonConcepts as $concept) {
-                foreach ($weakSkills as $weak) {
-                    $weakName = strtoupper($weak['gesture_name'] ?? '');
-                    $conceptName = strtoupper($concept);
-                    
-                    if ($conceptName === $weakName) {
-                        if (!in_array($weak['gesture_id'], $skillIdsFound)) {
-                            $coveredSkills[] = $weak;
-                            $skillIdsFound[] = $weak['gesture_id'];
+
+            $orderedItems = [];
+            if ($goal === 'Everything') {
+                $orderedItems = $categorizedLessons;
+            } else {
+                foreach ($groupOrder as $catKey) {
+                    if (!empty($buckets[$catKey])) {
+                        foreach ($buckets[$catKey] as $item) {
+                            $orderedItems[] = $item;
                         }
                     }
                 }
             }
 
-            if (!empty($coveredSkills)) {
-                $recommendedLessons[] = $lesson;
-                $lessonIdsAdded[] = $lesson->lesson_id;
-                $recommendationReasons[$lesson->lesson_id] = [
-                    'type' => 'weak_skill_practice',
-                    'reason' => "Practice " . implode(', ', array_column($coveredSkills, 'display_name')),
-                    'covered_skills' => $coveredSkills,
-                    'priority' => count($coveredSkills),
-                ];
-            }
-        }
+            // ============================================================
+            // 5. FORMAT RESPONSE WITH STRICT SEQUENTIAL LOCKING
+            // ============================================================
+            $formattedLessons = [];
+            $unlockedNext = true;
 
-        // 🔥 THIRD: Add GOAL MATCH lessons
-        if ($goal !== 'Everything') {
-            foreach ($allLessons as $lesson) {
-                if (in_array($lesson->lesson_id, $lessonIdsAdded, true)) {
-                    continue;
+            foreach ($orderedItems as $item) {
+                $lesson = $item['lesson'];
+                $lessonId = $lesson->lesson_id;
+
+                $assignment = LessonAssignment::where('student_id', $student->student_id)
+                    ->where('lesson_id', $lessonId)
+                    ->first();
+
+                $progress = DB::table('student_lesson_progress')
+                    ->where('student_id', $student->student_id)
+                    ->where('lesson_id', $lessonId)
+                    ->first();
+
+                $highestScore = DB::table('quiz_attempts as qa')
+                    ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                    ->where('qa.student_id', $student->student_id)
+                    ->where('q.lesson_id', $lessonId)
+                    ->where('qa.status', 'completed')
+                    ->max('qa.percentage');
+
+                if ($highestScore === null && $progress) {
+                    $highestScore = $progress->quiz_score;
                 }
-                if (in_array($lesson->lesson_id, $completedLessonIds, true)) {
-                    continue;
+                if ($highestScore === null && isset($completedAssignments[$lessonId])) {
+                    $highestScore = $completedAssignments[$lessonId];
                 }
 
-                $lessonConcepts = $this->extractLessonConcepts($lesson);
-                if (empty($lessonConcepts)) {
-                    continue;
+                $isDone = ($highestScore !== null && $highestScore >= 60) || isset($completedAssignments[$lessonId]);
+                $isInProgress = !$isDone && (in_array($lessonId, $inProgressLessonIds) || ($progress && (($progress->current_step ?? 0) > 0 || $progress->lesson_completed)));
+
+                if ($isDone) {
+                    $isLocked = false;
+                    $isActive = false;
+                    $statusStr = 'completed';
+                } elseif ($unlockedNext) {
+                    $isLocked = false;
+                    $isActive = true;
+                    $unlockedNext = false;
+                    $statusStr = $isInProgress ? 'in_progress' : 'pending';
+                } else {
+                    $isLocked = true;
+                    $isActive = false;
+                    $statusStr = 'pending';
                 }
 
-                $flags = $this->classifyLessonGoalFlags($lessonConcepts);
-                if (!$this->lessonMatchesGoal($goal, $flags)) {
-                    continue;
-                }
-
-                $recommendedLessons[] = $lesson;
-                $lessonIdsAdded[] = $lesson->lesson_id;
-                $recommendationReasons[$lesson->lesson_id] = [
-                    'type' => 'goal_match',
-                    'reason' => '🎯 Matches your goal: ' . str_replace('_', ' ', $goal),
-                    'covered_skills' => [],
-                    'priority' => 3,
-                ];
-            }
-        }
-
-        // 🔥 FOURTH: Add NEW SKILL lessons
-        if (count($recommendedLessons) < 5) {
-            $neverPracticed = $masteryService->getNeverPracticedSkills($student->student_id, 10);
-            $newSkillNames = array_column($neverPracticed, 'gesture_name');
-            
-            if (!empty($newSkillNames)) {
-                foreach ($allLessons as $lesson) {
-                    if (in_array($lesson->lesson_id, $lessonIdsAdded)) {
-                        continue;
-                    }
-                    if (in_array($lesson->lesson_id, $completedLessonIds, true)) {
-                        continue;
-                    }
-                    
-                    $lessonConcepts = $this->extractLessonConcepts($lesson);
-                    $matchesNewSkill = false;
-                    $matchedSkills = [];
-                    
-                    foreach ($lessonConcepts as $concept) {
-                        foreach ($neverPracticed as $skill) {
-                            if (strtoupper($concept) === strtoupper($skill['gesture_name'])) {
-                                $matchesNewSkill = true;
-                                $matchedSkills[] = $skill;
+                // Check for covered weak skills
+                $coveredSkills = [];
+                $skillIdsFound = [];
+                if (!empty($item['concepts']) && !empty($weakSkills)) {
+                    foreach ($item['concepts'] as $concept) {
+                        foreach ($weakSkills as $weak) {
+                            $weakName = strtoupper($weak['gesture_name'] ?? '');
+                            if (strtoupper($concept) === $weakName) {
+                                if (!in_array($weak['gesture_id'], $skillIdsFound)) {
+                                    $coveredSkills[] = $weak;
+                                    $skillIdsFound[] = $weak['gesture_id'];
+                                }
                             }
                         }
                     }
-                    
-                    if ($matchesNewSkill) {
-                        $recommendedLessons[] = $lesson;
-                        $lessonIdsAdded[] = $lesson->lesson_id;
-                        $recommendationReasons[$lesson->lesson_id] = [
-                            'type' => 'new_skill',
-                            'reason' => '🌟 New skill to learn: ' . implode(', ', array_column($matchedSkills, 'display_name')),
-                            'covered_skills' => $matchedSkills,
-                            'priority' => count($matchedSkills),
-                        ];
-                        
-                        if (count($recommendedLessons) >= 20) {
-                            break;
-                        }
+                }
+
+                $goalDisplay = str_replace('_', ' ', $goal);
+                // Clean up concept names for human-readable display
+                $cleanConcepts = array_map(function($c) {
+                    $c = preg_replace('/^\d+_/', '', $c);
+                    return ucwords(strtolower(str_replace('_', ' ', $c)));
+                }, $item['concepts']);
+                $conceptsStr = !empty($cleanConcepts) ? implode(', ', array_slice($cleanConcepts, 0, 3)) : '';
+
+                if ($isDone) {
+                    $recType = 'completed';
+                    $recReason = "✅ You completed this lesson with {$highestScore}%! Great job! 🎉";
+                    $detReason = "You've already mastered this lesson. Review it anytime to reinforce your skills.";
+                } elseif ($isInProgress) {
+                    $recType = 'in_progress';
+                    $recReason = "📖 Continue where you left off";
+                    $detReason = "You have progress saved in this lesson. Tap to resume!";
+                } elseif (!empty($coveredSkills)) {
+                    $recType = 'weak_skill_practice';
+                    $displaySkills = implode(', ', array_column($coveredSkills, 'display_name'));
+                    $recReason = "⚡ Practice these weak signs: {$displaySkills}";
+                    $detReason = "This lesson will help you practice weak skills ({$displaySkills}) to build mastery.";
+                } else {
+                    $recType = 'goal_match';
+                    if ($conceptsStr) {
+                        $recReason = "🎯 Step to master {$goalDisplay}: Teaches {$conceptsStr}";
+                        $detReason = "This lesson covers {$conceptsStr} to help you achieve your {$goalDisplay} goal.";
+                    } else {
+                        $recReason = "🎯 Recommended for your goal: {$goalDisplay}";
+                        $detReason = "This lesson is recommended as part of your {$goalDisplay} learning path.";
                     }
                 }
-            }
-        }
 
-        // 🔥 FIFTH: Fallback - recommended by module order
-      if (empty($recommendedLessons) || count($recommendedLessons) < 3) {
-    $fallbackLessons = Lesson::where('status', 'published')
-        ->whereNull('deleted_at')  // ✅ EXCLUDE SOFT DELETED LESSONS
-        ->whereNotIn('lesson_id', $completedLessonIds)
-        ->whereNotIn('lesson_id', $lessonIdsAdded)
-        ->with(['contents', 'quiz', 'module'])
-        ->orderBy('module_order', 'asc')
-        ->limit(10)
-        ->get();
-
-            foreach ($fallbackLessons as $lesson) {
-                if (!in_array($lesson->lesson_id, $lessonIdsAdded)) {
-                    $recommendedLessons[] = $lesson;
-                    $lessonIdsAdded[] = $lesson->lesson_id;
-                    $recommendationReasons[$lesson->lesson_id] = [
-                        'type' => 'next_in_path',
-                        'reason' => '➡️ Next in your learning path',
-                        'covered_skills' => [],
-                        'priority' => 0,
-                    ];
-                }
-            }
-        }
-
-        // 🔥 SIXTH (LAST): Add COMPLETED lessons - ONLY if they don't already have a reason
-        foreach ($allLessons as $lesson) {
-            if (in_array($lesson->lesson_id, $completedLessonIds) && 
-                !in_array($lesson->lesson_id, $lessonIdsAdded)) {
-                $recommendedLessons[] = $lesson;
-                $lessonIdsAdded[] = $lesson->lesson_id;
-                
-                // Check if this lesson already has a reason from previous loops
-                if (!isset($recommendationReasons[$lesson->lesson_id])) {
-                    $recommendationReasons[$lesson->lesson_id] = [
-                        'type' => 'completed',
-                        'reason' => $lesson->description ?? '📚 Recommended for you',
-                        'covered_skills' => [],
-                        'priority' => 10,
-                    ];
-                }
-            }
-        }
-
-        // ============================================================
-        // 4. FORMAT RESPONSE WITH PROPER LOCKING
-        // ============================================================
-        $formattedLessons = [];
-        $index = 0;
-
-        // Get all lessons and determine their completion status
-        $lessonData = [];
-        foreach ($recommendedLessons as $lesson) {
-            $assignment = LessonAssignment::where('student_id', $student->student_id)
-                ->where('lesson_id', $lesson->lesson_id)
-                ->first();
-
-            $progress = DB::table('student_lesson_progress')
-                ->where('student_id', $student->student_id)
-                ->where('lesson_id', $lesson->lesson_id)
-                ->first();
-
-            $highestScore = DB::table('quiz_attempts as qa')
-                ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
-                ->where('qa.student_id', $student->student_id)
-                ->where('q.lesson_id', $lesson->lesson_id)
-                ->where('qa.status', 'completed')
-                ->max('qa.percentage');
-
-            if ($highestScore === null && $progress) {
-                $highestScore = $progress->quiz_score;
-            }
-
-            $isDone = $highestScore !== null && $highestScore >= 60;
-            $isInProgress = !$isDone && $progress && (
-                ($progress->current_step ?? 0) > 0 || $progress->lesson_completed
-            );
-
-            $reason = $recommendationReasons[$lesson->lesson_id] ?? [
-                'type' => 'recommended',
-                'reason' => '📚 Recommended for you',
-                'covered_skills' => [],
-                'priority' => 0,
-            ];
-
-            $lessonConcepts = $this->extractLessonConcepts($lesson);
-            $goalFlags = $this->classifyLessonGoalFlags($lessonConcepts);
-
-            $lessonData[] = [
-                'lesson' => $lesson,
-                'assignment' => $assignment,
-                'progress' => $progress,
-                'highestScore' => $highestScore,
-                'isDone' => $isDone,
-                'isInProgress' => $isInProgress,
-                'reason' => $reason,
-                'isAlphabetLesson' => $goalFlags['is_alphabet'],
-                'isNumberLesson' => $goalFlags['is_number'],
-                'isGreetingLesson' => $goalFlags['is_greeting'],
-                'isOtherLesson' => $goalFlags['is_other'],
-                'lessonConcepts' => $lessonConcepts,
-            ];
-        }
-
-        // 🆕 SORT: Completed first, then in-progress, then pending by priority
-      usort($lessonData, function($a, $b) use ($goal) {
-    // 1. Completed lessons go to the VERY TOP
-    if ($a['isDone'] && !$b['isDone']) {
-        return -1;
-    }
-    if (!$a['isDone'] && $b['isDone']) {
-        return 1;
-    }
-    
-    // 2. Among completed, sort by most recently accessed
-    if ($a['isDone'] && $b['isDone']) {
-        $aTime = $a['progress']->last_accessed_at ?? null;
-        $bTime = $b['progress']->last_accessed_at ?? null;
-        return strcmp((string) $bTime, (string) $aTime);
-    }
-
-    // 3. Among not-done lessons: resume anything in progress first
-    if ($a['isInProgress'] && !$b['isInProgress']) {
-        return -1;
-    }
-    if (!$a['isInProgress'] && $b['isInProgress']) {
-        return 1;
-    }
-    
-    // 4. Both are pending - sort by learning goal
-    if ($goal === 'Alphabet_Numbers') {
-        if ($a['isAlphabetLesson'] && !$b['isAlphabetLesson']) return -1;
-        if (!$a['isAlphabetLesson'] && $b['isAlphabetLesson']) return 1;
-        if ($a['isNumberLesson'] && !$b['isNumberLesson']) return -1;
-        if (!$a['isNumberLesson'] && $b['isNumberLesson']) return 1;
-    }
-    
-    if ($goal === 'Greetings') {
-        if ($a['isGreetingLesson'] && !$b['isGreetingLesson']) return -1;
-        if (!$a['isGreetingLesson'] && $b['isGreetingLesson']) return 1;
-    }
-
-    if ($goal === 'Classroom_Words') {
-        if ($a['isOtherLesson'] && !$b['isOtherLesson']) return -1;
-        if (!$a['isOtherLesson'] && $b['isOtherLesson']) return 1;
-    }
-    
-    // 5. Then by priority (weak skills covered)
-    if ($a['reason']['priority'] !== $b['reason']['priority']) {
-        return $b['reason']['priority'] - $a['reason']['priority'];
-    }
-    
-    // 6. Finally by module order
-    return $a['lesson']->module_order - $b['lesson']->module_order;
-});
-
-// ============================================================
-// 🔥 NEW: ENHANCE REASONS FOR BETTER DISPLAY
-// ============================================================
-
-// Add better reasons for lessons that don't have specific skill matches
-foreach ($lessonData as &$data) {
-    $lesson = $data['lesson'];
-    $reason = $data['reason'];
-    $learningPath = LearningPath::where('student_id', $student->student_id)->first();
-    $goal = $learningPath->learning_goal ?? 'Everything';
-    
-    // If the lesson already has a good reason (weak_skill_practice, new_skill, in_progress), skip
-    if (in_array($reason['type'], ['weak_skill_practice', 'new_skill', 'in_progress'])) {
-        continue;
-    }
-    
-    // For goal_match lessons, generate a more specific reason
-    if ($reason['type'] === 'goal_match') {
-        $goalDisplay = str_replace('_', ' ', $goal);
-        
-        // Get the lesson's concepts to explain what it teaches
-        $concepts = $this->extractLessonConcepts($lesson);
-        $conceptDisplay = !empty($concepts) ? implode(', ', array_slice($concepts, 0, 3)) : '';
-        
-        if ($conceptDisplay) {
-            $reason['reason'] = "🎯 This lesson teaches: {$conceptDisplay}. It matches your learning goal: {$goalDisplay}.";
-            $reason['detailed_reason'] = "Your learning goal is {$goalDisplay}. This lesson covers concepts like {$conceptDisplay} to help you progress.";
-        } else {
-            $reason['reason'] = "🎯 This lesson matches your learning goal: {$goalDisplay}.";
-            $reason['detailed_reason'] = "Your learning goal is {$goalDisplay}. This lesson is designed to help you achieve it.";
-        }
-    }
-    
-    // For completed lessons
-    if ($reason['type'] === 'completed') {
-        $score = $data['highestScore'] ?? 0;
-        $reason['reason'] = "✅ You completed this lesson with {$score}%! Great job! 🎉";
-        $reason['detailed_reason'] = "You've already mastered this lesson. Review it anytime to reinforce your skills.";
-    }
-    
-    // For next_in_path (fallback)
-    if ($reason['type'] === 'next_in_path') {
-        $moduleName = $lesson->module->title ?? 'your learning path';
-        $reason['reason'] = "➡️ Next lesson in {$moduleName}";
-        $reason['detailed_reason'] = "This is the next lesson in your learning path. Complete it to continue your progress.";
-    }
-    
-    // For default/recommended
-    if ($reason['type'] === 'recommended' || $reason['type'] === '') {
-        // Try to extract what the lesson teaches
-        $concepts = $this->extractLessonConcepts($lesson);
-        if (!empty($concepts)) {
-            $conceptDisplay = implode(', ', array_slice($concepts, 0, 3));
-            $reason['reason'] = "📚 This lesson teaches: {$conceptDisplay}";
-            $reason['detailed_reason'] = "This lesson covers: {$conceptDisplay}. It's recommended based on your learning path.";
-        } else {
-            $reason['reason'] = "📚 Recommended lesson for you";
-            $reason['detailed_reason'] = "This lesson is part of your learning path. Complete it to build your skills.";
-        }
-    }
-}
-
-// 🆕 APPLY SEQUENTIAL LOCKING
-$unlockedNext = true;
-$formattedLessons = [];
-
-foreach ($lessonData as $data) {
-    $lesson = $data['lesson'];
-    $assignment = $data['assignment'];
-    $isDone = $data['isDone'];
-    $isInProgress = $data['isInProgress'];
-    $reason = $data['reason'];
-    
-    $isLocked = false;
-    $isActive = false;
-    
-    if ($isDone) {
-        $isLocked = false;
-        $isActive = false;
-    } elseif ($unlockedNext) {
-        $isLocked = false;
-        $isActive = true;
-        $unlockedNext = false;
-    } else {
-        $isLocked = true;
-        $isActive = false;
-    }
-
-    $formattedLessons[] = [
-        'assignment_id' => $assignment->id ?? null,
-        'lesson_id' => $lesson->lesson_id,
-        'title' => $lesson->title,
-        'description' => $lesson->description,
-        'difficulty' => $lesson->difficulty,
-        'module_id' => $lesson->module_id,
-        'module_title' => $lesson->module->title ?? null,
-        'module_order' => $lesson->module_order ?? 0,
-        'status' => $isDone ? 'completed' : ($isInProgress ? 'in_progress' : 'pending'),
-        'score' => $data['highestScore'],
-        'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
-        'has_quiz' => $lesson->quiz ? true : false,
-        'done' => $isDone,
-        'in_progress' => $isInProgress,
-        'locked' => $isLocked,
-        'active' => $isActive,
-        'recommendation_reason' => $reason['reason'],
-        'recommendation_type' => $reason['type'],
-        'detailed_reason' => $reason['detailed_reason'] ?? $reason['reason'], // ✅ ADD THIS
-        'covered_skills' => $reason['covered_skills'] ?? [],
-        'priority' => $reason['priority'] ?? 0,
-        'is_alphabet_lesson' => $data['isAlphabetLesson'],
-        'is_number_lesson' => $data['isNumberLesson'],
-        'is_greeting_lesson' => $data['isGreetingLesson'],
-        'lesson_concepts' => $data['lessonConcepts'],
-    ];
-}
-
-        // Limit to 20 lessons
-        $formattedLessons = array_slice($formattedLessons, 0, 20);
-
-        // ============================================================
-        // 5. GET DAILY CHALLENGE INFO
-        // ============================================================
-        $xpService = new XPService();
-        $xpService->updateStreak($student);
-        
-        $dailyChallenge = null;
-        try {
-            $challengeService = new DailyChallengeService($xpService);
-            $challenge = $challengeService->generateDailyChallenge($student);
-            if ($challenge) {
-                $dailyChallenge = [
-                    'id' => $challenge->challenge_id,
-                    'theme' => $challenge->theme,
-                    'is_completed' => (bool) $challenge->is_completed,
+                $formattedLessons[] = [
+                    'assignment_id' => $assignment->id ?? null,
+                    'lesson_id' => $lesson->lesson_id,
+                    'title' => $lesson->title,
+                    'description' => $lesson->description,
+                    'difficulty' => $lesson->difficulty,
+                    'module_id' => $lesson->module_id,
+                    'module_title' => $lesson->module->title ?? null,
+                    'module_order' => $lesson->module_order ?? 0,
+                    'status' => $statusStr,
+                    'score' => $highestScore,
+                    'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
+                    'has_quiz' => $lesson->quiz ? true : false,
+                    'done' => $isDone,
+                    'in_progress' => $isInProgress,
+                    'locked' => $isLocked,
+                    'active' => $isActive,
+                    'recommendation_reason' => $recReason,
+                    'recommendation_type' => $recType,
+                    'detailed_reason' => $detReason,
+                    'covered_skills' => $coveredSkills,
+                    'priority' => count($coveredSkills),
+                    'is_alphabet_lesson' => $item['flags']['is_alphabet'],
+                    'is_number_lesson' => $item['flags']['is_number'],
+                    'is_greeting_lesson' => $item['flags']['is_greeting'],
+                    'lesson_concepts' => $item['concepts'],
                 ];
             }
+
+            // Limit to 20 lessons
+            $formattedLessons = array_slice($formattedLessons, 0, 20);
+
+            // ============================================================
+            // 6. GET DAILY CHALLENGE INFO & XP
+            // ============================================================
+            $xpService = new XPService();
+            $xpService->updateStreak($student);
+
+            $dailyChallenge = null;
+            try {
+                $challengeService = new DailyChallengeService($xpService);
+                $challenge = $challengeService->generateDailyChallenge($student);
+                if ($challenge) {
+                    $dailyChallenge = [
+                        'id' => $challenge->challenge_id,
+                        'theme' => $challenge->theme,
+                        'is_completed' => (bool) $challenge->is_completed,
+                    ];
+                }
+            } catch (\Exception $e) {
+                // Ignore challenge error
+            }
+
+            $goalDisplay = str_replace('_', ' ', $goal);
+            $unlockMessage = null;
+            if (!empty($lockedModuleNames)) {
+                $unlockMessage = "Complete current accessible modules to unlock more lessons in your learning goal: {$goalDisplay}";
+            }
+
+            return response()->json([
+                'success' => true,
+                'learning_path' => [
+                    'fsl_level' => $level,
+                    'learning_goal' => $goal,
+                    'goal_mastered' => false,
+                    'unlock_message' => $unlockMessage,
+                ],
+                'mastery_summary' => $overallMastery,
+                'weak_skills' => $weakSkills,
+                'lessons' => $formattedLessons,
+                'student' => [
+                    'first_name' => $student->first_name,
+                    'last_name' => $student->last_name,
+                    'fsl_mastery_level' => $student->fsl_mastery_level,
+                    'total_xp' => $student->total_xp ?? 0,
+                    'level' => $student->level ?? 1,
+                    'streak_days' => $student->streak_days ?? 0,
+                    'next_level_xp' => $xpService->getNextLevelXp($student),
+                    'level_progress' => $xpService->getLevelProgress($student),
+                    'level_name' => $xpService->getLevelName($student->level ?? 1),
+                ],
+                'daily_challenge' => $dailyChallenge,
+            ]);
+
         } catch (\Exception $e) {
-            // Don't fail the whole request if challenge fails
+            \Log::error('Adaptive recommendations failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'learning_path' => [
-                'fsl_level' => $level,
-                'learning_goal' => $goal,
-                'goal_mastered' => false,
-            ],
-            'mastery_summary' => $overallMastery,
-            'weak_skills' => $weakSkills,
-            'lessons' => $formattedLessons,
-            'student' => [
-                'first_name' => $student->first_name,
-                'last_name' => $student->last_name,
-                'fsl_mastery_level' => $student->fsl_mastery_level,
-                'total_xp' => $student->total_xp ?? 0,
-                'level' => $student->level ?? 1,
-                'streak_days' => $student->streak_days ?? 0,
-                'next_level_xp' => $xpService->getNextLevelXp($student),
-                'level_progress' => $xpService->getLevelProgress($student),
-                'level_name' => $xpService->getLevelName($student->level ?? 1),
-            ],
-            'daily_challenge' => $dailyChallenge,
-        ]);
-
-    } catch (\Exception $e) {
-        \Log::error('Adaptive recommendations failed: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'error' => $e->getMessage(),
-        ], 500);
     }
-}
 /**
  * Classify a lesson's extracted concepts against the four goal categories.
  * Single source of truth for this — previously duplicated inline in the
@@ -911,15 +790,16 @@ private function lessonMatchesGoal(string $goal, array $flags): bool
     switch ($goal) {
         case 'Alphabet_Numbers':
             return $flags['is_alphabet'] || $flags['is_number'];
-        case 'Greetings':
-            return $flags['is_greeting'];
-        case 'Classroom_Words':
-            return $flags['is_other'];
+        case 'Fingerspelling':
+            // Fingerspelling requires alphabet mastery + practice
+            return $flags['is_alphabet'];
+        case 'Greetings_FSL_Words':
+            // Greetings + conversational words
+            return $flags['is_greeting'] || $flags['is_other'];
         default: // 'Everything'
             return true;
     }
 }
-
 /**
  * Extract all gesture concepts from a lesson
  * ONLY extracts from RELIABLE sources:
@@ -1362,20 +1242,62 @@ public function getLessons(Request $request)
 
         // Group lessons by module
         $modulesMap = [];
+        $previousModuleCompleted = true;
+        $lastModuleLevel = null;
         
         // First, add ALL modules with their lessons
         foreach ($allModules as $module) {
             $moduleId = $module->module_id;
             $moduleLevel = strtolower($module->mastery_level ?? 'beginner');
             
-            // 🔥 CRITICAL FIX: Check if this module is accessible
-            // Use the student's level to determine if they can access this module
-            $isAccessible = in_array($moduleLevel, $accessibleLevels);
+            // Check if this module level is accessible based on student's mastery level
+            $isLevelAccessible = in_array($moduleLevel, $accessibleLevels);
+            
+            // If starting a new accessible level that matches student's assessment starting level, unlock its first module
+            if ($lastModuleLevel !== null && $moduleLevel !== $lastModuleLevel) {
+                if ($isLevelAccessible && strtolower($studentLevel) === $moduleLevel) {
+                    $previousModuleCompleted = true;
+                }
+            }
+            $lastModuleLevel = $moduleLevel;
+            
+            $isAccessible = $isLevelAccessible && $previousModuleCompleted;
             
             // Get lessons for this module from assignments
             $moduleLessons = $assignments->filter(function($assignment) use ($moduleId) {
                 return $assignment->lesson && $assignment->lesson->module_id === $moduleId;
             });
+
+            // Calculate module completion status (all published lessons passed >= 60%)
+            $totalLessonsInModule = $moduleLessons->count();
+            $completedLessonsInModule = 0;
+
+            foreach ($moduleLessons as $assignment) {
+                $lessonItem = $assignment->lesson;
+                if (!$lessonItem) continue;
+
+                $scoreVal = DB::table('quiz_attempts as qa')
+                    ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                    ->where('qa.student_id', $student->student_id)
+                    ->where('q.lesson_id', $lessonItem->lesson_id)
+                    ->where('qa.status', 'completed')
+                    ->max('qa.percentage');
+
+                if ($scoreVal === null) {
+                    $prog = DB::table('student_lesson_progress')
+                        ->where('student_id', $student->student_id)
+                        ->where('lesson_id', $lessonItem->lesson_id)
+                        ->first();
+                    $scoreVal = $prog ? $prog->quiz_score : null;
+                }
+
+                if ($scoreVal !== null && $scoreVal >= 60) {
+                    $completedLessonsInModule++;
+                }
+            }
+
+            $isCurrentModuleComplete = ($totalLessonsInModule > 0) && ($completedLessonsInModule === $totalLessonsInModule);
+            $previousModuleCompleted = $isCurrentModuleComplete;
             
             // Get quiz result for this module
             $quizResult = null;
