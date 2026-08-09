@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SENAS Gesture Recognition</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/senya_face.png') }}">
     <style>
         * { margin: 0; padding: 0; }
         body { background: #0a1628; overflow: hidden; font-family: Arial, sans-serif; }

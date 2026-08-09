@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
     <title>SEÑAS Teacher Portal - @yield('title', 'Dashboard')</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/senya_face.png') }}">
     <!-- ── BFCACHE / SESSION GUARD (must run first, before page renders) ── -->
     <script>
         // 1. If browser restores this page from bfcache after logout,

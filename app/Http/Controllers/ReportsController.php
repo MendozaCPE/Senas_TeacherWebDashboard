@@ -6,11 +6,11 @@ use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Student;
 use App\Models\StudentLessonProgress;
+use App\Services\TcPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportsController extends Controller
 {
@@ -390,20 +390,112 @@ class ReportsController extends Controller
             if ($l) $selectedLessonName = $l->title;
         }
 
-        $pdf = Pdf::loadView('pdf.report', compact(
-            'studentReports',
-            'teacher',
-            'teacherName',
-            'schoolName',
-            'generatedAt',
-            'totalStudents',
-            'totalCompleted',
-            'totalProgress',
-            'completionPct',
-            'avgScore',
-            'selectedStudentName',
-            'selectedLessonName'
-        ))->setPaper('a4', 'portrait');
+        /* ── Build PDF with TCPDF via TcPdfService ── */
+        $paperSize     = $request->get('paper_size', 'A4');
+        $runningHeader = $request->get('running_header', 'first');
+        $pageNumbers   = $request->get('page_numbers', 'footer');
+
+        // Whitelist to prevent arbitrary values reaching TCPDF
+        if (!array_key_exists($paperSize, \App\Services\TcPdfService::PAPER_SIZES)) {
+            $paperSize = 'A4';
+        }
+        if (!in_array($runningHeader, ['every', 'first', 'none'])) {
+            $runningHeader = 'first';
+        }
+        if (!in_array($pageNumbers, ['footer', 'none'])) {
+            $pageNumbers = 'footer';
+        }
+
+        $pdf = new TcPdfService(
+            'Student Progress Report',
+            $teacherName,
+            $schoolName,
+            $generatedAt,
+            $paperSize,
+            $runningHeader,
+            $pageNumbers
+        );
+
+        $pdf->AddPage();
+
+        /* IMPORTANT: TCPDF discards Header()'s own SetY() call once control
+         * returns here — without this line, everything below draws on top
+         * of the navy header instead of underneath it. */
+        $pdf->SetY($pdf->bodyStartY());
+
+        /* -- Report Summary KPI strip (sits BELOW the header, visually separate) -- */
+        $pdf->sectionTitle('Report Summary');
+        $pdf->summaryStrip([
+            ['label' => 'Total Students',    'value' => (string) $totalStudents],
+            ['label' => 'Progress Records',  'value' => (string) $totalProgress],
+            ['label' => 'Lessons Completed', 'value' => (string) $totalCompleted],
+            ['label' => 'Completion Rate',   'value' => $completionPct . '%'],
+            ['label' => 'Avg Quiz Score',    'value' => number_format($avgScore, 1)],
+        ]);
+
+        /* ── Filter info line ── */
+        $pdf->SetFont('helvetica', 'I', 8);
+        $pdf->SetTextColor(148, 163, 184);
+        $lm = $pdf->getOriginalMargins()['left'];
+        $usableW = $pdf->getPageWidth() - $lm - $pdf->getOriginalMargins()['right'];
+        $pdf->Cell($usableW, 5, 'Filter: ' . $selectedStudentName . '  ·  ' . $selectedLessonName, 0, 1, 'R');
+        $pdf->Ln(3);
+
+        /* ── Student Progress Breakdown ── */
+        $pdf->sectionTitle('Student Progress Breakdown');
+
+        /* Table column headers definition */
+        $headers = [
+            ['label' => 'Lesson',      'width' => 75, 'align' => 'L'],
+            ['label' => 'Difficulty',  'width' => 28, 'align' => 'L'],
+            ['label' => 'Status',      'width' => 32, 'align' => 'L'],
+            ['label' => 'Quiz Score',  'width' => 24, 'align' => 'C'],
+            ['label' => 'Last Active', 'width' => 0,  'align' => 'L'],
+        ];
+
+        if ($studentReports->isEmpty()) {
+            $pdf->SetFont('helvetica', 'I', 9);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->Cell($usableW, 8, 'No records match the selected filters.', 0, 1, 'C');
+        } else {
+            foreach ($studentReports as $student) {
+                /* Student divider band */
+                $pdf->studentBand(
+                    $student['studentName'],
+                    $student['gradeLevel'],
+                    $student['completedLessons'],
+                    $student['totalLessons'],
+                    $student['overallPct'],
+                    $student['quizzesTaken'],
+                    $student['avgScore']
+                );
+
+                /* Group lessons by module */
+                $grouped = collect($student['lessons'])->groupBy('moduleTitle');
+                $rowIdx  = 0;
+
+                foreach ($grouped as $moduleTitle => $moduleLessons) {
+                    $pdf->moduleBand($moduleTitle);
+
+                    foreach ($moduleLessons as $lesson) {
+                        $pdf->lessonRow(
+                            $lesson['lessonTitle'],
+                            (bool) $lesson['ai_generated'],
+                            $lesson['difficulty'] ?? '-',
+                            $lesson['started'],
+                            $lesson['completed'],
+                            $lesson['quizCompleted'],
+                            $lesson['quizScore'] !== null ? (float) $lesson['quizScore'] : null,
+                            $lesson['lastAccessed'],
+                            $rowIdx % 2 === 1
+                        );
+                        $rowIdx++;
+                    }
+                }
+
+                $pdf->Ln(3);
+            }
+        }
 
         $filename = 'senas-report-' . now()->format('Y-m-d') . '.pdf';
         return $pdf->download($filename);
@@ -419,17 +511,212 @@ class ReportsController extends Controller
 
         if (!$teacher) abort(403);
 
-        // Reuse the exact same data-building logic as the web Analytics
-        // page (AnalyticsController@index), so the PDF and the web page
-        // always show matching numbers and charts.
-        $data = (new AnalyticsController())->buildAnalyticsData($teacher, $request);
+        // Merge session analytics filters so the PDF matches the web view
+        $filters = session('analytics_filters', []);
+        $request->merge($filters);
 
-        $data['teacher']     = $teacher;
-        $data['teacherName'] = $teacher->first_name . ' ' . $teacher->last_name;
-        $data['schoolName']  = optional($teacher->school)->name ?? 'School';
-        $data['generatedAt'] = Carbon::now()->format('F d, Y · g:i A');
+        $data        = (new AnalyticsController())->buildAnalyticsData($teacher, $request);
+        $teacherName = trim($teacher->first_name . ' ' . $teacher->last_name);
+        $schoolName  = optional($teacher->school)->name ?? 'School';
+        $generatedAt = Carbon::now()->format('F d, Y · g:i A');
 
-        $pdf = Pdf::loadView('pdf.analytics', $data)->setPaper('a4', 'portrait');
+        /* ── Build PDF with TCPDF via TcPdfService ── */
+        $paperSize     = $request->get('paper_size', 'A4');
+        $runningHeader = $request->get('running_header', 'first');
+        $pageNumbers   = $request->get('page_numbers', 'footer');
+
+        if (!array_key_exists($paperSize, \App\Services\TcPdfService::PAPER_SIZES)) {
+            $paperSize = 'A4';
+        }
+        if (!in_array($runningHeader, ['every', 'first', 'none'])) {
+            $runningHeader = 'first';
+        }
+        if (!in_array($pageNumbers, ['footer', 'none'])) {
+            $pageNumbers = 'footer';
+        }
+
+        $pdf = new TcPdfService('Class Analytics Report', $teacherName, $schoolName, $generatedAt, $paperSize, $runningHeader, $pageNumbers);
+        $pdf->AddPage();
+
+        /* IMPORTANT: same fix as exportPdf() — force the cursor below the
+         * branded header before drawing anything, since TCPDF resets the
+         * cursor to the top margin after Header() returns. Without this the
+         * KPI strip and metadata row overlap, exactly like the screenshot. */
+        $pdf->SetY($pdf->bodyStartY());
+
+        $lm     = $pdf->getOriginalMargins()['left'];
+        $usableW = $pdf->getPageWidth() - $lm - $pdf->getOriginalMargins()['right'];
+
+        /* ── KPI Summary Strip ── */
+        $pdf->sectionTitle('Class Summary');
+        $stripStats = [];
+        foreach (($data['classSummary'] ?? []) as $stat) {
+            $stripStats[] = ['label' => $stat['title'], 'value' => $stat['value']];
+        }
+        if (!empty($stripStats)) {
+            $pdf->summaryStrip($stripStats);
+        }
+        $pdf->Ln(4);
+
+        /* ── Insight box ── */
+        $pdf->insightBox(
+            'Class Summary',
+            'As of ' . now()->format('F d, Y') . ', your class has ' . ($data['totalStudents'] ?? 0) . ' enrolled students. ' .
+            'The average quiz score is ' . number_format($data['avgQuizScore'] ?? 0, 1) . '% and average gesture mastery is ' .
+            number_format($data['avgMastery'] ?? 0, 1) . '%. Lesson completion rate stands at ' .
+            number_format($data['completionRate'] ?? 0, 1) . '%.'
+        );
+
+        /* ── Class Progress Over Time ── */
+        $period       = $request->get('period', 'weekly');
+        $year         = (int) $request->get('year', date('Y'));
+        $progressPts  = array_values((array) ($data['progressOverTime'] ?? []));
+        $periodLabel  = ucfirst($period) . ' average quiz score ' . $year;
+        $countLabel   = count($progressPts) . ' ' . $period;
+        $pdf->sectionTitle('Class Progress Over Time');
+        $pdf->progressLineChart($progressPts, $periodLabel, $countLabel);
+        $pdf->Ln(2);
+
+        /* ── Module Difficulty Ranking ── */
+        $pdf->sectionTitle('Module Difficulty Ranking');
+        $pdf->moduleDifficultyList($data['lessonDifficulty'] ?? []);
+        $pdf->Ln(2);
+
+        /* ── Student Ranking (new page) ── */
+        $pdf->AddPage();
+        $pdf->sectionTitle('Student Ranking');
+        if (!empty($data['studentRanking']) && count($data['studentRanking']) > 0) {
+            $rankHeaders = [
+                ['label' => 'Rank',         'width' => 16,  'align' => 'C'],
+                ['label' => 'Student Name', 'width' => 80,  'align' => 'L'],
+                ['label' => 'Attempts',     'width' => 25,  'align' => 'C'],
+                ['label' => 'Avg Score',    'width' => 0,   'align' => 'C'],
+            ];
+            $rankRows = [];
+            foreach ($data['studentRanking'] as $i => $s) {
+                $rankLabel = ($i < 3) ? ['1st', '2nd', '3rd'][$i] : '#' . ($i + 1);
+                $rankRows[] = [
+                    $rankLabel,
+                    $s['name'],
+                    $s['attempts'],
+                    number_format($s['avg_score'], 1) . '%',
+                ];
+            }
+            $pdf->dataTable($rankHeaders, $rankRows);
+        } else {
+            $pdf->SetFont('helvetica', 'I', 8);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->Cell($usableW, 6, 'No quiz attempt data available yet.', 0, 1, 'C');
+        }
+        $pdf->Ln(4);
+
+        /* ── Mastery Level Distribution ── */
+        $pdf->sectionTitle('Mastery Level Distribution');
+        if (!empty($data['masteryDistribution']) && ($data['masteryTotal'] ?? 0) > 0) {
+            $mColors = [
+                [239, 68, 68],   // red  — needs practice
+                [245, 158, 11],  // amber — developing
+                [59, 130, 246],  // blue  — proficient
+                [16, 185, 129],  // green — mastered
+            ];
+            foreach ($data['masteryDistribution'] as $i => $seg) {
+                $pdf->barRow(
+                    $seg['label'] . ' (' . $seg['count'] . ')',
+                    (float) ($seg['pct'] ?? 0),
+                    100,
+                    $mColors[$i % count($mColors)]
+                );
+            }
+        } else {
+            $pdf->SetFont('helvetica', 'I', 8);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->Cell($usableW, 6, 'No mastery data available yet.', 0, 1, 'C');
+        }
+        $pdf->Ln(4);
+
+        /* ── Completion Funnel ── */
+        $pdf->sectionTitle('Lesson Completion Funnel');
+        if (!empty($data['completionFunnel']) && ($data['completionTotal'] ?? 0) > 0) {
+            $fColors = [
+                [250, 204, 21],  // yellow — pending
+                [59, 130, 246],  // blue   — in progress
+                [16, 185, 129],  // green  — completed
+                [239, 68, 68],   // red    — failed
+            ];
+            $total = max(1, $data['completionTotal']);
+            foreach ($data['completionFunnel'] as $i => $step) {
+                $pct = round(($step['count'] / $total) * 100, 1);
+                $pdf->barRow(
+                    $step['label'] . ' (' . $step['count'] . ')',
+                    $pct,
+                    100,
+                    $fColors[$i % count($fColors)]
+                );
+            }
+        } else {
+            $pdf->SetFont('helvetica', 'I', 8);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->Cell($usableW, 6, 'No lesson assignment data available yet.', 0, 1, 'C');
+        }
+        $pdf->Ln(4);
+
+        /* ── Gesture Performance (new page) ── */
+        $pdf->AddPage();
+        $pdf->sectionTitle('Gesture Performance Analytics');
+
+        /* Overview row */
+        $gOverview = $data['gesturePerformanceOverview'] ?? [];
+        if (!empty($gOverview) && ($gOverview['total_attempts'] ?? 0) > 0) {
+            $pdf->summaryStrip([
+                ['label' => 'Total Gestures',  'value' => (string) ($gOverview['total_gestures'] ?? 0)],
+                ['label' => 'Total Attempts',  'value' => (string) ($gOverview['total_attempts'] ?? 0)],
+                ['label' => 'Successful',       'value' => (string) ($gOverview['total_successful'] ?? 0)],
+                ['label' => 'Overall Accuracy', 'value' => number_format($gOverview['overall_accuracy'] ?? 0, 1) . '%'],
+                ['label' => 'Mastered',         'value' => (string) ($gOverview['total_mastered'] ?? 0)],
+            ]);
+            $pdf->Ln(4);
+        }
+
+        /* Best-performing gestures */
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetTextColor(13, 50, 107);
+        $pdf->Cell($usableW, 6, 'Best-Performing Gestures', 0, 1, 'L');
+        $pdf->SetTextColor(51, 65, 85);
+        if (!empty($data['topPerformingGestures']) && count($data['topPerformingGestures']) > 0) {
+            foreach ($data['topPerformingGestures'] as $g) {
+                $pdf->barRow(
+                    $g['gesture_name'] . ' (' . $g['successful_attempts'] . '/' . $g['attempts'] . ')',
+                    (float) $g['accuracy'],
+                    100,
+                    [16, 185, 129]  // green
+                );
+            }
+        } else {
+            $pdf->SetFont('helvetica', 'I', 8);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->Cell($usableW, 6, 'No gesture performance records available.', 0, 1, 'C');
+        }
+        $pdf->Ln(4);
+
+        /* Lowest-performing gestures */
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetTextColor(13, 50, 107);
+        $pdf->Cell($usableW, 6, 'Struggling Gestures (Lowest Accuracy)', 0, 1, 'L');
+        $pdf->SetTextColor(51, 65, 85);
+        if (!empty($data['lowestPerformingGestures']) && count($data['lowestPerformingGestures']) > 0) {
+            foreach ($data['lowestPerformingGestures'] as $g) {
+                $pdf->barRow(
+                    $g['gesture_name'] . ' (' . $g['successful_attempts'] . '/' . $g['attempts'] . ')',
+                    (float) $g['accuracy'],
+                    100,
+                    [239, 68, 68]  // red
+                );
+            }
+        } else {
+            $pdf->SetFont('helvetica', 'I', 8);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->Cell($usableW, 6, 'No gesture performance records available.', 0, 1, 'C');
+        }
 
         return $pdf->download('senas-analytics-' . now()->format('Y-m-d') . '.pdf');
     }

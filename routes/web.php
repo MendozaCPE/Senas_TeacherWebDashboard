@@ -146,11 +146,13 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
     Route::post('/analytics/filter', [AnalyticsController::class, 'applyFilter'])->name('analytics.filter');
     Route::get('/analytics/export-pdf', [ReportsController::class, 'exportAnalyticsPdf'])->name('analytics.export-pdf');
+    Route::post('/analytics/export-pdf', [ReportsController::class, 'exportAnalyticsPdf'])->name('analytics.export-pdf.post');
 
     // Reports
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
     Route::post('/reports/filter', [ReportsController::class, 'applyFilter'])->name('reports.filter');
     Route::get('/reports/export-pdf', [ReportsController::class, 'exportPdf'])->name('reports.export-pdf');
+    Route::post('/reports/export-pdf', [ReportsController::class, 'exportPdf'])->name('reports.export-pdf.post');
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');

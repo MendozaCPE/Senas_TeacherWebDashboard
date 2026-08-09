@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Media Player</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/senya_face.png') }}">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { 

@@ -111,20 +111,108 @@
 .export-btn {
     background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
     color: #fff;
-    padding: 8px 20px;
+    padding: 9px 22px;
     border-radius: 12px;
     font-size: 13px;
     font-weight: 700;
     border: none;
     cursor: pointer;
-    transition: all .2s;
+    transition: all .25s;
     display: flex;
     align-items: center;
     gap: 8px;
     text-decoration: none;
-    box-shadow: 0 2px 8px rgba(13,50,107,.15);
+    box-shadow: 0 3px 12px rgba(13,50,107,.22);
+    position: relative;
+    overflow: hidden;
 }
-.export-btn:hover { opacity: .9; box-shadow: 0 4px 16px rgba(13,50,107,.25); }
+.export-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity .2s;
+}
+.export-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(13,50,107,.32); }
+.export-btn:hover::before { opacity: 1; }
+.export-btn:active { transform: translateY(0); }
+
+/* ── Export PDF Modal ─────────────────────────────────────────────────────── */
+.pdf-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7,28,63,.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s;
+}
+.pdf-modal-overlay.open { opacity: 1; pointer-events: all; }
+.pdf-modal {
+    background: #ffffff;
+    border-radius: 28px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 32px 80px rgba(7,28,63,.3), 0 0 0 1px rgba(13,50,107,.06);
+    overflow: hidden;
+    transform: translateY(24px) scale(0.97);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+    opacity: 0;
+}
+.pdf-modal-overlay.open .pdf-modal { transform: translateY(0) scale(1); opacity: 1; }
+.pdf-modal-header {
+    background: linear-gradient(135deg, #071c3f 0%, #0d326b 60%, #1e4b8f 100%);
+    padding: 28px 28px 24px;
+    position: relative;
+    overflow: hidden;
+}
+.pdf-modal-header::after {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,.05);
+    border-radius: 50%;
+}
+.pdf-modal-icon { width: 52px; height: 52px; background: rgba(255,255,255,.12); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.pdf-modal-title { font-size: 20px; font-weight: 800; color: #ffffff; line-height: 1.2; margin-bottom: 4px; }
+.pdf-modal-subtitle { font-size: 12px; color: rgba(255,255,255,.6); font-weight: 500; }
+.pdf-modal-body { padding: 24px 28px; }
+.pdf-preview-card { background: linear-gradient(135deg, #f8faff 0%, #eff6ff 100%); border: 1px solid #dbeafe; border-radius: 16px; padding: 16px 18px; margin-bottom: 20px; }
+.pdf-preview-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+.pdf-preview-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pdf-preview-row:last-child { margin-bottom: 0; }
+.pdf-preview-dot { width: 6px; height: 6px; background: #0d326b; border-radius: 50%; flex-shrink: 0; }
+.pdf-preview-text { font-size: 12px; color: #334155; font-weight: 600; }
+.pdf-preview-text span { color: #0d326b; font-weight: 700; }
+.pdf-options { margin-bottom: 20px; }
+.pdf-options-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
+.pdf-option-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border-radius: 12px; margin-bottom: 8px; border: 1px solid #f1f5f9; }
+.pdf-option-label { font-size: 12px; font-weight: 600; color: #1e293b; }
+.pdf-option-value { font-size: 11px; color: #64748b; font-weight: 500; background: #e2e8f0; padding: 2px 10px; border-radius: 999px; }
+.pdf-option-select { font-size: 11px; color: #1e293b; font-weight: 500; background: #e2e8f0; border: none; border-radius: 999px; padding: 3px 10px; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 22px; transition: background-color .15s; }
+.pdf-option-select:hover { background-color: #cbd5e1; }
+.pdf-option-select:focus { box-shadow: 0 0 0 2px rgba(13,50,107,.25); background-color: #dde4ef; }
+.pdf-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+.pdf-download-btn { width: 100%; padding: 14px 20px; background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%); color: #ffffff; border: none; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; transition: all .2s; box-shadow: 0 4px 16px rgba(13,50,107,.25); position: relative; overflow: hidden; }
+.pdf-download-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(13,50,107,.35); }
+.pdf-download-btn.loading { pointer-events: none; opacity: .85; }
+.pdf-download-btn .btn-text { transition: opacity .2s; }
+.pdf-download-btn .btn-spinner { display: none; position: absolute; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.4); border-top-color: #ffffff; border-radius: 50%; animation: a-spin .7s linear infinite; }
+.pdf-download-btn.loading .btn-text { opacity: 0; }
+.pdf-download-btn.loading .btn-spinner { display: block; }
+@keyframes a-spin { to { transform: rotate(360deg); } }
+.pdf-cancel-btn { width: 100%; padding: 11px 20px; background: transparent; color: #64748b; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.pdf-cancel-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
+.pdf-success-badge { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; font-size: 12px; color: #15803d; font-weight: 600; margin-bottom: 10px; opacity: 0; transition: opacity .3s; }
+.pdf-success-badge.visible { opacity: 1; }
 
 /* ── Chart tooltip ──────────────────────────────────────────────────── */
 .chart-tooltip {
@@ -253,10 +341,11 @@
                 </button>
             </div>
 
-            <a href="{{ route('analytics.export-pdf', request()->query()) }}" class="export-btn">
+            {{-- Export PDF button (opens premium modal) --}}
+            <button type="button" class="export-btn" onclick="openAnalyticsPdfModal()">
                 <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-                Export PDF
-            </a>
+                Export Analytics
+            </button>
         </div>
     </form>
 
@@ -266,29 +355,46 @@
             ['bg' => 'linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)', 'text' => 'white',  'iconBg' => 'bg-white/10', 'iconColor' => 'text-white'],
             ['bg' => '#ffffff', 'text' => 'navy', 'iconBg' => 'bg-[#e8eef8]', 'iconColor' => 'text-[#1e4b8f]'],
             ['bg' => '#ffffff', 'text' => 'navy', 'iconBg' => 'bg-[#e8eef8]', 'iconColor' => 'text-[#1e4b8f]'],
-            ['bg' => '#ffffff', 'text' => 'navy', 'iconBg' => 'bg-[#e8eef8]', 'iconColor' => 'text-[#1e4b8f]'],
+            ['bg' => 'golden', 'text' => 'golden', 'iconBg' => 'bg-amber-800/10', 'iconColor' => 'text-amber-700'],
         ];
     @endphp
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         @foreach($classSummary as $i => $stat)
             @php $shade = $statShades[$i % count($statShades)]; @endphp
-            <div class="stat-card {{ $shade['text'] === 'white' ? 'text-white' : 'bg-white border border-slate-100 shadow-sm' }}"
-                 style="{{ $shade['text'] === 'white' ? 'background:' . $shade['bg'] : '' }}">
-                @if($shade['text'] === 'white')
-                    <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
-                    <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
-                @endif
-                <div class="relative z-10">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center {{ $shade['iconBg'] }}">
-                            <span class="material-symbols-outlined text-[19px] {{ $shade['iconColor'] }}">{{ $stat['icon'] }}</span>
+            @if($shade['text'] === 'golden')
+                <div class="stat-card relative overflow-hidden"
+                     style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);">
+                    <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-amber-800/10">
+                                <span class="material-symbols-outlined text-[19px] text-amber-700">{{ $stat['icon'] }}</span>
+                            </div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-amber-800/70">{{ $stat['title'] }}</p>
                         </div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest {{ $shade['text'] === 'white' ? 'text-white/50' : 'text-slate-400' }}">{{ $stat['title'] }}</p>
+                        <p class="text-[32px] font-black leading-none mb-2 text-[#92400e]">{{ $stat['value'] }}</p>
+                        <p class="text-[12px] text-amber-800/60">{{ $stat['detail'] }}</p>
                     </div>
-                    <p class="text-[32px] font-black leading-none mb-2 {{ $shade['text'] === 'white' ? 'text-white' : 'text-[#0d326b]' }}">{{ $stat['value'] }}</p>
-                    <p class="text-[12px] {{ $shade['text'] === 'white' ? 'text-white/60' : 'text-slate-400' }}">{{ $stat['detail'] }}</p>
                 </div>
-            </div>
+            @else
+                <div class="stat-card {{ $shade['text'] === 'white' ? 'text-white' : 'bg-white border border-slate-100 shadow-sm' }}"
+                     style="{{ $shade['text'] === 'white' ? 'background:' . $shade['bg'] : '' }}">
+                    @if($shade['text'] === 'white')
+                        <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
+                        <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
+                    @endif
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-11 h-11 rounded-2xl flex items-center justify-center {{ $shade['iconBg'] }}">
+                                <span class="material-symbols-outlined text-[19px] {{ $shade['iconColor'] }}">{{ $stat['icon'] }}</span>
+                            </div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest {{ $shade['text'] === 'white' ? 'text-white/50' : 'text-slate-400' }}">{{ $stat['title'] }}</p>
+                        </div>
+                        <p class="text-[32px] font-black leading-none mb-2 {{ $shade['text'] === 'white' ? 'text-white' : 'text-[#0d326b]' }}">{{ $stat['value'] }}</p>
+                        <p class="text-[12px] {{ $shade['text'] === 'white' ? 'text-white/60' : 'text-slate-400' }}">{{ $stat['detail'] }}</p>
+                    </div>
+                </div>
+            @endif
         @endforeach
     </div>
 
@@ -874,6 +980,129 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     })();
+});
+</script>
+@php
+    $af = session('analytics_filters', []);
+    $aPeriod = ucfirst($af['period'] ?? 'Weekly');
+    $aYear   = $af['year'] ?? date('Y');
+    $aMonth  = isset($af['month']) ? date('F', mktime(0,0,0,$af['month'],1)) : null;
+    $aPeriodLabel = $aPeriod . ($aMonth ? ' — ' . $aMonth . ' ' . $aYear : ' — ' . $aYear);
+    $analyticsExportUrl = route('analytics.export-pdf.post');
+@endphp
+
+<div id="analyticsPdfModalOverlay" class="pdf-modal-overlay" onclick="if(event.target===this)closeAnalyticsPdfModal()">
+    <div class="pdf-modal">
+        <div class="pdf-modal-header">
+            <div class="pdf-modal-icon">
+                <span class="material-symbols-outlined text-white text-[26px]">analytics</span>
+            </div>
+            <div class="pdf-modal-title">Export Analytics Report</div>
+            <div class="pdf-modal-subtitle">Download a professionally formatted PDF</div>
+        </div>
+        <div class="pdf-modal-body">
+            <div class="pdf-preview-card">
+                <div class="pdf-preview-title">What will be included</div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Period: <span>{{ $aPeriodLabel }}</span></div>
+                </div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Sections: <span>KPI summary, module difficulty ranking</span></div>
+                </div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Student ranking, mastery distribution</div>
+                </div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Completion funnel, gesture performance analytics</div>
+                </div>
+            </div>
+
+            {{-- Document Settings Form --}}
+            <form id="analyticsPdfForm" method="POST" action="{{ $analyticsExportUrl }}" target="_blank">
+                @csrf
+
+                <div class="pdf-options">
+                    <div class="pdf-options-title">Document Settings</div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Paper Size</span>
+                        <select name="paper_size" class="pdf-option-select">
+                            <option value="A4" selected>A4 (210 × 297 mm)</option>
+                            <option value="A3">A3 (297 × 420 mm)</option>
+                            <option value="Letter">Letter (215.9 × 279.4 mm)</option>
+                            <option value="Legal">Legal (215.9 × 355.6 mm)</option>
+                            <option value="A5">A5 (148 × 210 mm)</option>
+                        </select>
+                    </div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Orientation</span>
+                        <span class="pdf-option-value">Portrait</span>
+                    </div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Running Header</span>
+                        <select name="running_header" class="pdf-option-select">
+                            <option value="first" selected>First page only</option>
+                            <option value="every">Every page</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Page Numbers</span>
+                        <select name="page_numbers" class="pdf-option-select">
+                            <option value="footer" selected>Footer — Page N of M</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pdf-modal-actions">
+                    <div id="analyticsSuccessBadge" class="pdf-success-badge">
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                        Your PDF is ready — check your Downloads folder.
+                    </div>
+                    <button id="analyticsDownloadBtn" type="submit" class="pdf-download-btn" onclick="handleAnalyticsPdfDownload(event, this)">
+                        <span class="btn-text" style="display:flex;align-items:center;gap:8px;">
+                            <span class="material-symbols-outlined text-[18px]">download</span>
+                            Download PDF
+                        </span>
+                        <span class="btn-spinner"></span>
+                    </button>
+                    <button type="button" class="pdf-cancel-btn" onclick="closeAnalyticsPdfModal()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openAnalyticsPdfModal() {
+    document.getElementById('analyticsPdfModalOverlay').classList.add('open');
+}
+function closeAnalyticsPdfModal() {
+    document.getElementById('analyticsPdfModalOverlay').classList.remove('open');
+    const btn = document.getElementById('analyticsDownloadBtn');
+    if (btn) btn.classList.remove('loading');
+    document.getElementById('analyticsSuccessBadge').classList.remove('visible');
+}
+function handleAnalyticsPdfDownload(e, btn) {
+    btn.classList.add('loading');
+    setTimeout(() => {
+        btn.classList.remove('loading');
+        document.getElementById('analyticsSuccessBadge').classList.add('visible');
+        setTimeout(() => closeAnalyticsPdfModal(), 2800);
+    }, 2500);
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeAnalyticsPdfModal();
 });
 </script>
 

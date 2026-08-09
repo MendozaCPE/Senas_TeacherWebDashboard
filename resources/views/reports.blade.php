@@ -110,20 +110,264 @@
 .export-btn {
     background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
     color: #fff;
-    padding: 8px 20px;
+    padding: 9px 22px;
     border-radius: 12px;
     font-size: 13px;
     font-weight: 700;
     border: none;
     cursor: pointer;
-    transition: all .2s;
+    transition: all .25s;
     display: flex;
     align-items: center;
     gap: 8px;
     text-decoration: none;
-    box-shadow: 0 2px 8px rgba(13,50,107,.15);
+    box-shadow: 0 3px 12px rgba(13,50,107,.22);
+    position: relative;
+    overflow: hidden;
 }
-.export-btn:hover { opacity: .9; box-shadow: 0 4px 16px rgba(13,50,107,.25); }
+.export-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity .2s;
+}
+.export-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(13,50,107,.32); }
+.export-btn:hover::before { opacity: 1; }
+.export-btn:active { transform: translateY(0); }
+
+/* ── Export PDF Modal ─────────────────────────────────────────────────────── */
+.pdf-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7,28,63,.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s;
+}
+.pdf-modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+}
+.pdf-modal {
+    background: #ffffff;
+    border-radius: 28px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 32px 80px rgba(7,28,63,.3), 0 0 0 1px rgba(13,50,107,.06);
+    overflow: hidden;
+    transform: translateY(24px) scale(0.97);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+    opacity: 0;
+}
+.pdf-modal-overlay.open .pdf-modal {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+.pdf-modal-header {
+    background: linear-gradient(135deg, #071c3f 0%, #0d326b 60%, #1e4b8f 100%);
+    padding: 28px 28px 24px;
+    position: relative;
+    overflow: hidden;
+}
+.pdf-modal-header::after {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,.05);
+    border-radius: 50%;
+}
+.pdf-modal-icon {
+    width: 52px; height: 52px;
+    background: rgba(255,255,255,.12);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+}
+.pdf-modal-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+.pdf-modal-subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,.6);
+    font-weight: 500;
+}
+.pdf-modal-body {
+    padding: 24px 28px;
+}
+.pdf-preview-card {
+    background: linear-gradient(135deg, #f8faff 0%, #eff6ff 100%);
+    border: 1px solid #dbeafe;
+    border-radius: 16px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+}
+.pdf-preview-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 10px;
+}
+.pdf-preview-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.pdf-preview-row:last-child { margin-bottom: 0; }
+.pdf-preview-dot {
+    width: 6px; height: 6px;
+    background: #0d326b;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.pdf-preview-text {
+    font-size: 12px;
+    color: #334155;
+    font-weight: 600;
+}
+.pdf-preview-text span {
+    color: #0d326b;
+    font-weight: 700;
+}
+.pdf-options {
+    margin-bottom: 20px;
+}
+.pdf-options-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 12px;
+}
+.pdf-option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    border: 1px solid #f1f5f9;
+}
+.pdf-option-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+}
+.pdf-option-value {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+    background: #e2e8f0;
+    padding: 2px 10px;
+    border-radius: 999px;
+}
+.pdf-option-select {
+    font-size: 11px;
+    color: #1e293b;
+    font-weight: 500;
+    background: #e2e8f0;
+    border: none;
+    border-radius: 999px;
+    padding: 3px 10px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 22px;
+    transition: background-color .15s;
+}
+.pdf-option-select:hover { background-color: #cbd5e1; }
+.pdf-option-select:focus { box-shadow: 0 0 0 2px rgba(13,50,107,.25); background-color: #dde4ef; }
+.pdf-modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.pdf-download-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+    transition: all .2s;
+    box-shadow: 0 4px 16px rgba(13,50,107,.25);
+    position: relative;
+    overflow: hidden;
+}
+.pdf-download-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(13,50,107,.35); }
+.pdf-download-btn.loading { pointer-events: none; opacity: .85; }
+.pdf-download-btn .btn-text { transition: opacity .2s; }
+.pdf-download-btn .btn-spinner {
+    display: none;
+    position: absolute;
+    width: 20px; height: 20px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+}
+.pdf-download-btn.loading .btn-text { opacity: 0; }
+.pdf-download-btn.loading .btn-spinner { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pdf-cancel-btn {
+    width: 100%;
+    padding: 11px 20px;
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+}
+.pdf-cancel-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
+.pdf-success-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #15803d;
+    font-weight: 600;
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: opacity .3s;
+}
+.pdf-success-badge.visible { opacity: 1; }
 
 /* ── Table Styles ────────────────────────────────────────────────────────── */
 .table-wrap {
@@ -195,61 +439,119 @@
         $totalQuizzesTaken  = $studentReports->sum('quizzesTaken');
         $scoredReports      = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
         $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
+
+        // Additional analytics-style stats
+        $totalLessonsAssigned = $studentReports->sum('totalLessons');
+        $totalLessonsCompleted = $studentReports->sum('completedLessons');
+        $classCompletionRate  = $totalLessonsAssigned > 0
+            ? round(($totalLessonsCompleted / $totalLessonsAssigned) * 100, 1)
+            : 0;
+
+        $gestureStudents = $studentReports->filter(fn($r) => ($r['gestureAttempts'] ?? 0) > 0);
+        $avgGestureAccuracy = $gestureStudents->isNotEmpty()
+            ? round($gestureStudents->avg('gestureAccuracy'), 1)
+            : 0;
+
+        $summaryCards = [
+            [
+                'title'     => 'Total Students',
+                'value'     => $totalStudentsShown,
+                'detail'    => 'in current view',
+                'icon'      => 'group',
+                'hero'      => true,
+            ],
+            [
+                'title'     => 'Completion Rate',
+                'value'     => number_format($classCompletionRate, 1) . '%',
+                'detail'    => $totalLessonsCompleted . ' of ' . $totalLessonsAssigned . ' lessons',
+                'icon'      => 'menu_book',
+                'hero'      => false,
+                'iconColor' => 'text-[#1e4b8f]',
+            ],
+            [
+                'title'     => 'Fully Completed',
+                'value'     => $fullyCompleted,
+                'detail'    => 'student' . ($fullyCompleted !== 1 ? 's' : '') . ' at 100%',
+                'icon'      => 'check_circle',
+                'hero'      => false,
+                'iconColor' => 'text-emerald-600',
+            ],
+            [
+                'title'     => 'Quizzes Taken',
+                'value'     => $totalQuizzesTaken,
+                'detail'    => 'total attempts',
+                'icon'      => 'quiz',
+                'hero'      => false,
+                'iconColor' => 'text-[#1a6fd4]',
+            ],
+            [
+                'title'     => 'Avg Quiz Score',
+                'value'     => number_format($avgScoreOverall, 1),
+                'detail'    => 'points per attempt',
+                'icon'      => 'insights',
+                'hero'      => false,
+                'iconColor' => 'text-[#1e4b8f]',
+            ],
+            [
+                'title'     => 'Gesture Accuracy',
+                'value'     => number_format($avgGestureAccuracy, 1) . '%',
+                'detail'    => $gestureStudents->count() . ' student' . ($gestureStudents->count() !== 1 ? 's' : '') . ' with data',
+                'icon'      => 'back_hand',
+                'hero'      => false,
+                'iconColor' => 'text-amber-600',
+                'golden'    => true,
+            ],
+        ];
     @endphp
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-
-        {{-- Total Students (hero card - navy gradient) --}}
-        <div class="stat-card text-white" style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
-            <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
-            <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
-            <div class="relative z-10 flex items-center justify-between">
-                <div>
-                    <div class="flex items-center gap-1.5 mb-2">
-                        <span class="material-symbols-outlined text-white/50 text-[15px]">group</span>
-                        <p class="text-[10px] font-bold text-white/50 uppercase tracking-widest">Total Students</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
+        @foreach($summaryCards as $card)
+            @if($card['hero'] ?? false)
+                {{-- Hero navy gradient card --}}
+                <div class="stat-card text-white xl:col-span-1"
+                     style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
+                    <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
+                    <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-white text-[18px]">{{ $card['icon'] }}</span>
+                            </div>
+                            <p class="text-[10px] font-bold text-white/50 uppercase tracking-widest">{{ $card['title'] }}</p>
+                        </div>
+                        <p class="text-[36px] font-black text-white leading-none">{{ $card['value'] }}</p>
+                        <p class="text-[11px] font-semibold text-[#facc15] mt-2">{{ $card['detail'] }}</p>
                     </div>
-                    <p class="text-[40px] font-black text-white leading-none">{{ $totalStudentsShown }}</p>
-                    <p class="text-[11px] font-semibold text-[#facc15] mt-2">in current view</p>
                 </div>
-                <div class="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-white text-[28px]">school</span>
+            @elseif($card['golden'] ?? false)
+                {{-- Golden KPI card --}}
+                <div class="stat-card kpi-ready">
+                    <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-9 h-9 rounded-xl bg-amber-800/10 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-amber-700 text-[18px]">{{ $card['icon'] }}</span>
+                            </div>
+                            <p class="text-[10px] font-bold text-amber-800/70 uppercase tracking-widest">{{ $card['title'] }}</p>
+                        </div>
+                        <p class="text-[36px] font-black text-[#92400e] leading-none">{{ $card['value'] }}</p>
+                        <p class="text-[11px] font-semibold text-amber-800 mt-2">{{ $card['detail'] }}</p>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        {{-- Fully Completed (navy card) --}}
-        <div class="stat-card bg-white border border-slate-100 shadow-sm">
-            <div class="flex items-center gap-1.5 mb-2">
-                <span class="material-symbols-outlined text-[#0d326b] text-[16px]">check_circle</span>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fully Completed</p>
-            </div>
-            <p class="text-[40px] font-black text-[#0d326b] leading-none">{{ $fullyCompleted }}</p>
-            <p class="text-[10px] text-slate-400 font-medium mt-0.5">student{{ $fullyCompleted !== 1 ? 's' : '' }} at 100%</p>
-        </div>
-
-        {{-- Quizzes Taken (navy card) --}}
-        <div class="stat-card bg-white border border-slate-100 shadow-sm">
-            <div class="flex items-center gap-1.5 mb-2">
-                <span class="material-symbols-outlined text-[#1a6fd4] text-[16px]">quiz</span>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quizzes Taken</p>
-            </div>
-            <p class="text-[40px] font-black text-[#1a6fd4] leading-none">{{ $totalQuizzesTaken }}</p>
-            <p class="text-[10px] text-slate-400 font-medium mt-0.5">total attempts</p>
-        </div>
-
-        {{-- Avg Quiz Score (golden gradient - matching Senya Tip) --}}
-        <div class="stat-card kpi-ready">
-            <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
-            <div class="relative z-10">
-                <div class="flex items-center gap-1.5 mb-2">
-                    <span class="material-symbols-outlined text-amber-700/60 text-[15px]">trending_up</span>
-                    <p class="text-[10px] font-bold text-amber-800/70 uppercase tracking-widest">Avg Quiz Score</p>
+            @else
+                {{-- Standard white card --}}
+                <div class="stat-card bg-white border border-slate-100 shadow-sm">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-9 h-9 rounded-xl bg-[#e8eef8] flex items-center justify-center">
+                            <span class="material-symbols-outlined {{ $card['iconColor'] ?? 'text-[#1e4b8f]' }} text-[18px]">{{ $card['icon'] }}</span>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ $card['title'] }}</p>
+                    </div>
+                    <p class="text-[36px] font-black text-[#0d326b] leading-none">{{ $card['value'] }}</p>
+                    <p class="text-[11px] text-slate-400 font-medium mt-2">{{ $card['detail'] }}</p>
                 </div>
-                <p class="text-[40px] font-black text-[#92400e] leading-none">{{ number_format($avgScoreOverall, 1) }}</p>
-                <p class="text-[11px] font-semibold text-amber-800 mt-2">points per attempt</p>
-            </div>
-        </div>
+            @endif
+        @endforeach
     </div>
 
     {{-- ══════════ FILTERS (matching Analytics/Students) ══════════ --}}
@@ -293,10 +595,11 @@
                 </button>
             </div>
 
-            <a href="{{ route('reports.export-pdf') }}" class="export-btn">
+            {{-- Export PDF button (opens premium modal) --}}
+            <button type="button" id="openExportModal" class="export-btn" onclick="openPdfModal()">
                 <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-                Export PDF
-            </a>
+                Export Report
+            </button>
         </div>
     </form>
 
@@ -386,6 +689,155 @@
         @endif
     </div>
 </div>
+
+{{-- ═══════════ EXPORT PDF MODAL ═══════════ --}}
+@php
+    $rf = session('reports_filters', []);
+    $activeStudent = 'All Students';
+    $activeLesson  = 'All Lessons';
+    if (!empty($rf['student_id']) && $rf['student_id'] !== 'all') {
+        $fs = $students->firstWhere('student_id', $rf['student_id']);
+        if ($fs) $activeStudent = $fs->first_name . ' ' . $fs->last_name;
+    }
+    if (!empty($rf['lesson_id']) && $rf['lesson_id'] !== 'all') {
+        $fl = $lessons->firstWhere('lesson_id', $rf['lesson_id']);
+        if ($fl) $activeLesson = $fl->title;
+    }
+    $exportBaseUrl = route('reports.export-pdf.post');
+    $hiddenStudent = ($rf['student_id'] ?? 'all') !== 'all' ? $rf['student_id'] : null;
+    $hiddenLesson  = ($rf['lesson_id']  ?? 'all') !== 'all' ? $rf['lesson_id']  : null;
+@endphp
+
+<div id="pdfModalOverlay" class="pdf-modal-overlay" onclick="if(event.target===this)closePdfModal()">
+    <div class="pdf-modal">
+
+        {{-- Header --}}
+        <div class="pdf-modal-header">
+            <div class="pdf-modal-icon">
+                <span class="material-symbols-outlined text-white text-[26px]">picture_as_pdf</span>
+            </div>
+            <div class="pdf-modal-title">Export Progress Report</div>
+            <div class="pdf-modal-subtitle">Download a professionally formatted PDF</div>
+        </div>
+
+        {{-- Body --}}
+        <div class="pdf-modal-body">
+
+            {{-- Preview card --}}
+            <div class="pdf-preview-card">
+                <div class="pdf-preview-title">What will be included</div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Student: <span>{{ $activeStudent }}</span></div>
+                </div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Lesson: <span>{{ $activeLesson }}</span></div>
+                </div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Records: <span>{{ $studentReports->count() }} student{{ $studentReports->count() !== 1 ? 's' : '' }}</span></div>
+                </div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">Sections: <span>Summary strip, per-student lesson breakdown</span></div>
+                </div>
+            </div>
+
+            {{-- Document Settings Form --}}
+            <form id="reportsPdfForm" method="POST" action="{{ $exportBaseUrl }}" target="_blank">
+                @csrf
+                @if($hiddenStudent)
+                    <input type="hidden" name="student_id" value="{{ $hiddenStudent }}">
+                @endif
+                @if($hiddenLesson)
+                    <input type="hidden" name="lesson_id" value="{{ $hiddenLesson }}">
+                @endif
+
+                <div class="pdf-options">
+                    <div class="pdf-options-title">Document Settings</div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Paper Size</span>
+                        <select name="paper_size" class="pdf-option-select">
+                            <option value="A4" selected>A4 (210 × 297 mm)</option>
+                            <option value="A3">A3 (297 × 420 mm)</option>
+                            <option value="Letter">Letter (215.9 × 279.4 mm)</option>
+                            <option value="Legal">Legal (215.9 × 355.6 mm)</option>
+                            <option value="A5">A5 (148 × 210 mm)</option>
+                        </select>
+                    </div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Orientation</span>
+                        <span class="pdf-option-value">Portrait</span>
+                    </div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Running Header</span>
+                        <select name="running_header" class="pdf-option-select">
+                            <option value="first" selected>First page only</option>
+                            <option value="every">Every page</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <div class="pdf-option-row">
+                        <span class="pdf-option-label">Page Numbers</span>
+                        <select name="page_numbers" class="pdf-option-select">
+                            <option value="footer" selected>Footer — Page N of M</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+
+                {{-- Actions --}}
+                <div class="pdf-modal-actions">
+                    <div id="pdfSuccessBadge" class="pdf-success-badge">
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                        Your PDF is ready — check your Downloads folder.
+                    </div>
+                    <button id="pdfDownloadBtn" type="submit" class="pdf-download-btn" onclick="handlePdfDownload(event, this)">
+                        <span class="btn-text" style="display:flex;align-items:center;gap:8px;">
+                            <span class="material-symbols-outlined text-[18px]">download</span>
+                            Download PDF
+                        </span>
+                        <span class="btn-spinner"></span>
+                    </button>
+                    <button type="button" class="pdf-cancel-btn" onclick="closePdfModal()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openPdfModal() {
+    document.getElementById('pdfModalOverlay').classList.add('open');
+}
+function closePdfModal() {
+    const overlay = document.getElementById('pdfModalOverlay');
+    overlay.classList.remove('open');
+    const btn = document.getElementById('pdfDownloadBtn');
+    if (btn) btn.classList.remove('loading');
+    document.getElementById('pdfSuccessBadge').classList.remove('visible');
+}
+function handlePdfDownload(e, btn) {
+    // Let the form submit normally (target="_blank"), just show loading state
+    btn.classList.add('loading');
+    const badge = document.getElementById('pdfSuccessBadge');
+    setTimeout(() => {
+        btn.classList.remove('loading');
+        badge.classList.add('visible');
+        setTimeout(() => closePdfModal(), 2800);
+    }, 2500);
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePdfModal();
+});
+</script>
 
 {{-- ================= Student Performance Modal ================= --}}
 <div id="studentModalOverlay"

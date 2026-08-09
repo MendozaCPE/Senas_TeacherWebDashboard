@@ -4,6 +4,7 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>SEÑAS Teacher Portal – @yield('title', 'Auth')</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/senya_face.png') }}">
     <!-- No-cache: login page should never be stored -->
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
     <meta http-equiv="Pragma" content="no-cache"/>

@@ -169,7 +169,7 @@ class AnalyticsController extends Controller
         $avgStreakDays = Student::where('teacher_id', $teacherId)
             ->where('status', 'active')
             ->avg('streak_days') ?? 0;
-        $avgStreakDays = round($avgStreakDays, 1);
+        $avgStreakDays = round($avgStreakDays);
 
         $activeLast7Days = Student::where('teacher_id', $teacherId)
             ->where('status', 'active')
@@ -207,7 +207,7 @@ class AnalyticsController extends Controller
             ],
             [
                 'title' => 'Avg Engagement',
-                'value' => number_format($avgStreakDays, 1) . 'd',
+                'value' => $avgStreakDays . 'd',
                 'detail' => $activeLast7Pct . '% active last 7 days',
                 'icon' => 'bolt',
                 'accent' => '#fef3c7',
