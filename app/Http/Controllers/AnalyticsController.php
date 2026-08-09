@@ -438,48 +438,186 @@ class AnalyticsController extends Controller
             ->sortByDesc('avg_score')
             ->values();
 
+        // ── DEDICATED GESTURE PERFORMANCE ANALYTICS (STRICTLY FROM gesture_performances) ──
+        $gestureStatsRaw = DB::table('gesture_performances')
+            ->whereIn('student_id', $studentIds)
+            ->selectRaw('
+                COUNT(DISTINCT gesture_id) as total_gestures,
+                SUM(attempts) as total_attempts,
+                SUM(successful_attempts) as total_successful,
+                SUM(wrong_attempts) as total_wrong,
+                SUM(CASE WHEN is_mastered = 1 THEN 1 ELSE 0 END) as total_mastered
+            ')
+            ->first();
+
+        $gTotalAttempts   = (int) ($gestureStatsRaw->total_attempts ?? 0);
+        $gTotalSuccessful = (int) ($gestureStatsRaw->total_successful ?? 0);
+        $gTotalWrong      = (int) ($gestureStatsRaw->total_wrong ?? 0);
+
+        $gesturePerformanceOverview = [
+            'total_gestures'   => (int) ($gestureStatsRaw->total_gestures ?? 0),
+            'total_attempts'   => $gTotalAttempts,
+            'total_successful' => $gTotalSuccessful,
+            'total_wrong'      => $gTotalWrong,
+            'overall_accuracy' => $gTotalAttempts > 0 ? round(($gTotalSuccessful / $gTotalAttempts) * 100, 1) : 0,
+            'total_mastered'   => (int) ($gestureStatsRaw->total_mastered ?? 0),
+        ];
+
+        // Best-performing gestures (highest accuracy) from gesture_performances
+        $topPerformingGestures = DB::table('gesture_performances as gp')
+            ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
+            ->whereIn('gp.student_id', $studentIds)
+            ->where('gp.attempts', '>', 0)
+            ->select(
+                'g.gesture_id',
+                'g.name',
+                'g.display_name',
+                DB::raw('SUM(gp.attempts) as total_attempts'),
+                DB::raw('SUM(gp.successful_attempts) as total_successful'),
+                DB::raw('SUM(gp.wrong_attempts) as total_wrong'),
+                DB::raw('ROUND((SUM(gp.successful_attempts) / SUM(gp.attempts)) * 100, 1) as accuracy')
+            )
+            ->groupBy('g.gesture_id', 'g.name', 'g.display_name')
+            ->orderByDesc('accuracy')
+            ->orderByDesc('total_attempts')
+            ->limit(5)
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'gesture_name'        => $row->display_name ?: $row->name,
+                    'attempts'            => (int) $row->total_attempts,
+                    'successful_attempts' => (int) $row->total_successful,
+                    'wrong_attempts'      => (int) $row->total_wrong,
+                    'accuracy'            => (float) $row->accuracy,
+                ];
+            });
+
+        // Lowest-performing gestures (lowest accuracy / struggling) from gesture_performances
+        $lowestPerformingGestures = DB::table('gesture_performances as gp')
+            ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
+            ->whereIn('gp.student_id', $studentIds)
+            ->where('gp.attempts', '>', 0)
+            ->select(
+                'g.gesture_id',
+                'g.name',
+                'g.display_name',
+                DB::raw('SUM(gp.attempts) as total_attempts'),
+                DB::raw('SUM(gp.successful_attempts) as total_successful'),
+                DB::raw('SUM(gp.wrong_attempts) as total_wrong'),
+                DB::raw('ROUND((SUM(gp.successful_attempts) / SUM(gp.attempts)) * 100, 1) as accuracy')
+            )
+            ->groupBy('g.gesture_id', 'g.name', 'g.display_name')
+            ->orderBy('accuracy', 'asc')
+            ->orderByDesc('total_attempts')
+            ->limit(5)
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'gesture_name'        => $row->display_name ?: $row->name,
+                    'attempts'            => (int) $row->total_attempts,
+                    'successful_attempts' => (int) $row->total_successful,
+                    'wrong_attempts'      => (int) $row->total_wrong,
+                    'accuracy'            => (float) $row->accuracy,
+                ];
+            });
+
+        // Student performance per gesture from gesture_performances
+        $studentGesturePerformance = DB::table('gesture_performances as gp')
+            ->join('students as s', 'gp.student_id', '=', 's.student_id')
+            ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
+            ->whereIn('gp.student_id', $studentIds)
+            ->where('gp.attempts', '>', 0)
+            ->select(
+                's.student_id',
+                's.first_name',
+                's.last_name',
+                'g.gesture_id',
+                'g.name as g_name',
+                'g.display_name as g_display_name',
+                'gp.attempts',
+                'gp.successful_attempts',
+                'gp.wrong_attempts',
+                'gp.mastery_level',
+                'gp.is_mastered',
+                'gp.last_attempt_at'
+            )
+            ->orderBy('s.first_name')
+            ->orderBy('s.last_name')
+            ->get()
+            ->map(function ($row) {
+                $attempts = (int) $row->attempts;
+                $success  = (int) $row->successful_attempts;
+                $accuracy = $attempts > 0 ? round(($success / $attempts) * 100, 1) : 0;
+                return [
+                    'student_name'        => trim($row->first_name . ' ' . $row->last_name),
+                    'gesture_name'        => $row->g_display_name ?: $row->g_name,
+                    'attempts'            => $attempts,
+                    'successful_attempts' => $success,
+                    'wrong_attempts'      => (int) $row->wrong_attempts,
+                    'accuracy'            => $accuracy,
+                    'mastery_level'       => $row->mastery_level ?? 'needs_practice',
+                    'is_mastered'         => (bool) $row->is_mastered,
+                    'last_attempt_at'     => $row->last_attempt_at ? Carbon::parse($row->last_attempt_at)->format('M d, Y') : '—',
+                ];
+            });
+
         return [
-            'totalStudents'       => $totalStudents,
-            'avgQuizScore'        => $avgQuizScore,
-            'avgMastery'          => $avgMastery,
-            'completionRate'      => $completionRate,
-            'avgStreakDays'       => $avgStreakDays,
-            'activeLast7Pct'      => $activeLast7Pct,
-            'classSummary'        => $classSummary,
-            'progressOverTime'    => $progressOverTime,
-            'lessonDifficulty'    => $lessonDifficulty,
-            'gestureHeatmap'      => $gestureHeatmap,
-            'masteryDistribution' => $masteryDistribution,
-            'completionFunnel'    => $completionFunnel,
-            'completionTotal'     => $completionTotal,
-            'scoreBuckets'        => $scoreBuckets,
-            'maxScoreBucket'      => $maxScoreBucket,
-            'masteryTotal'        => $masteryTotal,
-            'studentRanking'      => $studentRanking,
+            'totalStudents'              => $totalStudents,
+            'avgQuizScore'               => $avgQuizScore,
+            'avgMastery'                 => $avgMastery,
+            'completionRate'             => $completionRate,
+            'avgStreakDays'              => $avgStreakDays,
+            'activeLast7Pct'             => $activeLast7Pct,
+            'classSummary'               => $classSummary,
+            'progressOverTime'           => $progressOverTime,
+            'lessonDifficulty'           => $lessonDifficulty,
+            'gestureHeatmap'             => $gestureHeatmap,
+            'masteryDistribution'        => $masteryDistribution,
+            'completionFunnel'           => $completionFunnel,
+            'completionTotal'            => $completionTotal,
+            'scoreBuckets'               => $scoreBuckets,
+            'maxScoreBucket'             => $maxScoreBucket,
+            'masteryTotal'               => $masteryTotal,
+            'studentRanking'             => $studentRanking,
+            'gesturePerformanceOverview' => $gesturePerformanceOverview,
+            'topPerformingGestures'      => $topPerformingGestures,
+            'lowestPerformingGestures'   => $lowestPerformingGestures,
+            'studentGesturePerformance'  => $studentGesturePerformance,
         ];
     }
 
     private function emptyTeacherData($user): array
     {
         return [
-            'totalAttempts'       => 0,
-            'avgPerformance'      => 0,
-            'practiceCompletion'  => 0,
-            'activeStudents'      => 0,
-            'totalStudents'       => 0,
-            'topPerformer'        => null,
-            'weeklyData'          => [],
-            'topLessons'          => collect(),
-            'quizBuckets'         => collect([
+            'totalAttempts'              => 0,
+            'avgPerformance'             => 0,
+            'practiceCompletion'         => 0,
+            'activeStudents'             => 0,
+            'totalStudents'              => 0,
+            'topPerformer'               => null,
+            'weeklyData'                 => [],
+            'topLessons'                 => collect(),
+            'quizBuckets'                => collect([
                 ['label' => '0-49', 'count' => 0, 'color' => '#ef4444'],
                 ['label' => '50-69', 'count' => 0, 'color' => '#f59e0b'],
                 ['label' => '70-84', 'count' => 0, 'color' => '#3b82f6'],
                 ['label' => '85-100', 'count' => 0, 'color' => '#10b981'],
             ]),
-            'displayName'         => $user->name ?? 'Teacher',
-            'teacher'             => null,
-            'atRiskCount'         => 0,
-            'avgLessonsPerStudent' => 0,
+            'displayName'                => $user->name ?? 'Teacher',
+            'teacher'                    => null,
+            'atRiskCount'                => 0,
+            'avgLessonsPerStudent'        => 0,
+            'gesturePerformanceOverview' => [
+                'total_gestures'   => 0,
+                'total_attempts'   => 0,
+                'total_successful' => 0,
+                'total_wrong'      => 0,
+                'overall_accuracy' => 0,
+                'total_mastered'   => 0,
+            ],
+            'topPerformingGestures'      => collect(),
+            'lowestPerformingGestures'   => collect(),
+            'studentGesturePerformance'  => collect(),
         ];
     }
 }

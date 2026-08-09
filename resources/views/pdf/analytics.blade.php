@@ -700,6 +700,54 @@
         </tr>
     </table>
 
+    {{-- ══ DEDICATED GESTURE PERFORMANCE ANALYTICS (STRICTLY FROM gesture_performances) ══ --}}
+    <div class="page-break"></div>
+    <div class="section-block">
+        <div class="section-label">Gesture Performance Analytics (Source: gesture_performances)</div>
+        
+        <table class="two-col section-block">
+            <tr>
+                <td class="col left">
+                    <div style="font-weight: 700; color: #0d326b; margin-bottom: 6px;">Best-Performing Gestures</div>
+                    @if(empty($topPerformingGestures) || count($topPerformingGestures) === 0)
+                        <p class="empty-note">No gesture performance records available.</p>
+                    @else
+                        @foreach($topPerformingGestures as $g)
+                            <div class="bar-row">
+                                <table class="bar-row-table">
+                                    <tr>
+                                        <td class="bar-title">{{ \Illuminate\Support\Str::limit($g['gesture_name'], 24) }}</td>
+                                        <td class="bar-meta" style="width:70px;">{{ number_format($g['accuracy'], 1) }}% ({{ $g['successful_attempts'] }}/{{ $g['attempts'] }})</td>
+                                    </tr>
+                                </table>
+                                <div class="bar-track"><div class="bar-fill" style="width:{{ min(100, max(4, $g['accuracy'])) }}%; background: #10b981;"></div></div>
+                            </div>
+                        @endforeach
+                    @endif
+                </td>
+                <td class="col right">
+                    <div style="font-weight: 700; color: #0d326b; margin-bottom: 6px;">Lowest-Performing / Struggling Gestures</div>
+                    @if(empty($lowestPerformingGestures) || count($lowestPerformingGestures) === 0)
+                        <p class="empty-note">No gesture performance records available.</p>
+                    @else
+                        @foreach($lowestPerformingGestures as $g)
+                            <div class="bar-row">
+                                <table class="bar-row-table">
+                                    <tr>
+                                        <td class="bar-title">{{ \Illuminate\Support\Str::limit($g['gesture_name'], 24) }}</td>
+                                        <td class="bar-meta" style="width:70px;">{{ number_format($g['accuracy'], 1) }}% ({{ $g['successful_attempts'] }}/{{ $g['attempts'] }})</td>
+                                    </tr>
+                                </table>
+                                <div class="bar-track"><div class="bar-fill" style="width:{{ min(100, max(4, $g['accuracy'])) }}%; background: #ef4444;"></div></div>
+                            </div>
+                        @endforeach
+                    @endif
+                </td>
+            </tr>
+        </table>
+
+    </div>
+
     {{-- ══ Footer ══ --}}
     <div class="footer">
         <table class="footer-row">

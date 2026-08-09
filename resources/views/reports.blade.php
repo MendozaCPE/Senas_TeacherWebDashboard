@@ -319,10 +319,11 @@
                         <tr>
                             <th>Student</th>
                             <th>Overall Progress</th>
-                            <th style="width:120px;">Lessons</th>
-                            <th style="width:100px;">Quizzes</th>
-                            <th style="width:100px;">Avg Score</th>
-                            <th style="width:140px;">Last Active</th>
+                            <th style="width:100px;">Lessons</th>
+                            <th style="width:90px;">Quizzes</th>
+                            <th style="width:95px;">Avg Score</th>
+                            <th style="width:130px; text-align:center;">Gesture Accuracy</th>
+                            <th style="width:130px;">Last Active</th>
                             <th style="width:40px;"></th>
                         </tr>
                     </thead>
@@ -363,6 +364,14 @@
                                         <span class="text-[12px] text-slate-400 font-medium">—</span>
                                     @endif
                                 </td>
+                                <td class="text-center">
+                                    @if(($row['gestureAttempts'] ?? 0) > 0)
+                                        <span class="text-[13px] font-black text-emerald-600">{{ number_format($row['gestureAccuracy'], 1) }}%</span>
+                                        <div class="text-[10px] text-slate-400 font-semibold">{{ $row['gestureSuccess'] }}/{{ $row['gestureAttempts'] }} correct</div>
+                                    @else
+                                        <span class="text-[12px] text-slate-400 font-medium">—</span>
+                                    @endif
+                                </td>
                                 <td>
                                     <span class="text-[12px] font-medium text-slate-500">{{ $row['lastAccessed'] }}</span>
                                 </td>
@@ -382,7 +391,7 @@
 <div id="studentModalOverlay"
      class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 hidden items-center justify-center p-6"
      onclick="if(event.target===this) closeStudentModal()">
-    <div class="bg-white rounded-[28px] w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
+    <div class="bg-white rounded-[28px] w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
 
         <div class="flex items-start justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/60">
             <div class="flex items-center space-x-4">
@@ -399,24 +408,29 @@
 
         <div class="overflow-y-auto px-8 py-6 space-y-6">
 
+            <!-- OVERALL PERFORMANCE SECTION -->
             <div>
                 <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Overall Performance</h4>
-                <div class="grid grid-cols-4 gap-4">
-                    <div class="bg-[#f1f5f9] rounded-2xl p-4">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Progress</p>
-                        <p id="modalOverallPct" class="text-[22px] font-black text-[#0d326b]"></p>
+                        <p id="modalOverallPct" class="text-[20px] font-black text-[#0d326b]"></p>
                     </div>
-                    <div class="bg-[#f1f5f9] rounded-2xl p-4">
+                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Lessons</p>
-                        <p id="modalLessonsCount" class="text-[22px] font-black text-[#1e293b]"></p>
+                        <p id="modalLessonsCount" class="text-[20px] font-black text-[#1e293b]"></p>
                     </div>
-                    <div class="bg-[#f1f5f9] rounded-2xl p-4">
+                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Quizzes</p>
-                        <p id="modalQuizzesCount" class="text-[22px] font-black text-[#1a6fd4]"></p>
+                        <p id="modalQuizzesCount" class="text-[20px] font-black text-[#1a6fd4]"></p>
                     </div>
-                    <div class="bg-[#f1f5f9] rounded-2xl p-4">
+                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
                         <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Avg Score</p>
-                        <p id="modalAvgScore" class="text-[22px] font-black text-[#0d326b]"></p>
+                        <p id="modalAvgScore" class="text-[20px] font-black text-[#0d326b]"></p>
+                    </div>
+                    <div class="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3.5">
+                        <p class="text-[10px] font-bold text-emerald-700 tracking-[0.08em] uppercase mb-1">Gesture Acc.</p>
+                        <p id="modalGestureAccuracy" class="text-[20px] font-black text-emerald-800"></p>
                     </div>
                 </div>
                 <div class="mt-3 flex items-center space-x-2">
@@ -427,6 +441,27 @@
                 </div>
             </div>
 
+            <!-- STUDENT PERFORMANCE PER GESTURE BREAKDOWN -->
+            <div>
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student Performance per Gesture</h4>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="modalGestureSearch" oninput="filterModalGestures()" placeholder="Search sign..." class="text-[11px] bg-slate-100 px-3 py-1 rounded-full outline-none w-36 focus:bg-white focus:ring-1 focus:ring-[#0d326b]" />
+                        <select id="modalGestureMastery" onchange="filterModalGestures()" class="text-[11px] bg-slate-100 px-2.5 py-1.5 rounded-full outline-none">
+                            <option value="all">All Levels</option>
+                            <option value="mastered">Mastered</option>
+                            <option value="proficient">Proficient</option>
+                            <option value="developing">Developing</option>
+                            <option value="needs_practice">Needs Practice</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="modalGestureContainer" class="max-h-[260px] overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/40 p-2.5 space-y-2">
+                    <div id="modalGestureList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- LESSON BREAKDOWN -->
             <div>
                 <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Lesson Breakdown</h4>
                 <div id="modalLessonList" class="space-y-2"></div>
@@ -438,6 +473,7 @@
 
 <script>
     const studentReportData = @json($studentReports->values());
+    let currentModalGestureData = [];
 
     function openStudentModal(index) {
         const data = studentReportData[index];
@@ -451,108 +487,174 @@
         document.getElementById('modalLessonsCount').textContent = data.completedLessons + ' / ' + data.totalLessons;
         document.getElementById('modalQuizzesCount').textContent = data.quizzesTaken;
         document.getElementById('modalAvgScore').textContent = data.quizzesTaken > 0 ? data.avgScore + ' pts' : '—';
+        document.getElementById('modalGestureAccuracy').textContent = (data.gestureAttempts && data.gestureAttempts > 0) ? data.gestureAccuracy + '%' : '—';
         document.getElementById('modalLastActive').textContent = 'Last active ' + data.lastAccessed;
 
         const bar = document.getElementById('modalOverallBar');
         bar.style.width = data.overallPct + '%';
         bar.className = 'h-full rounded-full ' + (data.overallPct >= 100 ? 'bg-[#0d326b]' : 'bg-[#1a6fd4]');
 
-        const listEl = document.getElementById('modalLessonList');
-        listEl.innerHTML = '';
+        // Store & Filter Gesture Performance
+        currentModalGestureData = data.gestureBreakdown || [];
+        const searchInput = document.getElementById('modalGestureSearch');
+        const filterSelect = document.getElementById('modalGestureMastery');
+        if (searchInput) searchInput.value = '';
+        if (filterSelect) filterSelect.value = 'all';
+        filterModalGestures();
 
-        if (!data.lessons || data.lessons.length === 0) {
-            listEl.innerHTML = '<p class="text-[13px] text-slate-400 font-medium py-4 text-center">No lessons available.</p>';
-        } else {
-            // Group lessons by moduleTitle
-            const modulesMap = {};
-            data.lessons.forEach(function (lesson) {
-                const modName = lesson.moduleTitle || 'Unassigned Lessons';
-                if (!modulesMap[modName]) modulesMap[modName] = [];
-                modulesMap[modName].push(lesson);
-            });
-
-            Object.keys(modulesMap).forEach(function (modTitle) {
-                // Render Module Header
-                const modHeader = document.createElement('div');
-                modHeader.className = 'flex items-center gap-2 pt-3 pb-1.5 border-b border-slate-200 mt-3 mb-2.5';
-                modHeader.innerHTML = `
-                    <span class="material-symbols-outlined text-[16px] text-[#0d326b]">folder</span>
-                    <h5 class="text-[11px] font-extrabold text-[#0d326b] uppercase tracking-wider">${modTitle}</h5>
-                    <span class="text-[10px] font-semibold text-slate-400">(${modulesMap[modTitle].length} lesson${modulesMap[modTitle].length !== 1 ? 's' : ''})</span>
-                `;
-                listEl.appendChild(modHeader);
-
-                // Render Lessons inside this module
-                modulesMap[modTitle].forEach(function (lesson) {
-                    let statusBadge, quizBadge, barColor, rowBg, titleColor, metaColor;
-
-                    if (!lesson.started) {
-                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">NOT STARTED</span>';
-                        quizBadge   = '<span style="font-size:11px;color:#cbd5e1;font-weight:500;">—</span>';
-                        barColor    = 'background:#e2e8f0';
-                        rowBg       = 'background:#f8fafc;opacity:.75';
-                        titleColor  = 'color:#94a3b8';
-                        metaColor   = 'color:#cbd5e1';
-                    } else if (lesson.completed) {
-                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#0d326b;background:#dbeafe;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">✓ COMPLETED</span>';
-                        quizBadge   = lesson.quizCompleted
-                            ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
-                            : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
-                        barColor    = 'background:#0d326b';
-                        rowBg       = 'background:#f8fafc';
-                        titleColor  = 'color:#1e293b';
-                        metaColor   = 'color:#94a3b8';
-                    } else {
-                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#1a6fd4;background:#eff6ff;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">IN PROGRESS</span>';
-                        quizBadge   = lesson.quizCompleted
-                            ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
-                            : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
-                        barColor    = 'background:#1a6fd4';
-                        rowBg       = 'background:#f8fafc';
-                        titleColor  = 'color:#1e293b';
-                        metaColor   = 'color:#94a3b8';
-                    }
-
-                    const creatorChip = lesson.ai_generated
-                        ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
-                               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-                               AI Generated
-                           </span>`
-                        : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#0d326b;background:#e0f2fe;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
-                               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-                               By Teacher
-                           </span>`;
-
-                    const row = document.createElement('div');
-                    row.style.cssText = rowBg + ';border-radius:16px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
-                    row.innerHTML = `
-                        <div style="flex:1;min-width:0;padding-right:16px;">
-                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
-                                <p style="font-size:13px;font-weight:700;${titleColor};line-height:1.3;margin:0;">${lesson.lessonTitle}</p>
-                                ${creatorChip}
-                            </div>
-                            <p style="font-size:11px;font-weight:500;${metaColor};margin:0 0 6px;">${lesson.lessonType ? lesson.lessonType + ' · ' : ''}${lesson.lastAccessed}</p>
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <div style="width:80px;height:5px;background:#e2e8f0;border-radius:9999px;overflow:hidden;">
-                                    <div style="height:100%;border-radius:9999px;${barColor};width:${lesson.stepPct}%;"></div>
-                                </div>
-                                <span style="font-size:10px;font-weight:700;color:#94a3b8;">${lesson.stepPct}%</span>
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
-                            ${statusBadge}
-                            ${quizBadge}
-                        </div>
-                    `;
-                    listEl.appendChild(row);
-                });
-            });
-        }
+        // Render Lessons Breakdown
+        renderModalLessons(data.lessons);
 
         const overlay = document.getElementById('studentModalOverlay');
         overlay.classList.remove('hidden');
         overlay.classList.add('flex');
         document.body.style.overflow = 'hidden';
+    }
+
+    function filterModalGestures() {
+        const query = (document.getElementById('modalGestureSearch')?.value || '').toLowerCase().trim();
+        const mastery = document.getElementById('modalGestureMastery')?.value || 'all';
+        const gListEl = document.getElementById('modalGestureList');
+
+        if (!gListEl) return;
+        gListEl.innerHTML = '';
+
+        const filtered = currentModalGestureData.filter(function(g) {
+            const matchesSearch = !query || g.gestureName.toLowerCase().includes(query);
+            const matchesMastery = mastery === 'all' || (g.masteryLevel || '').toLowerCase() === mastery.toLowerCase();
+            return matchesSearch && matchesMastery;
+        });
+
+        if (filtered.length === 0) {
+            gListEl.innerHTML = '<p class="text-[12px] text-slate-400 font-medium py-4 text-center">No gesture performance records available.</p>';
+            return;
+        }
+
+        filtered.forEach(function(g) {
+            const badgeClasses = {
+                'mastered': 'background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;',
+                'proficient': 'background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;',
+                'developing': 'background:#fef3c7;color:#92400e;border:1px solid #fde68a;',
+                'needs_practice': 'background:#ffe4e6;color:#9f1239;border:1px solid #fecdd3;',
+            };
+            const mLevel = (g.masteryLevel || '').toLowerCase();
+            const badgeStyle = badgeClasses[mLevel] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;';
+            const mLabel = (g.masteryLevel || 'needs_practice').replace('_', ' ').toUpperCase();
+
+            const gRow = document.createElement('div');
+            gRow.className = 'bg-white rounded-xl p-3 border border-slate-100 shadow-2xs flex items-center justify-between gap-3';
+            gRow.innerHTML = `
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+                        <span style="font-size:13px;font-weight:700;color:#0d326b;">${g.gestureName}</span>
+                        <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:9px;font-weight:800;${badgeStyle}">${mLabel}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:500;color:#64748b;">
+                        <span>Attempts: <strong>${g.attempts}</strong></span>
+                        <span style="color:#059669;">Correct: <strong>${g.successfulAttempts}</strong></span>
+                        <span style="color:#e11d48;">Incorrect: <strong>${g.wrongAttempts}</strong></span>
+                        <span style="color:#94a3b8;font-size:10px;">${g.lastAttemptAt || ''}</span>
+                    </div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;">
+                    <span style="font-size:15px;font-weight:900;color:#0d326b;">${Number(g.accuracy).toFixed(1)}%</span>
+                </div>
+            `;
+            gListEl.appendChild(gRow);
+        });
+    }
+
+    function renderModalLessons(lessons) {
+        const listEl = document.getElementById('modalLessonList');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        if (!lessons || lessons.length === 0) {
+            listEl.innerHTML = '<p class="text-[13px] text-slate-400 font-medium py-4 text-center">No lessons available.</p>';
+            return;
+        }
+
+        const modulesMap = {};
+        lessons.forEach(function (lesson) {
+            const modName = lesson.moduleTitle || 'Unassigned Lessons';
+            if (!modulesMap[modName]) modulesMap[modName] = [];
+            modulesMap[modName].push(lesson);
+        });
+
+        Object.keys(modulesMap).forEach(function (modTitle) {
+            const modHeader = document.createElement('div');
+            modHeader.className = 'flex items-center gap-2 pt-3 pb-1.5 border-b border-slate-200 mt-3 mb-2.5';
+            modHeader.innerHTML = `
+                <span class="material-symbols-outlined text-[16px] text-[#0d326b]">folder</span>
+                <h5 class="text-[11px] font-extrabold text-[#0d326b] uppercase tracking-wider">${modTitle}</h5>
+                <span class="text-[10px] font-semibold text-slate-400">(${modulesMap[modTitle].length} lesson${modulesMap[modTitle].length !== 1 ? 's' : ''})</span>
+            `;
+            listEl.appendChild(modHeader);
+
+            modulesMap[modTitle].forEach(function (lesson) {
+                let statusBadge, quizBadge, barColor, rowBg, titleColor, metaColor;
+
+                if (!lesson.started) {
+                    statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">NOT STARTED</span>';
+                    quizBadge   = '<span style="font-size:11px;color:#cbd5e1;font-weight:500;">—</span>';
+                    barColor    = 'background:#e2e8f0';
+                    rowBg       = 'background:#f8fafc;opacity:.75';
+                    titleColor  = 'color:#94a3b8';
+                    metaColor   = 'color:#cbd5e1';
+                } else if (lesson.completed) {
+                    statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#0d326b;background:#dbeafe;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">✓ COMPLETED</span>';
+                    quizBadge   = lesson.quizCompleted
+                        ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
+                        : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
+                    barColor    = 'background:#0d326b';
+                    rowBg       = 'background:#f8fafc';
+                    titleColor  = 'color:#1e293b';
+                    metaColor   = 'color:#94a3b8';
+                } else {
+                    statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#1a6fd4;background:#eff6ff;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">IN PROGRESS</span>';
+                    quizBadge   = lesson.quizCompleted
+                        ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
+                        : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
+                    barColor    = 'background:#1a6fd4';
+                    rowBg       = 'background:#f8fafc';
+                    titleColor  = 'color:#1e293b';
+                    metaColor   = 'color:#94a3b8';
+                }
+
+                const creatorChip = lesson.ai_generated
+                    ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
+                           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                           AI Generated
+                       </span>`
+                    : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#0d326b;background:#e0f2fe;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
+                           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                           By Teacher
+                       </span>`;
+
+                const row = document.createElement('div');
+                row.style.cssText = rowBg + ';border-radius:16px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
+                row.innerHTML = `
+                    <div style="flex:1;min-width:0;padding-right:16px;">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
+                            <p style="font-size:13px;font-weight:700;${titleColor};line-height:1.3;margin:0;">${lesson.lessonTitle}</p>
+                            ${creatorChip}
+                        </div>
+                        <p style="font-size:11px;font-weight:500;${metaColor};margin:0 0 6px;">${lesson.lessonType ? lesson.lessonType + ' · ' : ''}${lesson.lastAccessed}</p>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:80px;height:5px;background:#e2e8f0;border-radius:9999px;overflow:hidden;">
+                                <div style="height:100%;border-radius:9999px;${barColor};width:${lesson.stepPct}%;"></div>
+                            </div>
+                            <span style="font-size:10px;font-weight:700;color:#94a3b8;">${lesson.stepPct}%</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+                        ${statusBadge}
+                        ${quizBadge}
+                    </div>
+                `;
+                listEl.appendChild(row);
+            });
+        });
     }
 
     function closeStudentModal() {

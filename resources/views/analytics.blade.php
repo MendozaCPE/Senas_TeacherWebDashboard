@@ -649,6 +649,154 @@
             </div>
         </div>
     </div>
+
+    {{-- ══════════ GESTURE PERFORMANCE ANALYTICS ══════════ --}}
+    <div class="space-y-5">
+
+        {{-- Section heading — same pattern as "ROW 2" labels above --}}
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Gesture Performance</p>
+                <h3 class="text-[16px] font-bold text-[#0d326b]">Gesture Performance Analytics</h3>
+                <p class="text-[12px] text-slate-400 mt-0.5">Sign accuracy, attempts, and mastery performance sourced directly from <strong>gesture_performances</strong> records.</p>
+            </div>
+            <span class="material-symbols-outlined text-[#1a6fd4] text-[28px] shrink-0 mt-1">waving_hand</span>
+        </div>
+
+        {{-- ── Gesture stat cards — identical layout to STAT CARDS above ── --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            {{-- Card 1: Navy gradient — Practiced Gestures --}}
+            <div class="stat-card text-white" style="background: linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
+                <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
+                <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-white/10">
+                            <span class="material-symbols-outlined text-[19px] text-white">pan_tool_alt</span>
+                        </div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-white/50">Practiced Signs</p>
+                    </div>
+                    <p class="text-[32px] font-black leading-none mb-2 text-white">{{ number_format($gesturePerformanceOverview['total_gestures'] ?? 0) }}</p>
+                    <p class="text-[12px] text-white/60">Total unique signs attempted</p>
+                </div>
+            </div>
+
+            {{-- Card 2: Gesture Accuracy --}}
+            <div class="stat-card bg-white border border-slate-100 shadow-sm">
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#e8eef8]">
+                            <span class="material-symbols-outlined text-[19px] text-[#1e4b8f]">verified</span>
+                        </div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Gesture Accuracy</p>
+                    </div>
+                    <p class="text-[32px] font-black leading-none mb-2 text-[#0d326b]">{{ number_format($gesturePerformanceOverview['overall_accuracy'] ?? 0, 1) }}%</p>
+                    <p class="text-[12px] text-slate-400">{{ number_format($gesturePerformanceOverview['total_successful'] ?? 0) }} correct / {{ number_format($gesturePerformanceOverview['total_attempts'] ?? 0) }} attempts</p>
+                </div>
+            </div>
+
+            {{-- Card 3: Incorrect Attempts --}}
+            <div class="stat-card bg-white border border-slate-100 shadow-sm">
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#e8eef8]">
+                            <span class="material-symbols-outlined text-[19px] text-[#1e4b8f]">cancel</span>
+                        </div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Incorrect Attempts</p>
+                    </div>
+                    <p class="text-[32px] font-black leading-none mb-2 text-[#0d326b]">{{ number_format($gesturePerformanceOverview['total_wrong'] ?? 0) }}</p>
+                    <p class="text-[12px] text-slate-400">Total wrong attempts recorded</p>
+                </div>
+            </div>
+
+            {{-- Card 4: Signs Mastered --}}
+            <div class="stat-card bg-white border border-slate-100 shadow-sm">
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#e8eef8]">
+                            <span class="material-symbols-outlined text-[19px] text-[#1e4b8f]">military_tech</span>
+                        </div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Signs Mastered</p>
+                    </div>
+                    <p class="text-[32px] font-black leading-none mb-2 text-[#0d326b]">{{ number_format($gesturePerformanceOverview['total_mastered'] ?? 0) }}</p>
+                    <p class="text-[12px] text-slate-400">Mastered gesture entries</p>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Best vs Lowest — same grid pattern as other 2-col panels ── --}}
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+
+            {{-- Best-Performing Gestures --}}
+            <div class="panel">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Top Signs</p>
+                        <h3 class="text-[16px] font-bold text-[#0d326b]">Best-Performing Gestures</h3>
+                        <p class="text-[12px] text-slate-400 mt-0.5">Signs with the highest accuracy rate</p>
+                    </div>
+                    <span class="material-symbols-outlined text-emerald-500 text-[22px] shrink-0 mt-1">thumb_up</span>
+                </div>
+                @if(empty($topPerformingGestures) || count($topPerformingGestures) === 0)
+                    <p class="text-slate-400 text-[13px] text-center py-10">No gesture performance data recorded yet.</p>
+                @else
+                    <div class="difficulty-list space-y-3">
+                        @foreach($topPerformingGestures as $g)
+                            <div class="difficulty-item">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-[13px] font-bold text-[#0d326b] truncate">{{ $g['gesture_name'] }}</span>
+                                    <span class="text-[13px] font-black text-emerald-600 shrink-0 ml-2">{{ number_format($g['accuracy'], 1) }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1.5">
+                                    <div class="bg-emerald-500 h-full rounded-full transition-all" style="width: {{ min(100, $g['accuracy']) }}%"></div>
+                                </div>
+                                <div class="flex items-center gap-3 text-[10px] font-semibold text-slate-400">
+                                    <span>Attempts: <strong class="text-slate-600">{{ $g['attempts'] }}</strong></span>
+                                    <span class="text-emerald-600">Correct: <strong>{{ $g['successful_attempts'] }}</strong></span>
+                                    <span class="text-rose-500">Incorrect: <strong>{{ $g['wrong_attempts'] }}</strong></span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            {{-- Lowest-Performing Gestures --}}
+            <div class="panel">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Needs Practice</p>
+                        <h3 class="text-[16px] font-bold text-[#0d326b]">Struggling Gestures</h3>
+                        <p class="text-[12px] text-slate-400 mt-0.5">Signs requiring additional practice</p>
+                    </div>
+                    <span class="material-symbols-outlined text-rose-500 text-[22px] shrink-0 mt-1">warning</span>
+                </div>
+                @if(empty($lowestPerformingGestures) || count($lowestPerformingGestures) === 0)
+                    <p class="text-slate-400 text-[13px] text-center py-10">No gesture performance data recorded yet.</p>
+                @else
+                    <div class="difficulty-list space-y-3">
+                        @foreach($lowestPerformingGestures as $g)
+                            <div class="difficulty-item">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-[13px] font-bold text-[#0d326b] truncate">{{ $g['gesture_name'] }}</span>
+                                    <span class="text-[13px] font-black {{ $g['accuracy'] < 50 ? 'text-rose-600' : 'text-amber-600' }} shrink-0 ml-2">{{ number_format($g['accuracy'], 1) }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1.5">
+                                    <div class="{{ $g['accuracy'] < 50 ? 'bg-rose-500' : 'bg-amber-500' }} h-full rounded-full transition-all" style="width: {{ min(100, $g['accuracy']) }}%"></div>
+                                </div>
+                                <div class="flex items-center gap-3 text-[10px] font-semibold text-slate-400">
+                                    <span>Attempts: <strong class="text-slate-600">{{ $g['attempts'] }}</strong></span>
+                                    <span class="text-emerald-600">Correct: <strong>{{ $g['successful_attempts'] }}</strong></span>
+                                    <span class="text-rose-500">Incorrect: <strong>{{ $g['wrong_attempts'] }}</strong></span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+        </div>
+    </div>
 </div>
 
 <script>

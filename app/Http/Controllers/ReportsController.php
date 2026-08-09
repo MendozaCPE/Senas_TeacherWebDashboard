@@ -70,6 +70,55 @@ class ReportsController extends Controller
 
             $allRows = $query->orderBy('last_accessed_at', 'desc')->get();
 
+            // Fetch Gesture Performance per student strictly from gesture_performances
+            $gQuery = DB::table('gesture_performances as gp')
+                ->join('students as s', 'gp.student_id', '=', 's.student_id')
+                ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
+                ->whereIn('gp.student_id', $studentIds)
+                ->where('gp.attempts', '>', 0)
+                ->select(
+                    's.student_id',
+                    's.first_name',
+                    's.last_name',
+                    'g.gesture_id',
+                    'g.name as g_name',
+                    'g.display_name as g_display_name',
+                    'gp.attempts',
+                    'gp.successful_attempts',
+                    'gp.wrong_attempts',
+                    'gp.mastery_level',
+                    'gp.is_mastered',
+                    'gp.last_attempt_at'
+                );
+
+            if ($filterStudent !== 'all') {
+                $gQuery->where('gp.student_id', (int) $filterStudent);
+            }
+
+            $studentGesturePerformance = $gQuery
+                ->orderBy('s.first_name')
+                ->orderBy('s.last_name')
+                ->get()
+                ->map(function ($row) {
+                    $attempts = (int) $row->attempts;
+                    $success  = (int) $row->successful_attempts;
+                    $accuracy = $attempts > 0 ? round(($success / $attempts) * 100, 1) : 0;
+                    return [
+                        'student_id'          => $row->student_id,
+                        'studentName'         => trim($row->first_name . ' ' . $row->last_name),
+                        'gestureName'         => $row->g_display_name ?: $row->g_name,
+                        'attempts'            => $attempts,
+                        'successfulAttempts'  => $success,
+                        'wrongAttempts'       => (int) $row->wrong_attempts,
+                        'accuracy'            => $accuracy,
+                        'masteryLevel'        => $row->mastery_level ?? 'needs_practice',
+                        'isMastered'          => (bool) $row->is_mastered,
+                        'lastAttemptAt'       => $row->last_attempt_at ? Carbon::parse($row->last_attempt_at)->format('M d, Y') : '—',
+                    ];
+                });
+
+            $gestureByStudent = $studentGesturePerformance->groupBy('student_id');
+
             $studentsToReport = $students;
             if ($filterStudent !== 'all') {
                 $studentsToReport = $students->where('student_id', (int) $filterStudent);
@@ -86,7 +135,7 @@ class ReportsController extends Controller
 
             // Map over all selected active students to build the summary rows.
             $studentReports = $studentsToReport
-                ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps) {
+                ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps, $gestureByStudent) {
                     $rows        = $groupedRows->get($student->student_id) ?? collect();
                     $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
 
@@ -126,6 +175,14 @@ class ReportsController extends Controller
                         ? $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at
                         : null;
 
+                    // Compute student's gesture performance strictly from gesture_performances
+                    $gRows        = $gestureByStudent->get($student->student_id) ?? collect();
+                    $totAttempts  = (int) $gRows->sum('attempts');
+                    $totSuccess   = (int) $gRows->sum('successfulAttempts');
+                    $totWrong     = (int) $gRows->sum('wrongAttempts');
+                    $totMastered  = (int) $gRows->where('isMastered', true)->count();
+                    $gAccuracy    = $totAttempts > 0 ? round(($totSuccess / $totAttempts) * 100, 1) : 0;
+
                     return [
                         'student_id'       => $student->student_id,
                         'studentName'      => trim($student->first_name . ' ' . $student->last_name) ?: 'Unknown Student',
@@ -136,6 +193,12 @@ class ReportsController extends Controller
                         'quizzesTaken'     => $quizzesTaken,
                         'avgScore'         => round($avgScore, 1),
                         'overallPct'       => $overallPct,
+                        'gestureAccuracy'  => $gAccuracy,
+                        'gestureAttempts'  => $totAttempts,
+                        'gestureSuccess'   => $totSuccess,
+                        'gestureWrong'     => $totWrong,
+                        'gesturesMastered' => $totMastered,
+                        'gestureBreakdown' => $gRows->values(),
                         'lastAccessed'     => $lastActiveRaw
                             ? Carbon::parse($lastActiveRaw)->diffForHumans()
                             : '—',
@@ -144,12 +207,15 @@ class ReportsController extends Controller
                 })
                 ->sortBy('studentName')
                 ->values();
+        } else {
+            $studentGesturePerformance = collect();
         }
 
         return view('reports', compact(
             'students',
             'lessons',
             'studentReports',
+            'studentGesturePerformance',
             'teacher'
         ));
     }
