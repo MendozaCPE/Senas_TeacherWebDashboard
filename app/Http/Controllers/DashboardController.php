@@ -72,16 +72,19 @@ class DashboardController extends Controller
 
         if ($teacher) {
             $teacherId  = $teacher->id;
-            $studentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
+            $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
+            $lessonIds  = Lesson::where('teacher_id', $teacherId)->pluck('lesson_id');
 
             // ── Stat Cards ───────────────────────────────────────────────────────
             $totalStudents = $studentIds->count();
 
             $newStudentsThisWeek = Student::where('teacher_id', $teacherId)
+                ->where('status', 'active')
                 ->where('created_at', '>=', Carbon::now()->subWeek())
                 ->count();
 
             $activeToday = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->whereDate('last_accessed_at', Carbon::today())
                 ->distinct('student_id')
                 ->count('student_id');
@@ -91,10 +94,12 @@ class DashboardController extends Controller
                 : 0;
 
             $lessonsCompleted = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->where('lesson_completed', 1)
                 ->count();
 
             $lessonsCompletedThisWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->where('lesson_completed', 1)
                 ->where('updated_at', '>=', Carbon::now()->subWeek())
                 ->count();
@@ -104,21 +109,25 @@ class DashboardController extends Controller
                 $day = Carbon::today()->subDays($i);
 
                 $sparklineTotalStudents[] = Student::where('teacher_id', $teacherId)
+                    ->where('status', 'active')
                     ->whereDate('created_at', '<=', $day)
                     ->count();
 
                 $sparklineActive[] = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->whereIn('lesson_id', $lessonIds)
                     ->whereDate('last_accessed_at', $day)
                     ->distinct('student_id')
                     ->count('student_id');
 
                 $dayAccuracy = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->whereIn('lesson_id', $lessonIds)
                     ->whereNotNull('quiz_score')
                     ->whereDate('updated_at', $day)
                     ->avg('quiz_score');
                 $sparklineAccuracy[] = $dayAccuracy ? (int) round($dayAccuracy) : 0;
 
                 $sparklineLessons[] = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->whereIn('lesson_id', $lessonIds)
                     ->where('lesson_completed', 1)
                     ->whereDate('updated_at', $day)
                     ->count();
@@ -211,24 +220,28 @@ class DashboardController extends Controller
                 });
 
             // ── Overall Class Rate ────────────────────────────────────────────────
-            $totalProgress = StudentLessonProgress::whereIn('student_id', $studentIds)->count();
+            $totalProgress  = StudentLessonProgress::whereIn('student_id', $studentIds)->whereIn('lesson_id', $lessonIds)->count();
             $totalCompleted = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->where('lesson_completed', 1)
                 ->count();
             $classRate = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
 
             // ── Average Accuracy ──────────────────────────────────────────────────
             $avgScore = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->whereNotNull('quiz_score')
                 ->avg('quiz_score');
             $avgAccuracy = $avgScore ? (int) round($avgScore) : 0;
 
             $avgThisWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->whereNotNull('quiz_score')
                 ->where('updated_at', '>=', Carbon::now()->subWeek())
                 ->avg('quiz_score');
 
             $avgLastWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->whereNotNull('quiz_score')
                 ->whereBetween('updated_at', [Carbon::now()->subWeeks(2), Carbon::now()->subWeek()])
                 ->avg('quiz_score');
@@ -241,6 +254,7 @@ class DashboardController extends Controller
 
             // ── Student Performance (5 most recent, with avg quiz score as proxy) ─
             $students = Student::where('teacher_id', $teacherId)
+                ->where('status', 'active')
                 ->orderBy('created_at', 'desc')
                 ->take(5)
                 ->get()
@@ -254,6 +268,7 @@ class DashboardController extends Controller
 
         // ── My Students (sidebar list) ───────────────────────────────────────
             $allStudents = Student::where('teacher_id', $teacherId)
+                ->where('status', 'active')
                 ->orderBy('first_name')
                 ->get(['student_id', 'first_name', 'last_name', 'level', 'grade_level', 'fsl_mastery_level', 'total_xp']);
 
@@ -262,6 +277,7 @@ class DashboardController extends Controller
 
             // 1. Struggling student insight
             $strugglingStudent = Student::where('teacher_id', $teacherId)
+                ->where('status', 'active')
                 ->with('progress')
                 ->get()
                 ->map(function ($s) {
@@ -280,6 +296,7 @@ class DashboardController extends Controller
 
             // 2. Low-performing lesson insight
             $weakProgress = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)
                 ->whereNotNull('quiz_score')
                 ->select('lesson_id', DB::raw('AVG(quiz_score) as avg_score'))
                 ->groupBy('lesson_id')

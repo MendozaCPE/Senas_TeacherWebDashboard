@@ -325,12 +325,28 @@
                     </div>
                 </td>
             </tr>
-            @forelse($student['lessons'] as $lesson)
+            @php
+                $groupedLessons = collect($student['lessons'])->groupBy('moduleTitle');
+            @endphp
+            @forelse($groupedLessons as $moduleTitle => $moduleLessons)
+            <tr class="module-header-row">
+                <td colspan="5" style="background-color: #f1f5f9; font-weight: 700; color: #0d326b; font-size: 10px; padding: 6px 12px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1;">
+                    📁 MODULE: {{ $moduleTitle }}
+                </td>
+            </tr>
+            @foreach($moduleLessons as $lesson)
             <tr class="lesson-row">
-                <td style="font-weight:700; color:#1e293b;">{{ $lesson['lessonTitle'] }}</td>
+                <td style="font-weight:700; color:#1e293b;">
+                    {{ $lesson['lessonTitle'] }}
+                    @if($lesson['ai_generated'])
+                        <span style="font-size: 8px; color: #7c3aed; background: #f3e8ff; padding: 1px 5px; border-radius: 4px; font-weight: bold;">AI</span>
+                    @endif
+                </td>
                 <td style="text-transform:capitalize; color:#64748b;">{{ $lesson['difficulty'] }}</td>
                 <td>
-                    @if($lesson['completed'])
+                    @if(!$lesson['started'])
+                        <span class="badge" style="background:#f1f5f9; color:#94a3b8;">Not Started</span>
+                    @elseif($lesson['completed'])
                         <span class="badge badge-completed">Completed</span>
                     @else
                         <span class="badge badge-in-progress">In Progress</span>
@@ -339,12 +355,15 @@
                 <td style="font-weight:700; color:#0d326b;">
                     @if($lesson['quizCompleted'])
                         {{ $lesson['quizScore'] }} pts
-                    @else
+                    @elseif($lesson['started'])
                         <span style="color:#94a3b8; font-weight:400;">Pending</span>
+                    @else
+                        <span style="color:#cbd5e1; font-weight:400;">—</span>
                     @endif
                 </td>
                 <td style="color:#64748b;">{{ $lesson['lastAccessed'] }}</td>
             </tr>
+            @endforeach
             @empty
             <tr class="lesson-row">
                 <td colspan="5" style="color:#94a3b8; font-style:italic; text-align:center;">No lesson activity recorded.</td>

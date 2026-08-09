@@ -147,7 +147,17 @@
 
             {{-- Filter Toolbar with Add Student button integrated --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center gap-3 flex-wrap">
-                @php $sf = session('students_filters', []); @endphp
+                @php
+                    $sf = session('students_filters', []);
+                    $hasActiveFilters = false;
+                    foreach ($sf as $k => $v) {
+                        if ($k === 'status') {
+                            if ($v !== 'active') $hasActiveFilters = true;
+                        } else {
+                            if (!empty($v)) $hasActiveFilters = true;
+                        }
+                    }
+                @endphp
                 <div class="relative shrink-0 order-1 lg:order-none">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
                     <input id="student-search" type="text" value="{{ $sf['search'] ?? '' }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[250px]" />
@@ -183,8 +193,16 @@
                     </select>
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
                 </div>
+                <div class="relative shrink-0">
+                    <select id="filter-status" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
+                        <option value="active" {{ ($sf['status'] ?? 'active') === 'active' ? 'selected' : '' }}>Enrolled</option>
+                        <option value="inactive" {{ ($sf['status'] ?? 'active') === 'inactive' ? 'selected' : '' }}>Unenrolled</option>
+                        <option value="all" {{ ($sf['status'] ?? 'active') === 'all' ? 'selected' : '' }}>All Statuses</option>
+                    </select>
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+                </div>
                 {{-- Clear filter (client-side toggled, AJAX-cleared — no page reload) --}}
-                <span id="clear-filters-wrap" class="{{ empty($sf) ? 'hidden' : '' }}">
+                <span id="clear-filters-wrap" class="{{ !$hasActiveFilters ? 'hidden' : '' }}">
                     <button type="button" id="clear-filters-btn" class="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-500 text-[13px] font-semibold transition-all hover:bg-slate-50 hover:border-slate-300">Clear</button>
                 </span>
                 {{-- Add Student Button moved here --}}
@@ -1400,7 +1418,8 @@ function updateClearButtonVisibility() {
     const level   = document.getElementById('filter-level').value;
     const program = document.getElementById('filter-program').value;
     const schoolYear = document.getElementById('filter-school-year').value;
-    const hasFilters = !!(search || level || program || schoolYear);
+    const status  = document.getElementById('filter-status').value;
+    const hasFilters = !!(search || level || program || schoolYear || (status && status !== 'active'));
     const wrap = document.getElementById('clear-filters-wrap');
     if (wrap) wrap.classList.toggle('hidden', !hasFilters);
 }
@@ -1440,6 +1459,7 @@ function applyServerFilters(overrides) {
     const levelVal   = overrides.hasOwnProperty('level')   ? overrides.level   : document.getElementById('filter-level').value;
     const programVal = overrides.hasOwnProperty('program') ? overrides.program : document.getElementById('filter-program').value;
     const schoolYearVal = overrides.hasOwnProperty('school_year') ? overrides.school_year : document.getElementById('filter-school-year').value;
+    const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : document.getElementById('filter-status').value;
 
     const tokenInput = document.querySelector('#studentFilterForm input[name="_token"]');
     const token = tokenInput ? tokenInput.value : '';
@@ -1450,6 +1470,7 @@ function applyServerFilters(overrides) {
     body.set('level', levelVal);
     body.set('program', programVal);
     body.set('school_year', schoolYearVal);
+    body.set('status', statusVal);
 
     fetchStudentsResults("{{ route('students.filter') }}", {
         method: 'POST',
@@ -1476,9 +1497,9 @@ document.addEventListener('keydown', function (e) {
     }
 });
 
-// Level / Program / School Year dropdowns
+// Level / Program / School Year / Status dropdowns
 document.addEventListener('change', function (e) {
-    if (e.target && (e.target.id === 'filter-level' || e.target.id === 'filter-program' || e.target.id === 'filter-school-year')) {
+    if (e.target && (e.target.id === 'filter-level' || e.target.id === 'filter-program' || e.target.id === 'filter-school-year' || e.target.id === 'filter-status')) {
         applyServerFilters();
     }
 });
@@ -1491,7 +1512,8 @@ document.addEventListener('click', function (e) {
         document.getElementById('filter-level').value = '';
         document.getElementById('filter-program').value = '';
         document.getElementById('filter-school-year').value = '';
-        applyServerFilters({ search: '', level: '', program: '', school_year: '' });
+        document.getElementById('filter-status').value = 'active';
+        applyServerFilters({ search: '', level: '', program: '', school_year: '', status: 'active' });
         return;
     }
 
@@ -1918,23 +1940,56 @@ document.getElementById('sdc-demote-btn').addEventListener('click', () => {
 // ── Generic action handler ────────────────────────────────────────────────────
 async function sdcAction(url, data, type) {
     const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+
+    const enrollBtn   = document.getElementById('sdc-enroll-btn');
+    const unenrollBtn = document.getElementById('sdc-unenroll-btn');
+    const promoteBtn  = document.getElementById('sdc-promote-btn');
+    const demoteBtn   = document.getElementById('sdc-demote-btn');
+
+    // Determine active button to show spinner
+    let activeBtn = null;
+    if (type === 'enroll') activeBtn = enrollBtn;
+    else if (type === 'unenroll') activeBtn = unenrollBtn;
+    else if (type === 'promote') activeBtn = promoteBtn;
+    else if (type === 'demote') activeBtn = demoteBtn;
+
+    let origHtml = '';
+    if (activeBtn) {
+        origHtml = activeBtn.innerHTML;
+        let label = 'Processing…';
+        if (type === 'enroll') label = 'Enrolling…';
+        else if (type === 'unenroll') label = 'Removing…';
+        else if (type === 'promote') label = 'Promoting…';
+        else if (type === 'demote') label = 'Demoting…';
+
+        activeBtn.innerHTML = `<span class="material-symbols-outlined text-[13px] animate-spin">progress_activity</span><span>${label}</span>`;
+    }
+
+    // Disable all buttons to prevent concurrent actions
+    const btns = [enrollBtn, unenrollBtn, promoteBtn, demoteBtn];
+    const origDisabledStates = btns.map(b => b.disabled);
+    btns.forEach(b => b.disabled = true);
+
     try {
         const res = await axios.post(url, data, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
+
+        // Restore HTML before running populateStudentDetails to ensure the DOM is intact
+        if (activeBtn) activeBtn.innerHTML = origHtml;
+
         if (res.data.success) {
             sdNotifShow(res.data.message, 'success');
-            // Re-fetch and re-populate
-            fetch('/students/' + _sdCurrent.student_id, {
-                method: 'GET',
-                credentials: 'same-origin',
-                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
-            })
-                .then(r => r.json())
-                .then(fresh => { if (fresh.success) { _sdCurrent = fresh.student; populateStudentDetails(fresh.student); applyServerFilters(); } });
+            _sdCurrent = res.data.student;
+            populateStudentDetails(res.data.student);
+            applyServerFilters();
         } else {
             sdNotifShow(res.data.message || 'Action failed.', 'error');
+            btns.forEach((b, i) => b.disabled = origDisabledStates[i]);
         }
     } catch (err) {
         sdNotifShow(err.response?.data?.message || 'Something went wrong.', 'error');
+        // Restore HTML and disabled states if error
+        if (activeBtn) activeBtn.innerHTML = origHtml;
+        btns.forEach((b, i) => b.disabled = origDisabledStates[i]);
     }
 }
 

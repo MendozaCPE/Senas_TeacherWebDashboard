@@ -38,14 +38,14 @@ class StudentsController extends Controller
                 $filters = session('students_filters', []);
                 $level   = $filters['level']   ?? '';
                 $program = $filters['program'] ?? '';
-                $status  = $filters['status']  ?? 'all';
+                $status  = $filters['status']  ?? 'active';
                 $schoolYear = $filters['school_year'] ?? '';
             } else {
                 $filters = session('students_filters', []);
                 $search  = $filters['search']  ?? '';
                 $level   = $filters['level']   ?? '';
                 $program = $filters['program'] ?? '';
-                $status  = $filters['status']  ?? 'all';
+                $status  = $filters['status']  ?? 'active';
                 $schoolYear = $filters['school_year'] ?? '';
             }
 
@@ -107,7 +107,7 @@ class StudentsController extends Controller
             && ($validated['level'] ?? '') === ''
             && ($validated['program'] ?? '') === ''
             && ($validated['school_year'] ?? '') === ''
-            && (($validated['status'] ?? 'all') === 'all')
+            && (($validated['status'] ?? 'active') === 'active')
         ) {
             session()->forget('students_filters');
         } else {
@@ -594,7 +594,17 @@ class StudentsController extends Controller
                           ->with(['promotions'])
                           ->firstOrFail();
 
-        // Load the associated user separately (no relationship defined on model)
+        return response()->json([
+            'success' => true,
+            'student' => $this->getStudentDetailsResponse($student),
+        ]);
+    }
+
+    /**
+     * Format student details response.
+     */
+    private function getStudentDetailsResponse(Student $student)
+    {
         $user = \App\Models\User::find($student->user_id);
 
         $xp  = $student->total_xp ?? 0;
@@ -609,47 +619,42 @@ class StudentsController extends Controller
         $enoughXp   = $xp >= $requiredXp;
         $demoteTo   = $demotionMap[$lvl] ?? null;
 
-        return response()->json([
-            'success' => true,
-            'student' => [
-                'student_id'        => $student->student_id,
-                'first_name'        => $student->first_name,
-                'last_name'         => $student->last_name,
-                'full_name'         => $student->first_name . ' ' . $student->last_name,
-                'lrn'               => $student->lrn,
-                'pin'               => $student->pin,
-                'age'               => $student->age,
-                'grade_level'       => $student->grade_level,
-                'section'           => $student->section,
-                'school_year'       => $student->school_year,
-                'program_type'      => $student->program_type,
-                'fsl_mastery_level' => $lvl,
-                'status'            => $student->status,
-                'total_xp'          => $xp,
-                'level'             => $student->level ?? 1,
-                'streak_days'       => $student->streak_days ?? 0,
-                'last_activity_date'=> $student->last_activity_date,
-                'created_at'        => $student->created_at?->format('M d, Y'),
-                'updated_at'        => $student->updated_at?->format('M d, Y'),
-                'email'             => $user?->email,
-                'username'          => $user?->username,
-                'avatar_url'        => 'https://ui-avatars.com/api/?name=' . urlencode($student->first_name . ' ' . $student->last_name) . '&background=0d326b&color=fff&rounded=true&size=128',
-                // Promotion helpers
-                'promote_to'        => $promoteTo,
-                'demote_to'         => $demoteTo,
-                'required_xp'       => $requiredXp,
-                'enough_xp'         => $enoughXp,
-                'xp_bar_pct'        => $requiredXp > 0 ? min(100, round($xp / $requiredXp * 100)) : 100,
-                // History
-                'promotions'        => $student->promotions->map(fn($p) => [
-                    'from'   => $p->from_level,
-                    'to'     => $p->to_level,
-                    'xp'     => $p->xp_at_promotion,
-                    'date'   => $p->promoted_at?->format('M d, Y'),
-                    'forced' => (bool) $p->was_forced,
-                ])->toArray(),
-            ],
-        ]);
+        return [
+            'student_id'        => $student->student_id,
+            'first_name'        => $student->first_name,
+            'last_name'         => $student->last_name,
+            'full_name'         => $student->first_name . ' ' . $student->last_name,
+            'lrn'               => $student->lrn,
+            'pin'               => $student->pin,
+            'age'               => $student->age,
+            'grade_level'       => $student->grade_level,
+            'section'           => $student->section,
+            'school_year'       => $student->school_year,
+            'program_type'      => $student->program_type,
+            'fsl_mastery_level' => $lvl,
+            'status'            => $student->status,
+            'total_xp'          => $xp,
+            'level'             => $student->level ?? 1,
+            'streak_days'       => $student->streak_days ?? 0,
+            'last_activity_date'=> $student->last_activity_date,
+            'created_at'        => $student->created_at?->format('M d, Y'),
+            'updated_at'        => $student->updated_at?->format('M d, Y'),
+            'email'             => $user?->email,
+            'username'          => $user?->username,
+            'avatar_url'        => 'https://ui-avatars.com/api/?name=' . urlencode($student->first_name . ' ' . $student->last_name) . '&background=0d326b&color=fff&rounded=true&size=128',
+            'promote_to'        => $promoteTo,
+            'demote_to'         => $demoteTo,
+            'required_xp'       => $requiredXp,
+            'enough_xp'         => $enoughXp,
+            'xp_bar_pct'        => $requiredXp > 0 ? min(100, round($xp / $requiredXp * 100)) : 100,
+            'promotions'        => $student->promotions->map(fn($p) => [
+                'from'   => $p->from_level,
+                'to'     => $p->to_level,
+                'xp'     => $p->xp_at_promotion,
+                'date'   => $p->promoted_at?->format('M d, Y'),
+                'forced' => (bool) $p->was_forced,
+            ])->toArray(),
+        ];
     }
 
     /**
@@ -675,7 +680,7 @@ class StudentsController extends Controller
         return response()->json([
             'success' => true,
             'message' => $student->first_name . ' ' . $student->last_name . ' has been enrolled successfully.',
-            'status'  => 'active',
+            'student' => $this->getStudentDetailsResponse($student),
         ]);
     }
 
@@ -702,7 +707,7 @@ class StudentsController extends Controller
         return response()->json([
             'success' => true,
             'message' => $student->first_name . ' ' . $student->last_name . ' has been unenrolled.',
-            'status'  => 'inactive',
+            'student' => $this->getStudentDetailsResponse($student),
         ]);
     }
 
@@ -779,7 +784,7 @@ class StudentsController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "{$student->first_name} {$student->last_name} has been promoted to {$targetLvl}!",
-                'new_level' => $targetLvl,
+                'student' => $this->getStudentDetailsResponse($student),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -846,7 +851,7 @@ class StudentsController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "{$student->first_name} {$student->last_name} has been demoted to {$targetLvl}.",
-                'new_level' => $targetLvl,
+                'student' => $this->getStudentDetailsResponse($student),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

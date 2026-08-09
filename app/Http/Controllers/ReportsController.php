@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lesson;
+use App\Models\Module;
 use App\Models\Student;
 use App\Models\StudentLessonProgress;
 use Illuminate\Http\Request;
@@ -28,13 +29,22 @@ class ReportsController extends Controller
 
         if ($teacher) {
             $teacherId  = $teacher->id;
-            $studentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
+            $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
 
             $students = Student::where('teacher_id', $teacherId)
+                ->where('status', 'active')
                 ->orderBy('first_name')
                 ->get();
 
+            $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
+            $teacherModuleIds = $modules->pluck('module_id');
+
             $lessons = Lesson::where('teacher_id', $teacherId)
+                ->where(function($q) use ($teacherModuleIds) {
+                    $q->whereIn('module_id', $teacherModuleIds)
+                      ->orWhereNull('module_id');
+                })
+                ->with('module')
                 ->orderBy('module_order')
                 ->get();
 
@@ -43,7 +53,10 @@ class ReportsController extends Controller
             $filterStudent = $filters['student_id'] ?? 'all';
             $filterLesson  = $filters['lesson_id']  ?? 'all';
 
+            $lessonIds = $lessons->pluck('lesson_id');
+
             $query = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->whereIn('lesson_id', $lessonIds)  // ← Only THIS teacher's lessons
                 ->with(['student', 'lesson']);
 
             if ($filterStudent !== 'all') {
@@ -55,49 +68,67 @@ class ReportsController extends Controller
 
             $allRows = $query->orderBy('last_accessed_at', 'desc')->get();
 
+            $studentsToReport = $students;
+            if ($filterStudent !== 'all') {
+                $studentsToReport = $students->where('student_id', (int) $filterStudent);
+            }
+
+            // Determine which lessons to show per student
+            $lessonsToShow = $filterLesson !== 'all'
+                ? $lessons->where('lesson_id', (int) $filterLesson)
+                : $lessons;
+
+            $groupedRows = $allRows->groupBy('student_id');
 
             $totalSteps = 7; // avg lesson steps, used for step-progress %
 
-            // Collapse many student×lesson rows into ONE summary row per student.
-            $studentReports = $allRows
-                ->groupBy('student_id')
-                ->map(function ($rows, $studentId) use ($totalSteps) {
-                    $student = $rows->first()->student;
+            // Map over all selected active students to build the summary rows.
+            $studentReports = $studentsToReport
+                ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps) {
+                    $rows        = $groupedRows->get($student->student_id) ?? collect();
+                    $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
 
-                    $lessonBreakdown = $rows->map(function ($row) use ($totalSteps) {
-                        $stepPct = $totalSteps > 0
+                    // Build one entry per lesson (started OR not started)
+                    $lessonBreakdown = $lessonsToShow->map(function ($lesson) use ($progressMap, $totalSteps) {
+                        $row     = $progressMap->get($lesson->lesson_id);
+                        $started = $row !== null;
+                        $stepPct = ($started && $totalSteps > 0)
                             ? min(100, round(($row->current_step / $totalSteps) * 100))
                             : 0;
 
                         return [
-                            'lessonTitle'   => optional($row->lesson)->title ?? '—',
-                            'lessonType'    => optional($row->lesson)->lesson_type ?? '',
+                            'lessonTitle'   => $lesson->title,
+                            'lessonType'    => $lesson->lesson_type ?? '',
+                            'moduleTitle'   => $lesson->module ? $lesson->module->title : 'Unassigned Lessons',
+                            'module_id'     => $lesson->module_id,
+                            'ai_generated'  => (bool) $lesson->ai_generated,
+                            'started'       => $started,
                             'stepPct'       => $stepPct,
-                            'completed'     => (bool) $row->lesson_completed,
-                            'quizCompleted' => (bool) $row->quiz_completed,
-                            'quizScore'     => $row->quiz_score,
-                            'lastAccessed'  => $row->last_accessed_at
+                            'completed'     => $started && (bool) $row->lesson_completed,
+                            'quizCompleted' => $started && (bool) $row->quiz_completed,
+                            'quizScore'     => $started ? $row->quiz_score : null,
+                            'lastAccessed'  => ($started && $row->last_accessed_at)
                                 ? Carbon::parse($row->last_accessed_at)->diffForHumans()
                                 : '—',
                         ];
                     })->values();
 
-                    $totalLessons     = $rows->count();
+                    $totalLessons     = $lessonsToShow->count();
                     $completedLessons = $rows->where('lesson_completed', 1)->count();
                     $quizzesTaken     = $rows->where('quiz_completed', 1)->count();
                     $avgScore         = $rows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
                     $overallPct       = $totalLessons > 0
                         ? round(($completedLessons / $totalLessons) * 100)
                         : 0;
-                    $lastActiveRaw    = $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at;
+                    $lastActiveRaw    = $rows->isNotEmpty()
+                        ? $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at
+                        : null;
 
                     return [
-                        'student_id'       => $studentId,
-                        'studentName'      => trim(optional($student)->first_name . ' ' . optional($student)->last_name) ?: 'Unknown Student',
-                        'gradeLevel'       => optional($student)->grade_level ?? 'N/A',
-                        'initials'         => $student
-                            ? strtoupper(substr($student->first_name, 0, 1) . substr($student->last_name, 0, 1))
-                            : '??',
+                        'student_id'       => $student->student_id,
+                        'studentName'      => trim($student->first_name . ' ' . $student->last_name) ?: 'Unknown Student',
+                        'gradeLevel'       => $student->grade_level ?? 'N/A',
+                        'initials'         => strtoupper(substr($student->first_name, 0, 1) . substr($student->last_name, 0, 1)) ?: '??',
                         'totalLessons'     => $totalLessons,
                         'completedLessons' => $completedLessons,
                         'quizzesTaken'     => $quizzesTaken,
@@ -163,14 +194,28 @@ class ReportsController extends Controller
         }
 
         $teacherId  = $teacher->id;
-        $studentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
-        $students   = Student::where('teacher_id', $teacherId)->orderBy('first_name')->get();
-        $lessons    = Lesson::where('teacher_id', $teacherId)->orderBy('module_order')->get();
+        $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
+        $students   = Student::where('teacher_id', $teacherId)->where('status', 'active')->orderBy('first_name')->get();
+        
+        $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
+        $teacherModuleIds = $modules->pluck('module_id');
+
+        $lessons = Lesson::where('teacher_id', $teacherId)
+            ->where(function($q) use ($teacherModuleIds) {
+                $q->whereIn('module_id', $teacherModuleIds)
+                  ->orWhereNull('module_id');
+            })
+            ->with('module')
+            ->orderBy('module_order')
+            ->get();
 
         $filterStudent = $request->get('student_id', 'all');
         $filterLesson  = $request->get('lesson_id', 'all');
 
+        $lessonIds = $lessons->pluck('lesson_id');
+
         $query = StudentLessonProgress::whereIn('student_id', $studentIds)
+            ->whereIn('lesson_id', $lessonIds)  // ← Only THIS teacher's lessons
             ->with(['student', 'lesson']);
         if ($filterStudent !== 'all') $query->where('student_id', $filterStudent);
         if ($filterLesson  !== 'all') $query->where('lesson_id', $filterLesson);
@@ -179,40 +224,66 @@ class ReportsController extends Controller
 
         $totalSteps = 7;
 
-        // Group into one clean block per student — same shape the web
-        // Reports page already uses, so the PDF reads the same way.
-        $studentReports = $allRows
-            ->groupBy('student_id')
-            ->map(function ($rows, $studentId) use ($totalSteps) {
-                $student = $rows->first()->student;
+        $studentsToReport = $students;
+        if ($filterStudent !== 'all') {
+            $studentsToReport = $students->where('student_id', (int) $filterStudent);
+        }
 
-                $lessonBreakdown = $rows->map(function ($row) use ($totalSteps) {
+        // Determine which lessons to show per student
+        $lessonsToShow = $filterLesson !== 'all'
+            ? $lessons->where('lesson_id', (int) $filterLesson)
+            : $lessons;
+
+        $groupedRows = $allRows->groupBy('student_id');
+
+        $totalSteps = 7;
+
+        // Map over all selected active students for the PDF layout.
+        $studentReports = $studentsToReport
+            ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps) {
+                $rows        = $groupedRows->get($student->student_id) ?? collect();
+                $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
+
+                $lessonBreakdown = $lessonsToShow->map(function ($lesson) use ($progressMap, $totalSteps) {
+                    $row     = $progressMap->get($lesson->lesson_id);
+                    $started = $row !== null;
+                    $stepPct = ($started && $totalSteps > 0)
+                        ? min(100, round(($row->current_step / $totalSteps) * 100))
+                        : 0;
+
                     return [
-                        'lessonTitle'   => optional($row->lesson)->title ?? '—',
-                        'difficulty'    => optional($row->lesson)->difficulty ?? '—',
-                        'completed'     => (bool) $row->lesson_completed,
-                        'quizCompleted' => (bool) $row->quiz_completed,
-                        'quizScore'     => $row->quiz_score,
-                        'currentStep'   => $row->current_step,
+                        'lessonTitle'   => $lesson->title,
+                        'difficulty'    => $lesson->difficulty ?? '—',
+                        'moduleTitle'   => $lesson->module ? $lesson->module->title : 'Unassigned Lessons',
+                        'module_id'     => $lesson->module_id,
+                        'ai_generated'  => (bool) $lesson->ai_generated,
+                        'started'       => $started,
+                        'completed'     => $started && (bool) $row->lesson_completed,
+                        'quizCompleted' => $started && (bool) $row->quiz_completed,
+                        'quizScore'     => $started ? $row->quiz_score : null,
+                        'currentStep'   => $started ? $row->current_step : 0,
                         'totalSteps'    => $totalSteps,
-                        'lastAccessed'  => $row->last_accessed_at
+                        'stepPct'       => $stepPct,
+                        'lastAccessed'  => ($started && $row->last_accessed_at)
                             ? Carbon::parse($row->last_accessed_at)->format('M d, Y')
                             : '—',
                     ];
                 })->values();
 
-                $totalLessons     = $rows->count();
+                $totalLessons     = $lessonsToShow->count();
                 $completedLessons = $rows->where('lesson_completed', 1)->count();
                 $quizzesTaken     = $rows->where('quiz_completed', 1)->count();
                 $avgScore         = $rows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
                 $overallPct       = $totalLessons > 0
                     ? round(($completedLessons / $totalLessons) * 100)
                     : 0;
-                $lastActiveRaw    = $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at;
+                $lastActiveRaw    = $rows->isNotEmpty()
+                    ? $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at
+                    : null;
 
                 return [
-                    'studentName'      => trim(optional($student)->first_name . ' ' . optional($student)->last_name) ?: 'Unknown Student',
-                    'gradeLevel'       => optional($student)->grade_level ?? 'N/A',
+                    'studentName'      => trim($student->first_name . ' ' . $student->last_name) ?: 'Unknown Student',
+                    'gradeLevel'       => $student->grade_level ?? 'N/A',
                     'totalLessons'     => $totalLessons,
                     'completedLessons' => $completedLessons,
                     'quizzesTaken'     => $quizzesTaken,

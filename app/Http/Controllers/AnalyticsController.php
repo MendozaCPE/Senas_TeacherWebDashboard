@@ -79,7 +79,8 @@ class AnalyticsController extends Controller
     public function buildAnalyticsData($teacher, \Illuminate\Http\Request $request): array
     {
         $teacherId  = $teacher->id;
-        $studentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
+        $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
+        $lessonIds  = Lesson::where('teacher_id', $teacherId)->pluck('lesson_id');
         $totalStudents = $studentIds->count();
 
         if ($totalStudents === 0) {
@@ -152,6 +153,7 @@ class AnalyticsController extends Controller
 
         $assignmentTotals = DB::table('lesson_assignments')
             ->whereIn('student_id', $studentIds)
+            ->whereIn('lesson_id', $lessonIds)
             ->selectRaw('count(*) as total')
             ->selectRaw('sum(case when status = "completed" then 1 else 0 end) as completed')
             ->first();
@@ -161,10 +163,12 @@ class AnalyticsController extends Controller
             : 0;
 
         $avgStreakDays = Student::where('teacher_id', $teacherId)
+            ->where('status', 'active')
             ->avg('streak_days') ?? 0;
         $avgStreakDays = round($avgStreakDays, 1);
 
         $activeLast7Days = Student::where('teacher_id', $teacherId)
+            ->where('status', 'active')
             ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
             ->count();
 
@@ -269,6 +273,7 @@ class AnalyticsController extends Controller
 
         $lessonDifficulty = DB::table('lesson_assignments')
             ->whereIn('lesson_assignments.student_id', $studentIds)
+            ->whereIn('lesson_assignments.lesson_id', $lessonIds)
             ->whereNotNull('lesson_assignments.score')
             ->join('lessons', 'lesson_assignments.lesson_id', '=', 'lessons.lesson_id')
             ->select('lesson_assignments.lesson_id', 'lessons.title', DB::raw('avg(lesson_assignments.score) as avg_score'), DB::raw('count(*) as attempts'))
@@ -338,6 +343,7 @@ class AnalyticsController extends Controller
 
         $completionFunnelRaw = DB::table('lesson_assignments')
             ->whereIn('student_id', $studentIds)
+            ->whereIn('lesson_id', $lessonIds)
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
@@ -378,6 +384,7 @@ class AnalyticsController extends Controller
         $maxScoreBucket = max(1, $scoreBuckets->max('count'));
 
         $studentRanking = Student::where('teacher_id', $teacherId)
+            ->where('status', 'active')
             ->withCount(['quizAttempts as attempts' => function ($q) {
                 $q->where('status', 'completed');
             }])
