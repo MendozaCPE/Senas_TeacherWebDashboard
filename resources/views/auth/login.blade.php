@@ -27,10 +27,10 @@
         <div class="w-full max-w-md">
 
             {{-- Back arrow --}}
-            <button onclick="history.back()"
-                    class="inline-flex items-center text-gray-400 hover:text-gray-600 transition mb-4">
+            <a href="{{ route('home') }}"
+               class="inline-flex items-center text-gray-400 hover:text-gray-600 transition mb-4">
                 <span class="material-symbols-outlined text-xl">arrow_back</span>
-            </button>
+            </a>
 
             <h2 class="text-3xl font-extrabold text-gray-900 mb-1">Welcome, Teacher</h2>
             <p class="text-gray-400 text-sm mb-8">Login in to continue</p>

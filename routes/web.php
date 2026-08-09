@@ -29,7 +29,7 @@ Route::post('/lessons/upload-media-test', function (Request $request) {
 })->name('lessons.upload-media-test');
 
 // ── Auth Routes (guests only) ────────────────────────────────────────────────
-Route::middleware('guest')->group(function () {
+Route::middleware(['guest', 'no.cache'])->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
     Route::get('/forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
