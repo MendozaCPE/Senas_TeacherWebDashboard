@@ -1722,15 +1722,17 @@ function clearDragDropImage(btn) {
 
 const LIBRARY_FOLDERS_URL = '{{ route('lessons.media-library.folders') }}';
 const LIBRARY_FILES_BASE_URL = '{{ url('/lessons/media-library') }}';
+const MY_UPLOADS_URL = '{{ route('lessons.media-library.my-uploads') }}';
 
 // Icon + fallback label for each library folder. The backend is the source of
 // truth for which folders exist and their file counts; this just supplies the
 // icon (and a label to show before that first fetch resolves).
 const LIBRARY_FOLDER_META = {
-    Alphabets: { icon: 'sort_by_alpha', label: 'Alphabets' },
-    Numbers:   { icon: 'tag',           label: 'Numbers' },
-    Greetings: { icon: 'waving_hand',   label: 'Greetings' },
-    Survival:  { icon: 'sos',           label: 'Survival / Conversation' },
+    Alphabets:  { icon: 'sort_by_alpha', label: 'Alphabets' },
+    Numbers:    { icon: 'tag',           label: 'Numbers' },
+    Greetings:  { icon: 'waving_hand',   label: 'Greetings' },
+    Survival:   { icon: 'sos',           label: 'Survival / Conversation' },
+    my_uploads: { icon: 'cloud_upload',  label: 'My Uploads' },
 };
 
 let mediaPickerTarget = null;
@@ -1787,6 +1789,7 @@ function openMediaPicker(triggerEl) {
         <button type="button" data-folder="Numbers"><span class="material-symbols-outlined">tag</span> Numbers</button>
         <button type="button" data-folder="Greetings"><span class="material-symbols-outlined">waving_hand</span> Greetings</button>
         <button type="button" data-folder="Survival"><span class="material-symbols-outlined">sos</span> Survival / Conversation</button>
+        <button type="button" data-folder="my_uploads"><span class="material-symbols-outlined">cloud_upload</span> My Uploads</button>
         <div class="media-picker-menu-divider"></div>
         <button type="button" data-device="1"><span class="material-symbols-outlined">upload_file</span> Upload from Device</button>
     `;
@@ -1838,13 +1841,20 @@ function loadLibraryFolder(activeFolder) {
     const title = document.getElementById('libraryModalTitle');
     const foldersBar = document.getElementById('libraryFoldersBar');
 
-    const fallbackFolders = Object.keys(LIBRARY_FOLDER_META).map(function(key) {
+    // Build static tab list (sign-language folders + My Uploads at the end)
+    const staticFolders = Object.keys(LIBRARY_FOLDER_META).map(function(key) {
         return { key: key, icon: LIBRARY_FOLDER_META[key].icon, label: LIBRARY_FOLDER_META[key].label };
     });
 
     function renderTabs(folders) {
         foldersBar.innerHTML = '';
-        folders.forEach(function(f) {
+        // Always include system library folders fetched from backend,
+        // then append the My Uploads tab if not already present.
+        const withMyUploads = folders.some(function(f) { return f.key === 'my_uploads'; })
+            ? folders
+            : folders.concat([{ key: 'my_uploads', icon: 'cloud_upload', label: 'My Uploads' }]);
+
+        withMyUploads.forEach(function(f) {
             const tab = document.createElement('button');
             tab.type = 'button';
             tab.className = 'library-tab' + (f.key === activeFolder ? ' active' : '');
@@ -1852,9 +1862,58 @@ function loadLibraryFolder(activeFolder) {
             tab.addEventListener('click', function() { loadLibraryFolder(f.key); });
             foldersBar.appendChild(tab);
         });
-        const current = folders.find(function(f) { return f.key === activeFolder; });
+        const current = withMyUploads.find(function(f) { return f.key === activeFolder; });
         title.textContent = current ? current.label : 'Sign Language Library';
     }
+
+    if (activeFolder === 'my_uploads') {
+        // My Uploads: always render tabs with cached or static folders
+        const tabFolders = libraryFoldersCache || Object.keys(LIBRARY_FOLDER_META)
+            .filter(function(k) { return k !== 'my_uploads'; })
+            .map(function(k) { return { key: k, icon: LIBRARY_FOLDER_META[k].icon, label: LIBRARY_FOLDER_META[k].label }; });
+        renderTabs(tabFolders);
+        grid.innerHTML = '<div class="library-loading">Loading files…</div>';
+        fetch(MY_UPLOADS_URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                const files = data.files || [];
+                if (!files.length) {
+                    grid.innerHTML = '<div class="library-empty">You have no uploaded media yet.<br>Go to the <strong>Media</strong> tab to upload files.</div>';
+                    return;
+                }
+                grid.innerHTML = '';
+                files.forEach(function(f) {
+                    const card = document.createElement('div');
+                    card.className = 'library-file-card';
+                    if (f.type === 'video') {
+                        card.innerHTML = `
+                            <div class="library-file-thumb library-file-thumb-video">
+                                <video src="${f.url}#t=0.3" muted preload="metadata" playsinline></video>
+                                <span class="material-symbols-outlined play-icon">play_circle</span>
+                            </div>`;
+                    } else {
+                        card.innerHTML = `<img class="library-file-thumb" src="${f.url}" alt="" loading="lazy">`;
+                    }
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'library-file-name';
+                    nameEl.textContent = f.title || f.file_name;
+                    card.appendChild(nameEl);
+                    card.addEventListener('click', function() {
+                        if (mediaPickerTarget) applySelectedMedia(mediaPickerTarget, f);
+                        closeLibraryModal();
+                    });
+                    grid.appendChild(card);
+                });
+            })
+            .catch(function() {
+                grid.innerHTML = '<div class="library-empty">Could not load your uploads. Please try again.</div>';
+            });
+        return;
+    }
+
+    const fallbackFolders = Object.keys(LIBRARY_FOLDER_META)
+        .filter(function(k) { return k !== 'my_uploads'; })
+        .map(function(k) { return { key: k, icon: LIBRARY_FOLDER_META[k].icon, label: LIBRARY_FOLDER_META[k].label }; });
 
     if (libraryFoldersCache) {
         renderTabs(libraryFoldersCache);

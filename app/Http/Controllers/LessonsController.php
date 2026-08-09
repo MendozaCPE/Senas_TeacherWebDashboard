@@ -511,6 +511,35 @@ public function store(Request $request)
     }
 
     /**
+     * List the current teacher's uploaded media files.
+     * GET /lessons/my-uploads
+     */
+    public function mediaLibraryMyUploads()
+    {
+        $teacher = $this->resolveTeacherId();
+
+        $items = \App\Models\TeacherMedia::where('teacher_id', $teacher)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $videoExt = ['mp4', 'mov', 'avi', 'mkv'];
+
+        $files = $items->map(function ($item) use ($videoExt) {
+            $ext = strtolower(pathinfo($item->file_name, PATHINFO_EXTENSION));
+            return [
+                'file_name' => $item->file_name,
+                'title'     => $item->title,
+                'path'      => $item->file_path,
+                'url'       => asset('storage/' . $item->file_path),
+                'type'      => in_array($ext, $videoExt) ? 'video' : 'image',
+                'size'      => $item->file_size,
+            ];
+        })->values()->toArray();
+
+        return response()->json(['files' => $files]);
+    }
+
+    /**
      * Live preview - render the mobile preview from posted form data
      * WITHOUT touching the database.
      */

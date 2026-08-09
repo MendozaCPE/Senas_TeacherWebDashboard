@@ -136,6 +136,9 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::get('/lessons/media-library/{folder}', [LessonsController::class, 'mediaLibraryFiles'])
         ->name('lessons.media-library.files');
 
+    Route::get('/lessons/my-uploads', [LessonsController::class, 'mediaLibraryMyUploads'])
+        ->name('lessons.media-library.my-uploads');
+
     // Media
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     Route::post('/media/upload', [MediaController::class, 'upload'])->name('media.upload');
