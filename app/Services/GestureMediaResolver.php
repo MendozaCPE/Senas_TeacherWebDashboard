@@ -14,6 +14,9 @@ class GestureMediaResolver
      * If found → attach image_url / video_url, media_missing = false.
      * If not found → media_missing = true, leave urls null.
      *
+     * Checks gesture_media table (file_path) as a fallback when the legacy
+     * image_url / video_url columns on the gestures row are empty.
+     *
      * @param  array  $lesson  The lesson array from DeepSeekService::generate()
      * @return array  Modified lesson with media resolved
      */
@@ -37,16 +40,52 @@ class GestureMediaResolver
             }
 
             try {
+                // Prefer rows that have an actual module_id (avoid legacy orphan rows)
                 $gesture = DB::table('gestures')
                     ->whereRaw('LOWER(name) = ?', [strtolower($gestureName)])
+                    ->orderByRaw('CASE WHEN module_id IS NULL THEN 1 ELSE 0 END ASC')
                     ->first();
 
                 if ($gesture) {
-                    $slide['image_url'] = $gesture->image_url ?? null;
-                    $slide['video_url'] = $gesture->video_url ?? null;
+                    $imageUrl = $gesture->image_url ?? null;
+                    $videoUrl = $gesture->video_url ?? null;
 
-                    // If the gesture record exists but has no media, still flag it
-                    if (empty($gesture->image_url) && empty($gesture->video_url)) {
+                    // Fallback: check gesture_media table if legacy columns are empty
+                    if (empty($imageUrl) && empty($videoUrl)) {
+                        $primaryImage = DB::table('gesture_media')
+                            ->where('gesture_id', $gesture->gesture_id)
+                            ->where('media_type', 'image')
+                            ->where('is_primary', true)
+                            ->first();
+
+                        if (!$primaryImage) {
+                            $primaryImage = DB::table('gesture_media')
+                                ->where('gesture_id', $gesture->gesture_id)
+                                ->where('media_type', 'image')
+                                ->orderBy('order')
+                                ->first();
+                        }
+
+                        if ($primaryImage) {
+                            $imageUrl = asset('storage/' . $primaryImage->file_path);
+                        }
+
+                        $primaryVideo = DB::table('gesture_media')
+                            ->where('gesture_id', $gesture->gesture_id)
+                            ->where('media_type', 'video')
+                            ->orderBy('order')
+                            ->first();
+
+                        if ($primaryVideo) {
+                            $videoUrl = asset('storage/' . $primaryVideo->file_path);
+                        }
+                    }
+
+                    $slide['image_url'] = $imageUrl;
+                    $slide['video_url'] = $videoUrl;
+
+                    // Flag missing only if still no media after both checks
+                    if (empty($imageUrl) && empty($videoUrl)) {
                         $slide['media_missing'] = true;
                     }
                 } else {

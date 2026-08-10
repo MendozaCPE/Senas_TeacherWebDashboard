@@ -537,21 +537,76 @@ function buildAiContentCard(slide, idx) {
     const typeLabels = { text: 'Text', gesture_demo: 'Gesture', image: 'Image', video: 'Video' };
     const typeLabel = typeLabels[type] || 'Text';
 
-    const mediaMissing   = slide.media_missing ? true : false;
-    const gestureHidden  = type === 'gesture_demo' ? '' : 'hidden';
-    // Always show media upload — for every content type
-    const mediaHidden    = '';
-    const gestureName    = slide.gesture_name || '';
+    const mediaMissing  = slide.media_missing ? true : false;
+    const gestureHidden = type === 'gesture_demo' ? '' : 'hidden';
+    const mediaHidden   = '';
+    const gestureName   = slide.gesture_name || '';
 
-    // Just a warning notice — no redundant file input here
-    const mediaMissingBadge = mediaMissing ? `
-        <div class="media-missing-badge" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;">
-            <span style="font-size:16px;flex-shrink:0;line-height:1.5;">⚠️</span>
-            <div>
-                <p style="font-size:12px;font-weight:800;color:#92400E;margin:0 0 2px;">No Media Available</p>
-                <p style="font-size:11px;color:#A16207;margin:0;">No gesture found in the database. Use the upload field above to add media.</p>
+    // Resolved media from the backend (gesture_media table)
+    const resolvedVideo = slide.video_url || null;
+    const resolvedImage = slide.image_url || null;
+    const hasResolvedMedia = !!(resolvedVideo || resolvedImage);
+
+    // Build the media section: show resolved preview if available, otherwise upload widget
+    let mediaSection = '';
+    if (hasResolvedMedia) {
+        // Resolved media preview — pre-populate existing_media and show a thumb
+        const mediaUrl  = resolvedVideo || resolvedImage;
+        const isVideo   = !!resolvedVideo;
+        const thumbHtml = isVideo
+            ? `<video src="${mediaUrl}" style="width:220px;height:138px;object-fit:cover;border-radius:10px;border:1.5px solid #e2e8f0;background:#0f172a;" muted playsinline preload="metadata"></video>`
+            : `<img src="${mediaUrl}" style="width:130px;height:130px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;" alt="Gesture media">`;
+
+        mediaSection = `
+            <div class="media-field ${mediaHidden}">
+                <label class="field-label">Upload Media</label>
+                <input type="hidden" name="contents[${idx}][existing_media]" value="${escapeHtml(mediaUrl)}" class="media-path-input">
+                <div class="media-upload-widget has-file" data-context="lesson_media" data-accept="image/*,video/*">
+                    <div class="upload-trigger">
+                        <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this, 'content')">
+                        <span class="upload-icon material-symbols-outlined text-slate-400" style="font-size:20px;">cloud_upload</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label">Click or drag to upload</span>
+                    </div>
+                    <div class="media-thumb-wrap" style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+                        ${thumbHtml}
+                        <div class="media-thumb-info">
+                            <strong style="display:block;font-size:12px;color:#1e293b;">Resolved from database</strong>
+                            <span style="font-size:11px;color:#64748b;">${isVideo ? 'Video' : 'Image'} — ${escapeHtml(gestureName)}</span>
+                            <button type="button" class="media-remove-btn" onclick="clearMediaWidget(this)">✕ Remove</button>
+                        </div>
+                    </div>
+                    <div class="media-upload-error"></div>
+                </div>
+            </div>`;
+    } else {
+        // No resolved media — show standard upload widget
+        const missingBadge = mediaMissing ? `
+            <div class="media-missing-badge" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;">
+                <span style="font-size:16px;flex-shrink:0;line-height:1.5;">⚠️</span>
+                <div>
+                    <p style="font-size:12px;font-weight:800;color:#92400E;margin:0 0 2px;">No Media Available</p>
+                    <p style="font-size:11px;color:#A16207;margin:0;">No gesture found in the database. Use the upload field above to add media.</p>
+                </div>
+            </div>` : '';
+
+        mediaSection = `
+            <div class="media-field ${mediaHidden}">
+                <label class="field-label">Upload Media</label>
+                <input type="hidden" name="contents[${idx}][existing_media]" value="" class="media-path-input">
+                <div class="media-upload-widget" data-context="lesson_media" data-accept="image/*,video/*">
+                    <div class="upload-trigger">
+                        <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this, 'content')">
+                        <span class="upload-icon material-symbols-outlined text-slate-400" style="font-size:20px;">cloud_upload</span>
+                        <div class="upload-spinner"></div>
+                        <span class="upload-label">Click or drag to upload</span>
+                    </div>
+                    <div class="media-thumb-wrap"></div>
+                    <div class="media-upload-error"></div>
+                </div>
             </div>
-        </div>` : '';
+            ${missingBadge}`;
+    }
 
     return `
     <div class="content-card">
@@ -559,7 +614,8 @@ function buildAiContentCard(slide, idx) {
             <div class="flex items-center gap-3">
                 <div class="step-circle step-number">${idx + 1}</div>
                 <span class="badge-pill" style="background: rgba(24,72,200,0.1); color:#1848c8;">${typeLabel}</span>
-                ${mediaMissing ? '<span style="background:#FEF9C3;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid #FDE047;">⚠ No Media</span>' : ''}
+                ${hasResolvedMedia ? '<span style="background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">✓ Media Ready</span>' : ''}
+                ${(!hasResolvedMedia && mediaMissing) ? '<span style="background:#FEF9C3;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid #FDE047;">⚠ No Media</span>' : ''}
             </div>
             <button type="button" onclick="removeContentCard(this)" class="icon-btn-remove">
                 <span class="material-symbols-outlined text-sm">close</span>
@@ -587,15 +643,8 @@ function buildAiContentCard(slide, idx) {
                 <label class="field-label">Gesture Name</label>
                 <input type="text" name="contents[${idx}][gesture_name]" value="${escapeHtml(gestureName)}" class="field-input" placeholder="e.g., letter_a">
             </div>
-            <div class="media-field ${mediaHidden}">
-                <label class="field-label">Upload Media</label>
-                <div class="media-preview-wrap" style="display:none;margin-bottom:8px;">
-                    <img class="content-media-preview" src="" alt="" style="max-height:120px;border-radius:10px;border:1.5px solid #E5EAF2;object-fit:cover;">
-                </div>
-                <input type="file" name="contents[${idx}][media]" accept="image/*,video/*" class="field-input" onchange="previewContentMedia(this)">
-            </div>
+            ${mediaSection}
             <input type="hidden" name="contents[${idx}][media_missing]" value="${mediaMissing ? '1' : '0'}">
-            ${mediaMissingBadge}
         </div>
     </div>`;
 }

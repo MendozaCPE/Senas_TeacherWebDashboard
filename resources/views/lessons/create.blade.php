@@ -1541,7 +1541,16 @@ function clearMediaWidget(btn) {
                  || widget.closest('.quiz-question')?.querySelector('.media-path-input');
     if (thumbWrap) thumbWrap.innerHTML = '';
     if (pathInput) pathInput.value = '';
-    const lbl = widget.querySelector('.upload-label'); if (lbl) lbl.textContent = 'Click or drag to upload';
+
+    // Restore the upload trigger icon and label (may have been hidden by pre-populated media)
+    const icon = widget.querySelector('.upload-icon');
+    const lbl  = widget.querySelector('.upload-label');
+    if (icon) icon.style.display = '';
+    if (lbl)  { lbl.style.display = ''; lbl.textContent = 'Click or drag to upload'; }
+
+    // Re-hide thumbWrap (clearning has-file removes the CSS show, but reset inline too)
+    if (thumbWrap) thumbWrap.style.display = '';
+
     widget.classList.remove('has-file');
 }
 
@@ -2609,8 +2618,23 @@ function loadGesturesForModule(select, questionIndex) {
     .then(data => {
         checkboxesContainer.innerHTML = '';
         if (data.gestures && data.gestures.length > 0) {
+            // Read pre-selected IDs stored by buildAiQuizCard
+            let preSelectedIds = [];
+            try {
+                const raw = select.dataset.selectedIds || '[]';
+                preSelectedIds = JSON.parse(raw).map(id => parseInt(id));
+            } catch(e) { preSelectedIds = []; }
+
             data.gestures.forEach(gesture => {
                 const label = createGestureCheckbox(gesture, questionIndex);
+                // Auto-check if this gesture was resolved by the AI
+                if (preSelectedIds.includes(parseInt(gesture.gesture_id))) {
+                    const cb = label.querySelector('.gesture-checkbox');
+                    if (cb) {
+                        cb.checked = true;
+                        label.classList.add('selected');
+                    }
+                }
                 checkboxesContainer.appendChild(label);
             });
             updateGesturePreview(questionIndex);

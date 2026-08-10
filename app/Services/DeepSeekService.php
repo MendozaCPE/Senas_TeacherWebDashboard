@@ -87,12 +87,37 @@ class DeepSeekService
         $numGt = isset($params['num_gt']) ? (int) $params['num_gt'] : 0;
         $totalQuestions = $numMc + $numTf + $numDd + $numGt;
 
+        // Build gesture catalog section if available
+        $gestureCatalogSection = '';
+        if (!empty($params['gesture_catalog']) && is_array($params['gesture_catalog'])) {
+            $lines = ['AVAILABLE GESTURE CATALOG (only use when topic is FSL/Sign Language):'];
+            foreach ($params['gesture_catalog'] as $entry) {
+                $names = implode(', ', $entry['gestures']);
+                $lines[] = "  Module \"{$entry['module']}\": {$names}";
+            }
+            $gestureCatalogSection = "\n\n" . implode("\n", $lines);
+        }
+
         return <<<PROMPT
-You are an expert curriculum designer for the SENAS learning app. Generate complete, structured lesson plans on any topic requested by the teacher.
+You are an expert curriculum designer for the SENAS learning app. Generate complete, structured lesson plans on ANY topic the teacher requests.
 
-You can generate lessons about ANY subject: Filipino Sign Language (FSL), Science, Math, History, English, Arts, Health, Technology, or any other topic. Do not limit yourself to FSL — create rich educational content for whatever topic is given.
+You can generate lessons about ANY subject: Filipino Sign Language (FSL), Science, Math, History, English, Arts, Health, Technology, nature, animals, or anything else. Always produce rich, accurate educational content for the topic given.{$gestureCatalogSection}
 
-If the topic is FSL or Sign Language related, include gesture_name values in snake_case (e.g. "letter_a", "hello"). For all other topics, set gesture_name to null.
+CRITICAL TOPIC-AWARENESS RULES — read carefully:
+
+1. GESTURE NAMES IN CONTENT SLIDES (gesture_name field):
+   - Set gesture_name to a catalog value ONLY when the topic is about Filipino Sign Language, FSL, or a specific sign/gesture from the catalog.
+   - For ALL other topics (flowers, animals, math, science, etc.) set gesture_name to null on every slide.
+   - NEVER force a sign-language gesture onto a non-FSL topic. A lesson about flowers has nothing to do with the "HELLO" gesture.
+
+2. GESTURE QUIZ QUESTIONS (type "gesture"):
+   - Only generate gesture-type quiz questions when the topic is genuinely about FSL or Sign Language.
+   - If the teacher requested gesture questions but the topic is NOT FSL/Sign Language, convert those questions to "multiple_choice" instead. Never awkwardly attach a greeting gesture to a lesson about flowers, math, or science.
+   - When gesture questions ARE appropriate, use gesture_names from the catalog above.
+
+3. CONTENT TYPES:
+   - For non-FSL topics, use "text" or "image" as content_type. Do NOT use "gesture_demo" for non-FSL topics.
+   - For FSL topics, gesture_demo is encouraged and gesture_name must come from the catalog.
 
 Respond with ONLY valid JSON — no markdown, no explanation, just raw JSON.
 
@@ -117,27 +142,21 @@ Schema:
       "type": "multiple_choice"|"true_false"|"drag_drop"|"gesture",
       "options": [string, string, string, string],
       "correct_index": number,
-      "drag_drop_pairs": [
-        {
-          "left_text": string,
-          "right_text": string
-        }
-      ],
+      "drag_drop_pairs": [{"left_text": string, "right_text": string}],
       "gesture_names": [string]
     }
   ]
 }
 
 Rules:
-- gesture_name must be snake_case when provided (e.g. "letter_a", "hello", "thank_you"), or null for non-FSL topics
 - content_text must be educational, encouraging, and clear — use simple words, short sentences, and positive tone
 - difficulty: beginner = foundational concepts, intermediate = applied knowledge, advanced = complex topics/synthesis
 - Generate EXACTLY the number of content steps requested.
-- Generate EXACTLY {$totalQuestions} quiz questions:
-  - Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options, and correct_index must be the 0-based index of correct option)
-  - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True", "False"], and correct_index must be 0 or 1)
-  - Generate EXACTLY {$numDd} of type "drag_drop" (each must have a "drag_drop_pairs" array with at least 2 pairs and up to 5 pairs, mapping left items to right match items. Options/correct_index must be null/empty)
-  - Generate EXACTLY {$numGt} of type "gesture" (each must have a "gesture_names" array containing FSL letters A-Z or numbers 1-10 that students need to perform, e.g. ["A", "B"] or ["5"]. Options/correct_index must be null/empty)
+- Generate EXACTLY {$totalQuestions} quiz questions total:
+  - Generate EXACTLY {$numMc} of type "multiple_choice" (4 options each, correct_index is 0-based)
+  - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True","False"], correct_index 0 or 1)
+  - Generate EXACTLY {$numDd} of type "drag_drop" (drag_drop_pairs array, 2–5 pairs; options/correct_index null)
+  - Generate EXACTLY {$numGt} of type "gesture" IF the topic is FSL/Sign Language — otherwise convert these to "multiple_choice" (gesture_names array from catalog; options/correct_index null for genuine gesture questions)
 - Make quizzes fun and age-appropriate for school children
 PROMPT;
     }

@@ -147,14 +147,15 @@ class LessonsController extends Controller
 
             $aiService = AiService::make();
             $lesson   = $aiService->generateFromPdfText($pdfText, [
-                'difficulty'   => $request->input('difficulty'),
-                'lesson_type'  => $request->input('lesson_type'),
-                'num_slides'   => (int) $request->input('num_slides'),
-                'num_mc'       => (int) $request->input('num_mc', 3),
-                'num_tf'       => (int) $request->input('num_tf', 2),
-                'num_dd'       => (int) $request->input('num_dd', 0),
-                'num_gt'       => (int) $request->input('num_gt', 0),
-                'instructions' => $request->input('instructions', ''),
+                'difficulty'      => $request->input('difficulty'),
+                'lesson_type'     => $request->input('lesson_type'),
+                'num_slides'      => (int) $request->input('num_slides'),
+                'num_mc'          => (int) $request->input('num_mc', 3),
+                'num_tf'          => (int) $request->input('num_tf', 2),
+                'num_dd'          => (int) $request->input('num_dd', 0),
+                'num_gt'          => (int) $request->input('num_gt', 0),
+                'instructions'    => $request->input('instructions', ''),
+                'gesture_catalog' => $this->buildGestureCatalog(),
             ]);
 
             if (isset($lesson['quiz'])) {
@@ -257,6 +258,8 @@ class LessonsController extends Controller
         }
 
         try {
+            $validated['gesture_catalog'] = $this->buildGestureCatalog();
+
             $aiService = AiService::make();
             $lesson   = $aiService->generate($validated);
 
@@ -277,6 +280,35 @@ class LessonsController extends Controller
                 'message' => 'AI generation failed: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Build a compact gesture catalog from the database to inject into AI prompts.
+     * Groups gesture names by their module so the AI can pick real, matching names.
+     *
+     * @return array  e.g. [['module' => 'Alphabet', 'gestures' => ['letter_a','letter_b',...]],...]
+     */
+    private function buildGestureCatalog(): array
+    {
+        $modules = GestureModule::where('is_active', true)
+            ->orderBy('order')
+            ->with(['gestures' => function ($q) {
+                $q->select('gesture_id', 'module_id', 'name', 'display_name');
+            }])
+            ->get(['module_id', 'name', 'display_name']);
+
+        $catalog = [];
+        foreach ($modules as $module) {
+            $names = $module->gestures->pluck('name')->filter()->values()->toArray();
+            if (!empty($names)) {
+                $catalog[] = [
+                    'module'   => $module->display_name ?? $module->name,
+                    'gestures' => $names,
+                ];
+            }
+        }
+
+        return $catalog;
     }
 
     /**
@@ -1950,12 +1982,28 @@ private function resolveGestureQuestions(array $quiz): array
                     $names      = array_map('trim', $question['gesture_names']);
                     $namesUpper = array_map('strtoupper', $names);
 
+                    // Fetch all matches, preferring rows with a non-null module_id
                     $gestures = DB::table('gestures')
                         ->whereIn(DB::raw('UPPER(name)'), $namesUpper)
+                        ->orderByRaw('CASE WHEN module_id IS NULL THEN 1 ELSE 0 END ASC')
                         ->get();
 
+                    // Deduplicate: keep the best match per uppercased name (module_id wins)
+                    $best = collect();
+                    $seen = [];
+                    foreach ($gestures as $g) {
+                        $key = strtoupper($g->name);
+                        if (!isset($seen[$key])) {
+                            $seen[$key] = true;
+                            $best->push($g);
+                        }
+                    }
+                    $gestures = $best;
+
                     if ($gestures->isNotEmpty()) {
-                        $moduleId   = $gestures->first()->module_id;
+                        // Use the module of the first gesture that has a module_id
+                        $withModule = $gestures->firstWhere('module_id', '!=', null);
+                        $moduleId   = $withModule ? $withModule->module_id : $gestures->first()->module_id;
                         $gestureIds = $gestures->pluck('gesture_id')->toArray();
 
                         $question['gesture_module_id'] = $moduleId;
