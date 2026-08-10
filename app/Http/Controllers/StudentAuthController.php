@@ -215,6 +215,13 @@ public function updateSettings(Request $request)
         $user = $request->user();
         $student = Student::where('user_id', $user->id)->first();
 
+        if (!$student) {
+            return response()->json(['message' => 'Student not found'], 404);
+        }
+
+        $xpService = new XPService();
+        $xpService->updateStreak($student);
+
         return response()->json([
             'user' => $user,
             'student' => [
@@ -226,6 +233,11 @@ public function updateSettings(Request $request)
                 'grade_level' => $student->grade_level,
                 'section' => $student->section,
                 'fsl_mastery_level' => $student->fsl_mastery_level,
+                'total_xp' => $student->total_xp ?? 0,
+                'today_xp' => $xpService->getTodayXp($student),
+                'streak_days' => $student->streak_days ?? 0,
+                'level' => $student->level ?? 1,
+                'level_name' => $xpService->getLevelName($student->level ?? 1),
             ],
         ]);
     }
@@ -1412,87 +1424,148 @@ public function getLessons(Request $request)
         }
 
         // 🔥 Attach published Checkpoint Exams assigned to this student for each module
-        foreach ($modulesMap as $mId => &$moduleData) {
-            if (!$mId) continue;
+     foreach ($modulesMap as $mId => &$moduleData) {
+    if (!$mId) continue;
+    
+    $isModuleLocked = $moduleData['is_locked'] ?? true;
+
+    $checkpointExams = CheckpointExam::where('module_id', $mId)
+        ->where('status', 'published')
+        ->whereHas('assignments', function($query) use ($student) {
+            $query->where('student_id', $student->student_id);
+        })
+        ->with(['questions'])
+        ->get();
+
+    foreach ($checkpointExams as $exam) {
+        $sourceLessonIds = $exam->questions->pluck('source_lesson_id')->filter()->unique();
+        
+        // Get the max module order from source lessons
+        $maxSourceOrder = Lesson::whereIn('lesson_id', $sourceLessonIds)->max('module_order');
+
+        if ($maxSourceOrder === null) {
+            $maxSourceOrder = Lesson::where('module_id', $mId)->where('status', 'published')->max('module_order') ?? 0;
+        }
+        $examOrder = (float)$maxSourceOrder + 0.5;
+
+        $bestAttempt = DB::table('checkpoint_exam_attempts')
+            ->where('exam_id', $exam->exam_id)
+            ->where('student_id', $student->student_id)
+            ->where('status', 'completed')
+            ->orderByDesc('percentage')
+            ->first();
+
+        $examAssignment = CheckpointExamAssignment::where('exam_id', $exam->exam_id)
+            ->where('student_id', $student->student_id)
+            ->first();
+
+        $isPassed = $bestAttempt && $bestAttempt->percentage >= 60;
+
+        // 🔥 FIX: Default to LOCKED
+        $isExamLocked = true;
+
+        // 1. If module is locked, exam is locked
+        if ($isModuleLocked) {
+            $isExamLocked = true;
+        }
+        // 2. If already passed, unlock
+        elseif ($isPassed) {
+            $isExamLocked = false;
+        }
+        // 3. If assignment explicitly says it's unlocked, keep it unlocked
+        elseif ($examAssignment && !$examAssignment->is_locked) {
+            $isExamLocked = false;
+        }
+        // 4. Check if ALL source lessons are completed with ≥60%
+        else {
+            $totalSourceLessons = $sourceLessonIds->count();
             
-            $isModuleLocked = $moduleData['is_locked'] ?? true;
-
-            $checkpointExams = CheckpointExam::where('module_id', $mId)
-                ->where('status', 'published')
-                ->whereHas('assignments', function($query) use ($student) {
-                    $query->where('student_id', $student->student_id);
-                })
-                ->with(['questions'])
-                ->get();
-
-            foreach ($checkpointExams as $exam) {
-                $sourceLessonIds = $exam->questions->pluck('source_lesson_id')->filter()->unique();
-                $maxSourceOrder = Lesson::whereIn('lesson_id', $sourceLessonIds)->max('module_order');
-
-                if ($maxSourceOrder === null) {
-                    $maxSourceOrder = Lesson::where('module_id', $mId)->where('status', 'published')->max('module_order') ?? 0;
-                }
-                $examOrder = (float)$maxSourceOrder + 0.5;
-
-                $bestAttempt = DB::table('checkpoint_exam_attempts')
-                    ->where('exam_id', $exam->exam_id)
-                    ->where('student_id', $student->student_id)
+            if ($totalSourceLessons > 0) {
+                $completedCount = LessonAssignment::where('student_id', $student->student_id)
+                    ->whereIn('lesson_id', $sourceLessonIds)
                     ->where('status', 'completed')
-                    ->orderByDesc('percentage')
-                    ->first();
-
-                $examAssignment = CheckpointExamAssignment::where('exam_id', $exam->exam_id)
-                    ->where('student_id', $student->student_id)
-                    ->first();
-
-                $isPassed = $bestAttempt && $bestAttempt->percentage >= 60;
-                $isExamLocked = $isModuleLocked;
-
-                if ($isPassed) {
+                    ->where('score', '>=', 60)  // 🔥 ADD THIS: Must pass with ≥60%
+                    ->count();
+                
+                // 🔥 UNLOCK ONLY IF ALL source lessons are completed
+                if ($completedCount >= $totalSourceLessons) {
                     $isExamLocked = false;
-                } elseif ($examAssignment && !$examAssignment->is_locked) {
-                    $isExamLocked = false;
-                } else {
-                    // Lock check: if all source lessons are completed, unlock exam
-                    if ($sourceLessonIds->count() > 0) {
-                        $completedCount = LessonAssignment::where('student_id', $student->student_id)
-                            ->whereIn('lesson_id', $sourceLessonIds)
-                            ->where('status', 'completed')
-                            ->count();
-                        if ($completedCount >= $sourceLessonIds->count()) {
-                            $isExamLocked = false;
-                            if ($examAssignment && $examAssignment->is_locked) {
-                                $examAssignment->is_locked = false;
-                                $examAssignment->save();
-                            }
-                        }
+                    if ($examAssignment && $examAssignment->is_locked) {
+                        $examAssignment->is_locked = false;
+                        $examAssignment->save();
                     }
                 }
-
-                $examStatus = $isPassed ? 'completed' : ($bestAttempt ? 'failed' : ($examAssignment->status ?? 'pending'));
-
-                $moduleData['lessons'][] = [
-                    'is_checkpoint_exam' => true,
-                    'assignment_id' => $examAssignment->assignment_id ?? null,
-                    'lesson_id' => 'exam_' . $exam->exam_id,
-                    'exam_id' => $exam->exam_id,
-                    'title' => $exam->title,
-                    'description' => $exam->description ?? 'Checkpoint Exam for this module',
-                    'lesson_type' => 'checkpoint_exam',
-                    'difficulty' => 'Exam',
-                    'status' => $isModuleLocked ? 'locked' : $examStatus,
-                    'score' => $bestAttempt ? $bestAttempt->percentage : null,
-                    'is_locked' => (bool)$isExamLocked,
-                    'assigned_at' => $examAssignment->assigned_at ?? $exam->published_at,
-                    'module_order' => $examOrder,
-                    'total_steps' => $exam->questions->count(),
-                    'total_points' => $exam->total_points,
-                    'passing_score' => $exam->passing_score,
-                    'total_questions' => $exam->questions->count(),
-                    'has_quiz' => true,
-                ];
+            } else {
+                // No source lessons? Use the current lesson status in the module
+                // Check if all lessons in the module are completed
+                $allLessonsCompleted = true;
+                $moduleLessons = Lesson::where('module_id', $mId)
+                    ->where('status', 'published')
+                    ->pluck('lesson_id');
+                
+                foreach ($moduleLessons as $lessonId) {
+                    $assignment = LessonAssignment::where('student_id', $student->student_id)
+                        ->where('lesson_id', $lessonId)
+                        ->where('status', 'completed')
+                        ->where('score', '>=', 60)
+                        ->first();
+                    if (!$assignment) {
+                        $allLessonsCompleted = false;
+                        break;
+                    }
+                }
+                
+                if ($allLessonsCompleted && $moduleLessons->count() > 0) {
+                    $isExamLocked = false;
+                    if ($examAssignment && $examAssignment->is_locked) {
+                        $examAssignment->is_locked = false;
+                        $examAssignment->save();
+                    }
+                }
             }
         }
+
+        $examStatus = $isPassed ? 'completed' : ($bestAttempt ? 'failed' : ($examAssignment->status ?? 'pending'));
+
+        // 🔥 If the exam is locked, override the status
+        if ($isExamLocked) {
+            $examStatus = 'locked';
+        }
+
+        // 🔥 Update the assignment in the database if needed
+        if ($examAssignment) {
+            if ($isExamLocked && !$examAssignment->is_locked) {
+                $examAssignment->is_locked = true;
+                $examAssignment->status = 'locked';
+                $examAssignment->save();
+            } elseif (!$isExamLocked && $examAssignment->is_locked) {
+                $examAssignment->is_locked = false;
+                $examAssignment->save();
+            }
+        }
+
+        $moduleData['lessons'][] = [
+            'is_checkpoint_exam' => true,
+            'assignment_id' => $examAssignment->assignment_id ?? null,
+            'lesson_id' => 'exam_' . $exam->exam_id,
+            'exam_id' => $exam->exam_id,
+            'title' => $exam->title,
+            'description' => $exam->description ?? 'Checkpoint Exam for this module',
+            'lesson_type' => 'checkpoint_exam',
+            'difficulty' => 'Exam',
+            'status' => $examStatus,
+            'score' => $bestAttempt ? $bestAttempt->percentage : null,
+            'is_locked' => (bool)$isExamLocked,  // ← This is what the frontend reads
+            'assigned_at' => $examAssignment->assigned_at ?? $exam->published_at,
+            'module_order' => $examOrder,
+            'total_steps' => $exam->questions->count(),
+            'total_points' => $exam->total_points,
+            'passing_score' => $exam->passing_score,
+            'total_questions' => $exam->questions->count(),
+            'has_quiz' => true,
+        ];
+    }
+}
         unset($moduleData);
         
         // Sort lessons & checkpoint exams within each module by module_order
@@ -1523,6 +1596,7 @@ public function getLessons(Request $request)
                 'last_name' => $student->last_name,
                 'fsl_mastery_level' => $student->fsl_mastery_level,
                 'total_xp' => $student->total_xp ?? 0,
+                'today_xp' => $xpService->getTodayXp($student),
                 'level' => $student->level ?? 1,
                 'streak_days' => $student->streak_days ?? 0,
                 'teacher_id' => $student->teacher_id,

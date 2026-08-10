@@ -113,7 +113,6 @@ public static function updateOrCreatePerformance(
  */
 public function updateMasteryLevel()
 {
-    // Only calculate if there are meaningful attempts
     if ($this->attempts < 1) {
         $this->mastery_level = 'needs_practice';
         $this->is_mastered = false;
@@ -124,20 +123,16 @@ public function updateMasteryLevel()
         ? $this->successful_attempts / $this->attempts 
         : 0;
 
-    // 🎯 NEW: Much more lenient criteria
-    // - Mastered: 40%+ success rate AND at least 2 successful attempts
-    // - Proficient: 25%+ success rate AND at least 1 successful attempt  
-    // - Developing: 15%+ success rate AND at least 1 attempt
-    // - Needs Practice: Below 15% success rate OR 0 successful attempts
-    
-    if ($successRate >= 0.40 && $this->successful_attempts >= 2) {
+    // ✅ NEW: More forgiving thresholds for Alphabet mastery
+    // The system tracks WRONG attempts too, so we reward accuracy
+    if ($successRate >= 0.30 && $this->successful_attempts >= 2) {
         $this->is_mastered = true;
         $this->mastered_at = $this->mastered_at ?? now();
         $this->mastery_level = 'mastered';
-    } elseif ($successRate >= 0.25 && $this->successful_attempts >= 1) {
+    } elseif ($successRate >= 0.15 && $this->successful_attempts >= 1) {
         $this->mastery_level = 'proficient';
         $this->is_mastered = false;
-    } elseif ($successRate >= 0.15 && $this->attempts >= 1) {
+    } elseif ($successRate >= 0.05 && $this->attempts >= 1) {
         $this->mastery_level = 'developing';
         $this->is_mastered = false;
     } else {

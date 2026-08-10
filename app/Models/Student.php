@@ -4,11 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-// Add these at the top
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use App\Models\QuizAttempt;
 
 class Student extends Model
 {
@@ -17,70 +14,86 @@ class Student extends Model
     protected $primaryKey = 'student_id';
 
     protected $fillable = [
-    'user_id',
-    'teacher_id',
-    'school_id',
-    'lrn',
-    'pin',
-    'first_name',
-    'last_name',
-    'age',
-    'grade_level',
-    'section',
-    'school_year',
-    'program_type',
-    'fsl_mastery_level',
-    'status',
-    'total_xp',
-    'level',
-    'streak_days',
-    'last_activity_date',
-];
+        'user_id',
+        'teacher_id',
+        'school_id',
+        'lrn',
+        'pin',
+        'first_name',
+        'last_name',
+        'age',
+        'grade_level',
+        'section',
+        'school_year',
+        'program_type',
+        'fsl_mastery_level',
+        'status',
+        'total_xp',
+        'level',
+        'streak_days',
+        'last_activity_date',
+    ];
 
-    // ─── AUTO-ASSIGN LESSONS ON STUDENT CREATION ────────────────────────
+    // ─── AUTO-ASSIGN LESSONS + CHECKPOINT EXAMS ON STUDENT CREATION ────
     protected static function booted()
     {
         static::created(function ($student) {
-            // Auto-assign all published lessons to new student
+            // ─── 1. AUTO-ASSIGN LESSONS (EXISTING) ──────────────────────
             $lessons = Lesson::where('status', 'published')
                             ->orderBy('module_order', 'asc')
                             ->get();
             
-            if ($lessons->isEmpty()) {
-                return;
-            }
+            if ($lessons->isNotEmpty()) {
+                $assignments = [];
+                $firstLessonInModule = [];
 
-            $assignments = [];
-            $firstLessonInModule = [];
-
-            // Track first lesson per module
-            foreach ($lessons as $lesson) {
-                $moduleId = $lesson->module_id;
-                
-                // If this is the first lesson in a module, it should be unlocked
-                if (!isset($firstLessonInModule[$moduleId])) {
-                    $firstLessonInModule[$moduleId] = $lesson->lesson_id;
+                // Track first lesson per module
+                foreach ($lessons as $lesson) {
+                    $moduleId = $lesson->module_id;
+                    if (!isset($firstLessonInModule[$moduleId])) {
+                        $firstLessonInModule[$moduleId] = $lesson->lesson_id;
+                    }
                 }
+
+                foreach ($lessons as $lesson) {
+                    $isLocked = ($firstLessonInModule[$lesson->module_id] !== $lesson->lesson_id);
+                    
+                    $assignments[] = [
+                        'student_id' => $student->student_id,
+                        'lesson_id' => $lesson->lesson_id,
+                        'assigned_at' => now(),
+                        'status' => 'pending',
+                        'is_locked' => $isLocked ? 1 : 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+
+                LessonAssignment::insert($assignments);
             }
 
-            foreach ($lessons as $lesson) {
-                // First lesson in each module is unlocked (is_locked = 0)
-                // All other lessons are locked (is_locked = 1)
-                $isLocked = ($firstLessonInModule[$lesson->module_id] !== $lesson->lesson_id);
+            // ─── 2. 🔥 AUTO-ASSIGN CHECKPOINT EXAMS (NEW) ──────────────
+            $exams = CheckpointExam::where('status', 'published')
+                                  ->orderBy('created_at', 'asc')
+                                  ->get();
+            
+            if ($exams->isNotEmpty()) {
+                $examAssignments = [];
+                foreach ($exams as $exam) {
+                    $examAssignments[] = [
+                        'student_id' => $student->student_id,
+                        'exam_id' => $exam->exam_id,
+                        'assigned_at' => now(),
+                        'status' => 'pending',
+                        'is_locked' => 1, // Locked by default until module is completed
+                        'notified' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
                 
-                $assignments[] = [
-                    'student_id' => $student->student_id,
-                    'lesson_id' => $lesson->lesson_id,
-                    'assigned_at' => now(),
-                    'status' => 'pending',
-                    'is_locked' => $isLocked ? 1 : 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+                CheckpointExamAssignment::insert($examAssignments);
             }
-
-            // Batch insert for performance
-            LessonAssignment::insert($assignments);
         });
     }
 
@@ -230,6 +243,45 @@ public function getSettings()
         'notifications_enabled' => true,
     ];
 }
+/**
+ * Manually assign checkpoint exams to a student (for existing students)
+ */
+public function assignCheckpointExams()
+{
+    $exams = CheckpointExam::where('status', 'published')
+                          ->orderBy('created_at', 'asc')
+                          ->get();
+    
+    if ($exams->isEmpty()) {
+        return ['success' => false, 'message' => 'No published checkpoint exams found'];
+    }
 
+    $assignments = [];
+    foreach ($exams as $exam) {
+        $exists = CheckpointExamAssignment::where('student_id', $this->student_id)
+                                         ->where('exam_id', $exam->exam_id)
+                                         ->exists();
+        
+        if (!$exists) {
+            $assignments[] = [
+                'student_id' => $this->student_id,
+                'exam_id' => $exam->exam_id,
+                'assigned_at' => now(),
+                'status' => 'pending',
+                'is_locked' => 1,
+                'notified' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+    }
+
+    if (!empty($assignments)) {
+        CheckpointExamAssignment::insert($assignments);
+        return ['success' => true, 'message' => count($assignments) . ' checkpoint exams assigned'];
+    }
+
+    return ['success' => true, 'message' => 'No new checkpoint exams to assign'];
+}
 
 }

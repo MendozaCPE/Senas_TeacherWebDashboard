@@ -411,5 +411,19 @@ public function getLevelData(): array
     return $data;
 }
 
+/**
+ * Get total XP earned today from xp_log
+ */
+public function getTodayXp(Student $student): int
+{
+    try {
+        return (int) DB::table('xp_log')
+            ->where('student_id', $student->student_id)
+            ->whereDate('created_at', \Carbon\Carbon::today())
+            ->sum('xp_amount');
+    } catch (\Exception $e) {
+        return 0;
+    }
+}
 
 }
