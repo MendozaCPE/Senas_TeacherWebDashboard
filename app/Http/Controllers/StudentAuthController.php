@@ -1188,13 +1188,19 @@ private function lessonMatchesLearningGoal($goal, $lesson, $module, $gesturesByN
  */
 private function getAccessibleModuleLevels(string $studentLevel): array
 {
+    $normalizedLevel = strtolower($studentLevel);
+    
+    // 🔥 FIX: If student is "completed" or "graduated", all levels are accessible
+    if (in_array($normalizedLevel, ['completed', 'graduated'])) {
+        return ['beginner', 'intermediate', 'advanced'];
+    }
+    
     $levelMap = [
         'beginner' => ['beginner'],
         'intermediate' => ['beginner', 'intermediate'],
         'advanced' => ['beginner', 'intermediate', 'advanced'],
     ];
 
-    $normalizedLevel = strtolower($studentLevel);
     return $levelMap[$normalizedLevel] ?? ['beginner'];
 }
 /**
@@ -1376,6 +1382,54 @@ public function getLessons(Request $request)
                 // 🔥 CRITICAL FIX: If module is locked, ALL lessons are locked
                 $isLessonLocked = !$isAccessible || (bool) $assignment->is_locked;
                 
+                 // 🔥 ADD THIS: Determine lock reason
+    $lockReason = null;
+    $lockReasonData = null;
+    
+    if ($isLessonLocked) {
+        if (!$isAccessible) {
+            $lockReason = 'module_locked';
+        } else {
+            // Check if previous lesson exists and is not completed
+            // We need to find the previous lesson in this module
+            $previousLesson = null;
+            $lessonOrder = $lesson->module_order ?? 0;
+            
+            // Find the previous lesson by module_order
+            $previousLesson = Lesson::where('module_id', $lesson->module_id)
+                ->where('module_order', '<', $lessonOrder)
+                ->where('status', 'published')
+                ->orderBy('module_order', 'desc')
+                ->first();
+            
+            if ($previousLesson) {
+                // Check if previous lesson is completed
+                $prevAssignment = LessonAssignment::where('student_id', $student->student_id)
+                    ->where('lesson_id', $previousLesson->lesson_id)
+                    ->first();
+                
+                $prevScore = DB::table('quiz_attempts as qa')
+                    ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                    ->where('qa.student_id', $student->student_id)
+                    ->where('q.lesson_id', $previousLesson->lesson_id)
+                    ->where('qa.status', 'completed')
+                    ->max('qa.percentage');
+                
+                $isPrevCompleted = $prevScore !== null && $prevScore >= 60;
+                $isPrevCompleted = $isPrevCompleted || ($prevAssignment && $prevAssignment->status === 'completed' && $prevAssignment->score >= 60);
+                
+                if (!$isPrevCompleted) {
+                    $lockReason = 'previous_lesson_required';
+                    $lockReasonData = ['previous_lesson_title' => $previousLesson->title];
+                }
+            }
+            
+            if (!$lockReason) {
+                $lockReason = 'unknown';
+            }
+        }
+    }
+    
                 $modulesMap[$moduleId]['lessons'][] = [
                     'is_checkpoint_exam' => false,
                     'assignment_id' => $assignment->id,
@@ -1527,16 +1581,13 @@ public function getLessons(Request $request)
 
         $examStatus = $isPassed ? 'completed' : ($bestAttempt ? 'failed' : ($examAssignment->status ?? 'pending'));
 
-        // 🔥 If the exam is locked, override the status
-        if ($isExamLocked) {
-            $examStatus = 'locked';
-        }
+      
 
         // 🔥 Update the assignment in the database if needed
         if ($examAssignment) {
             if ($isExamLocked && !$examAssignment->is_locked) {
                 $examAssignment->is_locked = true;
-                $examAssignment->status = 'locked';
+               
                 $examAssignment->save();
             } elseif (!$isExamLocked && $examAssignment->is_locked) {
                 $examAssignment->is_locked = false;
