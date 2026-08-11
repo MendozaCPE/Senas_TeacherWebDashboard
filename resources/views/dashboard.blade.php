@@ -396,11 +396,11 @@
 
         <!-- ── Senya Insights Widget ─────────────────────────────────────────── -->
         @php $insights = $senyaInsights ?? []; $insightCount = count($insights); @endphp
-        <div class="rounded-[28px] overflow-hidden shadow-sm border border-slate-100 bg-white">
+        <div class="rounded-[28px] overflow-hidden shadow-sm"
+             style="background: linear-gradient(135deg,#f59e0b 0%,#facc15 60%,#fbbf24 100%);">
 
             <!-- Header bar -->
-            <div class="px-5 pt-5 pb-3 flex items-center justify-between"
-                 style="background: linear-gradient(135deg,#f59e0b 0%,#facc15 60%,#fbbf24 100%);">
+            <div class="px-5 pt-5 pb-3 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center flex-shrink-0">
                         <span class="material-symbols-outlined text-[18px] text-[#1e293b]">lightbulb</span>
@@ -411,59 +411,30 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5">
-                    <!-- Counter -->
-                    <span class="text-[11px] font-bold text-[#1e293b]/70" id="insight-counter">
-                        @if($insightCount > 0) 1 / {{ $insightCount }} @endif
-                    </span>
-                    <!-- Prev -->
-                    <button id="insight-prev"
-                            class="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-all active:scale-90 disabled:opacity-30"
-                            onclick="rotateInsight(-1)" title="Previous insight">
-                        <span class="material-symbols-outlined text-[15px] text-[#1e293b]">chevron_left</span>
-                    </button>
-                    <!-- Next -->
-                    <button id="insight-next"
+                    <!-- Refresh -->
+                    <button id="insight-refresh"
                             class="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-all active:scale-90"
-                            onclick="rotateInsight(1)" title="Next insight">
-                        <span class="material-symbols-outlined text-[15px] text-[#1e293b]">chevron_right</span>
+                            title="Show another insight">
+                        <span class="material-symbols-outlined text-[15px] text-[#1e293b]">refresh</span>
                     </button>
                 </div>
             </div>
 
             <!-- Insight card body -->
             @if($insightCount > 0)
-            <div class="p-4" id="insight-body">
+            <div class="px-5 pb-5" id="insight-body">
                 @foreach($insights as $idx => $insight)
-                <div class="insight-slide {{ $idx > 0 ? 'hidden' : '' }} flex items-start gap-3"
+                <div class="insight-slide {{ $idx > 0 ? 'hidden' : '' }}"
                      data-category="{{ $insight['category'] }}"
                      data-idx="{{ $idx }}">
-                    <!-- Icon -->
-                    <div class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center shadow-sm mt-0.5"
-                         style="background: {{ $insight['color'] }}18; outline: 1.5px solid {{ $insight['color'] }}30;">
-                        <span class="material-symbols-outlined text-[18px]"
-                              style="color: {{ $insight['color'] }};">{{ $insight['icon'] }}</span>
-                    </div>
-                    <!-- Text -->
-                    <div class="flex-1 min-w-0">
-                        <p class="text-[10px] font-black uppercase tracking-wider mb-1"
-                           style="color: {{ $insight['color'] }};">{{ $insight['category'] }}</p>
-                        <p class="text-[12.5px] font-semibold text-slate-700 leading-relaxed">{!! $insight['text'] !!}</p>
-                    </div>
+                    <p class="text-[10px] font-black uppercase tracking-wider mb-1 text-[#1e293b]/60">{{ $insight['category'] }}</p>
+                    <p class="text-[12.5px] font-semibold text-[#1e293b] leading-relaxed">{!! $insight['text'] !!}</p>
                 </div>
                 @endforeach
             </div>
-
-            <!-- Progress dots -->
-            <div class="flex items-center justify-center gap-1 pb-4" id="insight-dots">
-                @foreach($insights as $idx => $insight)
-                <span class="insight-dot w-1.5 h-1.5 rounded-full transition-all duration-200 {{ $idx === 0 ? 'w-4 bg-amber-400' : 'bg-slate-200' }}"
-                      data-idx="{{ $idx }}"></span>
-                @endforeach
-            </div>
             @else
-            <div class="p-5 text-center">
-                <span class="material-symbols-outlined text-slate-300 text-[28px]">bar_chart</span>
-                <p class="text-[12px] text-slate-400 font-medium mt-2 leading-relaxed">Insights will appear once your students start completing lessons and quizzes.</p>
+            <div class="px-5 pb-5">
+                <p class="text-[12px] text-[#1e293b]/60 font-medium leading-relaxed">Insights will appear once your students start completing lessons and quizzes.</p>
             </div>
             @endif
         </div>
@@ -847,48 +818,40 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     })();
 
-    // ── Senya Insights Carousel ───────────────────────────────────────────
+    // ── Senya Insights ────────────────────────────────────────────────────
     (function () {
         const slides  = Array.from(document.querySelectorAll('.insight-slide'));
-        const dots    = Array.from(document.querySelectorAll('.insight-dot'));
-        const counter = document.getElementById('insight-counter');
+        const btn     = document.getElementById('insight-refresh');
         const total   = slides.length;
         if (!total) return;
 
         let current = 0;
 
-        // Auto-advance every 8 seconds
-        let autoTimer = setInterval(() => rotateInsight(1), 8000);
-
-        function resetTimer() {
-            clearInterval(autoTimer);
-            autoTimer = setInterval(() => rotateInsight(1), 8000);
+        function showSlide(idx) {
+            slides[current].classList.add('hidden');
+            current = idx;
+            slides[current].classList.remove('hidden');
         }
 
-        window.rotateInsight = function (dir) {
-            slides[current].classList.add('hidden');
-            dots[current].classList.remove('w-4', 'bg-amber-400');
-            dots[current].classList.add('bg-slate-200');
+        function pickRandom() {
+            if (total <= 1) return;
+            let next;
+            do { next = Math.floor(Math.random() * total); } while (next === current);
+            showSlide(next);
+        }
 
-            current = (current + dir + total) % total;
-
-            slides[current].classList.remove('hidden');
-            dots[current].classList.add('w-4', 'bg-amber-400');
-            dots[current].classList.remove('bg-slate-200');
-
-            if (counter) counter.textContent = `${current + 1} / ${total}`;
-            resetTimer();
-        };
-
-        // Dot click navigation
-        dots.forEach((dot, idx) => {
-            dot.style.cursor = 'pointer';
-            dot.addEventListener('click', () => {
-                const dir = idx > current ? 1 : -1;
-                const steps = Math.abs(idx - current);
-                for (let i = 0; i < steps; i++) rotateInsight(dir);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                const icon = btn.querySelector('.material-symbols-outlined');
+                icon.style.transition = 'transform 0.4s ease';
+                icon.style.transform = 'rotate(360deg)';
+                setTimeout(() => {
+                    icon.style.transition = 'none';
+                    icon.style.transform = 'rotate(0deg)';
+                }, 420);
+                pickRandom();
             });
-        });
+        }
 
         // Swipe support (touch devices)
         const body = document.getElementById('insight-body');
@@ -897,7 +860,7 @@ document.addEventListener('DOMContentLoaded', function () {
             body.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
             body.addEventListener('touchend', e => {
                 const dx = e.changedTouches[0].clientX - startX;
-                if (Math.abs(dx) > 40) rotateInsight(dx < 0 ? 1 : -1);
+                if (Math.abs(dx) > 40) pickRandom();
             }, { passive: true });
         }
     })();

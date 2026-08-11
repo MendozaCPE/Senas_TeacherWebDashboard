@@ -163,7 +163,7 @@ class LessonsController extends Controller
             }
 
             $resolver = new GestureMediaResolver();
-            $lesson   = $resolver->resolve($lesson);
+            $lesson   = $resolver->resolve($lesson, $this->resolveTeacherId());
 
             return response()->json($lesson);
 
@@ -268,7 +268,7 @@ class LessonsController extends Controller
             }
 
             $resolver = new GestureMediaResolver();
-            $lesson   = $resolver->resolve($lesson);
+            $lesson   = $resolver->resolve($lesson, $this->resolveTeacherId());
 
             return response()->json($lesson);
         } catch (\Throwable $e) {
