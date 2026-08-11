@@ -45,11 +45,6 @@
         @yield('content')
     </div>
 
-    <!-- Footer -->
-    <footer class="py-4 flex items-center justify-center border-t border-gray-200 bg-transparent">
-        <p class="text-[11px] font-medium tracking-wide text-gray-400 select-none">
-            &copy; 2026 &nbsp;<span class="font-bold text-gray-500">SEÑAS</span>&nbsp; &mdash; All rights reserved.
-        </p>
-    </footer>
+
 </body>
 </html>
