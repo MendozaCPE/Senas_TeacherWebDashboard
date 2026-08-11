@@ -620,6 +620,39 @@ class StudentsController extends Controller
         $enoughXp   = $xp >= $requiredXp;
         $demoteTo   = $demotionMap[$lvl] ?? null;
 
+        // ── Lesson-progress-based promotion eligibility ─────────────────
+        // Count all published lessons belonging to modules at the student's current mastery level
+        $lessonsTotal = 0;
+        $lessonsCompleted = 0;
+        $lessonsReady = false;
+
+        if ($promoteTo !== null && $lvl !== 'Completed') {
+            $lessonsTotal = \App\Models\Lesson::where('status', 'published')
+                ->whereNull('deleted_at')
+                ->whereHas('module', function ($q) use ($lvl) {
+                    $q->where('mastery_level', $lvl);
+                })
+                ->count();
+
+            if ($lessonsTotal > 0) {
+                $completedIds = \App\Models\StudentLessonProgress::where('student_id', $student->student_id)
+                    ->where('lesson_completed', true)
+                    ->pluck('lesson_id')
+                    ->toArray();
+
+                // Only count completed lessons that belong to the student's current level modules
+                $lessonsCompleted = \App\Models\Lesson::where('status', 'published')
+                    ->whereNull('deleted_at')
+                    ->whereIn('lesson_id', $completedIds)
+                    ->whereHas('module', function ($q) use ($lvl) {
+                        $q->where('mastery_level', $lvl);
+                    })
+                    ->count();
+
+                $lessonsReady = $lessonsCompleted >= $lessonsTotal;
+            }
+        }
+
         return [
             'student_id'        => $student->student_id,
             'first_name'        => $student->first_name,
@@ -648,6 +681,9 @@ class StudentsController extends Controller
             'required_xp'       => $requiredXp,
             'enough_xp'         => $enoughXp,
             'xp_bar_pct'        => $requiredXp > 0 ? min(100, round($xp / $requiredXp * 100)) : 100,
+            'lessons_total'     => $lessonsTotal,
+            'lessons_completed' => $lessonsCompleted,
+            'lessons_ready'     => $lessonsReady,
             'promotions'        => $student->promotions->map(fn($p) => [
                 'from'   => $p->from_level,
                 'to'     => $p->to_level,
@@ -755,14 +791,37 @@ class StudentsController extends Controller
         $requiredXp = $xpRequired[$currentLvl] ?? 0;
         $meetsXp    = $xp >= $requiredXp;
 
-        // If XP not met and not forcing, reject
-        if (!$meetsXp && !$force) {
+        // ── Lesson-completion check (primary eligibility) ────────────────
+        $lessonsTotal = \App\Models\Lesson::where('status', 'published')
+            ->whereNull('deleted_at')
+            ->whereHas('module', fn($q) => $q->where('mastery_level', $currentLvl))
+            ->count();
+
+        $lessonsCompleted = 0;
+        if ($lessonsTotal > 0) {
+            $completedIds = \App\Models\StudentLessonProgress::where('student_id', $student->student_id)
+                ->where('lesson_completed', true)
+                ->pluck('lesson_id')
+                ->toArray();
+            $lessonsCompleted = \App\Models\Lesson::where('status', 'published')
+                ->whereNull('deleted_at')
+                ->whereIn('lesson_id', $completedIds)
+                ->whereHas('module', fn($q) => $q->where('mastery_level', $currentLvl))
+                ->count();
+        }
+        $meetsLessons = ($lessonsTotal === 0) || ($lessonsCompleted >= $lessonsTotal);
+
+        // If lessons not completed and not forcing, reject
+        if (!$meetsLessons && !$force) {
             return response()->json([
-                'success'  => false,
-                'message'  => "Student needs {$requiredXp} XP to promote. Currently has {$xp} XP.",
-                'needs_xp' => $requiredXp,
+                'success'           => false,
+                'message'           => "Student has only completed {$lessonsCompleted}/{$lessonsTotal} lessons for {$currentLvl}.",
+                'lessons_total'     => $lessonsTotal,
+                'lessons_completed' => $lessonsCompleted,
             ], 422);
         }
+
+        $wasForced = !$meetsLessons;
 
         DB::beginTransaction();
         try {
@@ -776,7 +835,7 @@ class StudentsController extends Controller
                 'to_level'        => $targetLvl,
                 'xp_at_promotion' => $xp,
                 'promoted_by'     => Auth::id(),
-                'was_forced'      => !$meetsXp,
+                'was_forced'      => $wasForced,
                 'promoted_at'     => now(),
             ]);
 
@@ -787,13 +846,13 @@ class StudentsController extends Controller
                     teacherId: $teacher->id,
                     type:      'mastery_promoted',
                     title:     "⬆️ You promoted {$studentName}",
-                    message:   "{$studentName} has been promoted from {$currentLvl} to {$targetLvl}" . ($meetsXp ? '' : ' (manually forced)'),
+                    message:   "{$studentName} has been promoted from {$currentLvl} to {$targetLvl}" . ($meetsLessons ? '' : ' (manually forced)'),
                     data: [
                         'student_id' => $student->student_id,
                         'from_level' => $currentLvl,
                         'to_level'   => $targetLvl,
                         'xp'         => $xp,
-                        'forced'     => !$meetsXp,
+                        'forced'     => $wasForced,
                     ],
                     actionUrl: '/reports?open_student=' . $student->student_id,
                 );

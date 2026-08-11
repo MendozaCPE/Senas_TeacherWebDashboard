@@ -611,7 +611,7 @@
                     </div>
                     <div class="text-center">
                         <p id="sdc-name" class="text-[14px] font-black text-[#0d326b] leading-tight"></p>
-                        <p id="sdc-lrn-display" class="text-[10px] text-slate-400 font-medium mt-0.5"></p>
+                        <p id="sdc-lrn-display" class="text-[11px] text-slate-500 font-bold mt-0.5 font-mono tracking-wide"></p>
                     </div>
                     <span id="sdc-level-badge" class="lvl-badge beginner text-[10px] px-3 py-1"></span>
                     <span id="sdc-status-badge" class="text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider"></span>
@@ -652,33 +652,39 @@
                     <div class="flex gap-3 p-5 pb-2.5 flex-1 min-h-0">
 
                         {{-- Personal Info --}}
-                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">badge</span>Personal Information</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Full Name <span class="text-red-400 edit-only hidden">*</span></p>
-                                    <p id="sdc-fullname" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col overflow-hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">badge</span>Personal Information</p>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-0 flex-1 content-between">
+                                <div class="flex flex-col justify-center py-2 border-b border-slate-100 last:border-0">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Full Name <span class="text-red-400 edit-only hidden">*</span></p>
+                                    <p id="sdc-fullname" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
                                     <input id="sdc-edit-fullname" type="text" placeholder="Last Name, First Name"
                                         class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
                                 </div>
-                                <div>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Age</p>
-                                    <p id="sdc-age" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Age</p>
+                                    <p id="sdc-age" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
                                     <input id="sdc-edit-age" type="number" min="1" max="120" placeholder="Age"
                                         class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
                                 </div>
-                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Username</p><p id="sdc-username" class="text-[12px] font-bold text-slate-700 truncate"></p></div>
-                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Email / LRN</p><p id="sdc-email" class="text-[12px] font-bold text-slate-700 break-all"></p></div>
+                                <div class="flex flex-col justify-center py-2">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Username</p>
+                                    <p id="sdc-username" class="text-[15px] font-bold text-slate-700 truncate leading-tight"></p>
+                                </div>
+                                <div class="flex flex-col justify-center py-2">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Email / LRN</p>
+                                    <p id="sdc-email" class="text-[14px] font-bold text-slate-700 break-all leading-tight"></p>
+                                </div>
                             </div>
                         </div>
 
                         {{-- Academic Info --}}
-                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">school</span>Academic Information</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Program <span class="text-red-400 edit-only hidden">*</span></p>
-                                    <p id="sdc-program" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col overflow-hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">school</span>Academic Information</p>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-0 flex-1 content-between">
+                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Program <span class="text-red-400 edit-only hidden">*</span></p>
+                                    <p id="sdc-program" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
                                     <select id="sdc-edit-program"
                                         class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
                                         <option value="Regular">Regular</option>
@@ -689,9 +695,9 @@
                                         <option value="Transition">Transition</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Grade Level</p>
-                                    <p id="sdc-grade" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Grade Level</p>
+                                    <p id="sdc-grade" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
                                     <select id="sdc-edit-grade"
                                         class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
                                         <option value="">— None —</option>
@@ -700,15 +706,15 @@
                                         <option>SPED A</option><option>SPED B</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Section</p>
-                                    <p id="sdc-section" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                <div class="flex flex-col justify-center py-2">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Section</p>
+                                    <p id="sdc-section" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
                                     <input id="sdc-edit-section" type="text" placeholder="e.g. SPED-A"
                                         class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
                                 </div>
-                                <div>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">School Year</p>
-                                    <p id="sdc-school-year" class="text-[12px] font-bold text-slate-700 view-only"></p>
+                                <div class="flex flex-col justify-center py-2">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">School Year</p>
+                                    <p id="sdc-school-year" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
                                     <div class="edit-only hidden">
                                         <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2024-2025" maxlength="9"
                                             class="w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
@@ -724,17 +730,33 @@
                     <div class="flex gap-3 px-5 py-2.5 flex-1 min-h-0">
 
                         {{-- Account Info --}}
-                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">info</span>Account Information</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">LRN <span class="text-red-400 edit-only hidden">*</span></p>
-                                    <p id="sdc-lrn" class="text-[12px] font-bold text-slate-700 font-mono view-only"></p>
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col overflow-hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">info</span>Account Information</p>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-0 flex-1 content-between">
+                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">LRN <span class="text-red-400 edit-only hidden">*</span></p>
+                                    <p id="sdc-lrn" class="text-[15px] font-black text-[#0d326b] font-mono tracking-wide view-only leading-tight"></p>
                                     <input id="sdc-edit-lrn" type="text" placeholder="e.g. 123456789001" maxlength="12"
-                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all font-mono" />
+                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all font-mono" />
                                 </div>
-                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Date Added</p><p id="sdc-created" class="text-[12px] font-bold text-slate-700"></p></div>
-                                <div><p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Last Updated</p><p id="sdc-updated" class="text-[12px] font-bold text-slate-700"></p></div>
+                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">PIN</p>
+                                    <div class="flex items-center gap-1.5">
+                                        <p id="sdc-pin" class="text-[15px] font-black text-[#0d326b] font-mono tracking-[0.2em] view-only leading-tight">••••</p>
+                                        <button id="sdc-pin-toggle" type="button" title="Show/hide PIN"
+                                            class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-200 transition-colors text-slate-400 hover:text-slate-600 view-only">
+                                            <span id="sdc-pin-eye" class="material-symbols-outlined text-[14px]">visibility_off</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col justify-center py-2">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Date Added</p>
+                                    <p id="sdc-created" class="text-[15px] font-bold text-slate-700 leading-tight"></p>
+                                </div>
+                                <div class="flex flex-col justify-center py-2">
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Last Updated</p>
+                                    <p id="sdc-updated" class="text-[15px] font-bold text-slate-700 leading-tight"></p>
+                                </div>
                             </div>
                         </div>
 
@@ -778,12 +800,17 @@
                                 </div>
 
                                 {{-- Promotion --}}
-                                <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
+                                <div id="sdc-promote-card" class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col transition-all duration-300">
                                     <div class="flex items-center gap-2 mb-2">
-                                        <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                                        <div id="sdc-promote-icon-wrap" class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                                             <span class="material-symbols-outlined text-[#0d326b] text-[16px]">trending_up</span>
                                         </div>
-                                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Promotion</p>
+                                        <div class="flex-1 flex items-center gap-1.5 flex-wrap">
+                                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Promotion</p>
+                                            <span id="sdc-ready-badge" class="hidden text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-300">
+                                                ★ Ready
+                                            </span>
+                                        </div>
                                     </div>
                                     <p id="sdc-promote-hint" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1"></p>
                                     <button id="sdc-promote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-[#0d326b] hover:bg-[#154188] text-white">
@@ -1752,7 +1779,13 @@ function populateStudentDetails(s) {
     document.getElementById('sdc-xp-bar').style.width = xpPct + '%';
     document.getElementById('sdc-xp-bar').style.background = 'linear-gradient(90deg,' + meta.barColor + '88,' + meta.barColor + ')';
     document.getElementById('sdc-xp-fraction').textContent = (s.total_xp || 0).toLocaleString() + ' / ' + (s.required_xp || 0).toLocaleString() + ' XP';
-    document.getElementById('sdc-xp-hint').textContent = s.promote_to ? (xpPct >= 100 ? '✓ Eligible for ' + s.promote_to : (s.required_xp - s.total_xp).toLocaleString() + ' XP to ' + s.promote_to) : 'Max level reached';
+    document.getElementById('sdc-xp-hint').textContent = s.promote_to
+        ? (s.lessons_ready
+            ? '✓ Ready for Promotion to ' + s.promote_to
+            : (s.lessons_total > 0
+                ? (s.lessons_completed || 0) + '/' + s.lessons_total + ' lessons done'
+                : 'No lessons assigned yet'))
+        : 'Max level reached';
     document.getElementById('sdc-streak').textContent = (s.streak_days || 0) + ' days';
     document.getElementById('sdc-level-num').textContent = 'Lv. ' + (s.level || 1);
     document.getElementById('sdc-last-active').textContent = s.last_activity_date || '—';
@@ -1773,6 +1806,26 @@ function populateStudentDetails(s) {
     document.getElementById('sdc-lrn').textContent     = s.lrn || '—';
     document.getElementById('sdc-created').textContent = s.created_at || '—';
     document.getElementById('sdc-updated').textContent = s.updated_at || '—';
+
+    // PIN – hidden by default, show/hide via eye button
+    const pinEl  = document.getElementById('sdc-pin');
+    const pinEye = document.getElementById('sdc-pin-eye');
+    pinEl._realPin = s.pin || '—';
+    pinEl.textContent = '••••';
+    pinEye.textContent = 'visibility_off';
+    // Re-wire toggle each time (replace to avoid stacked listeners)
+    const newToggle = document.getElementById('sdc-pin-toggle').cloneNode(true);
+    document.getElementById('sdc-pin-toggle').replaceWith(newToggle);
+    newToggle.addEventListener('click', () => {
+        const eye = newToggle.querySelector('#sdc-pin-eye');
+        if (pinEl.textContent === '••••') {
+            pinEl.textContent = pinEl._realPin;
+            eye.textContent = 'visibility';
+        } else {
+            pinEl.textContent = '••••';
+            eye.textContent = 'visibility_off';
+        }
+    });
 
     // History
     sdcRenderHistory(s.promotions || []);
@@ -1834,14 +1887,53 @@ function sdcSetupManagement(s) {
     if (s.promote_to) {
         promoteBtn.classList.remove('hidden');
         promoteLabel.textContent = 'Promote to ' + s.promote_to;
-        promoteHint.textContent  = s.enough_xp
-            ? '✓ Eligible — ' + (s.total_xp||0).toLocaleString() + ' / ' + (s.required_xp||0).toLocaleString() + ' XP'
-            : 'Needs ' + (s.required_xp - s.total_xp).toLocaleString() + ' more XP (force allowed)';
-        promoteBtn.className = 'w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 ' +
-            (s.enough_xp ? 'bg-[#0d326b] hover:bg-[#154188] text-white' : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200');
+
+        const ready = !!s.lessons_ready;
+        const total = s.lessons_total || 0;
+        const done  = s.lessons_completed || 0;
+
+        // Build hint text
+        if (total === 0) {
+            promoteHint.innerHTML = '<span style="color:#d97706">⚠ No lessons assigned for this level yet.</span>';
+        } else if (ready) {
+            promoteHint.innerHTML = '✓ <strong>All lessons completed</strong> — ' + done + '/' + total + ' lessons done';
+        } else {
+            promoteHint.textContent = done + '/' + total + ' lessons completed (force promote allowed)';
+        }
+
+        // Gold card highlight when ready
+        const promoteCard = document.getElementById('sdc-promote-card');
+        const promoteIconWrap = document.getElementById('sdc-promote-icon-wrap');
+        const readyBadge = document.getElementById('sdc-ready-badge');
+
+        if (ready) {
+            promoteCard.classList.add('border-amber-300', 'bg-amber-50/60');
+            promoteCard.classList.remove('border-slate-100', 'bg-white');
+            promoteIconWrap.classList.add('bg-amber-100');
+            promoteIconWrap.classList.remove('bg-blue-50');
+            promoteIconWrap.querySelector('.material-symbols-outlined').style.color = '#b45309';
+            readyBadge.classList.remove('hidden');
+            promoteHint.classList.add('text-amber-800');
+            promoteHint.classList.remove('text-slate-400');
+            promoteBtn.className = 'w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-sm';
+        } else {
+            promoteCard.classList.remove('border-amber-300', 'bg-amber-50/60');
+            promoteCard.classList.add('border-slate-100', 'bg-white');
+            promoteIconWrap.classList.remove('bg-amber-100');
+            promoteIconWrap.classList.add('bg-blue-50');
+            promoteIconWrap.querySelector('.material-symbols-outlined').style.color = '';
+            readyBadge.classList.add('hidden');
+            promoteHint.classList.remove('text-amber-800');
+            promoteHint.classList.add('text-slate-400');
+            promoteBtn.className = 'w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600';
+        }
     } else {
         promoteBtn.classList.add('hidden');
         promoteHint.textContent = 'Max level reached.';
+        const promoteCard = document.getElementById('sdc-promote-card');
+        promoteCard.classList.remove('border-amber-300', 'bg-amber-50/60');
+        promoteCard.classList.add('border-slate-100', 'bg-white');
+        document.getElementById('sdc-ready-badge').classList.add('hidden');
     }
 
     // Demote
@@ -1916,13 +2008,18 @@ document.getElementById('sdc-unenroll-btn').addEventListener('click', () => {
 // ── Promote / Demote ──────────────────────────────────────────────────────────
 document.getElementById('sdc-promote-btn').addEventListener('click', () => {
     if (!_sdCurrent || !_sdCurrent.promote_to) return;
-    const tgt = _sdCurrent.promote_to;
-    const force = !_sdCurrent.enough_xp;
+    const tgt   = _sdCurrent.promote_to;
+    const force = !_sdCurrent.lessons_ready;
+    const total = _sdCurrent.lessons_total || 0;
+    const done  = _sdCurrent.lessons_completed || 0;
+    const bodyMsg = force
+        ? 'This student has only completed ' + done + '/' + total + ' lessons. Are you sure you want to force promote ' + _sdCurrent.full_name + ' to ' + tgt + '?'
+        : 'Are you sure you want to promote ' + _sdCurrent.full_name + ' to ' + tgt + '? They have completed all ' + total + ' lessons.';
     sdcConfirm({
         title: force ? 'Force Promote?' : 'Promote Student',
-        body: 'Are you sure you want to promote ' + _sdCurrent.full_name + ' to ' + tgt + '?' + (force ? ' This student has not met the XP requirement.' : ''),
+        body: bodyMsg,
         okLabel: force ? 'Promote Anyway' : 'Promote to ' + tgt,
-        okClass: force ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#0d326b] hover:bg-[#154188]',
+        okClass: force ? 'bg-slate-600 hover:bg-slate-700' : 'bg-amber-500 hover:bg-amber-600',
         onConfirm: () => sdcAction('/students/' + _sdCurrent.student_id + '/promote', { target_level: tgt, force: force ? 1 : 0 }, 'promote'),
     });
 });
