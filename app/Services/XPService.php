@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Student;
 use App\Models\StudentNotification;
+use App\Models\TeacherNotification;
 use Illuminate\Support\Facades\DB;
 
 
@@ -182,6 +183,8 @@ public function getXpReason(int $attemptNumber, bool $isPerfect, float $percenta
      */
     public function updateLevel(Student $student): void
     {
+        $oldLevel = $student->level ?? 1;
+
         $newLevel = 1;
         foreach (self::LEVEL_THRESHOLDS as $level => $threshold) {
             if ($student->total_xp >= $threshold) {
@@ -190,6 +193,29 @@ public function getXpReason(int $attemptNumber, bool $isPerfect, float $percenta
         }
         $student->level = $newLevel;
         $student->save();
+
+        // ─── 🔔 NOTIFY TEACHER on level-up ──────────────────────────────
+        if ($newLevel > $oldLevel && $student->teacher_id) {
+            try {
+                $levelName   = self::LEVEL_NAMES[$newLevel] ?? "Level {$newLevel}";
+                $studentName = $student->first_name . ' ' . $student->last_name;
+
+                TeacherNotification::createForTeacher(
+                    teacherId: $student->teacher_id,
+                    type:      'level_up',
+                    title:     "📈 {$studentName} leveled up!",
+                    message:   "Reached Level {$newLevel} ({$levelName}) with {$student->total_xp} XP",
+                    data: [
+                        'student_id' => $student->student_id,
+                        'old_level'  => $oldLevel,
+                        'new_level'  => $newLevel,
+                        'level_name' => $levelName,
+                        'total_xp'   => $student->total_xp,
+                    ],
+                    actionUrl: '/reports?open_student=' . $student->student_id,
+                );
+            } catch (\Exception $e) { /* silent */ }
+        }
     }
 /**
      * Update streak

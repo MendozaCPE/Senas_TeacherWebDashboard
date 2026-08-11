@@ -162,6 +162,37 @@
 
         /* Footer */
         html.dark .footer-global { border-color: rgba(255,255,255,0.05) !important; }
+
+        /* ── Notification dropdown dark mode ───────────────────────── */
+        html.dark #notif-dropdown {
+            background-color: #0a2a4a !important;
+            border-color: rgba(0,71,171,0.4) !important;
+        }
+        html.dark #notif-dropdown .border-slate-100 {
+            border-color: rgba(255,255,255,0.07) !important;
+        }
+        html.dark #notif-dropdown .bg-slate-50\/60 {
+            background-color: rgba(0,0,0,0.2) !important;
+        }
+        html.dark #notif-dropdown .notif-item:hover {
+            background-color: rgba(255,255,255,0.05) !important;
+        }
+        html.dark #notif-dropdown .bg-blue-50\/40 {
+            background-color: rgba(59,130,246,0.08) !important;
+        }
+        html.dark #notif-dropdown p,
+        html.dark #notif-dropdown span:not(.material-symbols-outlined) {
+            color: inherit;
+        }
+        /* Notification page card dark overrides */
+        html.dark .notif-card {
+            background-color: #0a2a4a !important;
+            border-color: rgba(0,71,171,0.3) !important;
+        }
+        html.dark .notif-card.border-blue-200\/70 {
+            background-color: rgba(59,130,246,0.08) !important;
+            border-color: rgba(59,130,246,0.3) !important;
+        }
     </style>
 </head>
 <body class="font-sans antialiased flex h-screen overflow-hidden bg-[#f5f8fc] @yield('bg-class', '')">

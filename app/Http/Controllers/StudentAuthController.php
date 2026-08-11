@@ -27,6 +27,7 @@ use App\Models\CheckpointExamAssignment;
 use App\Models\CheckpointExamQuestion;
 use App\Models\CheckpointExamAttempt;
 use App\Models\HelpRequest;
+use App\Models\TeacherNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -2248,6 +2249,36 @@ public function submitQuizAttempt(Request $request, $lessonId)
 
         $student->refresh();
 
+        // ─── 🔔 NOTIFY TEACHER ──────────────────────────────────────────
+        try {
+            $lesson     = Lesson::find($lessonId);
+            $lessonName = $lesson ? $lesson->title : "Lesson #{$lessonId}";
+            $studentName = $student->first_name . ' ' . $student->last_name;
+            $pct         = (int) round($request->percentage);
+            $emoji       = $pct === 100 ? '🏆' : ($pct >= 80 ? '🎯' : ($pct >= 60 ? '✅' : '❌'));
+            $statusLabel = $status === 'completed' ? 'passed' : 'failed';
+
+            $this->notifyTeacher(
+                student:   $student,
+                type:      'quiz_answered',
+                title:     "{$emoji} {$studentName} answered a quiz",
+                message:   "Scored {$pct}% on \"{$lessonName}\" ({$statusLabel}) — Attempt #{$attemptNumber}",
+                data:      [
+                    'student_id'     => $student->student_id,
+                    'lesson_id'      => $lessonId,
+                    'lesson_title'   => $lessonName,
+                    'score'          => $request->score,
+                    'percentage'     => $pct,
+                    'status'         => $status,
+                    'attempt_number' => $attemptNumber,
+                    'xp_earned'      => $xpEarned,
+                ],
+                actionUrl: '/students/' . $student->student_id,
+            );
+        } catch (\Exception $e) {
+            // never break the student flow
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Quiz submitted successfully',
@@ -3481,6 +3512,32 @@ private function isModuleLocked($student, $module)
             }
 
             $student->refresh();
+
+            // ─── 🔔 NOTIFY TEACHER (module quiz) ────────────────────────
+            if ($passed) {
+                try {
+                    $mod         = Module::find($moduleId);
+                    $modName     = $mod ? $mod->name : "Module #{$moduleId}";
+                    $studentName = $student->first_name . ' ' . $student->last_name;
+                    $pct         = (int) round($percentage);
+
+                    $this->notifyTeacher(
+                        student:   $student,
+                        type:      'module_passed',
+                        title:     "🏅 {$studentName} passed a module quiz",
+                        message:   "Scored {$pct}% on the \"{$modName}\" checkpoint quiz — Attempt #{$attemptNumber}",
+                        data: [
+                            'student_id'     => $student->student_id,
+                            'module_id'      => $moduleId,
+                            'module_name'    => $modName,
+                            'percentage'     => $pct,
+                            'attempt_number' => $attemptNumber,
+                            'xp_earned'      => $xpEarned,
+                        ],
+                        actionUrl: '/students/' . $student->student_id,
+                    );
+                } catch (\Exception $e) { /* never break the flow */ }
+            }
 
             return response()->json([
                 'success'       => true,
@@ -5272,6 +5329,30 @@ public function submitCheckpointExam(Request $request, $examId)
         // Determine star rating
         $stars = $this->getStarRating($percentage);
 
+        // ─── 🔔 NOTIFY TEACHER (checkpoint exam) ────────────────────────
+        try {
+            $studentName = $student->first_name . ' ' . $student->last_name;
+            $pct         = (int) round($percentage);
+            $emoji       = $passed ? ($pct === 100 ? '🏆' : '✅') : '❌';
+
+            $this->notifyTeacher(
+                student:   $student,
+                type:      'checkpoint_passed',
+                title:     "{$emoji} {$studentName} took a checkpoint exam",
+                message:   "Scored {$pct}% on \"{$exam->title}\" — " . ($passed ? 'Passed' : 'Failed') . " — Attempt #{$attemptNumber}",
+                data: [
+                    'student_id'     => $student->student_id,
+                    'exam_id'        => $examId,
+                    'exam_title'     => $exam->title,
+                    'percentage'     => $pct,
+                    'passed'         => $passed,
+                    'attempt_number' => $attemptNumber,
+                    'xp_earned'      => $xpEarned,
+                ],
+                actionUrl: '/students/' . $student->student_id,
+            );
+        } catch (\Exception $e) { /* never break the flow */ }
+
         return response()->json([
             'success' => true,
             'message' => $passed ? 'Exam completed successfully!' : 'Exam completed. Keep practicing!',
@@ -5747,6 +5828,21 @@ public function submitHelpRequest(Request $request)
         // Notify admins (optional)
         $this->notifyAdminsOfHelpRequest($helpRequest);
 
+        // ─── 🔔 NOTIFY TEACHER (help request) ───────────────────────────
+        $this->notifyTeacher(
+            student:   $student,
+            type:      'help_request',
+            title:     '🆘 ' . $student->first_name . ' ' . $student->last_name . ' sent a help request',
+            message:   strlen($request->message) > 100
+                           ? substr($request->message, 0, 100) . '…'
+                           : $request->message,
+            data: [
+                'student_id'      => $student->student_id,
+                'help_request_id' => $helpRequest->help_request_id,
+            ],
+            actionUrl: '/students/' . $student->student_id,
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Help request submitted successfully. We\'ll get back to you within 24 hours.',
@@ -5860,6 +5956,35 @@ private function notifyAdminsOfHelpRequest($helpRequest)
         ]);
     } catch (\Exception $e) {
         \Log::error('Failed to log help request: ' . $e->getMessage());
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔔 TEACHER NOTIFICATION HELPER
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Fire a teacher notification for a given student event.
+ * Silently swallows exceptions so it never breaks the student flow.
+ */
+private function notifyTeacher(Student $student, string $type, string $title, string $message, ?array $data = null, ?string $actionUrl = null): void
+{
+    try {
+        if (!$student->teacher_id) return;
+
+        // Always redirect to the student's report modal
+        $resolvedUrl = '/reports?open_student=' . $student->student_id;
+
+        TeacherNotification::createForTeacher(
+            teacherId: $student->teacher_id,
+            type:      $type,
+            title:     $title,
+            message:   $message,
+            data:      $data,
+            actionUrl: $resolvedUrl,
+        );
+    } catch (\Exception $e) {
+        \Log::warning('Teacher notification failed: ' . $e->getMessage());
     }
 }
 

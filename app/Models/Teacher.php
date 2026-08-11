@@ -26,4 +26,14 @@ class Teacher extends Model
     {
         return $this->belongsTo(School::class);
     }
+
+    public function notifications()
+    {
+        return $this->hasMany(TeacherNotification::class);
+    }
+
+    public function unreadNotificationsCount(): int
+    {
+        return $this->notifications()->where('is_read', false)->count();
+    }
 }

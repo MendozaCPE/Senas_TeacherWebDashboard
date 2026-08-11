@@ -927,6 +927,21 @@ document.addEventListener('keydown', function(e) {
     const studentReportData = @json($studentReports->values());
     let currentModalGestureData = [];
 
+    // ── Auto-open from notification click (?open_student=ID) ─────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        const params   = new URLSearchParams(window.location.search);
+        const openId   = params.get('open_student');
+        if (openId) {
+            const idx = studentReportData.findIndex(s => String(s.student_id) === String(openId));
+            if (idx !== -1) {
+                openStudentModal(idx);
+            }
+            // Clean the URL without reloading so refreshing doesn't re-open
+            const cleanUrl = window.location.pathname;
+            history.replaceState(null, '', cleanUrl);
+        }
+    });
+
     function openStudentModal(index) {
         const data = studentReportData[index];
         if (!data) return;

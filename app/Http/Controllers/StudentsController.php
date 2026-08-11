@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Student;
 use App\Models\StudentPromotion;
+use App\Models\TeacherNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -778,6 +779,25 @@ class StudentsController extends Controller
                 'was_forced'      => !$meetsXp,
                 'promoted_at'     => now(),
             ]);
+
+            // ─── 🔔 NOTIFY TEACHER (mastery promoted) ───────────────────
+            try {
+                $studentName = $student->first_name . ' ' . $student->last_name;
+                TeacherNotification::createForTeacher(
+                    teacherId: $teacher->id,
+                    type:      'mastery_promoted',
+                    title:     "⬆️ You promoted {$studentName}",
+                    message:   "{$studentName} has been promoted from {$currentLvl} to {$targetLvl}" . ($meetsXp ? '' : ' (manually forced)'),
+                    data: [
+                        'student_id' => $student->student_id,
+                        'from_level' => $currentLvl,
+                        'to_level'   => $targetLvl,
+                        'xp'         => $xp,
+                        'forced'     => !$meetsXp,
+                    ],
+                    actionUrl: '/reports?open_student=' . $student->student_id,
+                );
+            } catch (\Exception $e) { /* silent */ }
 
             DB::commit();
 

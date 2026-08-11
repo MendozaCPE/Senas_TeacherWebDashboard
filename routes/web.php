@@ -7,7 +7,8 @@ use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\MediaController;
-use App\Http\Controllers\ModulesController; // ✅ ADD THIS IMPORT
+use App\Http\Controllers\ModulesController;
+use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Http\Request;
@@ -163,6 +164,13 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
     Route::delete('/settings/profile-photo', [SettingsController::class, 'removeProfilePhoto'])->name('settings.profile-photo.remove');
     Route::patch('/settings/school', [SettingsController::class, 'updateSchool'])->name('settings.school');
     Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+
+    // ── Teacher Notifications (API only — no separate page) ──────────────────
+    Route::get('/api/notifications/latest', [NotificationsController::class, 'latest'])->name('notifications.latest');
+    Route::get('/api/notifications/unread-count', [NotificationsController::class, 'unreadCount'])->name('notifications.unread-count');
+    Route::post('/notifications/{id}/read', [NotificationsController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::delete('/notifications/{id}', [NotificationsController::class, 'destroy'])->name('notifications.destroy');
 
     // Global Search Auto-complete API
     Route::get('/api/global-search', [GlobalSearchController::class, 'suggestions'])->name('api.global-search');
