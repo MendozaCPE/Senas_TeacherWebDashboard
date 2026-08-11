@@ -393,29 +393,81 @@
 
     <!-- Right Sidebar Column -->
     <div class="w-[340px] flex-shrink-0 flex flex-col space-y-4 pl-4 self-stretch">
-        
-        <!-- Senya Tip Widget -->
-        <div class="rounded-[32px] p-7 relative overflow-hidden shadow-sm flex flex-col justify-between" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%)">
-            <div class="absolute -bottom-16 -right-16 text-[#eab308] opacity-50 transform rotate-45 pointer-events-none">
-                <svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/></svg>
-            </div>
-            <div class="flex items-center justify-between mb-4 relative z-10">
-                <div class="flex items-center space-x-2.5">
-                    <span class="material-symbols-outlined text-[24px] text-black">lightbulb</span>
-                    <span class="text-[11px] font-black uppercase tracking-[0.15em] text-[#1e293b]">Senya Tip</span>
+
+        <!-- ── Senya Insights Widget ─────────────────────────────────────────── -->
+        @php $insights = $senyaInsights ?? []; $insightCount = count($insights); @endphp
+        <div class="rounded-[28px] overflow-hidden shadow-sm border border-slate-100 bg-white">
+
+            <!-- Header bar -->
+            <div class="px-5 pt-5 pb-3 flex items-center justify-between"
+                 style="background: linear-gradient(135deg,#f59e0b 0%,#facc15 60%,#fbbf24 100%);">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[18px] text-[#1e293b]">lightbulb</span>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-black uppercase tracking-[0.15em] text-[#1e293b] leading-none">Senya Insights</p>
+                        <p class="text-[10px] font-semibold text-[#1e293b]/60 mt-0.5">Based on your class data</p>
+                    </div>
                 </div>
-                <button type="button" 
-                        id="refreshSenyaTipBtn" 
-                        title="Refresh tip"
-                        aria-label="Refresh Senya Tip"
-                        class="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 text-[#1e293b] flex items-center justify-center transition-all duration-200 active:scale-90 focus:outline-none cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px] transition-transform duration-500 ease-in-out select-none" id="refreshSenyaTipIcon">refresh</span>
-                </button>
+                <div class="flex items-center gap-1.5">
+                    <!-- Counter -->
+                    <span class="text-[11px] font-bold text-[#1e293b]/70" id="insight-counter">
+                        @if($insightCount > 0) 1 / {{ $insightCount }} @endif
+                    </span>
+                    <!-- Prev -->
+                    <button id="insight-prev"
+                            class="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-all active:scale-90 disabled:opacity-30"
+                            onclick="rotateInsight(-1)" title="Previous insight">
+                        <span class="material-symbols-outlined text-[15px] text-[#1e293b]">chevron_left</span>
+                    </button>
+                    <!-- Next -->
+                    <button id="insight-next"
+                            class="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-all active:scale-90"
+                            onclick="rotateInsight(1)" title="Next insight">
+                        <span class="material-symbols-outlined text-[15px] text-[#1e293b]">chevron_right</span>
+                    </button>
+                </div>
             </div>
-            <p id="senyaTipText" class="text-[14px] font-bold text-[#1e293b] leading-[1.6] relative z-10 transition-opacity duration-300 min-h-[48px]">
-                {!! $selectedTip ?? ($senyaTips[0] ?? 'Keep your students engaged with regular lesson assignments!') !!}
-            </p>
+
+            <!-- Insight card body -->
+            @if($insightCount > 0)
+            <div class="p-4" id="insight-body">
+                @foreach($insights as $idx => $insight)
+                <div class="insight-slide {{ $idx > 0 ? 'hidden' : '' }} flex items-start gap-3"
+                     data-category="{{ $insight['category'] }}"
+                     data-idx="{{ $idx }}">
+                    <!-- Icon -->
+                    <div class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center shadow-sm mt-0.5"
+                         style="background: {{ $insight['color'] }}18; outline: 1.5px solid {{ $insight['color'] }}30;">
+                        <span class="material-symbols-outlined text-[18px]"
+                              style="color: {{ $insight['color'] }};">{{ $insight['icon'] }}</span>
+                    </div>
+                    <!-- Text -->
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-black uppercase tracking-wider mb-1"
+                           style="color: {{ $insight['color'] }};">{{ $insight['category'] }}</p>
+                        <p class="text-[12.5px] font-semibold text-slate-700 leading-relaxed">{!! $insight['text'] !!}</p>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+
+            <!-- Progress dots -->
+            <div class="flex items-center justify-center gap-1 pb-4" id="insight-dots">
+                @foreach($insights as $idx => $insight)
+                <span class="insight-dot w-1.5 h-1.5 rounded-full transition-all duration-200 {{ $idx === 0 ? 'w-4 bg-amber-400' : 'bg-slate-200' }}"
+                      data-idx="{{ $idx }}"></span>
+                @endforeach
+            </div>
+            @else
+            <div class="p-5 text-center">
+                <span class="material-symbols-outlined text-slate-300 text-[28px]">bar_chart</span>
+                <p class="text-[12px] text-slate-400 font-medium mt-2 leading-relaxed">Insights will appear once your students start completing lessons and quizzes.</p>
+            </div>
+            @endif
         </div>
+        <!-- ── End Senya Insights ─────────────────────────────────────────────── -->
 
         <!-- My Students List -->
         <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
@@ -795,49 +847,59 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     })();
 
-    // ── Dynamic Senya Tip Rotator (Refresh button & bfcache restore) ──
+    // ── Senya Insights Carousel ───────────────────────────────────────────
     (function () {
-        const tips = @json($senyaTips ?? []);
-        const tipEl = document.getElementById('senyaTipText');
-        const refreshBtn = document.getElementById('refreshSenyaTipBtn');
-        const refreshIcon = document.getElementById('refreshSenyaTipIcon');
-        if (!tipEl) return;
+        const slides  = Array.from(document.querySelectorAll('.insight-slide'));
+        const dots    = Array.from(document.querySelectorAll('.insight-dot'));
+        const counter = document.getElementById('insight-counter');
+        const total   = slides.length;
+        if (!total) return;
 
-        let currentIndex = 0;
-        let currentRotation = 0;
+        let current = 0;
 
-        if (tips.length > 0) {
-            const currentContent = tipEl.innerHTML.trim();
-            const foundIdx = tips.findIndex(t => t.trim() === currentContent);
-            if (foundIdx !== -1) currentIndex = foundIdx;
+        // Auto-advance every 8 seconds
+        let autoTimer = setInterval(() => rotateInsight(1), 8000);
+
+        function resetTimer() {
+            clearInterval(autoTimer);
+            autoTimer = setInterval(() => rotateInsight(1), 8000);
         }
 
-        function rotateTip() {
-            if (refreshIcon) {
-                currentRotation += 360;
-                refreshIcon.style.transform = `rotate(${currentRotation}deg)`;
-            }
+        window.rotateInsight = function (dir) {
+            slides[current].classList.add('hidden');
+            dots[current].classList.remove('w-4', 'bg-amber-400');
+            dots[current].classList.add('bg-slate-200');
 
-            if (!tips.length || tips.length <= 1) return;
+            current = (current + dir + total) % total;
 
-            tipEl.classList.add('opacity-0');
+            slides[current].classList.remove('hidden');
+            dots[current].classList.add('w-4', 'bg-amber-400');
+            dots[current].classList.remove('bg-slate-200');
 
-            setTimeout(() => {
-                currentIndex = (currentIndex + 1) % tips.length;
-                tipEl.innerHTML = tips[currentIndex];
-                tipEl.classList.remove('opacity-0');
-            }, 180);
-        }
+            if (counter) counter.textContent = `${current + 1} / ${total}`;
+            resetTimer();
+        };
 
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', rotateTip);
-        }
-
-        window.addEventListener('pageshow', function (e) {
-            if (e.persisted) {
-                rotateTip();
-            }
+        // Dot click navigation
+        dots.forEach((dot, idx) => {
+            dot.style.cursor = 'pointer';
+            dot.addEventListener('click', () => {
+                const dir = idx > current ? 1 : -1;
+                const steps = Math.abs(idx - current);
+                for (let i = 0; i < steps; i++) rotateInsight(dir);
+            });
         });
+
+        // Swipe support (touch devices)
+        const body = document.getElementById('insight-body');
+        if (body) {
+            let startX = 0;
+            body.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+            body.addEventListener('touchend', e => {
+                const dx = e.changedTouches[0].clientX - startX;
+                if (Math.abs(dx) > 40) rotateInsight(dx < 0 ? 1 : -1);
+            }, { passive: true });
+        }
     })();
 });
 </script>

@@ -31,13 +31,6 @@
     <!-- Right Controls -->
     <div class="flex items-center gap-3">
 
-        <!-- Dark Mode Toggle -->
-        <button id="darkmode-btn" onclick="toggleDarkMode()"
-                class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200/70 transition-colors text-slate-400"
-                title="Toggle dark mode">
-            <span class="material-symbols-outlined icon-outline text-[20px]" id="darkmode-icon">dark_mode</span>
-        </button>
-
         <!-- ── NOTIFICATION BELL ──────────────────────────────────────────── -->
         <div class="relative" id="notif-container">
             <button id="notif-btn"
