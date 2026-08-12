@@ -1727,16 +1727,71 @@
     .mobile-app-cta {
       margin-top: 8px;
     }
+    .app-platform-note {
+      margin-top: 10px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--ink-soft);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .app-platform-note i { color: var(--teal-deep); }
+    .mobile-app-cta-row {
+      display: flex;
+      align-items: center;
+      gap: clamp(20px,3vw,32px);
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .app-qr-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: linear-gradient(165deg,rgba(255,255,255,.82),rgba(255,255,255,.55));
+      border: 1px solid var(--glass-l-brd);
+      box-shadow: var(--shadow-sm);
+      max-width: 340px;
+    }
+    .app-qr-img {
+      width: 84px;
+      height: 84px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      background: #fff;
+      padding: 4px;
+      border: 1px solid rgba(11,30,61,.08);
+    }
+    .app-qr-text h4 {
+      font-family: 'Baloo 2', sans-serif;
+      font-size: .92rem;
+      font-weight: 700;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .app-qr-text p {
+      font-size: .74rem;
+      line-height: 1.45;
+      color: var(--ink-soft);
+    }
     @media(max-width:900px){
       .mobile-app-grid{grid-template-columns:1fr;gap:40px;}
       .mobile-app-grid .screenshot-pair{flex-direction:row;justify-content:center;}
       .mobile-app-grid .app-screenshot{max-width:200px;}
       .mobile-app-features{grid-template-columns:1fr;}
       .mobile-app-content .app-tagline{align-self:center;}
+      .mobile-app-cta-row{flex-direction:column;align-items:flex-start;}
+      .app-qr-card{max-width:100%;}
     }
     @media(max-width:480px){
       .mobile-app-grid .screenshot-pair{flex-direction:column;align-items:center;}
       .mobile-app-grid .app-screenshot{max-width:180px;}
+      .app-qr-card{flex-direction:column;text-align:center;}
     }
 
     /* ===== DEAF COMMUNITY – Enhanced ===== */
@@ -2124,8 +2179,8 @@
       <h1>Learn FSL with <span class="accent">real-time AI</span> gesture recognition</h1>
       <p class="lead">SEÑAS uses artificial intelligence to recognize your hand gestures instantly, giving you real-time feedback as you learn Filipino Sign Language — anytime, anywhere.</p>
       <div class="hero-ctas">
-      <a href="{{ route('login') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</a>
-<a href="{{ route('login') }}" class="btn btn-white btn-lg"><i class="fa-solid fa-play"></i> See how it works</a>
+      <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</a>
+<a href="#mobile-app" class="btn btn-white btn-lg"><i class="fa-solid fa-play"></i> See how it works</a>
       </div>
       <div class="hero-stats">
         <div><div class="stat-num" data-count="98">0</div><div class="stat-label">% gesture accuracy</div></div>
@@ -2455,8 +2510,19 @@
           </div>
         </div>
 
-        <div class="mobile-app-cta">
-        <a href="{{ route('login') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App — It's Free</a>
+        <div class="mobile-app-cta-row">
+          <div class="mobile-app-cta">
+            <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App — It's Free</a>
+            <div class="app-platform-note"><i class="fa-brands fa-android"></i> Available for Android now &middot; iOS coming soon</div>
+          </div>
+
+          <div class="app-qr-card">
+            <img src="{{ asset('images/qr-download.png') }}" alt="Scan to download the SEÑAS Android app" class="app-qr-img" onerror="this.onerror=null;this.src='{{ url('images/qr-download.png') }}';">
+            <div class="app-qr-text">
+              <h4><i class="fa-solid fa-qrcode"></i> Scan to install</h4>
+              <p>On a laptop or desktop? Scan this with your phone's camera to download the .apk directly to your Android device.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2581,7 +2647,7 @@
       <h2>Start learning Filipino Sign Language today</h2>
       <p>Download the SEÑAS app and experience AI-powered gesture recognition that makes learning FSL accessible, engaging, and fun.</p>
   <div class="hero-ctas">
-    <a href="{{ route('register') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students</a>
+    <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students</a>
     <a href="{{ route('register') }}" class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Sign up as a Teacher</a>
 </div>
     </div>

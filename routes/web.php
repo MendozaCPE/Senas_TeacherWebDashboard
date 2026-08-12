@@ -59,6 +59,17 @@ Route::get('/terms', [AuthController::class, 'showTerms'])->name('terms');
 // ── Logout ───────────────────────────────────────────────────────────────────
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// ── APK Download (public, Android app) ───────────────────────────────────────
+Route::get('/download/app', function () {
+    $path = storage_path('app/public/downloads/senas.apk');
+
+    if (!file_exists($path)) {
+        abort(404, 'APK file not found.');
+    }
+
+    return response()->download($path, 'SENAS.apk');
+})->name('app.download');
+
 // ── Video Proxy Layer ────────────────────────────────────────────────────────
 Route::get('/video-proxy/{path}', function ($path) {
     $fullPath = storage_path('app/public/' . $path);
