@@ -262,13 +262,15 @@
       box-shadow:0 0 0 4px rgba(245,166,35,.25);
       flex-shrink:0; animation:dotPulse 2s ease-in-out infinite;
     }
-    .hero h1 {
-      font-family:'Baloo 2',sans-serif; font-weight:800;
-      letter-spacing:-.01em;
-      font-size:clamp(2rem,5vw,3.8rem);
-      line-height:1.08; color:#fff;
-      margin-bottom:clamp(16px,2vw,22px);
-    }
+.hero h1 {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  font-size: clamp(2.4rem, 5.5vw, 4.2rem);
+  line-height: 1.08;
+  color: #fff;
+  margin-bottom: clamp(16px,2vw,22px);
+}
     .hero h1 .accent {
       background:linear-gradient(135deg,var(--amber),#FFD700);
       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
@@ -512,7 +514,7 @@
 
     /* ===== ABOUT – Enhanced ===== */
     #about {
-      background: #EDF1FA;
+      background: linear-gradient(180deg, #EDF1FA, #EDF1FA);
       position: relative;
       overflow: hidden;
     }
@@ -788,7 +790,7 @@
     @media(max-width:620px){.ai-feat-grid{grid-template-columns:1fr;}}
 
     /* ===== SENYA TIP – Yellow gradient with senyaTip.png ===== */
-    #senya-tip{background:#FDF3E6;}
+    #senya-tip{background:linear-gradient(180deg,#FDF3E6,#FDF3E6);}
     .tip-band {
       border-radius: clamp(24px,3vw,36px);
       padding: clamp(28px,5vw,56px);
@@ -1157,7 +1159,7 @@
     /* ============================================================ */
     /* ===== STUDENT BADGES – fixed layout ===== */
     #student-badges {
-      background: #EAF7F2;
+      background: linear-gradient(180deg, #EAF7F2, #F1EEFB);
       position: relative;
       overflow: hidden;
     }
@@ -1553,7 +1555,7 @@
 
     /* ===== MOBILE APP – Enhanced ===== */
     #mobile-app {
-      background: #F1EEFB;
+      background: linear-gradient(180deg, #F1EEFB, #EAF7F2);
       padding: clamp(56px,8vw,100px) 0;
       position: relative;
       overflow: hidden;
@@ -1794,6 +1796,83 @@
       .app-qr-card{flex-direction:column;text-align:center;}
     }
 
+
+    /* ===== DOWNLOAD PANEL ===== */
+.download-panel {
+   margin: clamp(20px,3vw,28px) auto; /* Centered with auto margins */
+  max-width: 900px;
+  display: grid;
+  grid-template-columns: 1.15fr auto 1fr;
+  align-items: center;
+  gap: clamp(18px,2.5vw,32px);
+  padding: clamp(22px,3vw,34px);
+  border-radius: clamp(20px,2.5vw,28px);
+  background: rgba(255,255,255,.6);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.7);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+.download-panel::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(circle at 8% 10%, rgba(245,166,35,.14), transparent 55%),
+              radial-gradient(circle at 95% 90%, rgba(44,80,210,.12), transparent 55%);
+}
+.download-panel-main, .download-qr, .download-divider { position:relative; z-index:1; }
+
+.download-kicker {
+  display:inline-flex; align-items:center; gap:8px;
+  font-size:.72rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--blue-deep); background:rgba(44,80,210,.09);
+  border:1px solid rgba(44,80,210,.14);
+  padding:4px 14px; border-radius:999px; margin-bottom:8px;
+}
+.download-title {
+  font-family:'Baloo 2',sans-serif; font-weight:800; color:var(--navy);
+  font-size:clamp(1.3rem,2.2vw,1.8rem); line-height:1.15; margin-bottom:6px;
+}
+.download-sub {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:clamp(.85rem,.95vw,1rem); font-weight:600; color:var(--ink-soft); margin-bottom:14px;
+}
+.download-btn { font-size:clamp(.9rem,1vw,1.05rem); }
+
+.download-divider {
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  color:var(--ink-faint); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em;
+}
+.download-divider::before, .download-divider::after {
+  content:''; display:block; width:1px; height:20px; background:rgba(11,30,61,.14);
+}
+
+.download-qr {
+  display:flex; align-items:center; gap:clamp(14px,1.6vw,20px);
+}
+.download-qr-img {
+  width:clamp(100px,10vw,130px); height:clamp(100px,10vw,130px);
+  border-radius:14px; flex-shrink:0; background:#fff; padding:8px;
+  border:1px solid rgba(11,30,61,.10); box-shadow:var(--shadow-sm);
+}
+.download-qr-text h4 {
+  font-family:'Baloo 2',sans-serif; font-size:clamp(.95rem,1.1vw,1.15rem); font-weight:700;
+  color:var(--navy); display:flex; align-items:center; gap:8px; margin-bottom:4px;
+}
+.download-qr-text p { font-size:clamp(.78rem,.85vw,.9rem); line-height:1.6; color:var(--ink-soft); }
+
+@media(max-width:1024px){
+  .download-panel{grid-template-columns:1fr;}
+  .download-divider{flex-direction:row; width:100%;}
+  .download-divider::before,.download-divider::after{width:auto;height:1px;background:linear-gradient(90deg,transparent,rgba(11,30,61,.14),transparent);}
+}
+@media(max-width:480px){
+  .download-qr{flex-direction:column;text-align:center;}
+  .download-qr-text h4{justify-content:center;}
+}
+
+
     /* ===== DEAF COMMUNITY – Enhanced ===== */
     #deaf-community {
       background: linear-gradient(180deg, #F1EEFB, #EDF1FA);
@@ -1963,168 +2042,139 @@
     @media(max-width:780px){.deaf-grid{grid-template-columns:1fr;}}
 
     /* ===== CTA – Enhanced ===== */
-    #cta-section {
+    /* ===== PARTNER SCHOOL ===== */
+    #partner {
       background: linear-gradient(180deg, #EDF1FA, #FDF3E6);
+      padding: clamp(48px,6vw,72px) 0;
       position: relative;
       overflow: hidden;
     }
-    #cta-section .cta-clouds {
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      opacity: 0.35;
-      background-image: url('{{ asset('images/senya_clouds.png') }}');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      mix-blend-mode: overlay;
+    #partner::before {
+      content:''; position:absolute; top:-90px; right:-70px; width:340px; height:340px;
+      border-radius:50%; background:radial-gradient(circle, rgba(245,166,35,.10), transparent 70%);
+      animation: blobDrift 19s ease-in-out infinite; pointer-events:none; z-index:0;
     }
-    @media (max-width: 768px) {
-      #cta-section .cta-clouds {
-        background-size: contain;
-        opacity: 0.04;
-      }
+    #partner .wrap { position:relative; z-index:1; }
+    .partner-row {
+      display:flex; justify-content:center; align-items:center;
+      gap:clamp(20px,3vw,40px); flex-wrap:wrap; margin-top:clamp(24px,3vw,34px);
     }
-    .cta-band {
-      border-radius: clamp(24px,3vw,36px);
-      padding: clamp(32px,7vw,76px) clamp(20px,6vw,56px);
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-      background: linear-gradient(140deg, #0B1E3D, #193072, #2c50d2);
-      color: #fff;
-      box-shadow: var(--shadow-xl);
-      z-index: 1;
+    .partner-card {
+      background:rgba(255,255,255,.72); backdrop-filter:blur(8px);
+      border-radius:20px; padding:22px 34px; border:1px solid rgba(255,255,255,.85);
+      text-align:center; box-shadow:var(--shadow-sm); transition:transform .3s ease, box-shadow .3s ease;
     }
-    .cta-band-clouds {
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      opacity: 0.2;
-      background-image: url('{{ asset('images/senya_clouds.png') }}');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      mix-blend-mode: screen;
+    .partner-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+    .partner-card .pc-emoji { font-size:2.5rem; margin-bottom:6px; }
+    .partner-card .pc-name { font-family:'Baloo 2',sans-serif; font-weight:700; font-size:1.1rem; color:var(--navy); }
+    .partner-card .pc-role { font-size:.85rem; color:var(--ink-soft); margin-top:2px; }
+    .partner-star { font-size:clamp(1.6rem,3vw,3rem); color:var(--ink-faint); }
+
+    /* ===== CTA (hero-style, full-bleed) ===== */
+#cta-section {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(70px,10vw,110px) 0 clamp(50px,7vw,80px);
+  background: radial-gradient(ellipse 900px 500px at 80% 12%, rgba(44, 80, 210, 0.35), transparent 60%),
+              radial-gradient(ellipse 700px 500px at 20% 88%, rgba(245,166,35,.10), transparent 55%),
+              linear-gradient(180deg, #4b6fd9, #193072 55%, #0b1e3d 100%);
+  text-align: center;
+  color: #fff;
+}
+ #cta-section::before {
+      content:''; position:absolute; left:0; right:0; top:0;
+      height:clamp(60px,10vw,120px);
+      background:linear-gradient(180deg,#FDF3E6,transparent);
+      pointer-events:none; z-index:2;
     }
-    @media (max-width: 768px) {
-      .cta-band-clouds {
-        background-size: contain;
-        opacity: 0.08;
-      }
-    }
-    .cta-band::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 12% 15%, rgba(245,166,35,.12), transparent 50%),
-                  radial-gradient(circle at 88% 85%, rgba(44,80,210,.15), transparent 50%);
-      pointer-events: none;
-    }
-    .cta-band::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%);
-      background-size: 200% 100%;
-      animation: shimmer 10s ease-in-out infinite;
-      pointer-events: none;
-    }
+#cta-section::after {
+  content:''; 
+  position:absolute; 
+  left:0; 
+  right:0; 
+  bottom:0;
+  height:clamp(50px,8vw,100px);
+  /* ✅ Smooth gradient from transparent to very dark blue */
+  background: linear-gradient(180deg, transparent 0%, rgba(11, 30, 61, 0.8) 100%);
+  pointer-events:none; 
+  z-index:2;
+}
+#cta-section .cta-clouds {
+  position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.2;
+  background-image:url('{{ asset('images/senya_clouds.png') }}');
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  mix-blend-mode:screen;
+}
+#cta-section .wrap { position:relative; z-index:3; }
+.cta-inner { max-width:700px; margin:0 auto; }
+
+    @media (max-width:768px){ #cta-section .cta-clouds { background-size:contain; opacity:.06; } }
+    .cta-inner { position:relative; z-index:3; max-width:760px; margin:0 auto; }
     .cta-star {
-      width: clamp(52px,5vw,68px);
-      height: clamp(52px,5vw,68px);
-      margin: 0 auto 20px;
-      position: relative;
-      object-fit: contain;
-      filter: drop-shadow(0 8px 14px rgba(0,0,0,.35));
-      animation: floatY 4.5s ease-in-out infinite;
-      border-radius: 50%;
-      background: rgba(255,255,255,.1);
-      padding: 8px;
-      border: 1px solid rgba(255,255,255,.1);
+      width:clamp(60px,6vw,84px); height:clamp(60px,6vw,84px); margin:0 auto 20px;
+      display:block; object-fit:contain; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));
+      animation: floatY 4.5s ease-in-out infinite; border-radius:50%;
+      background:rgba(255,255,255,.10); padding:8px; border:1px solid rgba(255,255,255,.14);
     }
-    .cta-band h2 {
-      position: relative;
-      font-family: 'Baloo 2', sans-serif;
-      font-size: clamp(1.5rem,3.8vw,2.6rem);
-      font-weight: 800;
-      margin-bottom: 14px;
-      z-index: 1;
+    .cta-inner h2 {
+      font-family:'Baloo 2',sans-serif; font-size:clamp(1.6rem,4.2vw,2.9rem);
+      font-weight:800; margin-bottom:14px; color:#fff;
     }
-    .cta-band p {
-      position: relative;
-      color: rgba(255,255,255,.7);
-      max-width: 540px;
-      margin: 0 auto 32px;
-      font-size: clamp(.9rem,1.05vw,1.02rem);
-      z-index: 1;
-      line-height: 1.7;
+    .cta-inner p {
+      color:rgba(255,255,255,.72); max-width:560px; margin:0 auto 32px;
+      font-size:clamp(.9rem,1.05vw,1.05rem); line-height:1.7;
     }
-    .cta-band .hero-ctas {
-      position: relative;
-      justify-content: center;
-      margin-bottom: 0;
-      z-index: 1;
+    .cta-inner .hero-ctas { justify-content:center; margin-bottom:0; }
+    .cta-inner .btn-amber {
+      background:linear-gradient(135deg,var(--amber),var(--amber-deep)); color:var(--navy);
+      box-shadow:0 12px 30px -8px rgba(217,138,18,.5);
     }
-    .cta-band .btn-amber {
-      background: linear-gradient(135deg, var(--amber), var(--amber-deep));
-      color: var(--navy);
-      box-shadow: 0 12px 30px -8px rgba(217,138,18,.5);
+    .cta-inner .btn-ghost-d {
+      background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.22); color:#fff;
     }
-    .cta-band .btn-amber:hover {
-      box-shadow: 0 18px 40px -8px rgba(217,138,18,.6);
-    }
-    .cta-band .btn-ghost-d {
-      background: rgba(255,255,255,.1);
-      border-color: rgba(255,255,255,.2);
-      color: #fff;
-    }
-    .cta-band .btn-ghost-d:hover {
-      background: rgba(255,255,255,.2);
-    }
+    .cta-inner .btn-ghost-d:hover { background:rgba(255,255,255,.2); }
 
     /* ===== FOOTER (no icons) ===== */
-    footer {
-      padding: clamp(28px,3vw,40px) 0;
-      background: #FDF3E6;
-      border-top: 1px solid rgba(11,30,61,.08);
-    }
-    .foot-simple {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      font-size: clamp(.7rem,.85vw,.85rem);
-      color: var(--ink-faint);
-      font-weight: 500;
-    }
-    .foot-simple .left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .foot-simple img {
-      width: clamp(18px,1.8vw,22px);
-      height: clamp(18px,1.8vw,22px);
-      object-fit: contain;
-      border-radius: 5px;
-    }
+footer {
+  padding: clamp(28px,3vw,40px) 0;
+  background: #0b1e3d;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.foot-simple {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: clamp(.7rem,.85vw,.85rem);
+  color: rgba(255,255,255,.55);
+  font-weight: 500;
+}
+.foot-simple .left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.foot-simple img {
+  width: clamp(18px,1.8vw,22px);
+  height: clamp(18px,1.8vw,22px);
+  object-fit: contain;
+  border-radius: 5px;
+}
+
+.foot-simple .right a {
+  color: rgba(255,255,255,.55);
+  transition: color .2s;
+}
+.foot-simple .right a:hover {
+  color: #fff;
+}
+
     .foot-simple .right {
       display: flex;
       gap: 20px;
     }
-    .foot-simple .right a {
-      color: var(--ink-faint);
-      transition: color .2s;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .foot-simple .right a:hover {
-      color: var(--navy);
-    }
+ 
     @media(max-width:600px){
       .foot-simple{flex-direction:column;text-align:center;gap:12px;}
       .foot-simple .right{flex-wrap:wrap;justify-content:center;}
@@ -2176,17 +2226,26 @@
   <div class="wrap hero-grid">
     <div class="hero-content reveal visible">
       <span class="hero-badge"><span class="dot"></span>AI-powered Filipino Sign Language platform</span>
-      <h1>Learn FSL with <span class="accent">real-time AI</span> gesture recognition</h1>
-      <p class="lead">SEÑAS uses artificial intelligence to recognize your hand gestures instantly, giving you real-time feedback as you learn Filipino Sign Language — anytime, anywhere.</p>
+      <h1><span class="accent">AI-powered FSL</span> learning for students and teachers</h1>
+      <p class="lead">SEÑAS combines real-time AI gesture recognition with a powerful Teacher Dashboard — creating a complete Filipino Sign Language ecosystem designed for the SNED program.</p>
       <div class="hero-ctas">
       <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</a>
 <a href="#mobile-app" class="btn btn-white btn-lg"><i class="fa-solid fa-play"></i> See how it works</a>
       </div>
-      <div class="hero-stats">
-        <div><div class="stat-num" data-count="98">0</div><div class="stat-label">% gesture accuracy</div></div>
-        <div><div class="stat-num" data-count="1200">0</div><div class="stat-label">Active learners</div></div>
-        <div><div class="stat-num" data-count="150">0</div><div class="stat-label">FSL lessons</div></div>
-      </div>
+   <div class="hero-stats">
+    <div>
+        <div class="stat-num" data-count="{{ $gestureAccuracy ?? 98 }}">{{ $gestureAccuracy ?? 98 }}%</div>
+        <div class="stat-label">gesture accuracy</div>
+    </div>
+    <div>
+        <div class="stat-num" data-count="{{ $activeLearners ?? 0 }}">{{ number_format($activeLearners ?? 0) }}</div>
+        <div class="stat-label">Active learners</div>
+    </div>
+    <div>
+        <div class="stat-num" data-count="{{ $totalLessons ?? 0 }}">{{ number_format($totalLessons ?? 0) }}</div>
+        <div class="stat-label">FSL lessons</div>
+    </div>
+</div>
     </div>
 
     <div class="hero-carousel reveal visible" id="heroCarousel">
@@ -2252,20 +2311,20 @@
 
     <div class="about-visual reveal">
       <video src="{{ asset('images/senya_animation.mp4') }}" alt="SEÑAS learning platform" onerror="this.onerror=null;this.src='{{ url('images/senya_waving.mp4') }}';" autoplay muted loop playsinline></video>
-      <div class="floating-badge top-right">
-        <div class="icon"><i class="fa-solid fa-star" style="color:var(--amber);"></i></div>
-        <div>
-          <div class="label">98% Accuracy</div>
-          <div class="sub">AI recognition rate</div>
-        </div>
-      </div>
-      <div class="floating-badge bottom-left">
-        <div class="icon"><i class="fa-solid fa-users" style="color:var(--teal);"></i></div>
-        <div>
-          <div class="label">1,200+ Learners</div>
-          <div class="sub">Active community</div>
-        </div>
-      </div>
+  <div class="floating-badge top-right">
+    <div class="icon"><i class="fa-solid fa-star" style="color:var(--amber);"></i></div>
+    <div>
+        <div class="label">{{ $gestureAccuracy ?? 98 }}% Accuracy</div>
+        <div class="sub">AI recognition rate</div>
+    </div>
+</div>
+<div class="floating-badge bottom-left">
+    <div class="icon"><i class="fa-solid fa-users" style="color:var(--teal);"></i></div>
+    <div>
+        <div class="label">{{ number_format($totalStudents ?? 0) }}+ Learners</div>
+        <div class="sub">Active community</div>
+    </div>
+</div>
     </div>
   </div>
 </section>
@@ -2412,9 +2471,18 @@
       <p style="font-size:clamp(.9rem,1vw,1.02rem);color:var(--ink-soft);line-height:1.7;">While the mobile app is where learning happens, the Teacher Dashboard gives educators the tools to monitor progress, manage lessons, and support every student's journey.</p>
       
       <div class="teacher-stats">
-        <div class="stat"><div class="num">95%</div><div class="label">Student engagement</div></div>
-        <div class="stat"><div class="num">120+</div><div class="label">Active teachers</div></div>
-        <div class="stat"><div class="num">4.8★</div><div class="label">Teacher rating</div></div>
+        <div class="stat">
+          <div class="num">{{ $studentEngagement ?? 0 }}%</div>
+          <div class="label">Student engagement</div>
+        </div>
+        <div class="stat">
+          <div class="num">{{ number_format($totalTeachers ?? 0) }}</div>
+          <div class="label">Active teachers</div>
+        </div>
+        <div class="stat">
+          <div class="num">{{ $teacherRating ?? '4.8★' }}</div>
+          <div class="label">Teacher rating</div>
+        </div>
       </div>
 
       <div class="feature-list">
@@ -2510,22 +2578,27 @@
           </div>
         </div>
 
-        <div class="mobile-app-cta-row">
-          <div class="mobile-app-cta">
-            <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App — It's Free</a>
-            <div class="app-platform-note"><i class="fa-brands fa-android"></i> Available for Android now &middot; iOS coming soon</div>
-          </div>
-
-          <div class="app-qr-card">
-            <img src="{{ asset('images/qr-download.png') }}" alt="Scan to download the SEÑAS Android app" class="app-qr-img" onerror="this.onerror=null;this.src='{{ url('images/qr-download.png') }}';">
-            <div class="app-qr-text">
-              <h4><i class="fa-solid fa-qrcode"></i> Scan to install</h4>
-              <p>On a laptop or desktop? Scan this with your phone's camera to download the .apk directly to your Android device.</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
+
+    <div class="download-panel">
+      <div class="download-panel-main">
+        <span class="download-kicker"><i class="fa-solid fa-mobile-screen-button"></i> Get started in seconds</span>
+        <h3 class="download-title">Download the App — It's Free</h3>
+        <p class="download-sub"><i class="fa-brands fa-android"></i> Available for Android now &middot; iOS coming soon</p>
+        <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg download-btn"><i class="fa-solid fa-download"></i> Download the App</a>
+      </div>
+
+      <div class="download-divider" aria-hidden="true"><span>or</span></div>
+
+      <div class="download-qr">
+        <img src="{{ asset('images/qr-download.png') }}" alt="Scan to download the SEÑAS Android app" class="download-qr-img" onerror="this.onerror=null;this.src='{{ url('images/qr-download.png') }}';">
+        <div class="download-qr-text">
+      <h4><i class="fa-solid fa-qrcode"></i> Scan to install</h4>
+      <p>On a laptop or desktop? Scan this with your phone's camera to download the <strong>.apk</strong> directly to your Android device.</p>
+        </div>
+      </div>
   </div>
 </section>
 
@@ -2637,19 +2710,49 @@
   </div>
 </section>
 
+<!-- ===== PARTNER SCHOOL - NASUGBU WEST CENTRAL SCHOOL ===== -->
+<section id="partner">
+  <div class="wrap">
+    <div class="section-head center reveal" style="max-width:720px;margin:0 auto;text-align:center;">
+      <span class="kicker">Our Partner</span>
+      <h2 style="font-size:clamp(1.35rem,3vw,2.1rem);">
+        Built for the <span style="color:var(--blue-deep);">SNED Program</span> at
+        <span style="background:linear-gradient(135deg,var(--amber),var(--amber-deep));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Nasugbu West Central School</span>
+      </h2>
+      <p style="max-width:620px;margin:12px auto 0;">
+        This platform is specifically designed to support the Special Needs Education (SNED) program,
+        making Filipino Sign Language learning accessible, engaging, and inclusive for every student.
+      </p>
+    </div>
+
+    <div class="partner-row">
+      <div class="partner-card reveal">
+        <div class="pc-emoji">🏫</div>
+        <div class="pc-name">Nasugbu West Central School</div>
+        <div class="pc-role">SNED Partner School</div>
+      </div>
+      <div class="partner-star">✦</div>
+      <div class="partner-card reveal">
+        <div class="pc-emoji">🤝</div>
+        <div class="pc-name">SNED Program</div>
+        <div class="pc-role">Special Needs Education</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ===== CTA ===== -->
 <section id="cta-section">
   <div class="cta-clouds"></div>
   <div class="wrap">
-    <div class="cta-band reveal">
-      <div class="cta-band-clouds"></div>
+    <div class="cta-inner reveal">
       <img class="cta-star" src="{{ asset('images/wavingSenya.png') }}" alt="Senya mascot" onerror="this.onerror=null;this.src='{{ url('images/wavingSenya.png') }}';">
       <h2>Start learning Filipino Sign Language today</h2>
       <p>Download the SEÑAS app and experience AI-powered gesture recognition that makes learning FSL accessible, engaging, and fun.</p>
-  <div class="hero-ctas">
-    <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students</a>
-    <a href="{{ route('register') }}" class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Sign up as a Teacher</a>
-</div>
+      <div class="hero-ctas">
+        <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students</a>
+        <a href="{{ route('register') }}" class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Sign up as a Teacher</a>
+      </div>
     </div>
   </div>
 </section>
@@ -2715,24 +2818,44 @@
     },{rootMargin:'-45% 0px -50% 0px'});
     sections.forEach(s=>spyIO.observe(s));
 
-    const counters = document.querySelectorAll('.stat-num');
-    const countIO = new IntersectionObserver((entries)=>{
-      entries.forEach(entry=>{
-        if(entry.isIntersecting){
-          const el = entry.target;
-          const target = parseInt(el.dataset.count,10);
-          let cur = 0;
-          const step = Math.max(1, Math.round(target/45));
-          const t = setInterval(()=>{
-            cur += step;
-            if(cur >= target){ cur = target; clearInterval(t); }
-            el.textContent = cur;
-          }, 22);
-          countIO.unobserve(el);
+   // Replace the existing counter code with this
+const counters = document.querySelectorAll('.stat-num');
+const countIO = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const el = entry.target;
+            // Get the target value from data-count attribute or text content
+            let target = parseInt(el.dataset.count, 10);
+            
+            // If data-count is not set, try to parse the text content
+            if (isNaN(target) || target === 0) {
+                const text = el.textContent.replace(/[^0-9]/g, '');
+                target = parseInt(text, 10) || 0;
+            }
+            
+            // If still NaN, skip this counter
+            if (isNaN(target) || target === 0) {
+                return;
+            }
+            
+            let cur = 0;
+            const step = Math.max(1, Math.round(target / 45));
+            const t = setInterval(() => {
+                cur += step;
+                if (cur >= target) { 
+                    cur = target; 
+                    clearInterval(t); 
+                }
+                // Preserve the original suffix (%, +, etc.)
+                const originalText = el.textContent;
+                const suffix = originalText.replace(/[0-9,]/g, '');
+                el.textContent = cur + suffix;
+            }, 22);
+            countIO.unobserve(el);
         }
-      });
-    },{threshold:.5});
-    counters.forEach(c=>countIO.observe(c));
+    });
+}, { threshold: .5 });
+counters.forEach(c => countIO.observe(c));
 
     // Hero carousel (simplified for brevity – same as before)
     const items = document.querySelectorAll('.hero-carousel-item');
@@ -3046,4 +3169,32 @@
   })();
 </script>
 </body>
+<script>
+    // Fetch real-time stats every 2 minutes
+    function updateStats() {
+        fetch('/api/landing-stats')
+            .then(response => response.json())
+            .then(data => {
+                // Update the stats in the DOM
+                const statElements = document.querySelectorAll('.stat-num');
+                if (statElements.length >= 3) {
+                    statElements[0].textContent = data.gestureAccuracy + '%';
+                    statElements[1].textContent = data.activeLearners.toLocaleString();
+                    statElements[2].textContent = data.totalLessons.toLocaleString();
+                }
+                
+                // Update floating badges
+                const badges = document.querySelectorAll('.floating-badge .label');
+                if (badges.length >= 2) {
+                    badges[0].textContent = data.gestureAccuracy + '% Accuracy';
+                    badges[1].textContent = data.totalStudents.toLocaleString() + '+ Learners';
+                }
+            })
+            .catch(error => console.error('Error fetching stats:', error));
+    }
+
+    // Update every 2 minutes
+    setInterval(updateStats, 120000);
+</script>
+
 </html>

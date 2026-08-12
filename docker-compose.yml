@@ -9,7 +9,6 @@ services:
             - "8080:80"
         volumes:
             - .:/var/www/html
-            # Prevent Windows from syncing the vendor folder for performance
             - /var/www/html/vendor
         environment:
             DB_CONNECTION: mysql
@@ -33,18 +32,9 @@ services:
             - "3306:3306"
         volumes:
             - mysql_data:/var/lib/mysql
-            - ./database/senas_db.sql:/docker-entrypoint-initdb.d/senas_db.sql:ro
+            # - ./database/senas_db.sql:/docker-entrypoint-initdb.d/senas_db.sql:ro  # ← COMMENT THIS
         healthcheck:
-            test:
-                [
-                    "CMD",
-                    "mysqladmin",
-                    "ping",
-                    "-h",
-                    "localhost",
-                    "-uroot",
-                    "-proot",
-                ]
+            test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
             interval: 10s
             timeout: 5s
             retries: 10
@@ -63,4 +53,4 @@ services:
             - db
 
 volumes:
-    mysql_data:
+    mysql_data: # ← THIS STAYS AS IS! DON'T CHANGE IT

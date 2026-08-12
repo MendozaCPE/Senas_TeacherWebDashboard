@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\LandingPageController; // ← ADD THIS
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ModulesController;
@@ -16,14 +17,15 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-Route::get('/', function () {
-    return view('landing.landing');
-})->name('home');
+// ─── LANDING PAGE ─────────────────────────────────────────────────────────
+// Use the LandingPageController for the home page
+Route::get('/', [LandingPageController::class, 'index'])->name('home');
 
-// Keep /landing as an alias
-Route::get('/landing', function () {
-    return view('landing.landing');
-});
+// Keep /landing as an alias (also uses the controller)
+Route::get('/landing', [LandingPageController::class, 'index']);
+
+// API endpoint for live stats updates
+Route::get('/api/landing-stats', [LandingPageController::class, 'getStatsJson']);
 
 Route::post('/lessons/upload-media-test', function (Request $request) {
     return response()->json(['message' => 'Upload route is working!']);
@@ -96,8 +98,6 @@ Route::get('/media-player', function () {
 
 // ── Protected Routes (must be logged in) ─────────────────────────────────────
 Route::middleware(['auth', 'no.cache'])->group(function () {
-    // Redirect / to /dashboard
-   
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
