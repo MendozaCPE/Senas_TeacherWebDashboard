@@ -6,6 +6,7 @@ use App\Models\TeacherNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL; // <-- 1. Imported the URL Facade here
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,5 +25,10 @@ class AppServiceProvider extends ServiceProvider
             }
             $view->with('unreadNotifCount', $count);
         });
+
+        // 2. Added this to force everything to load over HTTPS securely
+        if (config('app.env') === 'production') {
+            URL::forceScheme('https');
+        }
     }
 }
