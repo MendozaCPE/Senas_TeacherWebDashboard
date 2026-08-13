@@ -6202,58 +6202,63 @@ private function notifyTeacherAboutHintUsage($student, $moduleName, $hintUsageDa
 {
     try {
         if (!$student->teacher_id) {
-            \Log::info('No teacher_id for student ' . $student->student_id . ', skipping notification');
             return;
         }
 
-        $studentName = $student->first_name . ' ' . $student->last_name;
-        
-        // Format module name for display
-        $displayModule = ucwords(str_replace('_', ' ', $moduleName));
-        
-        // Format hint usage
-        $hintLetters = [];
-        $hintCount = 0;
+        // ✅ AGGREGATE HINT USAGE
+        $aggregatedHints = [];
         foreach ($hintUsageData as $hint) {
-            if ($hint['count'] > 0) {
-                $hintLetters[] = "{$hint['letter']} ({$hint['count']}x)";
-                $hintCount += $hint['count'];
+            $letter = $hint['letter'];
+            if (!isset($aggregatedHints[$letter])) {
+                $aggregatedHints[$letter] = 0;
+            }
+            $aggregatedHints[$letter] += $hint['count'];
+        }
+
+        // Format for display
+        $hintLetters = [];
+        $totalHintCount = 0;
+        foreach ($aggregatedHints as $letter => $count) {
+            if ($count > 0) {
+                $hintLetters[] = "{$letter} ({$count}x)";
+                $totalHintCount += $count;
             }
         }
+
+        $studentName = $student->first_name . ' ' . $student->last_name;
+        $displayModule = ucwords(str_replace('_', ' ', $moduleName));
         
         $hintString = empty($hintLetters) ? 'None' : implode(', ', $hintLetters);
         
-        // Create notification title and message
         $title = "📊 {$studentName} completed {$displayModule}";
         
-        if ($hintCount > 0) {
-            $message = "Completed with {$hintCount} hint(s) used on letters: {$hintString}";
+        if ($totalHintCount > 0) {
+            $message = "Completed with {$totalHintCount} hint(s) used on letters: {$hintString}";
         } else {
             $message = "Completed without using any hints! 🎉";
         }
 
-        // Create the notification using your existing method
+        // Create aggregated hint usage for notification data
+        $aggregatedHintData = [];
+        foreach ($aggregatedHints as $letter => $count) {
+            $aggregatedHintData[] = ['letter' => $letter, 'count' => $count];
+        }
+
         TeacherNotification::createForTeacher(
             teacherId: $student->teacher_id,
-            type: 'module_completed', // New type
+            type: 'module_completed',
             title: $title,
             message: $message,
             data: [
                 'student_id' => $student->student_id,
                 'module_name' => $moduleName,
                 'total_letters' => $totalLetters,
-                'hint_count' => $hintCount,
-                'hint_usage' => $hintUsageData,
+                'hint_count' => $totalHintCount,
+                'hint_usage' => $aggregatedHintData, // ✅ USE AGGREGATED DATA
                 'completed_at' => now()->toISOString(),
             ],
             actionUrl: '/students/' . $student->student_id,
         );
-        
-        \Log::info("Teacher notification sent for module completion with hints", [
-            'student' => $studentName,
-            'module' => $moduleName,
-            'hints' => $hintUsageData,
-        ]);
         
     } catch (\Exception $e) {
         \Log::error('Failed to send hint usage notification: ' . $e->getMessage());
