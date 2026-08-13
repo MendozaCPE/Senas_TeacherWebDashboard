@@ -28,6 +28,7 @@ use App\Models\CheckpointExamQuestion;
 use App\Models\CheckpointExamAttempt;
 use App\Models\HelpRequest;
 use App\Models\TeacherNotification;
+use App\Models\GestureHintUsage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
