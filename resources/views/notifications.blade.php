@@ -86,15 +86,16 @@
                 'streak_milestone'  => ['bg' => '#FFF7ED', 'ring' => '#FED7AA', 'text' => '#C2410C', 'label_bg' => 'bg-orange-100', 'label_text' => 'text-orange-700'],
             ];
             $c = $colorMap[$notif->type] ?? ['bg' => '#F8FAFC', 'ring' => '#E2E8F0', 'text' => '#475569', 'label_bg' => 'bg-slate-100', 'label_text' => 'text-slate-600'];
-            $typeLabels = [
-                'quiz_answered'    => 'Quiz Answered',
-                'module_passed'    => 'Module Passed',
-                'checkpoint_passed'=> 'Checkpoint Exam',
-                'level_up'         => 'Level Up',
-                'mastery_promoted' => 'Promotion',
-                'help_request'     => 'Help Request',
-                'streak_milestone' => 'Streak',
-            ];
+             $typeLabels = [
+        'quiz_answered'    => 'Quiz Answered',
+        'module_passed'    => 'Module Passed',
+        'checkpoint_passed'=> 'Checkpoint Exam',
+        'level_up'         => 'Level Up',
+        'mastery_promoted' => 'Promotion',
+        'help_request'     => 'Help Request',
+        'streak_milestone' => 'Streak',
+        'module_completed' => 'Module Completed', // ✅ NEW
+    ];
         @endphp
         <div class="group bg-white rounded-2xl border transition-all duration-150 flex items-start gap-4 px-5 py-4 shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.07)] notif-card
                     {{ !$notif->is_read ? 'border-blue-200/70 bg-blue-50/30' : 'border-slate-100' }}"
@@ -121,7 +122,26 @@
                             @endif
                         </div>
                         <p class="text-[12.5px] text-slate-500 mt-1 leading-relaxed">{{ $notif->message }}</p>
-                    </div>
+                    {{-- ✅ PUT THE HINT USAGE DISPLAY RIGHT HERE --}}
+            @if($notif->type === 'module_completed' && !empty($notif->data['hint_usage']))
+            <div class="mt-2 flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">bulb</span>
+                    Hints used:
+                </span>
+                @foreach($notif->data['hint_usage'] as $hint)
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                        {{ $hint['letter'] }} ×{{ $hint['count'] }}
+                    </span>
+                @endforeach
+                @if($notif->data['hint_count'] === 0)
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                        ✅ No hints used
+                    </span>
+                @endif
+            </div>
+            @endif
+        </div>
                     {{-- Type badge + time --}}
                     <div class="flex-shrink-0 flex flex-col items-end gap-2">
                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide {{ $c['label_bg'] }} {{ $c['label_text'] }}">

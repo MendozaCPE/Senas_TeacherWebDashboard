@@ -64,19 +64,20 @@ class TeacherNotification extends Model
     /**
      * Icon & colour map keyed by notification type.
      */
-    public static function typeConfig(string $type): array
-    {
-        return match ($type) {
-            'quiz_answered'      => ['icon' => 'quiz',             'color' => '#3B82F6'], // blue
-            'module_passed'      => ['icon' => 'workspace_premium','color' => '#8B5CF6'], // purple
-            'checkpoint_passed'  => ['icon' => 'military_tech',    'color' => '#F59E0B'], // amber
-            'level_up'           => ['icon' => 'trending_up',      'color' => '#10B981'], // emerald
-            'mastery_promoted'   => ['icon' => 'star',             'color' => '#8B5CF6'], // purple
-            'help_request'       => ['icon' => 'help',             'color' => '#EF4444'], // red
-            'streak_milestone'   => ['icon' => 'local_fire_department', 'color' => '#F97316'], // orange
-            default              => ['icon' => 'notifications',    'color' => '#6B7280'],
-        };
-    }
+   public static function typeConfig(string $type): array
+{
+    return match ($type) {
+        'quiz_answered'      => ['icon' => 'quiz',             'color' => '#3B82F6'],
+        'module_passed'      => ['icon' => 'workspace_premium','color' => '#8B5CF6'],
+        'checkpoint_passed'  => ['icon' => 'military_tech',    'color' => '#F59E0B'],
+        'level_up'           => ['icon' => 'trending_up',      'color' => '#10B981'],
+        'mastery_promoted'   => ['icon' => 'star',             'color' => '#8B5CF6'],
+        'help_request'       => ['icon' => 'help',             'color' => '#EF4444'],
+        'streak_milestone'   => ['icon' => 'local_fire_department', 'color' => '#F97316'],
+        'module_completed'   => ['icon' => 'book',             'color' => '#15803D'], // ✅ NEW
+        default              => ['icon' => 'notifications',    'color' => '#6B7280'],
+    };
+}
 
     public static function createForTeacher(
         int    $teacherId,

@@ -2652,6 +2652,7 @@ foreach ($assignments as $assignment) {
 /**
  * Save student's gesture performance from the mobile app
  * This handles practice sessions where students can practice anytime
+ * Now with optional hint usage tracking
  */
 public function saveGesturePerformance(Request $request)
 {
@@ -2672,6 +2673,7 @@ public function saveGesturePerformance(Request $request)
             'letter_performances.*.success_count' => 'required|integer|min:0',
             'letter_performances.*.consecutive_wrong' => 'nullable|integer|min:0',
             'session_id' => 'nullable|string',
+            'hint_usage' => 'nullable|array', // ✅ NEW - optional
         ]);
 
         if ($validator->fails()) {
@@ -2699,7 +2701,6 @@ public function saveGesturePerformance(Request $request)
                              ->first();
 
             if (!$gesture) {
-                // Skip if gesture not found (shouldn't happen if data is correct)
                 continue;
             }
 
@@ -2733,19 +2734,61 @@ public function saveGesturePerformance(Request $request)
             $totalWrong += $letterData['wrong_attempts'];
         }
 
+        // ─── ✅ NEW: SAVE HINT USAGE (if provided) ──────────────────────
+        $hintUsageData = [];
+        if ($request->has('hint_usage') && !empty($request->hint_usage)) {
+            foreach ($request->hint_usage as $letter => $count) {
+                if ($count > 0) {
+                    $hintRecord = GestureHintUsage::updateOrCreate(
+                        [
+                            'student_id' => $student->student_id,
+                            'module_name' => $request->module_name,
+                            'letter' => $letter,
+                            'session_id' => $request->session_id ?? 'session_' . time(),
+                        ],
+                        [
+                            'hint_count' => $count,
+                        ]
+                    );
+                    
+                    $hintUsageData[] = [
+                        'letter' => $letter,
+                        'count' => $count,
+                    ];
+                }
+            }
+        }
+
+        // ─── ✅ NEW: CHECK IF MODULE IS COMPLETE & NOTIFY TEACHER ──────
+        // Define the letters for this module (adjust based on module)
+        $moduleLetters = $this->getModuleLetters($request->module_name);
+        $completedLetters = collect($savedPerformances)
+            ->where('is_mastered', true)
+            ->pluck('letter')
+            ->toArray();
+        
+        $isModuleComplete = count(array_intersect($moduleLetters, $completedLetters)) === count($moduleLetters);
+
+        // Only notify if module is complete AND there are saved performances
+        if ($isModuleComplete && count($savedPerformances) > 0) {
+            $this->notifyTeacherAboutHintUsage(
+                $student,
+                $request->module_name,
+                $hintUsageData,
+                count($completedLetters)
+            );
+        }
+
         // Get module progress summary
         $progress = GesturePerformance::getModuleProgress(
             $student->student_id,
             $module->module_id
         );
 
-        // 🔥 FIX: Instantiate XPService and update streak
+        // XP and streak updates
         $xpService = new XPService();
         $xpService->updateStreak($student); 
 
-        // 🎯 Count this session's practiced gestures toward today's daily
-        // challenge "Master Gestures" goal — counts every time, regardless
-        // of whether these gestures were practiced/mastered on a prior day.
         if (count($savedPerformances) > 0) {
             $challengeService = new DailyChallengeService($xpService);
             $challengeService->recordProgressByType($student, 'gesture_practice', count($savedPerformances));
@@ -2768,6 +2811,8 @@ public function saveGesturePerformance(Request $request)
             ],
             'progress_summary' => $progress,
             'performances' => $savedPerformances,
+            'hint_usage' => $hintUsageData, // ✅ NEW - return hint usage
+            'is_module_complete' => $isModuleComplete, // ✅ NEW - return completion status
         ]);
 
     } catch (\Exception $e) {
@@ -2776,6 +2821,24 @@ public function saveGesturePerformance(Request $request)
             'error' => $e->getMessage(),
         ], 500);
     }
+}
+
+/**
+ * Helper method to get module letters
+ * This makes the code more maintainable
+ */
+private function getModuleLetters(string $moduleName): array
+{
+    $letterMap = [
+        'alphabet_part1' => ['A','B','C','D','E','F','G','H','I','J','K','L','M'],
+        'alphabet_part2' => ['N','O','P','Q','R','S','T','U','V','W','X','Y','Z'],
+        'numbers' => ['1','2','3','4','5','6','7','8','9','10'],
+        'level1_numbers' => ['1','2','3','4','5','6','7','8','9','10'],
+        'level2_greetings' => ['HELLO','GOOD MORNING','GOOD AFTERNOON','GOOD NIGHT','GOODBYE','THANK YOU','SEE YOU TOMORROW','HOW ARE YOU','NICE TO MEET YOU'],
+        'level3_survival' => ['HELP','WATER','FOOD','BATHROOM','SICK','HOSPITAL','MEDICINE','PHONE','FAMILY','HOME','SCHOOL'],
+    ];
+    
+    return $letterMap[$moduleName] ?? [];
 }
 
 /**
@@ -6129,6 +6192,71 @@ private function createHelpResponseNotification($helpRequest)
         ],
         '/help-requests'
     );
+}
+
+/**
+ * Notify teacher about module completion with hint usage
+ */
+private function notifyTeacherAboutHintUsage($student, $moduleName, $hintUsageData, $totalLetters)
+{
+    try {
+        if (!$student->teacher_id) {
+            \Log::info('No teacher_id for student ' . $student->student_id . ', skipping notification');
+            return;
+        }
+
+        $studentName = $student->first_name . ' ' . $student->last_name;
+        
+        // Format module name for display
+        $displayModule = ucwords(str_replace('_', ' ', $moduleName));
+        
+        // Format hint usage
+        $hintLetters = [];
+        $hintCount = 0;
+        foreach ($hintUsageData as $hint) {
+            if ($hint['count'] > 0) {
+                $hintLetters[] = "{$hint['letter']} ({$hint['count']}x)";
+                $hintCount += $hint['count'];
+            }
+        }
+        
+        $hintString = empty($hintLetters) ? 'None' : implode(', ', $hintLetters);
+        
+        // Create notification title and message
+        $title = "📊 {$studentName} completed {$displayModule}";
+        
+        if ($hintCount > 0) {
+            $message = "Completed with {$hintCount} hint(s) used on letters: {$hintString}";
+        } else {
+            $message = "Completed without using any hints! 🎉";
+        }
+
+        // Create the notification using your existing method
+        TeacherNotification::createForTeacher(
+            teacherId: $student->teacher_id,
+            type: 'module_completed', // New type
+            title: $title,
+            message: $message,
+            data: [
+                'student_id' => $student->student_id,
+                'module_name' => $moduleName,
+                'total_letters' => $totalLetters,
+                'hint_count' => $hintCount,
+                'hint_usage' => $hintUsageData,
+                'completed_at' => now()->toISOString(),
+            ],
+            actionUrl: '/students/' . $student->student_id,
+        );
+        
+        \Log::info("Teacher notification sent for module completion with hints", [
+            'student' => $studentName,
+            'module' => $moduleName,
+            'hints' => $hintUsageData,
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Failed to send hint usage notification: ' . $e->getMessage());
+    }
 }
 
 }
