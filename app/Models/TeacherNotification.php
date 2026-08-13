@@ -75,7 +75,8 @@ class TeacherNotification extends Model
             'help_request'       => ['icon' => 'help',             'color' => '#EF4444'],
             'streak_milestone'   => ['icon' => 'local_fire_department', 'color' => '#F97316'],
             'module_completed'   => ['icon' => 'book',             'color' => '#15803D'],
-            'challenge_completed' => ['icon' => 'emoji_events',    'color' => '#8B5CF6'], // 🆕 ADD THIS
+           'challenge_completed' => ['icon' => 'emoji_events', 'color' => '#8B5CF6'],
+        'fingerspelling_completed' => ['icon' => 'hand', 'color' => '#14B8A6'],
             default              => ['icon' => 'notifications',    'color' => '#6B7280'],
         };
     }
