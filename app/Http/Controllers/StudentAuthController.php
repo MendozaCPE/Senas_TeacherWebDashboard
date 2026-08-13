@@ -2937,7 +2937,7 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
                 'struggling_letters' => $strugglingLetters,
                 'hint_usage' => $hintUsageData,
                 'is_perfect' => ($masteredCount === $totalLetters),
-                'session_id' => $request->session_id ?? null,
+                'session_id' => null,
                 'completed_at' => now()->toISOString(),
             ],
             actionUrl: '/students/' . $student->student_id,
