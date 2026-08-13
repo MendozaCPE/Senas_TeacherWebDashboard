@@ -2897,11 +2897,13 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
         
         // Hints used
         $hintDisplay = '';
+        $totalHints = 0;
         if (!empty($hintUsageData)) {
             $hintParts = [];
             foreach ($hintUsageData as $hint) {
                 if ($hint['count'] > 0) {
                     $hintParts[] = "{$hint['letter']} ({$hint['count']}x)";
+                    $totalHints += $hint['count'];
                 }
             }
             if (!empty($hintParts)) {
@@ -2921,7 +2923,7 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
             $message .= "Needs practice on: {$strugglingDisplay}";
         }
 
-        // Create the notification
+        // Create the notification with correct keys for the view
         TeacherNotification::createForTeacher(
             teacherId: $student->teacher_id,
             type: 'module_completed',
@@ -2930,12 +2932,12 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
             data: [
                 'student_id' => $student->student_id,
                 'module_name' => $moduleName,
-                'letters_with_data' => $lettersWithData,
-                'mastered_letters' => $masteredLetters,
+                'letters_mastered' => $masteredLetters,  // ✅ View uses this key
+                'needs_practice' => $strugglingLetters,   // ✅ View uses this key
                 'mastered_count' => $masteredCount,
                 'total_letters' => $totalLetters,
-                'struggling_letters' => $strugglingLetters,
                 'hint_usage' => $hintUsageData,
+                'hint_count' => $totalHints,
                 'is_perfect' => ($masteredCount === $totalLetters),
                 'session_id' => null,
                 'completed_at' => now()->toISOString(),
