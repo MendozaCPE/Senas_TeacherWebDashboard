@@ -2967,8 +2967,8 @@ private function getModuleLetters(string $moduleName): array
         'alphabet_part2' => ['N','O','P','Q','R','S','T','U','V','W','X','Y','Z'],
         'numbers' => ['1','2','3','4','5','6','7','8','9','10'],
         'level1_numbers' => ['1','2','3','4','5','6','7','8','9','10'],
-        'level2_greetings' => ['HELLO','THANK YOU','SEE YOU TOMORROW','HOW ARE YOU','NICE TO MEET YOU'], // ✅ Only 5 greetings
-        'level3_survival' => ['HELP','WATER','FOOD','BATHROOM','SICK','HOSPITAL','MEDICINE','PHONE','FAMILY','HOME','SCHOOL'],
+        'level2_greetings' => ['HELLO','THANK YOU','SEE YOU TOMORROW','HOW ARE YOU','NICE TO MEET YOU'],
+        'level3_survival' => ['UNDERSTAND',"DON'T UNDERSTAND",'KNOW',"DON'T KNOW",'NO','YES','WRONG','CORRECT','SLOW','FAST'], // ✅ Fix this!
     ];
     
     return $letterMap[$moduleName] ?? [];
