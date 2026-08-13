@@ -893,7 +893,7 @@
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Learner Reference Number (LRN)</label>
                     <input type="text" name="lrn" id="input-lrn" required placeholder="12-digit LRN" pattern="\d{12}" maxlength="12" title="LRN must be exactly 12 digits" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                     <p id="lrn-error" class="hidden text-[12px] font-medium text-red-600">LRN already exists.</p>
-                    <p id="lrn-warning" class="hidden text-[12px] font-medium text-amber-600 mt-1">Notice: Student is enrolled with another teacher. Proceeding will transfer them to your class.</p>
+                    <p id="lrn-warning" class="hidden text-[12px] font-medium text-amber-600 mt-1"></p>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
@@ -1042,7 +1042,7 @@ function hideLrnError(){lrnError.classList.add('hidden');lrnWarning.classList.ad
 function showLrnError(msg){if(msg)lrnError.innerText=msg;lrnError.classList.remove('hidden');inputLrn.classList.add('border-red-400','focus:border-red-400');lrnExists=true;}
 function showLrnWarning(msg){if(msg)lrnWarning.innerText=msg;lrnWarning.classList.remove('hidden');inputLrn.classList.add('border-amber-400','focus:border-amber-400');lrnExists=false;}
 function updatePinPreview(){const lrn=inputLrn.value.replace(/\D/g,'');pinPreview.textContent=lrn.length>=4?lrn.slice(-4):'----';}
-async function checkLrnUnique(){const lrn=inputLrn.value.replace(/\D/g,'');hideLrnError();if(lrn.length!==12)return;try{const res=await axios.get("{{ route('students.check-lrn') }}",{params:{lrn}});if(res.data.exists){if(res.data.status==='own'){showLrnError('Student already exists in your class.');}else{showLrnWarning('Notice: Student is enrolled with another teacher. Proceeding will transfer them to your class.');}}}catch(_){}}
+async function checkLrnUnique(){const lrn=inputLrn.value.replace(/\D/g,'');hideLrnError();if(lrn.length!==12)return;try{const res=await axios.get("{{ route('students.check-lrn') }}",{params:{lrn}});if(res.data.exists){if(res.data.status==='own'){showLrnError('Student already exists in your class.');}else if(res.data.status==='unenrolled'){showLrnWarning('This student is currently unenrolled and can be added to your class.');}else{const name=res.data.teacher_name||'another teacher';showLrnError('This student is already enrolled to Teacher '+name+'.');}}}catch(_){}}
 inputLrn.addEventListener('input',()=>{updatePinPreview();clearTimeout(lrnCheckTimer);hideLrnError();if(inputLrn.value.replace(/\D/g,'').length===12){lrnCheckTimer=setTimeout(checkLrnUnique,400);}});
 inputLrn.addEventListener('blur',checkLrnUnique);updatePinPreview();
 // ─── Drag / drop + file input wiring ─────────────────────────────────────────
@@ -1192,7 +1192,7 @@ async function submitSingleStudent(event) {
     try {
         const res = await axios.post("{{ route('students.store') }}", payload, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
         if (res.data.success) {
-            showAlert(res.data.message, res.data.message.includes('transferred') ? 'warning' : 'success');
+            showAlert(res.data.message, 'success');
             setTimeout(() => window.location.reload(), 1800);
         } else {
             showAlert(res.data.message || 'An error occurred.');

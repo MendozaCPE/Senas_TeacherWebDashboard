@@ -128,14 +128,28 @@ class StudentsController extends Controller
         ]);
 
         $teacher = Auth::user()->teacher;
-        $student = Student::where('lrn', $request->lrn)->first();
+        $student = Student::where('lrn', $request->lrn)->with('teacher')->first();
 
         if ($student) {
             if ($teacher && $student->teacher_id == $teacher->id) {
                 return response()->json(['exists' => true, 'status' => 'own']);
-            } else {
-                return response()->json(['exists' => true, 'status' => 'other']);
             }
+
+            if ($student->status === 'unenrolled') {
+                return response()->json(['exists' => true, 'status' => 'unenrolled']);
+            }
+
+            // Enrolled under a different teacher — return their name
+            $otherTeacher = $student->teacher;
+            $teacherName  = $otherTeacher
+                ? trim($otherTeacher->first_name . ' ' . $otherTeacher->last_name)
+                : 'another teacher';
+
+            return response()->json([
+                'exists'       => true,
+                'status'       => 'other',
+                'teacher_name' => $teacherName,
+            ]);
         }
 
         return response()->json(['exists' => false]);
@@ -202,7 +216,7 @@ class StudentsController extends Controller
         $lrn = $request->lrn;
 
         // Check for existing student
-        $existingStudent = Student::where('lrn', $lrn)->first();
+        $existingStudent = Student::where('lrn', $lrn)->with('teacher')->first();
         if ($existingStudent) {
             if ($existingStudent->teacher_id == $teacher->id) {
                 return response()->json([
@@ -212,14 +226,30 @@ class StudentsController extends Controller
                     ]
                 ], 422);
             } else {
-                // Transfer student to this teacher
+                // Block enrollment if the student is still enrolled under another teacher
+                if ($existingStudent->status !== 'unenrolled') {
+                    $otherTeacher = $existingStudent->teacher;
+                    $teacherName  = $otherTeacher
+                        ? trim($otherTeacher->first_name . ' ' . $otherTeacher->last_name)
+                        : 'another teacher';
+
+                    return response()->json([
+                        'message' => 'The given data was invalid.',
+                        'errors'  => [
+                            'lrn' => ["This student is already enrolled to Teacher {$teacherName}."]
+                        ]
+                    ], 422);
+                }
+
+                // Student is unenrolled — transfer to this teacher
                 $existingStudent->teacher_id = $teacher->id;
-                $existingStudent->school_id = $teacher->school_id;
+                $existingStudent->school_id  = $teacher->school_id;
+                $existingStudent->status     = 'active';
                 $existingStudent->save();
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Student was previously enrolled by another teacher and has been successfully transferred to your class.',
+                    'message' => 'Student has been successfully enrolled in your class.',
                     'student' => $existingStudent
                 ]);
             }
@@ -392,7 +422,7 @@ class StudentsController extends Controller
                 }
 
                 // ── 3. Duplicate / transfer handling ─────────────────────────
-                $existingStudent = Student::where('lrn', $lrn)->first();
+                $existingStudent = Student::where('lrn', $lrn)->with('teacher')->first();
                 if ($existingStudent) {
                     if ($existingStudent->teacher_id == $teacher->id) {
                         $skipped++;
@@ -402,10 +432,24 @@ class StudentsController extends Controller
                             'missing' => [],
                             'reason'  => 'Student already exists in your class.',
                         ];
+                    } elseif ($existingStudent->status !== 'unenrolled') {
+                        // Blocked — still enrolled under another teacher
+                        $otherTeacher = $existingStudent->teacher;
+                        $teacherName  = $otherTeacher
+                            ? trim($otherTeacher->first_name . ' ' . $otherTeacher->last_name)
+                            : 'another teacher';
+                        $skipped++;
+                        $errors[] = [
+                            'row'     => $rowNumber,
+                            'name'    => $displayName,
+                            'missing' => [],
+                            'reason'  => "Student is already enrolled to Teacher {$teacherName}.",
+                        ];
                     } else {
-                        // Transfer to this teacher's class
+                        // Student is unenrolled — transfer to this teacher's class
                         $existingStudent->teacher_id = $teacher->id;
                         $existingStudent->school_id  = $teacher->school_id;
+                        $existingStudent->status     = 'active';
                         $existingStudent->save();
                         $imported++;
                         $transfers[] = $displayName;
