@@ -2674,7 +2674,7 @@ public function saveGesturePerformance(Request $request)
             'letter_performances.*.success_count' => 'required|integer|min:0',
             'letter_performances.*.consecutive_wrong' => 'nullable|integer|min:0',
             'session_id' => 'nullable|string',
-            'hint_usage' => 'nullable|array', // ✅ NEW - optional
+            'hint_usage' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -2735,48 +2735,82 @@ public function saveGesturePerformance(Request $request)
             $totalWrong += $letterData['wrong_attempts'];
         }
 
-        // ─── ✅ NEW: SAVE HINT USAGE (if provided) ──────────────────────
+        // ─── SAVE HINT USAGE (if provided) ──────────────────────────────
         $hintUsageData = [];
         if ($request->has('hint_usage') && !empty($request->hint_usage)) {
+            // ✅ AGGREGATE HINTS BY LETTER
+            $aggregatedHints = [];
             foreach ($request->hint_usage as $letter => $count) {
                 if ($count > 0) {
-                    $hintRecord = GestureHintUsage::updateOrCreate(
-                        [
-                            'student_id' => $student->student_id,
-                            'module_name' => $request->module_name,
-                            'letter' => $letter,
-                            'session_id' => $request->session_id ?? 'session_' . time(),
-                        ],
-                        [
-                            'hint_count' => $count,
-                        ]
-                    );
-                    
-                    $hintUsageData[] = [
-                        'letter' => $letter,
-                        'count' => $count,
-                    ];
+                    if (!isset($aggregatedHints[$letter])) {
+                        $aggregatedHints[$letter] = 0;
+                    }
+                    $aggregatedHints[$letter] += $count;
                 }
+            }
+
+            // Save aggregated data (one row per letter per session)
+            foreach ($aggregatedHints as $letter => $totalCount) {
+                $hintRecord = GestureHintUsage::updateOrCreate(
+                    [
+                        'student_id' => $student->student_id,
+                        'module_name' => $request->module_name,
+                        'letter' => $letter,
+                        'session_id' => $request->session_id ?? 'session_' . time(),
+                    ],
+                    [
+                        'hint_count' => $totalCount,
+                    ]
+                );
+                
+                $hintUsageData[] = [
+                    'letter' => $letter,
+                    'count' => $totalCount,
+                ];
             }
         }
 
-        // ─── ✅ NEW: CHECK IF MODULE IS COMPLETE & NOTIFY TEACHER ──────
-        // Define the letters for this module (adjust based on module)
+        // ─── CHECK IF MODULE IS COMPLETE (has data for ALL letters) ──────
+        // The module is complete when the student has performance data for ALL letters,
+        // NOT when all letters are mastered.
         $moduleLetters = $this->getModuleLetters($request->module_name);
-        $completedLetters = collect($savedPerformances)
+
+        // Get letters that have performance data (attempts > 0)
+        $lettersWithData = collect($savedPerformances)
+            ->filter(fn($p) => ($p['attempts'] ?? 0) > 0)
+            ->pluck('letter')
+            ->toArray();
+
+        // Get mastered letters (is_mastered = true) for the summary
+        $masteredLetters = collect($savedPerformances)
             ->where('is_mastered', true)
             ->pluck('letter')
             ->toArray();
-        
-        $isModuleComplete = count(array_intersect($moduleLetters, $completedLetters)) === count($moduleLetters);
 
-        // Only notify if module is complete AND there are saved performances
-        if ($isModuleComplete && count($savedPerformances) > 0) {
-            $this->notifyTeacherAboutHintUsage(
+        $hasDataForAllLetters = count(array_intersect($moduleLetters, $lettersWithData)) === count($moduleLetters);
+        $masteredCount = count($masteredLetters);
+        $totalLetters = count($moduleLetters);
+
+        // ✅ TRIGGER NOTIFICATION when ALL letters have data (not just mastered)
+        if ($hasDataForAllLetters && count($savedPerformances) > 0) {
+            \Log::info('🎉 Module COMPLETE! (all letters have performance data)', [
+                'student_id' => $student->student_id,
+                'module' => $request->module_name,
+                'letters_with_data' => $lettersWithData,
+                'mastered_count' => $masteredCount,
+                'total_letters' => $totalLetters,
+            ]);
+            
+            $this->notifyTeacherAboutModuleCompletion(
                 $student,
                 $request->module_name,
+                $savedPerformances,
                 $hintUsageData,
-                count($completedLetters)
+                $lettersWithData,
+                $masteredLetters,
+                $totalAttempts,
+                $totalCorrect,
+                $totalWrong
             );
         }
 
@@ -2812,8 +2846,8 @@ public function saveGesturePerformance(Request $request)
             ],
             'progress_summary' => $progress,
             'performances' => $savedPerformances,
-            'hint_usage' => $hintUsageData, // ✅ NEW - return hint usage
-            'is_module_complete' => $isModuleComplete, // ✅ NEW - return completion status
+            'hint_usage' => $hintUsageData,
+            'is_module_complete' => $hasDataForAllLetters,
         ]);
 
     } catch (\Exception $e) {
@@ -2821,6 +2855,106 @@ public function saveGesturePerformance(Request $request)
             'success' => false,
             'error' => $e->getMessage(),
         ], 500);
+    }
+}
+
+/**
+ * Notify teacher that a student has completed a gesture module
+ * (has data for all letters, regardless of mastery)
+ */
+private function notifyTeacherAboutModuleCompletion($student, $moduleName, $savedPerformances, $hintUsageData, $lettersWithData, $masteredLetters, $totalAttempts, $totalCorrect, $totalWrong)
+{
+    try {
+        if (!$student->teacher_id) {
+            \Log::info('No teacher_id for student ' . $student->student_id . ', skipping notification');
+            return;
+        }
+
+        $studentName = $student->first_name . ' ' . $student->last_name;
+        $displayModule = ucwords(str_replace('_', ' ', $moduleName));
+        
+        $totalLetters = count($lettersWithData);
+        $masteredCount = count($masteredLetters);
+        
+        // Calculate accuracy
+        $accuracy = $totalAttempts > 0 ? round(($totalCorrect / $totalAttempts) * 100) : 0;
+        
+        // Get struggling letters (letters with more wrong attempts than correct)
+        $strugglingLetters = collect($savedPerformances)
+            ->filter(fn($p) => ($p['wrong_attempts'] ?? 0) > ($p['successful_attempts'] ?? 0))
+            ->pluck('letter')
+            ->toArray();
+        
+        // Format hints used
+        $hintString = '';
+        $totalHints = 0;
+        if (!empty($hintUsageData)) {
+            $hintLetters = [];
+            foreach ($hintUsageData as $hint) {
+                if ($hint['count'] > 0) {
+                    $hintLetters[] = "{$hint['letter']} ({$hint['count']}x)";
+                    $totalHints += $hint['count'];
+                }
+            }
+            if (!empty($hintLetters)) {
+                $hintString = ' | Hints used: ' . implode(', ', $hintLetters);
+            }
+        }
+        
+        // Build the message
+        $title = "📊 {$studentName} completed {$displayModule}";
+        
+        $message = "✅ Completed all {$totalLetters} letters! " .
+                   "🎯 {$masteredCount}/{$totalLetters} letters mastered. " .
+                   "📈 Accuracy: {$accuracy}% ({$totalCorrect}/{$totalAttempts} attempts)." .
+                   $hintString;
+        
+        if (!empty($strugglingLetters)) {
+            $message .= " | Needs practice on: " . implode(', ', array_slice($strugglingLetters, 0, 5));
+        }
+        
+        if ($masteredCount === $totalLetters) {
+            $message = "🎉 PERFECT! All {$totalLetters} letters mastered! " .
+                       "Accuracy: {$accuracy}% ({$totalCorrect}/{$totalAttempts})" .
+                       $hintString;
+        }
+
+        // Create the notification
+        TeacherNotification::createForTeacher(
+            teacherId: $student->teacher_id,
+            type: 'module_completed',
+            title: $title,
+            message: $message,
+            data: [
+                'student_id' => $student->student_id,
+                'module_name' => $moduleName,
+                'letters_with_data' => $lettersWithData,
+                'mastered_letters' => $masteredLetters,
+                'mastered_count' => $masteredCount,
+                'total_letters' => $totalLetters,
+                'accuracy' => $accuracy,
+                'total_attempts' => $totalAttempts,
+                'total_correct' => $totalCorrect,
+                'total_wrong' => $totalWrong,
+                'struggling_letters' => $strugglingLetters,
+                'hint_usage' => $hintUsageData,
+                'is_perfect' => ($masteredCount === $totalLetters),
+                'session_id' => $request->session_id ?? null,
+                'completed_at' => now()->toISOString(),
+            ],
+            actionUrl: '/students/' . $student->student_id,
+        );
+        
+        \Log::info("✅ Teacher notification sent for module completion", [
+            'student' => $studentName,
+            'module' => $moduleName,
+            'letters' => $totalLetters,
+            'mastered' => $masteredCount,
+            'accuracy' => $accuracy,
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Failed to send module completion notification: ' . $e->getMessage());
     }
 }
 
