@@ -27,9 +27,18 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect('/');
+            return $this->redirectByRole(Auth::user());
         }
         return view('auth.login');
+    }
+
+    /** Return the correct post-login redirect based on user role */
+    private function redirectByRole(\App\Models\User $user)
+    {
+        if ($user->role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect()->route('dashboard');
     }
 
     /** Lookup teacher name by email for the interactive loading screen */
@@ -69,7 +78,7 @@ class AuthController extends Controller
             $user = Auth::user();
 
             $request->session()->regenerate();
-            return redirect()->intended(route('dashboard'));
+            return $this->redirectByRole($user);
         }
 
         return back()->withErrors([
@@ -281,9 +290,14 @@ class AuthController extends Controller
             }
         );
 
-        return $status == Password::PASSWORD_RESET
-            ? redirect()->route('dashboard')->with('status', __($status))
-            : back()->withErrors(['email' => __($status)]);
+        if ($status == Password::PASSWORD_RESET) {
+            $dest = Auth::user()?->role === 'admin'
+                ? route('admin.dashboard')
+                : route('dashboard');
+            return redirect($dest)->with('status', __($status));
+        }
+
+        return back()->withErrors(['email' => __($status)]);
     }
 
     /** Show terms & conditions */

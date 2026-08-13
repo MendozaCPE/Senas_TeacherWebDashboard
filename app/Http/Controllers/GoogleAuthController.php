@@ -83,6 +83,9 @@ class GoogleAuthController extends Controller
             Auth::login($user, true);
             request()->session()->regenerate();
 
+            if ($user->role === 'admin') {
+                return redirect()->route('admin.dashboard');
+            }
             return redirect()->intended(route('dashboard'));
         } else {
             // ── REGISTER intent: Google sign-up ──

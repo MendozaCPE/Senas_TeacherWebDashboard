@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -96,8 +97,8 @@ Route::get('/media-player', function () {
     return view('media-player');
 });
 
-// ── Protected Routes (must be logged in) ─────────────────────────────────────
-Route::middleware(['auth', 'no.cache'])->group(function () {
+// ── Protected Routes (must be logged in as teacher) ──────────────────────────
+Route::middleware(['auth', 'no.cache', 'teacher'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -234,3 +235,29 @@ Route::middleware(['auth', 'no.cache'])->group(function () {
         ->name('modules.destroy');
 
 }); // END of auth middleware group
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN ROUTES
+// ─────────────────────────────────────────────────────────────────────────────
+Route::middleware(['auth', 'no.cache', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+
+    // Dashboard
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+
+    // Analytics
+    Route::get('/analytics', [AdminController::class, 'analytics'])->name('analytics');
+
+    // Account Management
+    Route::get('/accounts', [AdminController::class, 'accounts'])->name('accounts');
+    Route::patch('/accounts/{id}/status', [AdminController::class, 'updateAccountStatus'])->name('accounts.status');
+    Route::patch('/accounts/{id}/role', [AdminController::class, 'updateAccountRole'])->name('accounts.role');
+    Route::post('/accounts/{id}/reset-password', [AdminController::class, 'resetAccountPassword'])->name('accounts.reset-password');
+
+    // Audit Logs
+    Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit-logs');
+
+    // Reports (Help Requests)
+    Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
+    Route::get('/reports/{id}', [AdminController::class, 'getReport'])->name('reports.show');
+    Route::post('/reports/{id}/respond', [AdminController::class, 'respondToReport'])->name('reports.respond');
+});
