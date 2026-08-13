@@ -6396,4 +6396,156 @@ private function notifyTeacherAboutHintUsage($student, $moduleName, $hintUsageDa
     }
 }
 
+/**
+ * Save challenge mode completion and notify teacher
+ * POST /api/student/challenge/complete
+ */
+public function completeChallenge(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'module_name' => 'required|string|exists:gesture_modules,name',
+            'mode' => 'required|string|in:master,infinite',
+            'signs_mastered' => 'nullable|array',
+            'signs_mastered.*' => 'string',
+            'signs_practiced' => 'nullable|array',
+            'signs_practiced.*' => 'string',
+            'total_attempts' => 'nullable|integer',
+            'star_rating' => 'nullable|integer|min:0|max:3',
+            'xp_earned' => 'nullable|integer',
+            'time_spent_seconds' => 'nullable|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $moduleName = $request->module_name;
+        $mode = $request->mode;
+        $signsMastered = $request->signs_mastered ?? [];
+        $signsPracticed = $request->signs_practiced ?? [];
+        $totalAttempts = $request->total_attempts ?? 0;
+        $starRating = $request->star_rating ?? 0;
+        $xpEarned = $request->xp_earned ?? 0;
+        $timeSpent = $request->time_spent_seconds ?? 0;
+
+        // Get module display name
+        $module = GestureModule::where('name', $moduleName)->first();
+        $displayModule = $module ? $module->display_name : ucwords(str_replace('_', ' ', $moduleName));
+
+        // Format time
+        $minutes = floor($timeSpent / 60);
+        $seconds = $timeSpent % 60;
+        $timeDisplay = $minutes > 0 ? "{$minutes}m {$seconds}s" : "{$seconds}s";
+
+        // Star emojis
+        $starEmojis = $starRating === 3 ? '⭐⭐⭐' : ($starRating === 2 ? '⭐⭐' : ($starRating === 1 ? '⭐' : ''));
+
+        // Mode label
+        $modeLabel = $mode === 'master' ? 'Master Challenge' : 'Infinite Practice';
+        $modeEmoji = $mode === 'master' ? '🏆' : '♾️';
+
+        // Student name
+        $studentName = $student->first_name . ' ' . $student->last_name;
+
+        // Build title
+        $title = "{$modeEmoji} {$studentName} completed {$modeLabel}";
+
+        // Build message with details
+        $messageParts = [];
+        
+        if (!empty($signsMastered)) {
+            $masteredDisplay = implode(' ', array_slice($signsMastered, 0, 10));
+            if (count($signsMastered) > 10) {
+                $masteredDisplay .= " +" . (count($signsMastered) - 10) . " more";
+            }
+            $messageParts[] = "Mastered: {$masteredDisplay}";
+        }
+        
+        if (!empty($signsPracticed) && $mode === 'infinite') {
+            $practicedDisplay = implode(' ', array_slice($signsPracticed, 0, 10));
+            if (count($signsPracticed) > 10) {
+                $practicedDisplay .= " +" . (count($signsPracticed) - 10) . " more";
+            }
+            $messageParts[] = "Practiced: {$practicedDisplay}";
+        }
+        
+        if ($totalAttempts > 0) {
+            $messageParts[] = "{$totalAttempts} attempts";
+        }
+        
+        if ($starRating > 0) {
+            $messageParts[] = $starEmojis;
+        }
+        
+        if ($xpEarned > 0) {
+            $messageParts[] = "+{$xpEarned} XP";
+        }
+        
+        if ($timeSpent > 0) {
+            $messageParts[] = "⏱️ {$timeDisplay}";
+        }
+
+        $message = implode(' • ', $messageParts);
+
+        // If no details, use a default message
+        if (empty($messageParts)) {
+            $message = "Completed {$displayModule} in {$modeLabel} mode";
+        }
+
+        // ─── SAVE TO TEACHER NOTIFICATIONS ──────────────────────────────
+        TeacherNotification::createForTeacher(
+            teacherId: $student->teacher_id,
+            type: 'challenge_completed',
+            title: $title,
+            message: $message,
+            data: [
+                'student_id' => $student->student_id,
+                'module_name' => $moduleName,
+                'module_display_name' => $displayModule,
+                'mode' => $mode,
+                'signs_mastered' => $signsMastered,
+                'signs_practiced' => $signsPracticed,
+                'total_attempts' => $totalAttempts,
+                'star_rating' => $starRating,
+                'xp_earned' => $xpEarned,
+                'time_spent_seconds' => $timeSpent,
+                'completed_at' => now()->toISOString(),
+            ],
+            actionUrl: '/students/' . $student->student_id,
+        );
+
+        \Log::info("✅ Challenge notification sent for teacher", [
+            'student' => $studentName,
+            'mode' => $mode,
+            'module' => $moduleName,
+            'xp' => $xpEarned,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Challenge completion saved and teacher notified',
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Failed to save challenge completion: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+
 }

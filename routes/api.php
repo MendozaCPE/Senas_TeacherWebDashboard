@@ -77,6 +77,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('/student/award-custom-xp', [StudentAuthController::class, 'awardCustomXp']);
     
+    Route::post('/student/challenge/complete', [StudentAuthController::class, 'completeChallenge']);
+    
     // ─── MODULE CHECKPOINT QUIZ ───────────────────────────────────
     Route::get('/student/module/{moduleId}/quiz', [StudentAuthController::class, 'getModuleQuiz']);
     Route::post('/student/module/{moduleId}/quiz/submit', [StudentAuthController::class, 'submitModuleQuiz']);

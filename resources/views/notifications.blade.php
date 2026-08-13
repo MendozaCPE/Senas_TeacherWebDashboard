@@ -77,27 +77,29 @@
         @php
     $cfg = \App\Models\TeacherNotification::typeConfig($notif->type);
     $colorMap = [
-        'quiz_answered'     => ['bg' => '#EFF6FF', 'ring' => '#BFDBFE', 'text' => '#1D4ED8', 'label_bg' => 'bg-blue-100',   'label_text' => 'text-blue-700'],
-        'module_passed'     => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'],
-        'checkpoint_passed' => ['bg' => '#FFFBEB', 'ring' => '#FDE68A', 'text' => '#B45309', 'label_bg' => 'bg-amber-100',  'label_text' => 'text-amber-700'],
-        'level_up'          => ['bg' => '#ECFDF5', 'ring' => '#A7F3D0', 'text' => '#047857', 'label_bg' => 'bg-emerald-100','label_text' => 'text-emerald-700'],
-        'mastery_promoted'  => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'],
-        'help_request'      => ['bg' => '#FEF2F2', 'ring' => '#FECACA', 'text' => '#B91C1C', 'label_bg' => 'bg-red-100',    'label_text' => 'text-red-700'],
-        'streak_milestone'  => ['bg' => '#FFF7ED', 'ring' => '#FED7AA', 'text' => '#C2410C', 'label_bg' => 'bg-orange-100', 'label_text' => 'text-orange-700'],
-        'module_completed'  => ['bg' => '#F0FDF4', 'ring' => '#BBF7D0', 'text' => '#15803D', 'label_bg' => 'bg-emerald-100', 'label_text' => 'text-emerald-700'], // ✅ ADD THIS LINE
-    ];
+    'quiz_answered'     => ['bg' => '#EFF6FF', 'ring' => '#BFDBFE', 'text' => '#1D4ED8', 'label_bg' => 'bg-blue-100',   'label_text' => 'text-blue-700'],
+    'module_passed'     => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'],
+    'checkpoint_passed' => ['bg' => '#FFFBEB', 'ring' => '#FDE68A', 'text' => '#B45309', 'label_bg' => 'bg-amber-100',  'label_text' => 'text-amber-700'],
+    'level_up'          => ['bg' => '#ECFDF5', 'ring' => '#A7F3D0', 'text' => '#047857', 'label_bg' => 'bg-emerald-100','label_text' => 'text-emerald-700'],
+    'mastery_promoted'  => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'],
+    'help_request'      => ['bg' => '#FEF2F2', 'ring' => '#FECACA', 'text' => '#B91C1C', 'label_bg' => 'bg-red-100',    'label_text' => 'text-red-700'],
+    'streak_milestone'  => ['bg' => '#FFF7ED', 'ring' => '#FED7AA', 'text' => '#C2410C', 'label_bg' => 'bg-orange-100', 'label_text' => 'text-orange-700'],
+    'module_completed'  => ['bg' => '#F0FDF4', 'ring' => '#BBF7D0', 'text' => '#15803D', 'label_bg' => 'bg-emerald-100', 'label_text' => 'text-emerald-700'],
+    'challenge_completed' => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'], // 🆕 ADD THIS
+];
     $c = $colorMap[$notif->type] ?? ['bg' => '#F8FAFC', 'ring' => '#E2E8F0', 'text' => '#475569', 'label_bg' => 'bg-slate-100', 'label_text' => 'text-slate-600'];
     
-    $typeLabels = [
-        'quiz_answered'    => 'Quiz Answered',
-        'module_passed'    => 'Module Passed',
-        'checkpoint_passed'=> 'Checkpoint Exam',
-        'level_up'         => 'Level Up',
-        'mastery_promoted' => 'Promotion',
-        'help_request'     => 'Help Request',
-        'streak_milestone' => 'Streak',
-        'module_completed' => 'Module Completed',
-    ];
+ $typeLabels = [
+    'quiz_answered'    => 'Quiz Answered',
+    'module_passed'    => 'Module Passed',
+    'checkpoint_passed'=> 'Checkpoint Exam',
+    'level_up'         => 'Level Up',
+    'mastery_promoted' => 'Promotion',
+    'help_request'     => 'Help Request',
+    'streak_milestone' => 'Streak',
+    'module_completed' => 'Module Completed',
+    'challenge_completed' => 'Challenge Completed', // 🆕 ADD THIS
+];
 @endphp
         <div class="group bg-white rounded-2xl border transition-all duration-150 flex items-start gap-4 px-5 py-4 shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.07)] notif-card
                     {{ !$notif->is_read ? 'border-blue-200/70 bg-blue-50/30' : 'border-slate-100' }}"
