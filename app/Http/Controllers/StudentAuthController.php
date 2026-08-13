@@ -2876,47 +2876,49 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
         $totalLetters = count($lettersWithData);
         $masteredCount = count($masteredLetters);
         
-        // Calculate accuracy
-        $accuracy = $totalAttempts > 0 ? round(($totalCorrect / $totalAttempts) * 100) : 0;
-        
         // Get struggling letters (letters with more wrong attempts than correct)
         $strugglingLetters = collect($savedPerformances)
             ->filter(fn($p) => ($p['wrong_attempts'] ?? 0) > ($p['successful_attempts'] ?? 0))
             ->pluck('letter')
             ->toArray();
         
-        // Format hints used
-        $hintString = '';
-        $totalHints = 0;
-        if (!empty($hintUsageData)) {
-            $hintLetters = [];
-            foreach ($hintUsageData as $hint) {
-                if ($hint['count'] > 0) {
-                    $hintLetters[] = "{$hint['letter']} ({$hint['count']}x)";
-                    $totalHints += $hint['count'];
-                }
-            }
-            if (!empty($hintLetters)) {
-                $hintString = ' | Hints used: ' . implode(', ', $hintLetters);
-            }
-        }
-        
-        // Build the message
+        // ─── BUILD SIMPLE, CLEAN MESSAGE ──────────────────────────────
         $title = "📊 {$studentName} completed {$displayModule}";
         
-        $message = "✅ Completed all {$totalLetters} letters! " .
-                   "🎯 {$masteredCount}/{$totalLetters} letters mastered. " .
-                   "📈 Accuracy: {$accuracy}% ({$totalCorrect}/{$totalAttempts} attempts)." .
-                   $hintString;
+        // Mastered letters
+        $masteredDisplay = !empty($masteredLetters) 
+            ? implode(' ', $masteredLetters) 
+            : 'None';
         
-        if (!empty($strugglingLetters)) {
-            $message .= " | Needs practice on: " . implode(', ', array_slice($strugglingLetters, 0, 5));
+        // Struggling letters
+        $strugglingDisplay = !empty($strugglingLetters) 
+            ? implode(' ', array_slice($strugglingLetters, 0, 5)) 
+            : 'None';
+        
+        // Hints used
+        $hintDisplay = '';
+        if (!empty($hintUsageData)) {
+            $hintParts = [];
+            foreach ($hintUsageData as $hint) {
+                if ($hint['count'] > 0) {
+                    $hintParts[] = "{$hint['letter']} ({$hint['count']}x)";
+                }
+            }
+            if (!empty($hintParts)) {
+                $hintDisplay = 'Hints used: ' . implode(', ', $hintParts);
+            }
         }
         
-        if ($masteredCount === $totalLetters) {
-            $message = "🎉 PERFECT! All {$totalLetters} letters mastered! " .
-                       "Accuracy: {$accuracy}% ({$totalCorrect}/{$totalAttempts})" .
-                       $hintString;
+        // Build the final message
+        $message = "Completed {$displayModule}. ";
+        $message .= "Letters Mastered: {$masteredDisplay}. ";
+        
+        if (!empty($hintDisplay)) {
+            $message .= "{$hintDisplay}. ";
+        }
+        
+        if (!empty($strugglingLetters)) {
+            $message .= "Needs practice on: {$strugglingDisplay}";
         }
 
         // Create the notification
@@ -2932,10 +2934,6 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
                 'mastered_letters' => $masteredLetters,
                 'mastered_count' => $masteredCount,
                 'total_letters' => $totalLetters,
-                'accuracy' => $accuracy,
-                'total_attempts' => $totalAttempts,
-                'total_correct' => $totalCorrect,
-                'total_wrong' => $totalWrong,
                 'struggling_letters' => $strugglingLetters,
                 'hint_usage' => $hintUsageData,
                 'is_perfect' => ($masteredCount === $totalLetters),
@@ -2950,14 +2948,12 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
             'module' => $moduleName,
             'letters' => $totalLetters,
             'mastered' => $masteredCount,
-            'accuracy' => $accuracy,
         ]);
         
     } catch (\Exception $e) {
         \Log::error('Failed to send module completion notification: ' . $e->getMessage());
     }
 }
-
 /**
  * Helper method to get module letters
  * This makes the code more maintainable

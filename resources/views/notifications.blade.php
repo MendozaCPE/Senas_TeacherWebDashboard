@@ -123,26 +123,59 @@
                             </span>
                             @endif
                         </div>
-                        <p class="text-[12.5px] text-slate-500 mt-1 leading-relaxed">{{ $notif->message }}</p>
-                    {{-- ✅ PUT THE HINT USAGE DISPLAY RIGHT HERE --}}
-            @if($notif->type === 'module_completed' && !empty($notif->data['hint_usage']))
-            <div class="mt-2 flex items-center gap-2 flex-wrap">
-                <span class="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">bulb</span>
-                    Hints used:
-                </span>
-                @foreach($notif->data['hint_usage'] as $hint)
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                        {{ $hint['letter'] }} ×{{ $hint['count'] }}
-                    </span>
-                @endforeach
-                @if($notif->data['hint_count'] === 0)
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                        ✅ No hints used
-                    </span>
-                @endif
-            </div>
-            @endif
+                    @if($notif->type === 'module_completed')
+                        {{-- Structured breakdown instead of one long sentence, so nothing gets cut off --}}
+                        <div class="mt-1.5 space-y-1.5">
+                            @if(!empty($notif->data['letters_mastered']))
+                            <div class="flex items-start gap-2 flex-wrap">
+                                <span class="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <span class="material-symbols-outlined text-[14px]">verified</span>
+                                    Mastered:
+                                </span>
+                                @foreach($notif->data['letters_mastered'] as $letter)
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                        {{ $letter }}
+                                    </span>
+                                @endforeach
+                            </div>
+                            @endif
+
+                            @if(!empty($notif->data['needs_practice']))
+                            <div class="flex items-start gap-2 flex-wrap">
+                                <span class="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <span class="material-symbols-outlined text-[14px]">priority_high</span>
+                                    Needs practice:
+                                </span>
+                                @foreach($notif->data['needs_practice'] as $letter)
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                        {{ $letter }}
+                                    </span>
+                                @endforeach
+                            </div>
+                            @endif
+
+                            @if(!empty($notif->data['hint_usage']))
+                            <div class="flex items-start gap-2 flex-wrap">
+                                <span class="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <span class="material-symbols-outlined text-[14px]">bulb</span>
+                                    Hints used:
+                                </span>
+                                @foreach($notif->data['hint_usage'] as $hint)
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                        {{ $hint['letter'] }} ×{{ $hint['count'] }}
+                                    </span>
+                                @endforeach
+                                @if($notif->data['hint_count'] === 0)
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                        ✅ No hints used
+                                    </span>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                    @else
+                        <p class="text-[12.5px] text-slate-500 mt-1 leading-relaxed line-clamp-2">{{ $notif->message }}</p>
+                    @endif
         </div>
                     {{-- Type badge + time --}}
                     <div class="flex-shrink-0 flex flex-col items-end gap-2">
