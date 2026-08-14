@@ -50,6 +50,13 @@
             @endif
         </a>
 
+        {{-- ✅ NEW: Default Lessons Link --}}
+   <a href="{{ route('admin.lesson-templates.index') }}"
+   class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('admin.lesson-templates*') ? $activeClass : $inactiveClass }}">
+    <span class="material-symbols-outlined {{ request()->routeIs('admin.lesson-templates*') ? '' : 'icon-outline' }} text-[22px]">auto_stories</span>
+    <span>Default Lessons</span>
+</a>
+
         <div class="mx-6 my-2 border-t border-white/10"></div>
 
         <button type="button" onclick="openAdminLogoutModal()"

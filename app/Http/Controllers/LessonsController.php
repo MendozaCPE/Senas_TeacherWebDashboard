@@ -399,6 +399,7 @@ public function store(Request $request)
             'difficulty'   => $validated['difficulty'],
             'module_order' => $nextOrder,
             'status'       => $status,
+            'is_template'  => $this->isAdminTemplateContext(),
         ]);
 
         $this->persistLessonContents($request, $lesson, $request->input('contents', []));
@@ -868,9 +869,8 @@ public function edit($id)
 
     
     // Get modules for the dropdown
-    $user = Auth::user();
-    $teacher = $user ? $user->teacher : null;
-    $modules = Module::where('teacher_id', $teacher?->id ?? 0)
+    $teacherId = $this->resolveTeacherId();
+    $modules = Module::where('teacher_id', $teacherId)
         ->orderBy('module_order')
         ->get();
 
@@ -1437,8 +1437,21 @@ public function destroy($id)
         ]);
     }
 
+    private function isAdminTemplateContext(): bool
+    {
+        return request()->routeIs('admin.lesson-templates.*');
+    }
+
     private function resolveTeacherId(): int
     {
+        // Admin editing the default curriculum: every create/store/edit/
+        // update/preview call in this controller funnels through here, so
+        // this one check is enough to make all of them operate on the
+        // template owner's rows instead of a real teacher's.
+        if (request()->routeIs('admin.lesson-templates.*')) {
+            return app(\App\Services\LessonTemplateService::class)->templateTeacherId();
+        }
+
         if (Auth::check()) {
             $user = Auth::user();
             if ($user->teacher) {
@@ -1476,6 +1489,7 @@ public function destroy($id)
             'mastery_level' => $request->input('new_module.mastery_level', 'beginner'), // ← ADD THIS
             'module_order' => $nextOrder,
             'status' => 'draft',
+            'is_template' => $this->isAdminTemplateContext(),
         ])->module_id;
     }
 
@@ -2149,6 +2163,7 @@ public function storeCheckpointExam(Request $request)
             'passing_score' => $passingScore,
             'time_limit_minutes' => $validated['time_limit_minutes'] ?? 60,
             'status' => 'draft',
+            'is_template' => $this->isAdminTemplateContext(),
         ]);
 
         $questionNumber = 1;
@@ -2487,7 +2502,62 @@ public function getAvailableExamQuestions(Request $request)
     return response()->json($result);
 }
 
+/**
+ * Admin: Show publish configuration page (NO students)
+ * GET /admin/lessons/{lesson}/publish-config
+ */
+public function showAdminPublishConfig($id)
+{
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::findOrFail($realId);
 
+    if ($id !== $lesson->hash_id) {
+        return redirect()->route('admin.lesson-templates.publish.config', $lesson->hash_id);
+    }
+
+    $teacherId = $this->resolveTeacherId();
+    $modules = Module::where('teacher_id', $teacherId)
+        ->orderBy('module_order')
+        ->get();
+
+    // Return admin-specific publish config view
+    return view('admin.lessons.publish-config', compact('lesson', 'modules'));
+}
+
+/**
+ * Admin: Publish a template lesson (NO students assigned)
+ * POST /admin/lessons/{lesson}/publish
+ */
+public function adminPublishLesson(Request $request, $id)
+{
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::findOrFail($id);
+
+    $validated = $request->validate([
+        'module_action' => 'required|in:existing,new',
+        'module_id' => 'nullable|required_if:module_action,existing|exists:modules,module_id',
+        'new_module.title' => 'nullable|required_if:module_action,new|string|max:255',
+        'new_module.description' => 'nullable|string|max:1000',
+        'new_module.mastery_level' => 'nullable|in:beginner,intermediate,advanced',
+    ]);
+
+    $teacherId = $this->resolveTeacherId();
+    $moduleId = $this->resolveModuleId($request, $teacherId);
+    
+    if (!$moduleId) {
+        return back()->withErrors(['module_action' => 'Please select or create a module before publishing.'])->withInput();
+    }
+
+    // Just publish the lesson - NO students assigned
+    $lesson->update([
+        'module_id' => $moduleId,
+        'status' => 'published',
+        'published_at' => now(),
+    ]);
+
+    return redirect()->route('admin.lesson-templates.index')
+        ->with('success', "Lesson '{$lesson->title}' published successfully to the default curriculum!");
+}
 
 
 }

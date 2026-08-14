@@ -198,13 +198,22 @@ class AuthController extends Controller
         $firstName = $parts[0];
         $lastName  = $parts[1] ?? '';
 
-        Teacher::create([
+        $teacher = Teacher::create([
             'user_id'        => $user->id,
             'school_id'      => $pending['school_id'],
             'first_name'     => $firstName,
             'last_name'      => $lastName,
             'specialization' => 'Regular',
         ]);
+
+        // Give the new teacher their own independent copy of the default
+        // curriculum so their account always has starter content. Wrapped
+        // in try/catch so a cloning hiccup never blocks account creation.
+        try {
+            app(\App\Services\LessonTemplateService::class)->cloneTemplatesForTeacher($teacher->id);
+        } catch (\Throwable $e) {
+            Log::error('Default curriculum cloning failed for new teacher ' . $teacher->id . ': ' . $e->getMessage());
+        }
 
         // Clear pending registration session
         session()->forget('pending_registration');

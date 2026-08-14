@@ -27,6 +27,12 @@ class Lesson extends Model
         'published_at',
         'ai_generated',
         'ai_prompt',
+        'is_template',
+        'source_template_id',
+    ];
+
+    protected $casts = [
+        'is_template' => 'boolean',
     ];
 
     protected $appends = ['hash_id'];

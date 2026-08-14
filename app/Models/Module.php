@@ -20,10 +20,13 @@ class Module extends Model
         'mastery_level',  // ← ADD THIS
         'module_order',
         'status',
+        'is_template',
+        'source_template_id', // ✅ Already there
     ];
 
     protected $casts = [
         'mastery_level' => 'string',
+        'is_template'   => 'boolean', 
     ];
 
     public function lessons()

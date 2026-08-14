@@ -28,12 +28,15 @@ class CheckpointExam extends Model
         'time_limit_minutes',
         'status',
         'published_at',
+        'is_template',
+        'source_template_id',
     ];
 
     protected $casts = [
         'total_points' => 'integer',
         'passing_score' => 'integer',
         'published_at' => 'datetime',
+        'is_template' => 'boolean',
     ];
 
     // Relationships

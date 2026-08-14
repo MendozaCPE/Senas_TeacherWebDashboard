@@ -6,7 +6,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
-use App\Http\Controllers\LandingPageController; // ← ADD THIS
+use App\Http\Controllers\LandingPageController; 
+use App\Http\Controllers\Admin\LessonTemplatesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ModulesController;
@@ -260,4 +261,54 @@ Route::middleware(['auth', 'no.cache', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/reports/{id}', [AdminController::class, 'getReport'])->name('reports.show');
     Route::post('/reports/{id}/respond', [AdminController::class, 'respondToReport'])->name('reports.respond');
+
+// ── DEFAULT LESSONS (Admin) ────────────────────────────────────────────
+Route::prefix('lessons')->name('lesson-templates.')->group(function () {
+    // Listing + push/promote actions
+    Route::get('/', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'index'])->name('index');
+    Route::post('/push-all', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'pushAll'])->name('push-all');
+    Route::post('/{moduleId}/push', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'pushModule'])->name('push');
+    Route::post('/{moduleId}/promote', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'promote'])->name('promote');
+
+    // ── NEW: Teacher selection for push ─────────────────────────────────
+    Route::get('/teachers', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'getTeachers'])->name('teachers');  // ✅ ADD THIS
+    Route::post('/push-selected', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'pushSelected'])->name('push-selected'); 
+    // ── ADMIN LESSON CRUD (uses same LessonsController, but admin context) ──
+    Route::get('/create', [LessonsController::class, 'create'])->name('create');
+    Route::post('/', [LessonsController::class, 'store'])->name('store');
+    Route::post('/preview', [LessonsController::class, 'preview'])->name('preview');
+    Route::post('/ai-generate', [LessonsController::class, 'aiGenerate'])->name('ai-generate');
+    Route::post('/ai-generate-pdf', [LessonsController::class, 'aiGeneratePdf'])->name('ai-generate-pdf');
+    Route::post('/ai-generate-quiz', [LessonsController::class, 'aiGenerateQuiz'])->name('ai-generate-quiz');
+    Route::post('/upload-media', [LessonsController::class, 'uploadMedia'])->name('upload-media');
+
+    Route::get('/{lesson}/view', [LessonsController::class, 'view'])->name('view');
+    Route::get('/{lesson}/preview-modal', [LessonsController::class, 'previewModal'])->name('preview-modal');
+    Route::get('/{lesson}/edit', [LessonsController::class, 'edit'])->name('edit');
+    Route::put('/{lesson}', [LessonsController::class, 'update'])->name('update');
+
+    // ── ADMIN PUBLISH CONFIG (different from teacher version) ──
+    Route::get('/{lesson}/publish-config', [LessonsController::class, 'showAdminPublishConfig'])->name('publish.config');
+    Route::post('/{lesson}/publish', [LessonsController::class, 'adminPublishLesson'])->name('publish');
+
+    Route::post('/{id}/soft-delete', [LessonsController::class, 'softDelete'])->name('soft-delete');
+    Route::post('/{id}/hard-delete', [LessonsController::class, 'hardDelete'])->name('hard-delete');
+    Route::post('/{id}/restore', [LessonsController::class, 'restore'])->name('restore');
+    Route::delete('/{id}', [LessonsController::class, 'destroy'])->name('destroy');
+
+    Route::get('/media-library', [LessonsController::class, 'mediaLibraryFolders'])->name('media-library.folders');
+    Route::get('/media-library/{folder}', [LessonsController::class, 'mediaLibraryFiles'])->name('media-library.files');
+    Route::get('/my-uploads', [LessonsController::class, 'mediaLibraryMyUploads'])->name('media-library.my-uploads');
+
+    // Checkpoint exams for the default curriculum
+    Route::prefix('checkpoint-exam')->name('checkpoint-exam.')->group(function () {
+        Route::get('/create', [LessonsController::class, 'createCheckpointExam'])->name('create');
+        Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
+        Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
+        Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
+        Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
+        Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
+    });
+});
+
 });
