@@ -1519,37 +1519,6 @@ document.addEventListener('keydown', function(e) {
                 <span class="material-symbols-outlined text-slate-300 group-hover:text-purple-600 text-[20px] transition">chevron_right</span>
             </div>
 
-            <!-- Choice 2: Create Manually -->
-            <div class="p-4 rounded-xl border border-slate-150 bg-slate-50/70 opacity-60 flex items-center justify-between cursor-not-allowed">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-[22px]">edit_note</span>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h4 class="text-sm font-bold text-slate-600">Create Questions Manually</h4>
-                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[9px] font-bold uppercase">Coming Soon</span>
-                        </div>
-                        <p class="text-xs text-slate-400 font-medium">Write custom exam questions from scratch.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Choice 3: Generate with AI -->
-            <div class="p-4 rounded-xl border border-slate-150 bg-slate-50/70 opacity-60 flex items-center justify-between cursor-not-allowed">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h4 class="text-sm font-bold text-slate-600">Generate Exam with AI</h4>
-                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[9px] font-bold uppercase">Coming Soon</span>
-                        </div>
-                        <p class="text-xs text-slate-400 font-medium">Auto-generate exam questions based on module content using AI.</p>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
