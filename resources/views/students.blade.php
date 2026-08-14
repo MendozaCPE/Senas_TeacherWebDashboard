@@ -1585,6 +1585,12 @@ function updateClearButtonVisibility() {
 
 function fetchStudentsResults(url, fetchOptions) {
     fetchOptions = fetchOptions || {};
+    
+    // ✅ FIX: Ensure HTTPS if page is loaded over HTTPS
+    if (window.location.protocol === 'https:' && url && url.startsWith('http://')) {
+        url = url.replace('http://', 'https://');
+    }
+    
     if (_resultsAbortController) _resultsAbortController.abort();
     _resultsAbortController = new AbortController();
 
@@ -1678,13 +1684,15 @@ document.addEventListener('click', function (e) {
 
     // Pagination links rendered inside #students-results (e.g. Laravel's
     // pagination::tailwind view) — intercept and fetch instead of navigating.
-    const pageLink = e.target.closest('#students-results a[href]');
-    if (pageLink) {
-        e.preventDefault();
-        fetchStudentsResults(pageLink.href, { method: 'GET' });
-        return;
-    }
-
+const pageLink = e.target.closest('#students-results a[href]');
+if (pageLink) {
+    e.preventDefault();
+    // ✅ FIX: Use relative URL to avoid protocol mismatch
+    const url = new URL(pageLink.href);
+    const relativeUrl = url.pathname + url.search;
+    fetchStudentsResults(relativeUrl, { method: 'GET' });
+    return;
+}
     const promoteBtn = e.target.closest('.promote-btn');
     if (promoteBtn) { return; } // handled inside Student Details modal
 

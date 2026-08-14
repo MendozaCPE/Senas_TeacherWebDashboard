@@ -2061,11 +2061,14 @@
     }
     .partner-card {
       background:rgba(255,255,255,.72); backdrop-filter:blur(8px);
-      border-radius:20px; padding:22px 34px; border:1px solid rgba(255,255,255,.85);
+      border-radius:20px; border:1px solid rgba(255,255,255,.85);
       text-align:center; box-shadow:var(--shadow-sm); transition:transform .3s ease, box-shadow .3s ease;
+      overflow:hidden; width:clamp(260px,32vw,420px); flex:1 1 320px; max-width:420px;
     }
     .partner-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
-    .partner-card .pc-emoji { font-size:2.5rem; margin-bottom:6px; }
+    .partner-card .pc-photo { width:100%; height:clamp(150px,18vw,220px); object-fit:cover; display:block; }
+    .partner-card .pc-emoji { font-size:2.5rem; margin:22px 0 6px; }
+    .partner-card .pc-body { padding:16px 24px 24px; }
     .partner-card .pc-name { font-family:'Baloo 2',sans-serif; font-weight:700; font-size:1.1rem; color:var(--navy); }
     .partner-card .pc-role { font-size:.85rem; color:var(--ink-soft); margin-top:2px; }
     .partner-star { font-size:clamp(1.6rem,3vw,3rem); color:var(--ink-faint); }
@@ -2226,8 +2229,8 @@ footer {
   <div class="wrap hero-grid">
     <div class="hero-content reveal visible">
       <span class="hero-badge"><span class="dot"></span>AI-powered Filipino Sign Language platform</span>
-      <h1><span class="accent">AI-powered FSL</span> learning for students and teachers</h1>
-      <p class="lead">SEÑAS combines real-time AI gesture recognition with a powerful Teacher Dashboard — creating a complete Filipino Sign Language ecosystem designed for the SNED program.</p>
+      <h1>Learn <span class="accent">Filipino Sign Language</span> with AI-powered gesture recognition</h1>
+      <p class="lead">SEÑAS combines real-time AI gesture recognition, AI-generated lessons, and a powerful Teacher Dashboard — creating a complete Filipino Sign Language ecosystem designed for the SNED program.</p>
       <div class="hero-ctas">
       <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</a>
 <a href="#mobile-app" class="btn btn-white btn-lg"><i class="fa-solid fa-play"></i> See how it works</a>
@@ -2289,8 +2292,8 @@ footer {
   <div class="wrap about-grid">
     <div class="about-copy reveal">
       <span class="kicker">What is SEÑAS</span>
-      <h2 class="display" style="font-size:clamp(1.4rem,3vw,2.2rem);font-weight:800;color:var(--navy);letter-spacing:-.01em;margin-bottom:20px;">The AI-powered ecosystem for learning Filipino Sign Language</h2>
-      <p><strong>SEÑAS is an AI-powered Filipino Sign Language (FSL) learning ecosystem</strong> where the mobile application is the primary learning tool and the Teacher Dashboard serves as a companion platform for educators.</p>
+      <h2 class="display" style="font-size:clamp(1.4rem,3vw,2.2rem);font-weight:800;color:var(--navy);letter-spacing:-.01em;margin-bottom:20px;">Learn Filipino Sign Language through AI-powered gesture recognition and interactive lessons</h2>
+      <p><strong>SEÑAS is an AI-powered Filipino Sign Language (FSL) learning platform</strong> where the mobile application is the primary learning tool and the Teacher Dashboard serves as a companion platform for educators.</p>
       <p>Our real-time gesture recognition technology uses computer vision and machine learning to analyze hand movements, providing instant feedback on accuracy. This allows learners to practice independently while receiving the guidance they need to master FSL.</p>
       
       <div class="feature-highlight">
@@ -2352,9 +2355,9 @@ footer {
       </div>
       <div class="ai-feat-card reveal afc-3">
         <div class="icon-wrap"><i class="fa-solid fa-brain"></i></div>
-        <h3>Adaptive learning path</h3>
-        <p>The AI learns your progress and suggests lessons tailored to your current skill level, helping you advance at your own pace.</p>
-        <span class="tag">Adaptive</span>
+        <h3>Smart learning path</h3>
+        <p>Your progress is analyzed to recommend lessons tailored to your current skill level, helping you advance at your own pace.</p>
+        <span class="tag">Smart</span>
       </div>
       <div class="ai-feat-card reveal afc-4">
         <div class="icon-wrap"><i class="fa-solid fa-layer-group"></i></div>
@@ -2364,9 +2367,9 @@ footer {
       </div>
       <div class="ai-feat-card reveal afc-5">
         <div class="icon-wrap"><i class="fa-solid fa-robot"></i></div>
-        <h3>AI coaching assistant</h3>
-        <p>Senya, your AI learning companion, provides tips, encouragement, and personalized guidance throughout your learning journey.</p>
-        <span class="tag">Assistant</span>
+        <h3>Friendly learning companion</h3>
+        <p>Senya appears throughout your journey to offer tips, encouragement, and celebrate your wins along the way.</p>
+        <span class="tag">Companion</span>
       </div>
       <div class="ai-feat-card reveal afc-6">
         <div class="icon-wrap"><i class="fa-solid fa-mobile-screen-button"></i></div>
@@ -2399,8 +2402,8 @@ footer {
             <p>Senya Tip provides educators with real-time insights into each student's learning journey. Track gesture accuracy, lesson completion rates, and identify areas where students need extra support.</p>
           </div>
           <div class="tip-slide">
-            <h3>AI-powered classroom insights</h3>
-            <p>Get AI-generated recommendations for each student based on their performance patterns. Senya Tip helps you personalize your teaching approach and intervene early when students struggle.</p>
+            <h3>Data-driven classroom insights</h3>
+            <p>Get recommendations for each student based on their performance patterns. Senya Tip helps you personalize your teaching approach and intervene early when students struggle.</p>
           </div>
           <div class="tip-slide">
             <h3>Streamline lesson management</h3>
@@ -2424,7 +2427,7 @@ footer {
   <div class="wrap">
     <div class="section-head reveal center" style="max-width:100%;">
       <span class="kicker">Meet Senya</span>
-      <h2>Your AI learning companion throughout the journey</h2>
+      <h2>Your learning companion throughout the journey</h2>
       <p>Senya appears at key moments to guide you, celebrate your progress, and make learning FSL feel more human.</p>
     </div>
 
@@ -2432,7 +2435,7 @@ footer {
       <div class="guide-card card-learn reveal">
         <div class="card-icon amber"><i class="fa-solid fa-star"></i></div>
         <h3>Learning together, every step of the way</h3>
-        <p>Senya isn't just a mascot — it's your AI learning companion that appears throughout your journey, offering encouragement and celebrating your wins.</p>
+        <p>Senya isn't just a mascot — it's your learning companion that appears throughout your journey, offering encouragement and celebrating your wins.</p>
         <div class="card-media">
           <img src="{{ asset('images/senya_student.png') }}" alt="Senya learning companion" onerror="this.onerror=null;this.src='{{ url('images/senya_student.png') }}';">
         </div>
@@ -2727,15 +2730,19 @@ footer {
 
     <div class="partner-row">
       <div class="partner-card reveal">
-        <div class="pc-emoji">🏫</div>
-        <div class="pc-name">Nasugbu West Central School</div>
-        <div class="pc-role">SNED Partner School</div>
+        <img class="pc-photo" src="{{ asset('images/school.png') }}" alt="Nasugbu West Central School" onerror="this.onerror=null;this.src='{{ url('images/school.png') }}';">
+        <div class="pc-body">
+          <div class="pc-name">Nasugbu West Central School</div>
+          <div class="pc-role">SNED Partner School</div>
+        </div>
       </div>
       <div class="partner-star">✦</div>
       <div class="partner-card reveal">
-        <div class="pc-emoji">🤝</div>
-        <div class="pc-name">SNED Program</div>
-        <div class="pc-role">Special Needs Education</div>
+        <img class="pc-photo" src="{{ asset('images/client.png') }}" alt="SNED Program" onerror="this.onerror=null;this.src='{{ url('images/client.png') }}';">
+        <div class="pc-body">
+          <div class="pc-name">SNED Program</div>
+          <div class="pc-role">Special Needs Education</div>
+        </div>
       </div>
     </div>
   </div>
