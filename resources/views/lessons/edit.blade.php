@@ -889,7 +889,7 @@
             <div id="quizQuestions">
                 @if(isset($lessonData['quiz']) && count($lessonData['quiz']) > 0)
                     @foreach($lessonData['quiz'] as $index => $q)
-                    <div class="quiz-question-card" data-question-index="{{ $index }}">
+                    <div class="quiz-question quiz-question-card" data-question-index="{{ $index }}">
                         <div class="flex items-center justify-between mb-4">
                             <div class="flex items-center gap-3">
                                 <div class="step-number-badge" style="background:#0d326b;">{{ $index + 1 }}</div>
@@ -1132,7 +1132,7 @@
                     @endforeach
                 @else
                     {{-- Default empty quiz question --}}
-                    <div class="quiz-question-card">
+                    <div class="quiz-question quiz-question-card">
                         <div class="flex items-center justify-between mb-4">
                             <div class="flex items-center gap-3">
                                 <div class="step-number-badge">1</div>
