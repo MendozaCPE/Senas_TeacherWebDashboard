@@ -57,6 +57,20 @@
     pointer-events: none;
     transition: opacity .15s;
 }
+
+/* ── Assignment Modal Styles ─────────────────────────────────────────── */
+#assignment-modal .module-checkbox:indeterminate {
+    background-color: #0d326b;
+    opacity: 0.5;
+}
+
+#assignment-list .border {
+    transition: box-shadow 0.2s ease;
+}
+
+#assignment-list .border:hover {
+    box-shadow: 0 4px 12px rgba(13, 50, 107, 0.08);
+}
 </style>
 
 <div class="space-y-6">
@@ -834,6 +848,21 @@
                                     </button>
                                 </div>
 
+                                {{-- Manage Lessons Card --}}
+<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
+    <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-blue-500 text-[16px]">edit_document</span>
+        </div>
+        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lesson Assignments</p>
+    </div>
+    <p id="sdc-assignment-hint" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1">Manage which lessons this student has access to.</p>
+    <button id="sdc-assign-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100">
+        <span class="material-symbols-outlined text-[13px]">edit_note</span>
+        Manage Lessons
+    </button>
+</div>
+
                             </div>
                         </div>
                     </div>
@@ -843,11 +872,84 @@
 
         </div>
 
+     `
+
+
         {{-- Notification bar (inside modal) --}}
         <div id="sdc-notif" class="hidden shrink-0 mx-6 mb-4 px-4 py-3 rounded-xl text-[12px] font-semibold flex items-center gap-2 border"></div>
 
     </div>
 </div>
+
+ {{-- ══════════ LESSON ASSIGNMENT MODAL ══════════ --}}
+<div id="assignment-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-[55] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div id="assignment-modal-card" class="bg-white rounded-[32px] w-[800px] max-w-[95vw] max-h-[90vh] shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col overflow-hidden">
+        
+        {{-- Header --}}
+        <div class="flex items-center justify-between px-7 pt-6 pb-4 border-b border-slate-100 shrink-0">
+            <div>
+                <h2 class="text-[18px] font-black text-[#0d326b] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[24px]">assignment</span>
+                    <span id="assignment-title-label">Assign Lessons</span>
+                </h2>
+                <p id="assignment-student-name" class="text-[13px] text-slate-500 font-medium mt-0.5">Loading...</p>
+            </div>
+            <button id="assignment-close" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                <span class="material-symbols-outlined text-slate-500 text-[18px]">close</span>
+            </button>
+        </div>
+
+        {{-- Loading --}}
+        <div id="assignment-loading" class="flex-1 flex items-center justify-center py-12">
+            <div class="flex flex-col items-center gap-3">
+                <span class="material-symbols-outlined text-[#0d326b] text-[36px] animate-spin">progress_activity</span>
+                <p class="text-[13px] text-slate-400 font-medium">Loading available lessons...</p>
+            </div>
+        </div>
+
+        {{-- Content --}}
+        <div id="assignment-content" class="hidden flex-1 overflow-hidden flex flex-col">
+            
+            {{-- Stats bar --}}
+            <div class="px-7 py-3 bg-slate-50 border-b border-slate-100 shrink-0 flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-4 text-[12px]">
+                    <span class="font-medium text-slate-500">Total Lessons: <span id="assignment-total" class="font-bold text-[#0d326b]">0</span></span>
+                    <span class="font-medium text-slate-500">Selected: <span id="assignment-selected" class="font-bold text-emerald-600">0</span></span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="assignment-select-all" class="text-[11px] font-bold text-[#0d326b] hover:text-[#1a6fd4] transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">select_all</span>
+                        Select All
+                    </button>
+                    <button id="assignment-deselect-all" class="text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">deselect</span>
+                        Deselect All
+                    </button>
+                </div>
+            </div>
+
+            {{-- Module/Lesson list (scrollable) --}}
+            <div id="assignment-list" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Dynamically rendered -->
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-7 py-4 border-t border-slate-100 shrink-0 flex items-center justify-end gap-3 bg-white">
+                <button id="assignment-cancel" class="px-5 py-2.5 rounded-xl text-[13px] font-semibold text-slate-500 hover:bg-slate-50 transition-colors">
+                    Cancel
+                </button>
+                <button id="assignment-save" class="px-6 py-2.5 rounded-xl text-[13px] font-bold bg-[#0d326b] hover:bg-[#154188] text-white transition-all flex items-center gap-2 shadow-sm">
+                    <span class="material-symbols-outlined text-[16px]">save</span>
+                    <span id="assignment-save-label">Save Assignments</span>
+                </button>
+            </div>
+        </div>
+
+        {{-- Notification --}}
+        <div id="assignment-notif" class="hidden shrink-0 mx-7 mb-4 px-4 py-3 rounded-xl text-[12px] font-semibold flex items-center gap-2 border"></div>
+    </div>
+</div>
+
 
 {{-- ══════════ CONFIRM DIALOG (reusable inside Student Details) ══════════ --}}
 <div id="sdc-confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[60] flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
@@ -1025,8 +1127,15 @@
 const openModalBtn=document.getElementById('open-modal-btn'),closeModalBtn=document.getElementById('close-modal-btn'),cancelBtns=document.querySelectorAll('.btn-cancel'),modal=document.getElementById('add-student-modal'),modalCard=modal.querySelector('.bg-white'),tabSingle=document.getElementById('tab-single'),tabBulk=document.getElementById('tab-bulk'),formSingle=document.getElementById('form-single'),containerBulk=document.getElementById('container-bulk'),modalAlert=document.getElementById('modal-alert'),modalAlertIcon=document.getElementById('modal-alert-icon'),modalAlertMsg=document.getElementById('modal-alert-message'),dropZone=document.getElementById('drop-zone'),excelInput=document.getElementById('excel-file'),uploadIcon=document.getElementById('upload-icon'),uploadIconWrap=document.getElementById('upload-icon-container'),uploadPrimary=document.getElementById('upload-primary-text'),uploadSecondary=document.getElementById('upload-secondary-text');
 let parsedStudents=[];
 openModalBtn.addEventListener('click',()=>{modal.classList.remove('hidden');requestAnimationFrame(()=>{modal.classList.remove('opacity-0');modalCard.classList.remove('scale-95');});});
-function closeModal(){modal.classList.add('opacity-0');modalCard.classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden');resetModal();},300);}
-closeModalBtn.addEventListener('click',closeModal);cancelBtns.forEach(b=>b.addEventListener('click',closeModal));modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+function closeModal(){
+    console.log('🔒 Closing Add Student modal');
+    modal.classList.add('opacity-0');
+    modalCard.classList.add('scale-95');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        resetModal();
+    }, 300);
+}
 const AT='text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all',IT='text-slate-400 border-b-2 border-transparent hover:text-slate-600 outline-none transition-all';
 tabSingle.addEventListener('click',()=>{tabSingle.className=AT;tabBulk.className=IT;formSingle.classList.remove('hidden');containerBulk.classList.add('hidden');});
 tabBulk.addEventListener('click',()=>{tabBulk.className=AT;tabSingle.className=IT;containerBulk.classList.remove('hidden');formSingle.classList.add('hidden');});
@@ -1042,7 +1151,7 @@ function hideLrnError(){lrnError.classList.add('hidden');lrnWarning.classList.ad
 function showLrnError(msg){if(msg)lrnError.innerText=msg;lrnError.classList.remove('hidden');inputLrn.classList.add('border-red-400','focus:border-red-400');lrnExists=true;}
 function showLrnWarning(msg){if(msg)lrnWarning.innerText=msg;lrnWarning.classList.remove('hidden');inputLrn.classList.add('border-amber-400','focus:border-amber-400');lrnExists=false;}
 function updatePinPreview(){const lrn=inputLrn.value.replace(/\D/g,'');pinPreview.textContent=lrn.length>=4?lrn.slice(-4):'----';}
-async function checkLrnUnique(){const lrn=inputLrn.value.replace(/\D/g,'');hideLrnError();if(lrn.length!==12)return;try{const res=await axios.get("{{ route('students.check-lrn') }}",{params:{lrn}});if(res.data.exists){if(res.data.status==='own'){showLrnError('Student already exists in your class.');}else if(res.data.status==='unenrolled'){showLrnWarning('This student is currently unenrolled and can be added to your class.');}else{const name=res.data.teacher_name||'another teacher';showLrnError('This student is already enrolled to Teacher '+name+'.');}}}catch(_){}}
+async function checkLrnUnique(){const lrn=inputLrn.value.replace(/\D/g,'');hideLrnError();if(lrn.length!==12)return;try{const res=await axios.get("{{ route('students.check-lrn') }}",{params:{lrn}});if(res.data.exists){if(res.data.status==='own'){showLrnError('Student already exists in your class.');}else if(res.data.status==='inactive'){showLrnWarning('This student is currently unenrolled and can be added to your class.');}else{const name=res.data.teacher_name||'another teacher';showLrnError('This student is already enrolled to Teacher '+name+'.');}}}catch(_){}}
 inputLrn.addEventListener('input',()=>{updatePinPreview();clearTimeout(lrnCheckTimer);hideLrnError();if(inputLrn.value.replace(/\D/g,'').length===12){lrnCheckTimer=setTimeout(checkLrnUnique,400);}});
 inputLrn.addEventListener('blur',checkLrnUnique);updatePinPreview();
 // ─── Drag / drop + file input wiring ─────────────────────────────────────────
@@ -1168,46 +1277,69 @@ async function submitSingleStudent(event) {
     hideAlert();
     const btn = document.getElementById('btn-single-submit');
     const nameVal = formSingle.querySelector('input[name="full_name"]').value;
-    if (!nameVal.includes(',')) { showAlert('Full Name must be "Last Name, First Name" (comma-separated).'); return; }
-    if (inputLrn.value.replace(/\D/g,'').length !== 12) { showAlert('LRN must be exactly 12 digits.'); return; }
+    
+    if (!nameVal.includes(',')) { 
+        showAlert('Full Name must be "Last Name, First Name" (comma-separated).'); 
+        return; 
+    }
+    
+    if (inputLrn.value.replace(/\D/g,'').length !== 12) { 
+        showAlert('LRN must be exactly 12 digits.'); 
+        return; 
+    }
+    
     // School year validation
     const syInput = document.getElementById('single-school-year');
-    const syVal   = syInput ? syInput.value.trim() : '';
-    const syErr   = sdcValidateSchoolYear(syVal);
+    const syVal = syInput ? syInput.value.trim() : '';
+    const syErr = sdcValidateSchoolYear(syVal);
     if (syErr) {
         const errEl = document.getElementById('single-sy-error');
-        if (errEl) { errEl.textContent = syErr; errEl.classList.remove('hidden'); }
+        if (errEl) { 
+            errEl.textContent = syErr; 
+            errEl.classList.remove('hidden'); 
+        }
         showAlert('School year: ' + syErr);
         return;
     }
-    await checkLrnUnique();
-    if (lrnExists) return;
+    
     const orig = btn.innerText;
-    btn.innerText = 'Saving...'; btn.disabled = true;
+    btn.innerText = 'Checking...'; 
+    btn.disabled = true;
+    await checkLrnUnique();
+    btn.innerText = orig; 
+    btn.disabled = false;
+    if (lrnExists) return;
+
     const fd = new FormData(formSingle);
     const showGS = ['Regular','Inclusion'].includes(fd.get('program_type'));
-    const payload = { lrn: fd.get('lrn'), full_name: fd.get('full_name'), program_type: fd.get('program_type'), age: fd.get('age'), fsl_mastery_level: fd.get('fsl_mastery_level'), school_year: fd.get('school_year') };
-    if (showGS) { payload.grade_level = fd.get('grade_level'); payload.section = fd.get('section'); }
-    const token = formSingle.querySelector('input[name="_token"]').value;
-    try {
-        const res = await axios.post("{{ route('students.store') }}", payload, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
-        if (res.data.success) {
-            showAlert(res.data.message, 'success');
-            setTimeout(() => window.location.reload(), 1800);
-        } else {
-            showAlert(res.data.message || 'An error occurred.');
-            btn.innerText = orig; btn.disabled = false;
-        }
-    } catch (err) {
-        let msg = 'An error occurred while saving.';
-        if (err.response?.data?.errors) {
-            const errors = err.response.data.errors;
-            if (errors.lrn) { showLrnError(errors.lrn[0]); msg = errors.lrn[0]; }
-            else { msg = Object.values(errors).flat().join('<br>'); }
-        } else if (err.response?.data?.message) msg = err.response.data.message;
-        else if (err.request) msg = `Network error: ${err.message}`;
-        showAlert(msg); btn.innerText = orig; btn.disabled = false;
+    const payload = { 
+        lrn: fd.get('lrn'), 
+        full_name: fd.get('full_name'), 
+        program_type: fd.get('program_type'), 
+        age: fd.get('age'), 
+        fsl_mastery_level: fd.get('fsl_mastery_level'), 
+        school_year: fd.get('school_year') 
+    };
+    if (showGS) { 
+        payload.grade_level = fd.get('grade_level'); 
+        payload.section = fd.get('section'); 
     }
+
+    // Friendly "First Last" display name (form uses "Last, First")
+    const [lastPart, firstPart] = nameVal.split(',');
+    const displayName = (firstPart ? firstPart.trim() + ' ' + lastPart.trim() : nameVal).trim();
+
+    // ✅ FIX: Force close the Add Student modal immediately
+    modal.classList.add('opacity-0');
+    modalCard.classList.add('scale-95');
+    
+    // ✅ FIX: Wait for the modal to fully close before opening the assignment modal
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        resetModal();
+        console.log('📖 Opening assignment modal for new student:', displayName);
+        openAssignmentModal(null, displayName, payload);
+    }, 400);
 }
 // ─── Step 2: "Review & Import" button → show editable table ──────────────────
 // Wired via onclick on the button itself (see renderDataTable call in handleExcelFile)
@@ -1874,6 +2006,11 @@ function sdcSetupManagement(s) {
     const demoteHint    = document.getElementById('sdc-demote-hint');
     const statusText    = document.getElementById('sdc-enroll-status-text');
 
+     const assignmentHint = document.getElementById('sdc-assignment-hint');
+if (assignmentHint && s) {
+    // You could fetch the count from s if available, or keep it generic
+    assignmentHint.textContent = 'Manage which lessons this student has access to.';
+}
     const isActive = s.status === 'active';
     statusText.textContent = isActive ? 'Student is currently enrolled and active.' : 'Student is currently unenrolled.';
     enrollBtn.disabled   = isActive;
@@ -1901,6 +2038,7 @@ function sdcSetupManagement(s) {
             promoteHint.textContent = done + '/' + total + ' lessons completed (force promote allowed)';
         }
 
+       
         // Gold card highlight when ready
         const promoteCard = document.getElementById('sdc-promote-card');
         const promoteIconWrap = document.getElementById('sdc-promote-icon-wrap');
@@ -2075,14 +2213,55 @@ async function sdcAction(url, data, type) {
 
         if (res.data.success) {
             sdNotifShow(res.data.message, 'success');
-            _sdCurrent = res.data.student;
-            populateStudentDetails(res.data.student);
-            applyServerFilters();
+            
+            // 🔥 FIX: Store student data properly
+            const studentData = res.data.student;
+            
+            if (studentData) {
+                _sdCurrent = studentData;
+                populateStudentDetails(studentData);
+
+                // Keep the student visible in the dashboard after an enroll/unenroll,
+                // even if the status change would otherwise filter it out of the
+                // currently selected view (e.g. unenrolling while viewing "Enrolled").
+                const statusFilterEl = document.getElementById('filter-status');
+                const currentStatusFilter = statusFilterEl ? statusFilterEl.value : 'active';
+                const newStatus = studentData.status === 'active' ? 'active' : 'inactive';
+                if ((type === 'enroll' || type === 'unenroll') && currentStatusFilter !== 'all' && currentStatusFilter !== newStatus) {
+                    if (statusFilterEl) statusFilterEl.value = 'all';
+                    applyServerFilters({ status: 'all' });
+                } else {
+                    applyServerFilters();
+                }
+                
+                // 🔥 SHOW ASSIGNMENT MODAL AFTER ENROLLMENT
+                if (type === 'enroll' && res.data.show_assignment_modal) {
+                    console.log('🎯 Enrollment successful, showing assignment modal for:', studentData.full_name);
+                    
+                    // Close the student details modal
+                    sdModal.classList.add('opacity-0');
+                    sdCard.classList.add('scale-95');
+                    
+                    // Wait for close animation, then open assignment modal
+                    setTimeout(() => {
+                        sdModal.classList.add('hidden');
+                        // Open assignment modal
+                        openAssignmentModal(
+                            studentData.student_id,
+                            studentData.full_name
+                        );
+                    }, 400);
+                }
+            }
+            
+            // Re-enable buttons
+            btns.forEach((b, i) => b.disabled = origDisabledStates[i]);
         } else {
             sdNotifShow(res.data.message || 'Action failed.', 'error');
             btns.forEach((b, i) => b.disabled = origDisabledStates[i]);
         }
     } catch (err) {
+        console.error('❌ Error in sdcAction:', err);
         sdNotifShow(err.response?.data?.message || 'Something went wrong.', 'error');
         // Restore HTML and disabled states if error
         if (activeBtn) activeBtn.innerHTML = origHtml;
@@ -2114,5 +2293,379 @@ document.querySelectorAll('.mastery-donut-hit').forEach(function(seg){
         tip.classList.add('opacity-0');
     });
 });
+
+// ─── LESSON ASSIGNMENT MODAL ──────────────────────────────────────────────────
+const assignModal = document.getElementById('assignment-modal');
+const assignCard = document.getElementById('assignment-modal-card');
+const assignLoading = document.getElementById('assignment-loading');
+const assignContent = document.getElementById('assignment-content');
+const assignList = document.getElementById('assignment-list');
+const assignNotif = document.getElementById('assignment-notif');
+const assignStudentName = document.getElementById('assignment-student-name');
+const assignTotal = document.getElementById('assignment-total');
+const assignSelected = document.getElementById('assignment-selected');
+
+let _assignStudentId = null;
+let _assignModules = [];
+let _assignSelectedIds = new Set();
+let _assignOriginalIds = new Set(); // To track changes
+let _assignPendingPayload = null; // Set when picking lessons for a NOT-YET-created student
+
+const assignTitleLabel = document.getElementById('assignment-title-label');
+const assignSaveBtn = document.getElementById('assignment-save');
+const assignSaveLabel = document.getElementById('assignment-save-label');
+
+// studentId: existing student's id, or null when adding a new student
+// pendingPayload: when adding a new student, pass the validated form payload here.
+//                 Save will then create the student + assign these lessons together.
+function openAssignmentModal(studentId, studentName, pendingPayload) {
+    console.log('📖 Opening assignment modal for:', studentId, studentName);
+    
+    _assignStudentId = studentId;
+    _assignPendingPayload = pendingPayload || null;
+
+    if (_assignPendingPayload) {
+        assignStudentName.textContent = 'Choose lessons to assign to ' + studentName + ' — saved together when you confirm.';
+        if (assignTitleLabel) assignTitleLabel.textContent = 'Assign Lessons on Enrollment';
+        if (assignSaveLabel) assignSaveLabel.textContent = 'Confirm & Add Student';
+    } else {
+        assignStudentName.textContent = 'Assign lessons for: ' + studentName;
+        if (assignTitleLabel) assignTitleLabel.textContent = 'Assign Lessons';
+        if (assignSaveLabel) assignSaveLabel.textContent = 'Save Assignments';
+    }
+
+    // Reset button state
+    if (assignSaveBtn) {
+        assignSaveBtn.disabled = false;
+        assignSaveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span id="assignment-save-label">' + 
+            (_assignPendingPayload ? 'Confirm & Add Student' : 'Save Assignments') + '</span>';
+    }
+    
+    assignLoading.classList.remove('hidden');
+    assignContent.classList.add('hidden');
+    assignNotif.classList.add('hidden');
+    assignModal.classList.remove('hidden');
+    
+    requestAnimationFrame(() => {
+        assignModal.classList.remove('opacity-0');
+        assignCard.classList.remove('scale-95');
+    });
+
+    // Fetch available lessons
+    const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+    
+    // 🔥 FIX: For new students, use the available-lessons endpoint with a special flag
+    let lessonsUrl;
+    if (_assignPendingPayload) {
+        // For new students, we need to fetch lessons WITHOUT a student ID
+        // Use a special endpoint or pass a flag
+        lessonsUrl = '/students/lessons-for-new-student';
+    } else {
+        lessonsUrl = '/students/' + studentId + '/available-lessons';
+    }
+
+    fetch(lessonsUrl, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    })
+    .then(res => {
+        console.log('📦 Available lessons response:', res);
+        assignLoading.classList.add('hidden');
+        
+        if (!res.success) {
+            assignNotifShow(res.message || 'Failed to load lessons.', 'error');
+            return;
+        }
+
+        _assignModules = res.modules || [];
+        _assignSelectedIds = new Set();
+        _assignOriginalIds = new Set();
+        
+        // For new students, NOTHING should be pre-selected
+        // For existing students, pre-select already assigned lessons
+        if (!_assignPendingPayload) {
+            _assignModules.forEach(module => {
+                module.lessons.forEach(lesson => {
+                    if (lesson.is_assigned) {
+                        _assignSelectedIds.add(lesson.lesson_id);
+                        _assignOriginalIds.add(lesson.lesson_id);
+                    }
+                });
+            });
+        }
+
+        renderAssignmentList();
+        updateAssignmentStats();
+        assignContent.classList.remove('hidden');
+    })
+    .catch(err => {
+        console.error('❌ Error loading lessons:', err);
+        assignLoading.classList.add('hidden');
+        assignNotifShow('Error loading lessons: ' + err.message, 'error');
+    });
+}
+function closeAssignmentModal() {
+    assignModal.classList.add('opacity-0');
+    assignCard.classList.add('scale-95');
+    setTimeout(() => {
+        assignModal.classList.add('hidden');
+        _assignStudentId = null;
+        _assignModules = [];
+        _assignSelectedIds = new Set();
+        _assignOriginalIds = new Set();
+        _assignPendingPayload = null;
+    }, 300);
+}
+
+function renderAssignmentList() {
+    if (_assignModules.length === 0) {
+        assignList.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 text-center">
+                <span class="material-symbols-outlined text-slate-300 text-[48px] mb-3">folder_off</span>
+                <p class="text-[14px] font-bold text-slate-400">No lessons available</p>
+                <p class="text-[12px] text-slate-400">There are no published lessons to assign yet.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    let lessonCounter = 0;
+
+    _assignModules.forEach((module, idx) => {
+        const moduleChecked = module.lessons.every(l => _assignSelectedIds.has(l.lesson_id));
+        const someChecked = module.lessons.some(l => _assignSelectedIds.has(l.lesson_id));
+        
+        html += `
+            <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow transition-all">
+                <div class="flex items-center justify-between px-5 py-3 bg-slate-50/80 border-b border-slate-200">
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-3 cursor-pointer select-none">
+                            <input type="checkbox" class="module-checkbox w-4 h-4 rounded border-slate-300 text-[#0d326b] focus:ring-[#0d326b] focus:ring-offset-0 cursor-pointer" 
+                                   data-module-id="${module.module_id}" 
+                                   ${moduleChecked ? 'checked' : ''}
+                                   ${someChecked && !moduleChecked ? 'indeterminate' : ''}>
+                            <span class="text-[13px] font-bold text-[#0d326b]">${module.module_title}</span>
+                            <span class="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                ${module.lessons.length} lessons
+                            </span>
+                        </label>
+                    </div>
+                    <span class="text-[10px] font-medium ${moduleChecked ? 'text-emerald-600' : (someChecked ? 'text-amber-600' : 'text-slate-400')}">
+                        ${moduleChecked ? '✓ All Assigned' : (someChecked ? 'Partial' : 'None')}
+                    </span>
+                </div>
+                <div class="px-5 py-3 space-y-1.5">
+                    ${module.lessons.map(lesson => {
+                        lessonCounter++;
+                        const checked = _assignSelectedIds.has(lesson.lesson_id) ? 'checked' : '';
+                        return `
+                            <label class="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors select-none group">
+                                <input type="checkbox" class="lesson-checkbox w-4 h-4 rounded border-slate-300 text-[#0d326b] focus:ring-[#0d326b] focus:ring-offset-0 cursor-pointer" 
+                                       data-lesson-id="${lesson.lesson_id}" 
+                                       ${checked}>
+                                <span class="text-[13px] font-medium text-slate-700 group-hover:text-[#0d326b] transition-colors flex-1">
+                                    ${lesson.title}
+                                </span>
+                                ${lesson.is_assigned ? '<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Assigned</span>' : ''}
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    assignList.innerHTML = html;
+
+    // ── Event listeners ──────────────────────────────────────────────────────
+    // Individual lesson checkboxes
+    assignList.querySelectorAll('.lesson-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const lessonId = parseInt(this.dataset.lessonId);
+            if (this.checked) {
+                _assignSelectedIds.add(lessonId);
+            } else {
+                _assignSelectedIds.delete(lessonId);
+            }
+            // Update module checkbox state
+            const moduleContainer = this.closest('.border');
+            if (moduleContainer) {
+                const moduleCb = moduleContainer.querySelector('.module-checkbox');
+                const lessonCbs = moduleContainer.querySelectorAll('.lesson-checkbox');
+                const allChecked = Array.from(lessonCbs).every(c => c.checked);
+                const someChecked = Array.from(lessonCbs).some(c => c.checked);
+                moduleCb.checked = allChecked;
+                moduleCb.indeterminate = !allChecked && someChecked;
+            }
+            updateAssignmentStats();
+        });
+    });
+
+    // Module checkboxes (select/deselect all in module)
+    assignList.querySelectorAll('.module-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const moduleContainer = this.closest('.border');
+            if (!moduleContainer) return;
+            const lessonCbs = moduleContainer.querySelectorAll('.lesson-checkbox');
+            lessonCbs.forEach(lcb => {
+                lcb.checked = this.checked;
+                const lessonId = parseInt(lcb.dataset.lessonId);
+                if (this.checked) {
+                    _assignSelectedIds.add(lessonId);
+                } else {
+                    _assignSelectedIds.delete(lessonId);
+                }
+            });
+            this.indeterminate = false;
+            updateAssignmentStats();
+        });
+    });
+}
+
+function updateAssignmentStats() {
+    const total = _assignModules.reduce((sum, m) => sum + m.lessons.length, 0);
+    const selected = _assignSelectedIds.size;
+    assignTotal.textContent = total;
+    assignSelected.textContent = selected;
+}
+
+function assignNotifShow(msg, type) {
+    assignNotif.classList.remove('hidden', 'bg-emerald-50','border-emerald-200','text-emerald-800',
+        'bg-red-50','border-red-200','text-red-800','bg-amber-50','border-amber-200','text-amber-800');
+    const map = { 
+        success: ['bg-emerald-50','border-emerald-200','text-emerald-800','check_circle'],
+        error:   ['bg-red-50','border-red-200','text-red-800','error'],
+        warning: ['bg-amber-50','border-amber-200','text-amber-800','warning'] 
+    };
+    const [bg,border,txt,icon] = map[type] || map.error;
+    assignNotif.classList.add(bg, border, txt);
+    assignNotif.innerHTML = `<span class="material-symbols-outlined text-[18px] shrink-0">${icon}</span><span>${msg}</span>`;
+    setTimeout(() => assignNotif.classList.add('hidden'), 4000);
+}
+
+// ── Assignment Modal Event Listeners ──────────────────────────────────────
+document.getElementById('assignment-close').addEventListener('click', closeAssignmentModal);
+document.getElementById('assignment-cancel').addEventListener('click', closeAssignmentModal);
+assignModal.addEventListener('click', e => { if (e.target === assignModal) closeAssignmentModal(); });
+
+// Select All / Deselect All
+document.getElementById('assignment-select-all').addEventListener('click', function() {
+    const checkboxes = assignList.querySelectorAll('.lesson-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = true;
+        _assignSelectedIds.add(parseInt(cb.dataset.lessonId));
+    });
+    // Update module checkboxes
+    assignList.querySelectorAll('.module-checkbox').forEach(cb => {
+        cb.checked = true;
+        cb.indeterminate = false;
+    });
+    updateAssignmentStats();
+});
+
+document.getElementById('assignment-deselect-all').addEventListener('click', function() {
+    const checkboxes = assignList.querySelectorAll('.lesson-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = false;
+        _assignSelectedIds.delete(parseInt(cb.dataset.lessonId));
+    });
+    assignList.querySelectorAll('.module-checkbox').forEach(cb => {
+        cb.checked = false;
+        cb.indeterminate = false;
+    });
+    updateAssignmentStats();
+});
+
+// Save Assignments
+document.getElementById('assignment-save').addEventListener('click', async function() {
+    if (!_assignStudentId && !_assignPendingPayload) return;
+    
+    // 🔥 FIX: Get ONLY the selected lesson IDs
+    const lessonIds = Array.from(_assignSelectedIds);
+    
+    console.log('✅ Sending ONLY these lesson IDs:', lessonIds);
+    console.log('✅ Count:', lessonIds.length);
+    
+    const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+    const saveBtn = this;
+    const origHtml = saveBtn.innerHTML;
+    
+    saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Saving...';
+    saveBtn.disabled = true;
+
+    try {
+        let res;
+        if (_assignPendingPayload) {
+            // Brand-new student: ONLY send the selected lessons
+            const payload = {
+                ..._assignPendingPayload,
+                lesson_ids: lessonIds  // ← This is the important part
+            };
+            res = await axios.post("{{ route('students.store') }}", payload, {
+                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+            });
+        } else {
+            res = await axios.post('/students/' + _assignStudentId + '/assign-lessons', {
+                lesson_ids: lessonIds
+            }, {
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
+                }
+            });
+        }
+
+        if (res.data.success) {
+            assignNotifShow(res.data.message, 'success');
+            setTimeout(() => {
+                closeAssignmentModal();
+                applyServerFilters();
+                saveBtn.innerHTML = origHtml;
+                saveBtn.disabled = false;
+            }, 1200);
+        } else {
+            assignNotifShow(res.data.message || 'Failed to save.', 'error');
+            saveBtn.innerHTML = origHtml;
+            saveBtn.disabled = false;
+        }
+    } catch (err) {
+        let msg = 'Failed to save.';
+        if (err.response?.data?.errors) {
+            msg = Object.values(err.response.data.errors).flat().join(' ');
+        } else if (err.response?.data?.message) {
+            msg = err.response.data.message;
+        }
+        assignNotifShow(msg, 'error');
+        saveBtn.innerHTML = origHtml;
+        saveBtn.disabled = false;
+    }
+});
+
+// ── Manage Lessons button in Student Details ─────────────────────────────
+// Add event listener for the new button
+document.addEventListener('click', function(e) {
+    const assignBtn = e.target.closest('#sdc-assign-btn');
+    if (assignBtn && _sdCurrent) {
+        const studentId = _sdCurrent.student_id;
+        const studentName = _sdCurrent.full_name;
+        closeStudentDetails();
+        setTimeout(() => {
+            openAssignmentModal(studentId, studentName);
+        }, 400);
+    }
+});
+
+
+
+
 </script>
 @endsection

@@ -103,20 +103,29 @@ Route::middleware(['auth', 'no.cache', 'teacher'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Students
-    Route::get('/students', [App\Http\Controllers\StudentsController::class, 'index'])->name('students');
-    Route::post('/students/filter', [App\Http\Controllers\StudentsController::class, 'applyFilter'])->name('students.filter');
-    Route::get('/students/check-lrn', [App\Http\Controllers\StudentsController::class, 'checkLrn'])->name('students.check-lrn');
-    Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
-    Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
-    Route::get('/students/{id}', [App\Http\Controllers\StudentsController::class, 'show'])->name('students.show');
-    Route::put('/students/{id}', [App\Http\Controllers\StudentsController::class, 'update'])->name('students.update');
-    Route::post('/students/{id}/promote', [App\Http\Controllers\StudentsController::class, 'promote'])->name('students.promote');
-    Route::post('/students/{id}/demote', [App\Http\Controllers\StudentsController::class, 'demote'])->name('students.demote');
-    Route::post('/students/{id}/enroll', [App\Http\Controllers\StudentsController::class, 'enroll'])->name('students.enroll');
-    Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController::class, 'unenroll'])->name('students.unenroll');
+  // Students - SPECIFIC ROUTES FIRST
+Route::get('/students', [App\Http\Controllers\StudentsController::class, 'index'])->name('students');
+Route::post('/students/filter', [App\Http\Controllers\StudentsController::class, 'applyFilter'])->name('students.filter');
+Route::get('/students/check-lrn', [App\Http\Controllers\StudentsController::class, 'checkLrn'])->name('students.check-lrn');
+Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
+Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
 
-    // Lessons - ALL using LessonsController (plural)
+// 🔥 NEW ROUTE - MUST COME BEFORE THE WILDCARD
+Route::get('/students/lessons-for-new-student', [App\Http\Controllers\StudentsController::class, 'getLessonsForNewStudent'])->name('students.lessons-for-new-student');
+
+// 🔥 LESSON ASSIGNMENT ROUTES - BEFORE THE WILDCARD
+Route::get('/students/{id}/available-lessons', [App\Http\Controllers\StudentsController::class, 'getAvailableLessons'])->name('students.available-lessons');
+Route::post('/students/{id}/assign-lessons', [App\Http\Controllers\StudentsController::class, 'assignLessons'])->name('students.assign-lessons');
+
+// ⚠️ WILDCARD ROUTES - MUST COME LAST
+Route::get('/students/{id}', [App\Http\Controllers\StudentsController::class, 'show'])->name('students.show');
+Route::put('/students/{id}', [App\Http\Controllers\StudentsController::class, 'update'])->name('students.update');
+Route::post('/students/{id}/promote', [App\Http\Controllers\StudentsController::class, 'promote'])->name('students.promote');
+Route::post('/students/{id}/demote', [App\Http\Controllers\StudentsController::class, 'demote'])->name('students.demote');
+Route::post('/students/{id}/enroll', [App\Http\Controllers\StudentsController::class, 'enroll'])->name('students.enroll');
+Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController::class, 'unenroll'])->name('students.unenroll');
+
+// Lessons - ALL using LessonsController (plural)
     Route::get('/lessons', [LessonsController::class, 'index'])->name('lessons.index');
 
     Route::get('/lessons/create', [LessonsController::class, 'create'])->name('lessons.create');
@@ -273,6 +282,8 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
     // ── NEW: Teacher selection for push ─────────────────────────────────
     Route::get('/teachers', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'getTeachers'])->name('teachers');  // ✅ ADD THIS
     Route::post('/push-selected', [\App\Http\Controllers\Admin\LessonTemplatesController::class, 'pushSelected'])->name('push-selected'); 
+
+
     // ── ADMIN LESSON CRUD (uses same LessonsController, but admin context) ──
     Route::get('/create', [LessonsController::class, 'create'])->name('create');
     Route::post('/', [LessonsController::class, 'store'])->name('store');

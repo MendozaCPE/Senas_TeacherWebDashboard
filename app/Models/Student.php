@@ -37,64 +37,64 @@ class Student extends Model
     // ─── AUTO-ASSIGN LESSONS + CHECKPOINT EXAMS ON STUDENT CREATION ────
     protected static function booted()
     {
-        static::created(function ($student) {
-            // ─── 1. AUTO-ASSIGN LESSONS (EXISTING) ──────────────────────
-            $lessons = Lesson::where('status', 'published')
-                            ->orderBy('module_order', 'asc')
-                            ->get();
+        // static::created(function ($student) {
+        //     // ─── 1. AUTO-ASSIGN LESSONS (EXISTING) ──────────────────────
+        //     $lessons = Lesson::where('status', 'published')
+        //                     ->orderBy('module_order', 'asc')
+        //                     ->get();
             
-            if ($lessons->isNotEmpty()) {
-                $assignments = [];
-                $firstLessonInModule = [];
+        //     if ($lessons->isNotEmpty()) {
+        //         $assignments = [];
+        //         $firstLessonInModule = [];
 
-                // Track first lesson per module
-                foreach ($lessons as $lesson) {
-                    $moduleId = $lesson->module_id;
-                    if (!isset($firstLessonInModule[$moduleId])) {
-                        $firstLessonInModule[$moduleId] = $lesson->lesson_id;
-                    }
-                }
+        //         // Track first lesson per module
+        //         foreach ($lessons as $lesson) {
+        //             $moduleId = $lesson->module_id;
+        //             if (!isset($firstLessonInModule[$moduleId])) {
+        //                 $firstLessonInModule[$moduleId] = $lesson->lesson_id;
+        //             }
+        //         }
 
-                foreach ($lessons as $lesson) {
-                    $isLocked = ($firstLessonInModule[$lesson->module_id] !== $lesson->lesson_id);
+        //         foreach ($lessons as $lesson) {
+        //             $isLocked = ($firstLessonInModule[$lesson->module_id] !== $lesson->lesson_id);
                     
-                    $assignments[] = [
-                        'student_id' => $student->student_id,
-                        'lesson_id' => $lesson->lesson_id,
-                        'assigned_at' => now(),
-                        'status' => 'pending',
-                        'is_locked' => $isLocked ? 1 : 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
+        //             $assignments[] = [
+        //                 'student_id' => $student->student_id,
+        //                 'lesson_id' => $lesson->lesson_id,
+        //                 'assigned_at' => now(),
+        //                 'status' => 'pending',
+        //                 'is_locked' => $isLocked ? 1 : 0,
+        //                 'created_at' => now(),
+        //                 'updated_at' => now(),
+        //             ];
+        //         }
 
-                LessonAssignment::insert($assignments);
-            }
+        //         LessonAssignment::insert($assignments);
+        //     }
 
-            // ─── 2. 🔥 AUTO-ASSIGN CHECKPOINT EXAMS (NEW) ──────────────
-            $exams = CheckpointExam::where('status', 'published')
-                                  ->orderBy('created_at', 'asc')
-                                  ->get();
+        //     // ─── 2. 🔥 AUTO-ASSIGN CHECKPOINT EXAMS (NEW) ──────────────
+        //     $exams = CheckpointExam::where('status', 'published')
+        //                           ->orderBy('created_at', 'asc')
+        //                           ->get();
             
-            if ($exams->isNotEmpty()) {
-                $examAssignments = [];
-                foreach ($exams as $exam) {
-                    $examAssignments[] = [
-                        'student_id' => $student->student_id,
-                        'exam_id' => $exam->exam_id,
-                        'assigned_at' => now(),
-                        'status' => 'pending',
-                        'is_locked' => 1, // Locked by default until module is completed
-                        'notified' => 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
+        //     if ($exams->isNotEmpty()) {
+        //         $examAssignments = [];
+        //         foreach ($exams as $exam) {
+        //             $examAssignments[] = [
+        //                 'student_id' => $student->student_id,
+        //                 'exam_id' => $exam->exam_id,
+        //                 'assigned_at' => now(),
+        //                 'status' => 'pending',
+        //                 'is_locked' => 1, // Locked by default until module is completed
+        //                 'notified' => 0,
+        //                 'created_at' => now(),
+        //                 'updated_at' => now(),
+        //             ];
+        //         }
                 
-                CheckpointExamAssignment::insert($examAssignments);
-            }
-        });
+        //         CheckpointExamAssignment::insert($examAssignments);
+        //     }
+        // });
     }
 
     public function teacher()

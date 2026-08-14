@@ -6,10 +6,16 @@ use App\Models\User;
 use App\Models\Student;
 use App\Models\StudentPromotion;
 use App\Models\TeacherNotification;
+use App\Models\StudentNotification;
+
+use App\Models\Module;  // ✅ ADD THIS LINE
+use App\Models\LessonAssignment; 
+use App\Models\Lesson;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator; 
 use Carbon\Carbon;
 
 class StudentsController extends Controller
@@ -135,8 +141,8 @@ class StudentsController extends Controller
                 return response()->json(['exists' => true, 'status' => 'own']);
             }
 
-            if ($student->status === 'unenrolled') {
-                return response()->json(['exists' => true, 'status' => 'unenrolled']);
+            if ($student->status === 'inactive') {
+                return response()->json(['exists' => true, 'status' => 'inactive']);
             }
 
             // Enrolled under a different teacher — return their name
@@ -158,152 +164,190 @@ class StudentsController extends Controller
     /**
      * Store a newly created student manually.
      */
-    public function store(Request $request)
-    {
-        $teacher = Auth::user()->teacher;
-        if (!$teacher) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized: Only registered teachers can add students.'
-            ], 403);
-        }
+  public function store(Request $request)
+{
+    $teacher = Auth::user()->teacher;
+    if (!$teacher) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized: Only registered teachers can add students.'
+        ], 403);
+    }
 
-        $programType = $request->input('program_type', 'Regular');
-        $showGradeSection = in_array($programType, ['Regular', 'Inclusion'], true);
+    $programType = $request->input('program_type', 'Regular');
+    $showGradeSection = in_array($programType, ['Regular', 'Inclusion'], true);
 
-        $request->validate([
-            'lrn' => 'required|numeric|digits:12',
-            'full_name' => 'required|string|max:255',
-            'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained,SPED,Home-based',
-            'grade_level' => 'nullable|string|max:255',
-            'age' => 'required|integer|min:1|max:120',
-            'section' => 'nullable|string|max:255',
-            'school_year' => ['nullable', 'string', 'max:20',
-                function ($attribute, $value, $fail) {
-                    if (empty($value)) return;
-                    if (!preg_match('/^(\d{4})-(\d{4})$/', $value, $m)) {
-                        $fail('School year must be in YYYY-YYYY format (e.g. 2024-2025).');
-                        return;
-                    }
-                    if ((int)$m[2] !== (int)$m[1] + 1) {
-                        $fail("School year is invalid — the second year must be exactly one year after the first (e.g. {$m[1]}-" . ((int)$m[1]+1) . ').');
-                    }
-                    if ((int)$m[1] < 2000 || (int)$m[1] > (int)date('Y') + 2) {
-                        $fail("School year {$value} is out of a reasonable range.");
-                    }
-                },
-            ],
-            'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
-        ]);
+    $request->validate([
+        'lrn' => 'required|numeric|digits:12',
+        'full_name' => 'required|string|max:255',
+        'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained,SPED,Home-based',
+        'grade_level' => 'nullable|string|max:255',
+        'age' => 'required|integer|min:1|max:120',
+        'section' => 'nullable|string|max:255',
+        'school_year' => ['nullable', 'string', 'max:20',
+            function ($attribute, $value, $fail) {
+                if (empty($value)) return;
+                if (!preg_match('/^(\d{4})-(\d{4})$/', $value, $m)) {
+                    $fail('School year must be in YYYY-YYYY format (e.g. 2024-2025).');
+                    return;
+                }
+                if ((int)$m[2] !== (int)$m[1] + 1) {
+                    $fail("School year is invalid — the second year must be exactly one year after the first (e.g. {$m[1]}-" . ((int)$m[1]+1) . ').');
+                }
+                if ((int)$m[1] < 2000 || (int)$m[1] > (int)date('Y') + 2) {
+                    $fail("School year {$value} is out of a reasonable range.");
+                }
+            },
+        ],
+        'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
+        'lesson_ids' => 'nullable|array',
+        'lesson_ids.*' => 'exists:lessons,lesson_id',
+    ]);
 
-        // Split full name (expecting "Last Name, First Name" or fallback to space splitting)
-        $fullName = trim($request->full_name);
-        if (str_contains($fullName, ',')) {
-            $parts = explode(',', $fullName, 2);
-            $lastName = trim($parts[0]);
-            $firstName = trim($parts[1]);
+    // Split full name
+    $fullName = trim($request->full_name);
+    if (str_contains($fullName, ',')) {
+        $parts = explode(',', $fullName, 2);
+        $lastName = trim($parts[0]);
+        $firstName = trim($parts[1]);
+    } else {
+        $parts = explode(' ', $fullName);
+        if (count($parts) > 1) {
+            $lastName = array_pop($parts);
+            $firstName = implode(' ', $parts);
         } else {
-            $parts = explode(' ', $fullName);
-            if (count($parts) > 1) {
-                $lastName = array_pop($parts);
-                $firstName = implode(' ', $parts);
-            } else {
-                $firstName = $fullName;
-                $lastName = '';
-            }
+            $firstName = $fullName;
+            $lastName = '';
         }
+    }
 
-        $lrn = $request->lrn;
+    $lrn = $request->lrn;
 
-        // Check for existing student
-        $existingStudent = Student::where('lrn', $lrn)->with('teacher')->first();
-        if ($existingStudent) {
-            if ($existingStudent->teacher_id == $teacher->id) {
+    // Check for existing student
+    $existingStudent = Student::where('lrn', $lrn)->with('teacher')->first();
+    if ($existingStudent) {
+        if ($existingStudent->teacher_id == $teacher->id) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'lrn' => ['Student already exists in your class.']
+                ]
+            ], 422);
+        } else {
+            if ($existingStudent->status !== 'inactive') {
+                $otherTeacher = $existingStudent->teacher;
+                $teacherName = $otherTeacher
+                    ? trim($otherTeacher->first_name . ' ' . $otherTeacher->last_name)
+                    : 'another teacher';
+
                 return response()->json([
                     'message' => 'The given data was invalid.',
                     'errors' => [
-                        'lrn' => ['Student already exists in your class.']
+                        'lrn' => ["This student is already enrolled to Teacher {$teacherName}."]
                     ]
                 ], 422);
-            } else {
-                // Block enrollment if the student is still enrolled under another teacher
-                if ($existingStudent->status !== 'unenrolled') {
-                    $otherTeacher = $existingStudent->teacher;
-                    $teacherName  = $otherTeacher
-                        ? trim($otherTeacher->first_name . ' ' . $otherTeacher->last_name)
-                        : 'another teacher';
-
-                    return response()->json([
-                        'message' => 'The given data was invalid.',
-                        'errors'  => [
-                            'lrn' => ["This student is already enrolled to Teacher {$teacherName}."]
-                        ]
-                    ], 422);
-                }
-
-                // Student is unenrolled — transfer to this teacher
-                $existingStudent->teacher_id = $teacher->id;
-                $existingStudent->school_id  = $teacher->school_id;
-                $existingStudent->status     = 'active';
-                $existingStudent->save();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Student has been successfully enrolled in your class.',
-                    'student' => $existingStudent
-                ]);
             }
-        }
 
-        $pin = substr($lrn, -4);
-
-        // Generate unique username from first name and last name
-        $username = $this->generateUniqueUsername($firstName, $lastName);
-
-        DB::beginTransaction();
-        try {
-            // Create user account for student
-            $user = User::create([
-                'name' => trim($firstName . ' ' . $lastName),
-                'username' => $username,
-                'email' => $lrn,
-                'password' => Hash::make($lrn), // Temporary password using LRN
-                'role' => 'student',
-                'status' => 'active',
-            ]);
-
-            // Create student record
-            $student = Student::create([
-                'user_id' => $user->id,
-                'teacher_id' => $teacher->id,
-                'school_id' => $teacher->school_id,
-                'lrn' => $lrn,
-                'pin' => $pin,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'age' => $request->age,
-                'grade_level' => $showGradeSection ? $request->grade_level : null,
-                'section' => $showGradeSection ? $request->section : null,
-                'school_year' => $request->school_year,
-                'fsl_mastery_level' => $request->fsl_mastery_level,
-                'program_type' => $programType,
-            ]);
-
-            DB::commit();
+            $existingStudent->teacher_id = $teacher->id;
+            $existingStudent->school_id = $teacher->school_id;
+            $existingStudent->status = 'active';
+            $existingStudent->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Student added successfully!',
-                'student' => $student
+                'message' => 'Student has been successfully enrolled in your class.',
+                'student' => $existingStudent
             ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to save student: ' . $e->getMessage()
-            ], 500);
         }
     }
+
+    $pin = substr($lrn, -4);
+    $username = $this->generateUniqueUsername($firstName, $lastName);
+
+    DB::beginTransaction();
+    try {
+        $user = User::create([
+            'name' => trim($firstName . ' ' . $lastName),
+            'username' => $username,
+            'email' => $lrn,
+            'password' => Hash::make($lrn),
+            'role' => 'student',
+            'status' => 'active',
+        ]);
+
+        $student = Student::create([
+            'user_id' => $user->id,
+            'teacher_id' => $teacher->id,
+            'school_id' => $teacher->school_id,
+            'lrn' => $lrn,
+            'pin' => $pin,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'age' => $request->age,
+            'grade_level' => $showGradeSection ? $request->grade_level : null,
+            'section' => $showGradeSection ? $request->section : null,
+            'school_year' => $request->school_year,
+            'fsl_mastery_level' => $request->fsl_mastery_level,
+            'program_type' => $programType,
+            'status' => 'active',
+        ]);
+
+        // 🔥 CRITICAL FIX: ONLY assign the lessons that were selected
+        $lessonIds = $request->input('lesson_ids', []);
+        
+        if (!empty($lessonIds)) {
+            foreach ($lessonIds as $lessonId) {
+                // Only create assignment if it doesn't exist
+                $exists = LessonAssignment::where('student_id', $student->student_id)
+                    ->where('lesson_id', $lessonId)
+                    ->exists();
+
+                if (!$exists) {
+                    $lesson = Lesson::find($lessonId);
+                    $isLocked = true;
+
+                    if ($lesson) {
+                        $firstLesson = Lesson::where('module_id', $lesson->module_id)
+                            ->where('status', 'published')
+                            ->whereNull('deleted_at')
+                            ->orderBy('module_order', 'asc')
+                            ->first();
+
+                        if ($firstLesson && $firstLesson->lesson_id == $lessonId) {
+                            $isLocked = false;
+                        }
+                    }
+
+                    LessonAssignment::create([
+                        'lesson_id' => $lessonId,
+                        'student_id' => $student->student_id,
+                        'assigned_at' => now(),
+                        'status' => 'pending',
+                        'is_locked' => $isLocked,
+                        'notified' => false,
+                    ]);
+                }
+            }
+
+            $this->createLessonAssignmentNotifications($student, $lessonIds);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student added successfully!',
+            'student' => $student,
+            'assigned_count' => count($lessonIds),
+        ]);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to save student: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
     /**
      * Import multiple students from parsed Excel JSON.
@@ -432,7 +476,7 @@ class StudentsController extends Controller
                             'missing' => [],
                             'reason'  => 'Student already exists in your class.',
                         ];
-                    } elseif ($existingStudent->status !== 'unenrolled') {
+                    } elseif ($existingStudent->status !== 'inactive') {
                         // Blocked — still enrolled under another teacher
                         $otherTeacher = $existingStudent->teacher;
                         $teacherName  = $otherTeacher
@@ -506,6 +550,7 @@ class StudentsController extends Controller
                     'school_year'      => $schoolYear,
                     'fsl_mastery_level'=> $masteryLevel,
                     'program_type'     => $programType,
+                    'status'           => 'active',
                 ]);
 
                 $imported++;
@@ -648,122 +693,101 @@ class StudentsController extends Controller
     /**
      * Format student details response.
      */
-    private function getStudentDetailsResponse(Student $student)
-    {
-        $user = \App\Models\User::find($student->user_id);
+   private function getStudentDetailsResponse(Student $student)
+{
+    $user = \App\Models\User::find($student->user_id);
 
-        $xp  = $student->total_xp ?? 0;
-        $lvl = $student->fsl_mastery_level;
+    $xp  = $student->total_xp ?? 0;
+    $lvl = $student->fsl_mastery_level;
 
-        $xpThresholds = ['Beginner' => 300, 'Intermediate' => 600, 'Advanced' => 1000];
-        $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
-        $demotionMap  = ['Intermediate' => 'Beginner', 'Advanced' => 'Intermediate', 'Completed' => 'Advanced'];
+    $xpThresholds = ['Beginner' => 300, 'Intermediate' => 600, 'Advanced' => 1000];
+    $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
+    $demotionMap  = ['Intermediate' => 'Beginner', 'Advanced' => 'Intermediate', 'Completed' => 'Advanced'];
 
-        $promoteTo  = $promotionMap[$lvl] ?? null;
-        $requiredXp = $xpThresholds[$lvl] ?? 0;
-        $enoughXp   = $xp >= $requiredXp;
-        $demoteTo   = $demotionMap[$lvl] ?? null;
+    $promoteTo  = $promotionMap[$lvl] ?? null;
+    $requiredXp = $xpThresholds[$lvl] ?? 0;
+    $enoughXp   = $xp >= $requiredXp;
+    $demoteTo   = $demotionMap[$lvl] ?? null;
 
-        // ── Lesson-progress-based promotion eligibility ─────────────────
-        // Count all published lessons belonging to modules at the student's current mastery level
-        $lessonsTotal = 0;
-        $lessonsCompleted = 0;
-        $lessonsReady = false;
+    // ── Lesson-progress-based promotion eligibility ─────────────────
+    // 🔥 FIX: Count only lessons that are ASSIGNED to this student
+    $lessonsTotal = 0;
+    $lessonsCompleted = 0;
+    $lessonsReady = false;
 
-        if ($promoteTo !== null && $lvl !== 'Completed') {
-            $lessonsTotal = \App\Models\Lesson::where('status', 'published')
-                ->whereNull('deleted_at')
-                ->whereHas('module', function ($q) use ($lvl) {
-                    $q->where('mastery_level', $lvl);
-                })
-                ->count();
-
-            if ($lessonsTotal > 0) {
-                $completedIds = \App\Models\StudentLessonProgress::where('student_id', $student->student_id)
-                    ->where('lesson_completed', true)
-                    ->pluck('lesson_id')
-                    ->toArray();
-
-                // Only count completed lessons that belong to the student's current level modules
-                $lessonsCompleted = \App\Models\Lesson::where('status', 'published')
+    if ($promoteTo !== null && $lvl !== 'Completed') {
+        // Get all lessons assigned to this student at this level
+        $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
+            ->whereHas('lesson', function($query) use ($lvl) {
+                $query->where('status', 'published')
                     ->whereNull('deleted_at')
-                    ->whereIn('lesson_id', $completedIds)
-                    ->whereHas('module', function ($q) use ($lvl) {
+                    ->whereHas('module', function($q) use ($lvl) {
                         $q->where('mastery_level', $lvl);
-                    })
-                    ->count();
+                    });
+            })
+            ->pluck('lesson_id')
+            ->toArray();
 
-                $lessonsReady = $lessonsCompleted >= $lessonsTotal;
-            }
+        $lessonsTotal = count($assignedLessonIds);
+
+        // 🔥 If no assigned lessons, the student is "lesson-ready" (no lessons to complete)
+        if ($lessonsTotal === 0) {
+            $lessonsReady = true;
+        } else {
+            // Get completed lesson IDs from student_lesson_progress
+            $completedIds = \App\Models\StudentLessonProgress::where('student_id', $student->student_id)
+                ->where('lesson_completed', true)
+                ->pluck('lesson_id')
+                ->toArray();
+
+            // Count only assigned lessons that are completed
+            $lessonsCompleted = count(array_intersect($assignedLessonIds, $completedIds));
+
+            $lessonsReady = $lessonsCompleted >= $lessonsTotal;
         }
-
-        return [
-            'student_id'        => $student->student_id,
-            'first_name'        => $student->first_name,
-            'last_name'         => $student->last_name,
-            'full_name'         => $student->first_name . ' ' . $student->last_name,
-            'lrn'               => $student->lrn,
-            'pin'               => $student->pin,
-            'age'               => $student->age,
-            'grade_level'       => $student->grade_level,
-            'section'           => $student->section,
-            'school_year'       => $student->school_year,
-            'program_type'      => $student->program_type,
-            'fsl_mastery_level' => $lvl,
-            'status'            => $student->status,
-            'total_xp'          => $xp,
-            'level'             => $student->level ?? 1,
-            'streak_days'       => $student->streak_days ?? 0,
-            'last_activity_date'=> $student->last_activity_date,
-            'created_at'        => $student->created_at?->format('M d, Y'),
-            'updated_at'        => $student->updated_at?->format('M d, Y'),
-            'email'             => $user?->email,
-            'username'          => $user?->username,
-            'avatar_url'        => 'https://ui-avatars.com/api/?name=' . urlencode($student->first_name . ' ' . $student->last_name) . '&background=0d326b&color=fff&rounded=true&size=128',
-            'promote_to'        => $promoteTo,
-            'demote_to'         => $demoteTo,
-            'required_xp'       => $requiredXp,
-            'enough_xp'         => $enoughXp,
-            'xp_bar_pct'        => $requiredXp > 0 ? min(100, round($xp / $requiredXp * 100)) : 100,
-            'lessons_total'     => $lessonsTotal,
-            'lessons_completed' => $lessonsCompleted,
-            'lessons_ready'     => $lessonsReady,
-            'promotions'        => $student->promotions->map(fn($p) => [
-                'from'   => $p->from_level,
-                'to'     => $p->to_level,
-                'xp'     => $p->xp_at_promotion,
-                'date'   => $p->promoted_at?->format('M d, Y'),
-                'forced' => (bool) $p->was_forced,
-            ])->toArray(),
-        ];
     }
 
-    /**
-     * Enroll (set status = active) a student.
-     */
-    public function enroll($id)
-    {
-        $teacher = Auth::user()->teacher;
-        if (!$teacher) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
-        }
-
-        $student = Student::where('student_id', $id)
-                          ->where('teacher_id', $teacher->id)
-                          ->firstOrFail();
-
-        if ($student->status === 'active') {
-            return response()->json(['success' => false, 'message' => 'Student is already enrolled.'], 422);
-        }
-
-        $student->update(['status' => 'active']);
-
-        return response()->json([
-            'success' => true,
-            'message' => $student->first_name . ' ' . $student->last_name . ' has been enrolled successfully.',
-            'student' => $this->getStudentDetailsResponse($student),
-        ]);
-    }
+    return [
+        'student_id'        => $student->student_id,
+        'first_name'        => $student->first_name,
+        'last_name'         => $student->last_name,
+        'full_name'         => $student->first_name . ' ' . $student->last_name,
+        'lrn'               => $student->lrn,
+        'pin'               => $student->pin,
+        'age'               => $student->age,
+        'grade_level'       => $student->grade_level,
+        'section'           => $student->section,
+        'school_year'       => $student->school_year,
+        'program_type'      => $student->program_type,
+        'fsl_mastery_level' => $lvl,
+        'status'            => $student->status,
+        'total_xp'          => $xp,
+        'level'             => $student->level ?? 1,
+        'streak_days'       => $student->streak_days ?? 0,
+        'last_activity_date'=> $student->last_activity_date,
+        'created_at'        => $student->created_at?->format('M d, Y'),
+        'updated_at'        => $student->updated_at?->format('M d, Y'),
+        'email'             => $user?->email,
+        'username'          => $user?->username,
+        'avatar_url'        => 'https://ui-avatars.com/api/?name=' . urlencode($student->first_name . ' ' . $student->last_name) . '&background=0d326b&color=fff&rounded=true&size=128',
+        'promote_to'        => $promoteTo,
+        'demote_to'         => $demoteTo,
+        'required_xp'       => $requiredXp,
+        'enough_xp'         => $enoughXp,
+        'xp_bar_pct'        => $requiredXp > 0 ? min(100, round($xp / $requiredXp * 100)) : 100,
+        'lessons_total'     => $lessonsTotal,
+        'lessons_completed' => $lessonsCompleted,
+        'lessons_ready'     => $lessonsReady,
+        'promotions'        => $student->promotions->map(fn($p) => [
+            'from'   => $p->from_level,
+            'to'     => $p->to_level,
+            'xp'     => $p->xp_at_promotion,
+            'date'   => $p->promoted_at?->format('M d, Y'),
+            'forced' => (bool) $p->was_forced,
+        ])->toArray(),
+    ];
+}
+   
 
     /**
      * Unenroll (set status = inactive) a student.
@@ -795,93 +819,101 @@ class StudentsController extends Controller
     /**
      * Promote a student to the next FSL mastery level.
      */
-    public function promote(Request $request, $id)
-    {
-        $teacher = Auth::user()->teacher;
-        if (!$teacher) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
-        }
+  public function promote(Request $request, $id)
+{
+    $teacher = Auth::user()->teacher;
+    if (!$teacher) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+    }
 
-        $request->validate([
-            'target_level' => 'required|in:Intermediate,Advanced,Completed',
-            'force'        => 'nullable|boolean',
+    $request->validate([
+        'target_level' => 'required|in:Intermediate,Advanced,Completed',
+        'force'        => 'nullable|boolean',
+    ]);
+
+    $student = Student::where('student_id', $id)
+        ->where('teacher_id', $teacher->id)
+        ->firstOrFail();
+
+    $xp         = $student->total_xp ?? 0;
+    $currentLvl = $student->fsl_mastery_level;
+    $targetLvl  = $request->target_level;
+    $force      = (bool) $request->input('force', false);
+
+    // Validate the promotion path is logical
+    $allowedPaths = [
+        'Beginner'     => 'Intermediate',
+        'Intermediate' => 'Advanced',
+        'Advanced'     => 'Completed',
+    ];
+
+    if (!isset($allowedPaths[$currentLvl]) || $allowedPaths[$currentLvl] !== $targetLvl) {
+        return response()->json([
+            'success' => false,
+            'message' => "Invalid promotion path: {$currentLvl} → {$targetLvl}."
+        ], 422);
+    }
+
+    // XP thresholds
+    $xpRequired = ['Beginner' => 300, 'Intermediate' => 600, 'Advanced' => 1000];
+    $requiredXp = $xpRequired[$currentLvl] ?? 0;
+
+    // ── Lesson-completion check (ONLY assigned lessons) ────────────────
+    $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
+        ->whereHas('lesson', function($query) use ($currentLvl) {
+            $query->where('status', 'published')
+                ->whereNull('deleted_at')
+                ->whereHas('module', function($q) use ($currentLvl) {
+                    $q->where('mastery_level', $currentLvl);
+                });
+        })
+        ->pluck('lesson_id')
+        ->toArray();
+
+    $lessonsTotal = count($assignedLessonIds);
+
+    // 🔥 If no assigned lessons, the student is lesson-ready
+    if ($lessonsTotal === 0) {
+        $meetsLessons = true;
+        $lessonsCompleted = 0;
+    } else {
+        $completedIds = \App\Models\StudentLessonProgress::where('student_id', $student->student_id)
+            ->where('lesson_completed', true)
+            ->pluck('lesson_id')
+            ->toArray();
+
+        $lessonsCompleted = count(array_intersect($assignedLessonIds, $completedIds));
+        $meetsLessons = ($lessonsCompleted >= $lessonsTotal);
+    }
+
+    // If lessons not completed and not forcing, reject
+    if (!$meetsLessons && !$force) {
+        return response()->json([
+            'success'           => false,
+            'message'           => "Student has only completed {$lessonsCompleted}/{$lessonsTotal} assigned lessons for {$currentLvl}.",
+            'lessons_total'     => $lessonsTotal,
+            'lessons_completed' => $lessonsCompleted,
+        ], 422);
+    }
+
+    $wasForced = !$meetsLessons;
+
+    DB::beginTransaction();
+    try {
+        // Update mastery level
+        $student->update(['fsl_mastery_level' => $targetLvl]);
+
+        // Record promotion history
+        StudentPromotion::create([
+            'student_id'      => $student->student_id,
+            'from_level'      => $currentLvl,
+            'to_level'        => $targetLvl,
+            'xp_at_promotion' => $xp,
+            'promoted_by'     => Auth::id(),
+            'was_forced'      => $wasForced,
+            'promoted_at'     => now(),
         ]);
 
-        $student = Student::where('student_id', $id)
-                          ->where('teacher_id', $teacher->id)
-                          ->firstOrFail();
-
-        $xp         = $student->total_xp ?? 0;
-        $currentLvl = $student->fsl_mastery_level;
-        $targetLvl  = $request->target_level;
-        $force      = (bool) $request->input('force', false);
-
-        // Validate the promotion path is logical
-        $allowedPaths = [
-            'Beginner'     => 'Intermediate',
-            'Intermediate' => 'Advanced',
-            'Advanced'     => 'Completed',
-        ];
-
-        if (!isset($allowedPaths[$currentLvl]) || $allowedPaths[$currentLvl] !== $targetLvl) {
-            return response()->json([
-                'success' => false,
-                'message' => "Invalid promotion path: {$currentLvl} → {$targetLvl}."
-            ], 422);
-        }
-
-        // XP thresholds
-        $xpRequired = ['Beginner' => 300, 'Intermediate' => 600, 'Advanced' => 1000];
-        $requiredXp = $xpRequired[$currentLvl] ?? 0;
-        $meetsXp    = $xp >= $requiredXp;
-
-        // ── Lesson-completion check (primary eligibility) ────────────────
-        $lessonsTotal = \App\Models\Lesson::where('status', 'published')
-            ->whereNull('deleted_at')
-            ->whereHas('module', fn($q) => $q->where('mastery_level', $currentLvl))
-            ->count();
-
-        $lessonsCompleted = 0;
-        if ($lessonsTotal > 0) {
-            $completedIds = \App\Models\StudentLessonProgress::where('student_id', $student->student_id)
-                ->where('lesson_completed', true)
-                ->pluck('lesson_id')
-                ->toArray();
-            $lessonsCompleted = \App\Models\Lesson::where('status', 'published')
-                ->whereNull('deleted_at')
-                ->whereIn('lesson_id', $completedIds)
-                ->whereHas('module', fn($q) => $q->where('mastery_level', $currentLvl))
-                ->count();
-        }
-        $meetsLessons = ($lessonsTotal === 0) || ($lessonsCompleted >= $lessonsTotal);
-
-        // If lessons not completed and not forcing, reject
-        if (!$meetsLessons && !$force) {
-            return response()->json([
-                'success'           => false,
-                'message'           => "Student has only completed {$lessonsCompleted}/{$lessonsTotal} lessons for {$currentLvl}.",
-                'lessons_total'     => $lessonsTotal,
-                'lessons_completed' => $lessonsCompleted,
-            ], 422);
-        }
-
-        $wasForced = !$meetsLessons;
-
-        DB::beginTransaction();
-        try {
-            // Update mastery level
-            $student->update(['fsl_mastery_level' => $targetLvl]);
-
-            // Record promotion history
-            StudentPromotion::create([
-                'student_id'      => $student->student_id,
-                'from_level'      => $currentLvl,
-                'to_level'        => $targetLvl,
-                'xp_at_promotion' => $xp,
-                'promoted_by'     => Auth::id(),
-                'was_forced'      => $wasForced,
-                'promoted_at'     => now(),
-            ]);
 
             // ─── 🔔 NOTIFY TEACHER (mastery promoted) ───────────────────
             try {
@@ -1032,5 +1064,273 @@ public function getStreak(Request $request)
         ], 500);
     }
 }
+
+
+/**
+ * Get published lessons for the teacher, for use when adding a brand-new
+ * student — before the student record exists, so nothing can be marked
+ * as already assigned.
+ * GET /students/lessons-for-new-student
+ */
+public function getLessonsForNewStudent()
+{
+    $teacher = Auth::user()->teacher;
+    if (!$teacher) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+    }
+
+    // 🔥 FIX: Only get modules and lessons for THIS teacher
+    $modules = Module::where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+        ->with(['lessons' => function($query) use ($teacher) {
+            $query->where('status', 'published')
+                ->whereNull('deleted_at')
+                ->where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+                ->orderBy('module_order');
+        }])
+        ->orderBy('module_order')
+        ->get();
+
+    $modulesData = $modules->map(function($module) {
+        $lessons = $module->lessons->map(function($lesson) {
+            return [
+                'lesson_id' => $lesson->lesson_id,
+                'title' => $lesson->title,
+                'description' => $lesson->description,
+                'difficulty' => $lesson->difficulty,
+                'is_assigned' => false,
+            ];
+        });
+
+        return [
+            'module_id' => $module->module_id,
+            'module_title' => $module->title,
+            'module_order' => $module->module_order,
+            'lessons' => $lessons,
+            'all_assigned' => false,
+        ];
+    })->filter(function($module) {
+        return $module['lessons']->isNotEmpty();
+    })->values();
+
+    return response()->json([
+        'success' => true,
+        'modules' => $modulesData,
+        'assigned_count' => 0,
+    ]);
+}
+
+public function getAvailableLessons($id)
+{
+    $teacher = Auth::user()->teacher;
+    if (!$teacher) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+    }
+
+    $student = Student::where('student_id', $id)
+        ->where('teacher_id', $teacher->id)
+        ->firstOrFail();
+
+    // 🔥 FIX: Only get modules for THIS teacher
+    $modules = Module::where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+        ->with(['lessons' => function($query) use ($teacher) {
+            $query->where('status', 'published')
+                ->whereNull('deleted_at')
+                ->where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+                ->orderBy('module_order');
+        }])
+        ->orderBy('module_order')
+        ->get();
+
+    // Get currently assigned lesson IDs for this student
+    $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
+        ->pluck('lesson_id')
+        ->toArray();
+
+    // Build response
+    $modulesData = $modules->map(function($module) use ($assignedLessonIds) {
+        $lessons = $module->lessons->map(function($lesson) use ($assignedLessonIds) {
+            return [
+                'lesson_id' => $lesson->lesson_id,
+                'title' => $lesson->title,
+                'description' => $lesson->description,
+                'difficulty' => $lesson->difficulty,
+                'is_assigned' => in_array($lesson->lesson_id, $assignedLessonIds),
+            ];
+        });
+
+        return [
+            'module_id' => $module->module_id,
+            'module_title' => $module->title,
+            'module_order' => $module->module_order,
+            'lessons' => $lessons,
+            'all_assigned' => $lessons->every(fn($l) => $l['is_assigned']),
+        ];
+    })->filter(function($module) {
+        return $module['lessons']->isNotEmpty();
+    })->values();
+
+    return response()->json([
+        'success' => true,
+        'student' => [
+            'id' => $student->student_id,
+            'name' => $student->first_name . ' ' . $student->last_name,
+        ],
+        'modules' => $modulesData,
+        'assigned_count' => count($assignedLessonIds),
+    ]);
+}
+/**
+ * Update lesson assignments for a student
+ * POST /students/{id}/assign-lessons
+ */
+public function assignLessons(Request $request, $id)
+{
+    $teacher = Auth::user()->teacher;
+    if (!$teacher) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+    }
+
+    $student = Student::where('student_id', $id)
+        ->where('teacher_id', $teacher->id)
+        ->firstOrFail();
+
+    $validator = Validator::make($request->all(), [
+        'lesson_ids' => 'required|array',
+        'lesson_ids.*' => 'exists:lessons,lesson_id',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'message' => 'Invalid data',
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    $lessonIds = $request->lesson_ids;
+    $currentAssignments = LessonAssignment::where('student_id', $student->student_id)
+        ->pluck('lesson_id')
+        ->toArray();
+
+    DB::beginTransaction();
+    try {
+        // Remove assignments for lessons not in the new list
+        $toRemove = array_diff($currentAssignments, $lessonIds);
+        if (!empty($toRemove)) {
+            LessonAssignment::where('student_id', $student->student_id)
+                ->whereIn('lesson_id', $toRemove)
+                ->delete();
+        }
+
+        // Add new assignments
+        $toAdd = array_diff($lessonIds, $currentAssignments);
+        foreach ($toAdd as $lessonId) {
+            // Determine if this is the first lesson in its module (should be unlocked)
+            $lesson = Lesson::find($lessonId);
+            $isLocked = true;
+            
+            if ($lesson) {
+                $firstLesson = Lesson::where('module_id', $lesson->module_id)
+                    ->where('status', 'published')
+                    ->whereNull('deleted_at')
+                    ->orderBy('module_order', 'asc')
+                    ->first();
+                
+                if ($firstLesson && $firstLesson->lesson_id == $lessonId) {
+                    $isLocked = false;
+                }
+            }
+
+            LessonAssignment::create([
+                'lesson_id' => $lessonId,
+                'student_id' => $student->student_id,
+                'assigned_at' => now(),
+                'status' => 'pending',
+                'is_locked' => $isLocked,
+                'notified' => false,
+            ]);
+        }
+
+        // If student is active, notify them about new lessons
+        if ($student->status === 'active' && !empty($toAdd)) {
+            $this->createLessonAssignmentNotifications($student, $toAdd);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lesson assignments updated successfully!',
+            'assigned_count' => count($lessonIds),
+            'added' => count($toAdd),
+            'removed' => count($toRemove),
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update assignments: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Create notifications for newly assigned lessons
+ */
+private function createLessonAssignmentNotifications($student, $lessonIds)
+{
+    $lessons = Lesson::whereIn('lesson_id', $lessonIds)->get();
+    
+    foreach ($lessons as $lesson) {
+        $exists = StudentNotification::where('student_id', $student->student_id)
+            ->where('type', 'lesson')
+            ->where('data->lesson_id', $lesson->lesson_id)
+            ->exists();
+
+        if (!$exists) {
+            StudentNotification::create([
+                'student_id' => $student->student_id,
+                'type' => 'lesson',
+                'title' => '📚 New Lesson Assigned!',
+                'message' => "\"{$lesson->title}\" has been assigned to you. Start learning today! 🎓",
+                'icon' => 'book',
+                'color' => '#3B82F6',
+                'data' => ['lesson_id' => $lesson->lesson_id, 'lesson_title' => $lesson->title],
+                'action_url' => '/lessons',
+                'is_read' => false,
+            ]);
+        }
+    }
+}
+
+/**
+ * Modified enroll method to show assignment modal
+ */
+public function enroll($id)
+{
+    $teacher = Auth::user()->teacher;
+    if (!$teacher) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+    }
+
+    $student = Student::where('student_id', $id)
+        ->where('teacher_id', $teacher->id)
+        ->firstOrFail();
+
+    if ($student->status === 'active') {
+        return response()->json(['success' => false, 'message' => 'Student is already enrolled.'], 422);
+    }
+
+    $student->update(['status' => 'active']);
+
+    // Return the student data with a flag that assignments need to be managed
+    return response()->json([
+        'success' => true,
+        'message' => $student->first_name . ' ' . $student->last_name . ' has been enrolled successfully.',
+        'student' => $this->getStudentDetailsResponse($student),
+        'show_assignment_modal' => true, // Flag to trigger the assignment modal
+    ]);
+}
+
 
 }
