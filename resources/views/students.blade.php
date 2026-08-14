@@ -2502,47 +2502,57 @@ function renderAssignmentList() {
 
     // ── Event listeners ──────────────────────────────────────────────────────
     // Individual lesson checkboxes
-    assignList.querySelectorAll('.lesson-checkbox').forEach(cb => {
-        cb.addEventListener('change', function() {
-    const lessonId = this.dataset.lessonId; // Keep as string, don't parseInt!
-    if (this.checked) {
-        _assignSelectedIds.add(lessonId);
-    } else {
-        _assignSelectedIds.delete(lessonId);
-    }
-            // Update module checkbox state
-            const moduleContainer = this.closest('.border');
-            if (moduleContainer) {
-                const moduleCb = moduleContainer.querySelector('.module-checkbox');
-                const lessonCbs = moduleContainer.querySelectorAll('.lesson-checkbox');
-                const allChecked = Array.from(lessonCbs).every(c => c.checked);
-                const someChecked = Array.from(lessonCbs).some(c => c.checked);
-                moduleCb.checked = allChecked;
-                moduleCb.indeterminate = !allChecked && someChecked;
-            }
-            updateAssignmentStats();
-        });
-    });
-
-    // Module checkboxes (select/deselect all in module)
-    assignList.querySelectorAll('.module-checkbox').forEach(cb => {
-        cb.addEventListener('change', function() {
-            const moduleContainer = this.closest('.border');
-            if (!moduleContainer) return;
+assignList.querySelectorAll('.lesson-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const lessonId = this.dataset.lessonId; // Keep as string
+        console.log('📎 Checkbox changed:', lessonId, 'checked:', this.checked, 'type:', typeof lessonId);
+        if (this.checked) {
+            // Always add as string
+            _assignSelectedIds.add(String(lessonId));
+        } else {
+            _assignSelectedIds.delete(String(lessonId));
+        }
+        // Update module checkbox state
+        const moduleContainer = this.closest('.border');
+        if (moduleContainer) {
+            const moduleCb = moduleContainer.querySelector('.module-checkbox');
             const lessonCbs = moduleContainer.querySelectorAll('.lesson-checkbox');
-            lessonCbs.forEach(lcb => {
-                lcb.checked = this.checked;
-                const lessonId = parseInt(lcb.dataset.lessonId);
-                if (this.checked) {
-                    _assignSelectedIds.add(lessonId);
-                } else {
-                    _assignSelectedIds.delete(lessonId);
-                }
-            });
-            this.indeterminate = false;
-            updateAssignmentStats();
-        });
+            const allChecked = Array.from(lessonCbs).every(c => c.checked);
+            const someChecked = Array.from(lessonCbs).some(c => c.checked);
+            moduleCb.checked = allChecked;
+            moduleCb.indeterminate = !allChecked && someChecked;
+        }
+        console.log('📎 _assignSelectedIds now:', Array.from(_assignSelectedIds));
+        updateAssignmentStats();
     });
+});
+
+   // Module checkboxes
+assignList.querySelectorAll('.module-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const moduleContainer = this.closest('.border');
+        if (!moduleContainer) return;
+        const lessonCbs = moduleContainer.querySelectorAll('.lesson-checkbox');
+        lessonCbs.forEach(lcb => {
+            lcb.checked = this.checked;
+            const lessonId = lcb.dataset.lessonId;
+            console.log('📎 Module checkbox - lesson:', lessonId, 'checked:', this.checked);
+            if (this.checked) {
+                if (lessonId && lessonId !== 'NaN' && lessonId !== '0') {
+                    _assignSelectedIds.add(String(lessonId)); // ← Force string
+                }
+            } else {
+                if (lessonId && lessonId !== 'NaN' && lessonId !== '0') {
+                    _assignSelectedIds.delete(String(lessonId)); // ← Force string
+                }
+            }
+        });
+        this.indeterminate = false;
+        console.log('📎 _assignSelectedIds after module select:', Array.from(_assignSelectedIds));
+        updateAssignmentStats();
+    });
+});
+
 }
 
 function updateAssignmentStats() {
@@ -2574,15 +2584,21 @@ assignModal.addEventListener('click', e => { if (e.target === assignModal) close
 // Select All / Deselect All
 document.getElementById('assignment-select-all').addEventListener('click', function() {
     const checkboxes = assignList.querySelectorAll('.lesson-checkbox');
+    console.log('🔍 Select All - found checkboxes:', checkboxes.length);
     checkboxes.forEach(cb => {
-        cb.checked = true;
-        _assignSelectedIds.add(parseInt(cb.dataset.lessonId));
+        const lessonId = cb.dataset.lessonId;
+        console.log('🔍 Select All - adding:', lessonId, 'type:', typeof lessonId);
+        if (lessonId && lessonId !== 'NaN' && lessonId !== '0') {
+            cb.checked = true;
+            _assignSelectedIds.add(String(lessonId)); // ← Force string
+        }
     });
     // Update module checkboxes
     assignList.querySelectorAll('.module-checkbox').forEach(cb => {
         cb.checked = true;
         cb.indeterminate = false;
     });
+    console.log('🔍 Select All - final Set:', Array.from(_assignSelectedIds));
     updateAssignmentStats();
 });
 
@@ -2590,7 +2606,10 @@ document.getElementById('assignment-deselect-all').addEventListener('click', fun
     const checkboxes = assignList.querySelectorAll('.lesson-checkbox');
     checkboxes.forEach(cb => {
         cb.checked = false;
-        _assignSelectedIds.delete(parseInt(cb.dataset.lessonId));
+        const lessonId = cb.dataset.lessonId;
+        if (lessonId && lessonId !== 'NaN' && lessonId !== '0') {
+            _assignSelectedIds.delete(lessonId);
+        }
     });
     assignList.querySelectorAll('.module-checkbox').forEach(cb => {
         cb.checked = false;
