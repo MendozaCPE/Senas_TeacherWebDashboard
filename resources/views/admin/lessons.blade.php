@@ -370,7 +370,17 @@ function loadPushTeachers() {
     })
     .then(r => r.json())
     .then(data => {
+        // ✅ DEBUG: Log the full response
+        console.log('📦 Full response from server:', data);
+        console.log('👩‍🏫 Teachers array:', data.teachers);
+        
         pushTeachers = data.teachers || [];
+        
+        // ✅ DEBUG: Check each teacher's has_copies
+        pushTeachers.forEach(t => {
+            console.log(`Teacher ${t.id}: ${t.name} → has_copies: ${t.has_copies} (${typeof t.has_copies})`);
+        });
+        
         renderPushTeachers(pushTeachers);
         loading.classList.add('hidden');
         container.classList.remove('hidden');
@@ -392,12 +402,18 @@ function renderPushTeachers(teachers) {
     }
 
     teachers.forEach(teacher => {
+        // ✅ DEBUG: Log each teacher's has_copies value
+        console.log(`🔍 Rendering ${teacher.name}: has_copies = ${teacher.has_copies} (${typeof teacher.has_copies})`);
+        
         const div = document.createElement('div');
         div.className = 'flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors teacher-row';
         div.dataset.id = teacher.id;
         div.dataset.name = teacher.name.toLowerCase();
 
-        const hasCopiesBadge = teacher.has_copies 
+        // ✅ FIX: Explicitly check for true or 1
+        const hasCopies = teacher.has_copies === true || teacher.has_copies === 1 || teacher.has_copies === '1';
+        
+        const hasCopiesBadge = hasCopies 
             ? '<span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Has copies</span>'
             : '<span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">No copies yet</span>';
 
@@ -420,7 +436,7 @@ function renderPushTeachers(teachers) {
     document.querySelectorAll('.push-teacher-checkbox').forEach(cb => {
         const id = parseInt(cb.dataset.id);
         const teacher = pushTeachers.find(t => t.id === id);
-        if (teacher && teacher.has_copies) {
+        if (teacher && (teacher.has_copies === true || teacher.has_copies === 1 || teacher.has_copies === '1')) {
             cb.checked = true;
         }
     });

@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
 /**
  * Adds "default curriculum" template support.
  *
+ * ✅ FIXED VERSION - CLONES modules instead of MOVING them
+ * 
  * How it works:
  *  - A single dedicated "system" Teacher/User row owns all template
  *    modules/lessons/checkpoint exams (role = 'teacher', is_system = true)
@@ -23,8 +25,8 @@ use Illuminate\Support\Str;
  *    that belong to that system owner
  *  - `source_template_id` on modules/lessons/checkpoint_exams records which
  *    template a per-teacher copy was cloned from
- *  - The 3 existing default modules (currently owned by teacher_id 1) are
- *    reassigned to the system teacher and flagged as templates
+ *  - ✅ FIX: Modules 4, 6, 7 are CLONED to the system teacher, NOT moved
+ *  - ✅ Teacher 1 keeps their original modules with student data intact
  */
 return new class extends Migration
 {
@@ -69,14 +71,17 @@ return new class extends Migration
             });
         }
 
-        // ── 2. Create the dedicated system template owner + promote data ──
+        // ── 2. Create the dedicated system template owner ────────────────
         try {
             DB::transaction(function () {
                 $systemTeacherId = $this->ensureSystemTeacher();
-                $this->promoteInitialModules($systemTeacherId);
+                
+                // ✅ FIX: CLONE modules to system teacher (DO NOT MOVE!)
+                $this->cloneModulesToSystemTeacher($systemTeacherId);
             });
         } catch (\Throwable $e) {
-            Log::error('[add_default_lesson_template_support] Skipped auto-promotion: ' . $e->getMessage());
+            Log::error('[add_default_lesson_template_support] Error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
         }
     }
 
@@ -144,31 +149,184 @@ return new class extends Migration
             'school_id'      => School::query()->value('id'),
             'first_name'     => 'Default',
             'last_name'      => 'Curriculum',
-            'specialization' => 'System',
+            'specialization' => 'Regular',  // ✅ FIX: Use 'Regular' instead of 'System'
         ])->id;
     }
 
-    private function promoteInitialModules(int $systemTeacherId): void
+    /**
+     * ✅ FIX: CLONE modules to system teacher instead of moving them!
+     * This preserves Teacher 1's modules with all student data.
+     */
+    private function cloneModulesToSystemTeacher(int $systemTeacherId): void
     {
         foreach ($this->initialTemplateModuleIds as $moduleId) {
-            $module = Module::withTrashed()->find($moduleId);
-            if (!$module) {
+            $originalModule = Module::withTrashed()->find($moduleId);
+            if (!$originalModule) {
+                Log::warning("Module {$moduleId} not found, skipping clone");
                 continue;
             }
 
-            $module->teacher_id = $systemTeacherId;
-            $module->is_template = true;
-            $module->save();
+            // ✅ CLONE the module to system teacher
+            $clonedModule = Module::create([
+                'teacher_id'         => $systemTeacherId,
+                'title'              => $originalModule->title,
+                'description'        => $originalModule->description,
+                'mastery_level'      => $originalModule->mastery_level,
+                'module_order'       => $originalModule->module_order,
+                'status'             => 'published',
+                'is_template'        => true,
+                'source_template_id' => $originalModule->module_id, // Track which original it came from
+            ]);
 
-            DB::table('lessons')
-                ->where('module_id', $moduleId)
-                ->update(['teacher_id' => $systemTeacherId, 'is_template' => true]);
+            Log::info("✅ Cloned module {$originalModule->module_id} to system teacher as module {$clonedModule->module_id}");
 
+            // ✅ CLONE lessons
+            $originalLessons = DB::table('lessons')
+                ->where('module_id', $originalModule->module_id)
+                ->get();
+
+            foreach ($originalLessons as $originalLesson) {
+                $clonedLessonId = DB::table('lessons')->insertGetId([
+                    'teacher_id'         => $systemTeacherId,
+                    'module_id'          => $clonedModule->module_id,
+                    'title'              => $originalLesson->title,
+                    'description'        => $originalLesson->description,
+                    'lesson_type'        => $originalLesson->lesson_type,
+                    'difficulty'         => $originalLesson->difficulty,
+                    'module_order'       => $originalLesson->module_order,
+                    'status'             => 'published',
+                    'published_at'       => now(),
+                    'is_template'        => true,
+                    'source_template_id' => $originalLesson->lesson_id, // Track original lesson
+                    'created_at'         => now(),
+                    'updated_at'         => now(),
+                ]);
+
+                // ✅ CLONE lesson contents
+                $contents = DB::table('lesson_contents')
+                    ->where('lesson_id', $originalLesson->lesson_id)
+                    ->get();
+
+                foreach ($contents as $content) {
+                    DB::table('lesson_contents')->insert([
+                        'lesson_id'     => $clonedLessonId,
+                        'step_number'   => $content->step_number,
+                        'content_type'  => $content->content_type,
+                        'title'         => $content->title,
+                        'content_text'  => $content->content_text,
+                        'media_url'     => $content->media_url,
+                        'gesture_name'  => $content->gesture_name,
+                        'media_missing' => $content->media_missing,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+                }
+
+                // ✅ CLONE quiz
+                $originalQuiz = DB::table('quizzes')
+                    ->where('lesson_id', $originalLesson->lesson_id)
+                    ->first();
+
+                if ($originalQuiz) {
+                    $clonedQuizId = DB::table('quizzes')->insertGetId([
+                        'lesson_id'     => $clonedLessonId,
+                        'title'         => $originalQuiz->title,
+                        'description'   => $originalQuiz->description,
+                        'total_points'  => $originalQuiz->total_points,
+                        'passing_score' => $originalQuiz->passing_score,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+
+                    // ✅ CLONE quiz questions
+                    $questions = DB::table('quiz_questions')
+                        ->where('quiz_id', $originalQuiz->quiz_id)
+                        ->get();
+
+                    foreach ($questions as $question) {
+                        $clonedQuestionId = DB::table('quiz_questions')->insertGetId([
+                            'quiz_id'          => $clonedQuizId,
+                            'question_number'  => $question->question_number,
+                            'question_type'    => $question->question_type,
+                            'question_text'    => $question->question_text,
+                            'media_url'        => $question->media_url,
+                            'drag_drop_pairs'  => $question->drag_drop_pairs,
+                            'gesture_data'     => $question->gesture_data,
+                            'gesture_required' => $question->gesture_required,
+                            'points'           => $question->points,
+                            'created_at'       => now(),
+                            'updated_at'       => now(),
+                        ]);
+
+                        // ✅ CLONE quiz options
+                        $options = DB::table('quiz_options')
+                            ->where('question_id', $question->question_id)
+                            ->get();
+
+                        foreach ($options as $option) {
+                            DB::table('quiz_options')->insert([
+                                'question_id'       => $clonedQuestionId,
+                                'option_text'       => $option->option_text,
+                                'option_media_url'  => $option->option_media_url,
+                                'is_correct'        => $option->is_correct,
+                                'created_at'        => now(),
+                                'updated_at'        => now(),
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // ✅ CLONE checkpoint exams
             if (Schema::hasTable('checkpoint_exams')) {
-                DB::table('checkpoint_exams')
-                    ->where('module_id', $moduleId)
-                    ->update(['teacher_id' => $systemTeacherId, 'is_template' => true]);
+                $originalExams = DB::table('checkpoint_exams')
+                    ->where('module_id', $originalModule->module_id)
+                    ->get();
+
+                foreach ($originalExams as $originalExam) {
+                    $clonedExamId = DB::table('checkpoint_exams')->insertGetId([
+                        'module_id'           => $clonedModule->module_id,
+                        'teacher_id'          => $systemTeacherId,
+                        'title'               => $originalExam->title,
+                        'description'         => $originalExam->description,
+                        'total_points'        => $originalExam->total_points,
+                        'passing_score'       => $originalExam->passing_score,
+                        'time_limit_minutes'  => $originalExam->time_limit_minutes,
+                        'status'              => 'published',
+                        'is_template'         => true,
+                        'source_template_id'  => $originalExam->exam_id,
+                        'published_at'        => now(),
+                        'created_at'          => now(),
+                        'updated_at'          => now(),
+                    ]);
+
+                    // ✅ CLONE checkpoint exam questions
+                    $examQuestions = DB::table('checkpoint_exam_questions')
+                        ->where('exam_id', $originalExam->exam_id)
+                        ->get();
+
+                    foreach ($examQuestions as $eq) {
+                        DB::table('checkpoint_exam_questions')->insert([
+                            'exam_id'             => $clonedExamId,
+                            'source_lesson_id'    => $eq->source_lesson_id,
+                            'source_question_id'  => $eq->source_question_id,
+                            'question_number'     => $eq->question_number,
+                            'question_text'       => $eq->question_text,
+                            'question_type'       => $eq->question_type,
+                            'media_url'           => $eq->media_url,
+                            'points'              => $eq->points,
+                            'options_data'        => $eq->options_data,
+                            'drag_drop_pairs'     => $eq->drag_drop_pairs,
+                            'gesture_data'        => $eq->gesture_data,
+                            'correct_answer'      => $eq->correct_answer,
+                            'created_at'          => now(),
+                            'updated_at'          => now(),
+                        ]);
+                    }
+                }
             }
         }
+
+        Log::info("✅ Successfully cloned all modules to system teacher");
     }
 };

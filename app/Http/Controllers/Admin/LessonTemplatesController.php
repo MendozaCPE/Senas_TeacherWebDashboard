@@ -61,38 +61,45 @@ class LessonTemplatesController extends Controller
         return view('admin.lessons', compact('modules', 'usedLessonIds', 'allTeachers'));
     }
 
-    /**
-     * GET /admin/lessons/teachers — get list of teachers for the modal
-     */
-    public function getTeachers()
-    {
-        $teachers = Teacher::with('user')
-            ->whereHas('user', function ($q) {
-                $q->where('is_system', false)
-                  ->where('role', 'teacher');
-            })
-            ->get()
-            ->map(function ($teacher) {
-                // Check if this teacher has copies of default modules
-                $hasCopies = Module::where('teacher_id', $teacher->id)
-                    ->whereNotNull('source_template_id')
-                    ->exists();
-                
-                return [
-                    'id' => $teacher->id,
-                    'name' => trim($teacher->first_name . ' ' . $teacher->last_name),
-                    'email' => $teacher->user->email ?? null,
-                    'has_copies' => $hasCopies,
-                    'initials' => strtoupper(
-                        substr($teacher->first_name, 0, 1) . 
-                        substr($teacher->last_name, 0, 1)
-                    ),
-                ];
-            });
+/**
+ * GET /admin/lessons/teachers — get list of teachers for the modal
+ */
+public function getTeachers()
+{
+    $teachers = Teacher::with('user')
+        ->whereHas('user', function ($q) {
+            $q->where('is_system', false)
+              ->where('role', 'teacher');
+        })
+        ->get()
+        ->map(function ($teacher) {
+            // ✅ Check if teacher has copies (source_template_id != NULL)
+            $hasCopies = Module::where('teacher_id', $teacher->id)
+                ->whereNotNull('source_template_id')
+                ->exists();
+            
+            // ✅ ALSO check if teacher owns the original modules (4, 6, 7)
+            $ownsOriginals = Module::where('teacher_id', $teacher->id)
+                ->whereIn('module_id', [4, 6, 7])
+                ->exists();
+            
+            // ✅ Teacher has copies if they have cloned modules OR own the originals
+            $hasCopies = $hasCopies || $ownsOriginals;
+            
+            return [
+                'id' => $teacher->id,
+                'name' => trim($teacher->first_name . ' ' . $teacher->last_name),
+                'email' => $teacher->user->email ?? null,
+                'has_copies' => $hasCopies,
+                'initials' => strtoupper(
+                    substr($teacher->first_name, 0, 1) . 
+                    substr($teacher->last_name, 0, 1)
+                ),
+            ];
+        });
 
-        return response()->json(['teachers' => $teachers]);
-    }
-
+    return response()->json(['teachers' => $teachers]);
+}
     /**
      * POST /admin/lessons/push-selected — push to selected teachers only
      */
@@ -156,4 +163,6 @@ class LessonTemplatesController extends Controller
         return redirect()->route('admin.lesson-templates.index')
             ->with('success', 'Module promoted to a default lesson. It will now be cloned for every new teacher.');
     }
+
+
 }
