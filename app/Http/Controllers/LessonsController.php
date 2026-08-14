@@ -1001,9 +1001,6 @@ public function update(Request $request, $id)
 /**
  * Show the publish configuration page
  */
-/**
- * Show the publish configuration page
- */
 public function showPublishConfig($id)
 {
     $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
@@ -1018,13 +1015,15 @@ public function showPublishConfig($id)
         ->orderBy('module_order')
         ->get();
 
+    // ✅ FIX: Only show students belonging to this teacher
     $students = DB::table('students')
         ->select('student_id', 'first_name', 'last_name',
-            'lrn',  // Add LRN for identification
-            'fsl_mastery_level as mastery_level',   // Map to mastery_level for display
-            'program_type as program',              // Map to program for display
+            'lrn',
+            'fsl_mastery_level as mastery_level',
+            'program_type as program',
             'grade_level', 'section', 'status')
         ->where('status', 'active')
+        ->where('teacher_id', $teacherId)  // ✅ ADD THIS LINE
         ->orderBy('last_name')
         ->get();
 
@@ -1352,39 +1351,48 @@ public function destroy($id)
     // This now does a soft delete by default
     return $this->softDelete($id);
 }
-    /**
-     * Return JSON list of all active students + which ones are assigned to this lesson.
-     * Used by the inline "Edit Students" modal (GET).
-     */
-    public function manageStudents($id)
-    {
-        $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
-        $lesson = Lesson::findOrFail($id);
+   /**
+ * Return JSON list of all active students + which ones are assigned to this lesson.
+ * Used by the inline "Edit Students" modal (GET).
+ */
+/**
+ * Return JSON list of all active students + which ones are assigned to this lesson.
+ * Used by the inline "Edit Students" modal (GET).
+ */
+public function manageStudents($id)
+{
+    $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $lesson = Lesson::findOrFail($id);
+    
+    // ✅ Get the current teacher's ID
+    $teacherId = $this->resolveTeacherId();
 
-        $assignedIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
-            ->pluck('student_id')
-            ->map(fn ($v) => (int) $v)
-            ->toArray();
+    $assignedIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+        ->pluck('student_id')
+        ->map(fn ($v) => (int) $v)
+        ->toArray();
 
-        $students = DB::table('students')
-            ->select('student_id', 'first_name', 'last_name', 'lrn',
-                'fsl_mastery_level as mastery_level',
-                'program_type as program',
-                'grade_level', 'section')
-            ->where('status', 'active')
-            ->orderBy('last_name')
-            ->get()
-            ->map(function ($s) use ($assignedIds) {
-                $s->assigned = in_array((int) $s->student_id, $assignedIds, true);
-                return $s;
-            });
+    // ✅ FILTER: Only show students belonging to this teacher
+    $students = DB::table('students')
+        ->select('student_id', 'first_name', 'last_name', 'lrn',
+            'fsl_mastery_level as mastery_level',
+            'program_type as program',
+            'grade_level', 'section')
+        ->where('status', 'active')
+        ->where('teacher_id', $teacherId)  // ✅ ADD THIS LINE
+        ->orderBy('last_name')
+        ->get()
+        ->map(function ($s) use ($assignedIds) {
+            $s->assigned = in_array((int) $s->student_id, $assignedIds, true);
+            return $s;
+        });
 
-        return response()->json([
-            'lesson_id'   => $lesson->lesson_id,
-            'lesson_title'=> $lesson->title,
-            'students'    => $students,
-        ]);
-    }
+    return response()->json([
+        'lesson_id'   => $lesson->lesson_id,
+        'lesson_title'=> $lesson->title,
+        'students'    => $students,
+    ]);
+}
 
     /**
      * Replace the student assignment list for a lesson (POST).
