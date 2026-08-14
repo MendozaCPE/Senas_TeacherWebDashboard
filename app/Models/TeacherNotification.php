@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class TeacherNotification extends Model
 {
@@ -91,7 +93,7 @@ class TeacherNotification extends Model
     ): self {
         $cfg = self::typeConfig($type);
 
-        return self::create([
+        $notification = self::create([
             'teacher_id' => $teacherId,
             'type'       => $type,
             'title'      => $title,
@@ -102,5 +104,40 @@ class TeacherNotification extends Model
             'action_url' => $actionUrl,
             'is_read'    => false,
         ]);
+
+        // ── Email alert ──────────────────────────────────────────────────────
+        // Only send for student activity events (lesson/quiz related) and only
+        // if the teacher has Email Alerts enabled in their notification prefs.
+        $emailTypes = [
+            'quiz_answered',
+            'module_completed',
+            'module_passed',
+            'level_up',
+            'checkpoint_passed',
+            'challenge_completed',
+            'fingerspelling_completed',
+            'streak_milestone',
+        ];
+
+        if (in_array($type, $emailTypes, true)) {
+            try {
+                $teacher = \App\Models\Teacher::with('user')->find($teacherId);
+
+                if ($teacher && $teacher->notifPref('email_alerts') && $teacher->user?->email) {
+                    \Illuminate\Support\Facades\Mail::to($teacher->user->email)
+                        ->queue(new \App\Mail\StudentActivityMail(
+                            teacherName:  $teacher->first_name,
+                            notifTitle:   $title,
+                            notifMessage: $message,
+                            notifType:    $type,
+                            actionUrl:    $actionUrl,
+                        ));
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Email alert failed: ' . $e->getMessage());
+            }
+        }
+
+        return $notification;
     }
 }

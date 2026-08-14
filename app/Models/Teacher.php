@@ -15,7 +15,23 @@ class Teacher extends Model
         'first_name',
         'last_name',
         'specialization',
+        'notification_prefs',
     ];
+
+    protected $casts = [
+        'notification_prefs' => 'array',
+    ];
+
+    /**
+     * Check whether a specific notification preference is enabled.
+     * Defaults to true for email_alerts so teachers with no saved prefs
+     * still receive emails until they explicitly opt out.
+     */
+    public function notifPref(string $key, bool $default = true): bool
+    {
+        $prefs = $this->notification_prefs ?? [];
+        return (bool) ($prefs[$key] ?? $default);
+    }
 
     public function user()
     {

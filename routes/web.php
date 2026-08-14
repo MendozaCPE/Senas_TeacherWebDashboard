@@ -186,6 +186,8 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
     Route::delete('/settings/profile-photo', [SettingsController::class, 'removeProfilePhoto'])->name('settings.profile-photo.remove');
     Route::patch('/settings/school', [SettingsController::class, 'updateSchool'])->name('settings.school');
     Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::patch('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
+    Route::post('/settings/logout-others', [SettingsController::class, 'logoutOthers'])->name('settings.logout-others');
 
     // ── Teacher Notifications (API only — no separate page) ──────────────────
     Route::get('/api/notifications/latest', [NotificationsController::class, 'latest'])->name('notifications.latest');

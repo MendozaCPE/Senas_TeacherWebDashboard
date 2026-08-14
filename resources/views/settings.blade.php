@@ -563,19 +563,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="pref-row">
-                    <div class="pref-row-left">
-                        <div class="pref-icon"><span class="material-symbols-outlined" style="font-size:18px;">phonelink_lock</span></div>
-                        <div>
-                            <h5>Two-Factor Authentication <span class="pref-soon-badge">Coming soon</span></h5>
-                            <p>Require a one-time code in addition to your password.</p>
-                        </div>
-                    </div>
-                    <label class="toggle-switch disabled">
-                        <input type="checkbox" disabled>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
                 <div class="pref-row" style="border-bottom:none;">
                     <div class="pref-row-left">
                         <div class="pref-icon"><span class="material-symbols-outlined" style="font-size:18px;">devices</span></div>
@@ -584,9 +571,12 @@
                             <p>You're signed in on this device right now.</p>
                         </div>
                     </div>
-                    <button type="button" class="set-btn-outline" onclick="alert('You have been signed out of all other devices.')">
-                        <span class="material-symbols-outlined" style="font-size:14px;">logout</span>Sign out others
-                    </button>
+                    <form method="POST" action="{{ route('settings.logout-others') }}">
+                        @csrf
+                        <button type="submit" class="set-btn-outline">
+                            <span class="material-symbols-outlined" style="font-size:14px;">logout</span>Sign out others
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -594,6 +584,8 @@
         {{-- NOTIFICATIONS --}}
         <div class="settings-tab-pane" id="tab-notifications">
             <div class="set-card">
+                <form action="{{ route('settings.notifications') }}" method="POST" id="notifPrefsForm">
+                @csrf
                 <div class="set-section-header" style="margin-bottom:6px;">
                     <div class="set-section-title-wrap">
                         <div class="set-section-icon"><span class="material-symbols-outlined">notifications</span></div>
@@ -602,8 +594,12 @@
                             <div class="set-section-sub">Control how and when you get updates.</div>
                         </div>
                     </div>
-                    <button class="set-btn-primary" onclick="alert('Preferences saved successfully!')"><span class="material-symbols-outlined" style="font-size:16px;">save</span>Save</button>
+                    <button type="submit" class="set-btn-primary">
+                        <span class="material-symbols-outlined" style="font-size:16px;">save</span>Save
+                    </button>
                 </div>
+
+                @php $prefs = $teacher?->notification_prefs ?? []; @endphp
 
                 <div class="pref-group-label">Email</div>
                 <div class="pref-row">
@@ -611,12 +607,16 @@
                         <div class="pref-icon"><span class="material-symbols-outlined" style="font-size:18px;">mail</span></div>
                         <div>
                             <h5>Email Alerts</h5>
-                            <p>Lesson and quiz updates via email</p>
+                            <p>Receive an email whenever a student completes a lesson or quiz</p>
                         </div>
                     </div>
-                    <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="email_alerts" value="1"
+                               {{ ($prefs['email_alerts'] ?? true) ? 'checked' : '' }}>
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-                <div class="pref-row">
+                <div class="pref-row" style="border-bottom:none;">
                     <div class="pref-row-left">
                         <div class="pref-icon"><span class="material-symbols-outlined" style="font-size:18px;">analytics</span></div>
                         <div>
@@ -624,30 +624,13 @@
                             <p>Class performance summary every Monday</p>
                         </div>
                     </div>
-                    <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="weekly_digest" value="1"
+                               {{ ($prefs['weekly_digest'] ?? false) ? 'checked' : '' }}>
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-
-                <div class="pref-group-label">Push</div>
-                <div class="pref-row">
-                    <div class="pref-row-left">
-                        <div class="pref-icon amber"><span class="material-symbols-outlined" style="font-size:18px;">smartphone</span></div>
-                        <div>
-                            <h5>Push Notifications</h5>
-                            <p>Real-time updates on student progress</p>
-                        </div>
-                    </div>
-                    <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-                </div>
-                <div class="pref-row" style="border-bottom:none;">
-                    <div class="pref-row-left">
-                        <div class="pref-icon amber"><span class="material-symbols-outlined" style="font-size:18px;">celebration</span></div>
-                        <div>
-                            <h5>Achievement Alerts</h5>
-                            <p>When students reach milestones</p>
-                        </div>
-                    </div>
-                    <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-                </div>
+                </form>
             </div>
         </div>
 
@@ -693,9 +676,13 @@
         <div class="set-side-card danger">
             <div class="set-side-title"><span class="material-symbols-outlined">warning</span>Danger Zone</div>
             <p>These actions affect your access to SEÑAS Teacher Portal. Proceed with care.</p>
-            <button type="button" class="set-btn-danger-outline" onclick="if(confirm('Sign out of all devices, including this one?')) alert('Signed out everywhere.')">
-                <span class="material-symbols-outlined" style="font-size:15px;">logout</span>Sign out everywhere
-            </button>
+            <form method="POST" action="{{ route('logout') }}" id="signOutEverywhereForm">
+                @csrf
+                <button type="button" class="set-btn-danger-outline"
+                        onclick="if(confirm('This will sign you out of all devices including this one. Continue?')) document.getElementById('signOutEverywhereForm').submit()">
+                    <span class="material-symbols-outlined" style="font-size:15px;">logout</span>Sign out everywhere
+                </button>
+            </form>
         </div>
     </div>
     </div>

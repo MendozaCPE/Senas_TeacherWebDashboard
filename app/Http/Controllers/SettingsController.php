@@ -115,8 +115,39 @@ class SettingsController extends Controller
         return back()->with('success', 'Institution details updated.');
     }
 
-    public function updatePassword(Request $request)
+    public function updateNotifications(Request $request)
     {
+        $teacher = Auth::user()->teacher;
+
+        if (!$teacher) {
+            return back()->with('error', 'Teacher record not found.');
+        }
+
+        $teacher->notification_prefs = [
+            'email_alerts'  => $request->boolean('email_alerts'),
+            'weekly_digest' => $request->boolean('weekly_digest'),
+        ];
+        $teacher->save();
+
+        return back()->with('success', 'Notification preferences saved.');
+    }
+
+    public function logoutOthers(Request $request)
+    {
+        // Invalidate all other sessions by cycling the session ID.
+        // Any other browser/device holding the old session will be
+        // treated as unauthenticated on their next request.
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // Log the user back in with a fresh session on this device
+        Auth::login(Auth::user());
+        $request->session()->regenerate();
+
+        return back()->with('success', 'All other sessions have been signed out.');
+    }
+
+    public function updatePassword(Request $request)    {
         $user = Auth::user();
 
         // Google-only accounts do not have a password
