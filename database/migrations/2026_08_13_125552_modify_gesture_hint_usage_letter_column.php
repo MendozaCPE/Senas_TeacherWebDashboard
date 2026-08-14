@@ -1,23 +1,18 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     public function up()
     {
-        Schema::table('gesture_hint_usage', function (Blueprint $table) {
-            // Change letter column to varchar(50) to support greetings
-            $table->string('letter', 50)->change();
-        });
+        // Use raw ALTER TABLE to avoid doctrine/dbal dependency on PHP 8.0
+        DB::statement('ALTER TABLE gesture_hint_usage MODIFY COLUMN letter VARCHAR(50) NOT NULL');
     }
 
     public function down()
     {
-        Schema::table('gesture_hint_usage', function (Blueprint $table) {
-            $table->string('letter', 5)->change();
-        });
+        DB::statement('ALTER TABLE gesture_hint_usage MODIFY COLUMN letter VARCHAR(5) NOT NULL');
     }
 };

@@ -418,24 +418,13 @@
                 </div>
             </div>
 
-            <div class="space-y-3">
-                <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 cursor-pointer transition-all">
-                    <input type="checkbox" name="notify_students" id="notifyStudents" value="1" checked
-                           class="h-4 w-4 text-[#0d326b] border-slate-300 rounded focus:ring-[#0d326b]">
-                    <div>
-                        <span class="text-xs font-bold text-slate-800 block">Notify students about this lesson</span>
-                        <span class="text-[11px] text-slate-500">Send an in-app push notification when this lesson is assigned.</span>
-                    </div>
-                </label>
+            <input type="hidden" name="notify_students" value="1">
 
-                <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 cursor-pointer transition-all">
-                    <input type="checkbox" name="send_reminder" id="sendReminder" value="1"
-                           class="h-4 w-4 text-[#0d326b] border-slate-300 rounded focus:ring-[#0d326b]">
-                    <div>
-                        <span class="text-xs font-bold text-slate-800 block">Send daily practice reminder</span>
-                        <span class="text-[11px] text-slate-500">Automatically remind uncompleted students after 24 hours.</span>
-                    </div>
-                </label>
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <span class="material-symbols-outlined text-[#0d326b] text-[20px] flex-shrink-0">notifications_active</span>
+                <p class="text-xs text-slate-600 font-medium">
+                    Students will be <span class="font-bold text-slate-800">automatically notified</span> when this lesson is published and assigned to them.
+                </p>
             </div>
         </div>
 
