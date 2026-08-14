@@ -8,6 +8,7 @@ use App\Models\Module;
 use App\Models\Teacher;
 use App\Services\LessonTemplateService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LessonTemplatesController extends Controller
 {
@@ -18,49 +19,65 @@ class LessonTemplatesController extends Controller
     /**
      * GET /admin/lessons — the default curriculum tab.
      */
-    public function index()
-    {
-        $systemTeacherId = $this->templates->templateTeacherId();
+public function index()
+{
+    $systemTeacherId = $this->templates->templateTeacherId();
 
-        $modules = Module::where('teacher_id', $systemTeacherId)
-            ->where('is_template', true)
-            ->with(['lessons' => function ($q) {
-                $q->withTrashed()->orderBy('module_order');
-            }])
-            ->with(['checkpointExams' => function ($q) {
-                $q->orderBy('created_at', 'desc');
-            }])
-            ->orderBy('module_order')
-            ->get();
+    $modules = Module::where('teacher_id', $systemTeacherId)
+        ->where('is_template', true)
+        ->with(['lessons' => function ($q) {
+            $q->withTrashed()->orderBy('module_order');
+        }])
+        ->with(['checkpointExams' => function ($q) {
+            $q->orderBy('created_at', 'desc');
+        }])
+        ->orderBy('module_order')
+        ->get();
 
-        // How many teachers currently have their own copy of each module —
-        // shown next to the "Push to All Teachers" button.
-        $teacherCopyCounts = Module::whereNotNull('source_template_id')
-            ->whereIn('source_template_id', $modules->pluck('module_id'))
-            ->selectRaw('source_template_id, count(*) as c')
-            ->groupBy('source_template_id')
-            ->pluck('c', 'source_template_id');
-
-        $usedLessonIds = CheckpointExamQuestion::whereHas('exam', function ($q) use ($systemTeacherId) {
-            $q->where('teacher_id', $systemTeacherId);
-        })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
-
-        // Get all teachers for the push modal
-        $allTeachers = Teacher::with('user')
-            ->whereHas('user', function ($q) {
-                $q->where('is_system', false)
-                  ->where('role', 'teacher');
-            })
-            ->orderBy('first_name')
-            ->get();
-
-        foreach ($modules as $module) {
-            $module->teacherCopyCount = $teacherCopyCounts[$module->module_id] ?? 0;
-        }
-
-        return view('admin.lessons', compact('modules', 'usedLessonIds', 'allTeachers'));
+    // ✅ FIX: Count teachers who have copies (including original owners)
+    $teacherCopyCounts = [];
+    foreach ($modules as $module) {
+        $originalId = $module->source_template_id ?? $module->module_id;
+        
+        // Count teachers who have cloned copies (source_template_id matches original)
+        $cloneCount = DB::table('modules')
+            ->whereNotNull('source_template_id')
+            ->where('source_template_id', $originalId)
+            ->where('teacher_id', '!=', $systemTeacherId)
+            ->distinct('teacher_id')
+            ->count('teacher_id');
+        
+        // Count teachers who own the original modules (4, 6, 7)
+        $originalCount = DB::table('modules')
+            ->whereNull('source_template_id')
+            ->where('module_id', $originalId)
+            ->where('teacher_id', '!=', $systemTeacherId)
+            ->distinct('teacher_id')
+            ->count('teacher_id');
+        
+        // Total = clone owners + original owners
+        $teacherCopyCounts[$module->module_id] = $cloneCount + $originalCount;
     }
 
+    $usedLessonIds = CheckpointExamQuestion::whereHas('exam', function ($q) use ($systemTeacherId) {
+        $q->where('teacher_id', $systemTeacherId);
+    })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
+
+    // Get all teachers for the push modal
+    $allTeachers = Teacher::with('user')
+        ->whereHas('user', function ($q) {
+            $q->where('is_system', false)
+              ->where('role', 'teacher');
+        })
+        ->orderBy('first_name')
+        ->get();
+
+    foreach ($modules as $module) {
+        $module->teacherCopyCount = $teacherCopyCounts[$module->module_id] ?? 0;
+    }
+
+    return view('admin.lessons', compact('modules', 'usedLessonIds', 'allTeachers'));
+}
 /**
  * GET /admin/lessons/teachers — get list of teachers for the modal
  */
