@@ -7,7 +7,8 @@ use App\Models\Student;
 use App\Models\StudentPromotion;
 use App\Models\TeacherNotification;
 use App\Models\StudentNotification;
-
+use App\Models\CheckpointExamAssignment;
+use App\Models\CheckpointExam;
 use App\Models\Module;  // ✅ ADD THIS LINE
 use App\Models\LessonAssignment; 
 use App\Models\Lesson;
@@ -292,11 +293,33 @@ class StudentsController extends Controller
             'status' => 'active',
         ]);
 
-        // 🔥 CRITICAL FIX: ONLY assign the lessons that were selected
-        $lessonIds = $request->input('lesson_ids', []);
-        
-        if (!empty($lessonIds)) {
-            foreach ($lessonIds as $lessonId) {
+ // 🔥 FIX: Filter out invalid IDs
+    $lessonIds = $request->input('lesson_ids', []);
+    $lessonIds = array_filter($lessonIds, function($id) {
+        return $id !== null && $id !== '' && $id !== '0' && $id !== 0 && $id !== 'NaN';
+    });
+    $lessonIds = array_map('strval', $lessonIds);
+    
+    $lessonIdsOnly = [];
+    $examIdsOnly = [];
+    
+    foreach ($lessonIds as $id) {
+        if (strpos($id, 'exam_') === 0) {
+            $examId = (int) str_replace('exam_', '', $id);
+            if ($examId > 0) {
+                $examIdsOnly[] = $examId;
+            }
+        } else {
+            $lessonId = (int) $id;
+            if ($lessonId > 0) {
+                $lessonIdsOnly[] = $lessonId;
+            }
+        }
+    }
+
+// Assign lessons
+if (!empty($lessonIdsOnly)) {
+    foreach ($lessonIdsOnly as $lessonId) {
                 // Only create assignment if it doesn't exist
                 $exists = LessonAssignment::where('student_id', $student->student_id)
                     ->where('lesson_id', $lessonId)
@@ -329,8 +352,30 @@ class StudentsController extends Controller
                 }
             }
 
-            $this->createLessonAssignmentNotifications($student, $lessonIds);
+            $this->createLessonAssignmentNotifications($student, $lessonIdsOnly);
+
         }
+
+        // Assign checkpoint exams
+if (!empty($examIdsOnly)) {
+    foreach ($examIdsOnly as $examId) {
+        $exists = CheckpointExamAssignment::where('student_id', $student->student_id)
+            ->where('exam_id', $examId)
+            ->exists();
+
+        if (!$exists) {
+            CheckpointExamAssignment::create([
+                'exam_id' => $examId,
+                'student_id' => $student->student_id,
+                'assigned_at' => now(),
+                'status' => 'pending',
+                'is_locked' => true,
+                'notified' => false,
+            ]);
+        }
+    }
+    $this->createExamAssignmentNotifications($student, $examIdsOnly);
+}
 
         DB::commit();
 
@@ -1079,18 +1124,24 @@ public function getLessonsForNewStudent()
         return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
     }
 
-    // 🔥 FIX: Only get modules and lessons for THIS teacher
-    $modules = Module::where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+    // Get modules with lessons for THIS teacher
+    $modules = Module::where('teacher_id', $teacher->id)
         ->with(['lessons' => function($query) use ($teacher) {
             $query->where('status', 'published')
                 ->whereNull('deleted_at')
-                ->where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+                ->where('teacher_id', $teacher->id)
                 ->orderBy('module_order');
         }])
         ->orderBy('module_order')
         ->get();
 
-    $modulesData = $modules->map(function($module) {
+    // 🔥 FIX: Get ALL checkpoint exams for THIS teacher, grouped by module_id
+    $checkpointExams = CheckpointExam::where('teacher_id', $teacher->id)
+        ->where('status', 'published')
+        ->get()
+        ->groupBy('module_id');  // ← Changed from keyBy to groupBy
+
+    $modulesData = $modules->map(function($module) use ($checkpointExams) {
         $lessons = $module->lessons->map(function($lesson) {
             return [
                 'lesson_id' => $lesson->lesson_id,
@@ -1098,8 +1149,25 @@ public function getLessonsForNewStudent()
                 'description' => $lesson->description,
                 'difficulty' => $lesson->difficulty,
                 'is_assigned' => false,
+                'type' => 'lesson',
             ];
-        });
+        })->toArray();
+
+        // 🔥 FIX: Add ALL checkpoint exams for this module
+        if (isset($checkpointExams[$module->module_id])) {
+            foreach ($checkpointExams[$module->module_id] as $exam) {
+                $lessons[] = [
+                    'lesson_id' => 'exam_' . $exam->exam_id,
+                    'exam_id' => $exam->exam_id,
+                    'title' => $exam->title,
+                    'description' => $exam->description ?? 'Checkpoint Exam',
+                    'is_assigned' => false,
+                    'type' => 'checkpoint_exam',
+                    'total_points' => $exam->total_points,
+                    'passing_score' => $exam->passing_score,
+                ];
+            }
+        }
 
         return [
             'module_id' => $module->module_id,
@@ -1109,7 +1177,7 @@ public function getLessonsForNewStudent()
             'all_assigned' => false,
         ];
     })->filter(function($module) {
-        return $module['lessons']->isNotEmpty();
+        return !empty($module['lessons']);
     })->values();
 
     return response()->json([
@@ -1130,24 +1198,34 @@ public function getAvailableLessons($id)
         ->where('teacher_id', $teacher->id)
         ->firstOrFail();
 
-    // 🔥 FIX: Only get modules for THIS teacher
-    $modules = Module::where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+    // Get modules with lessons for THIS teacher
+    $modules = Module::where('teacher_id', $teacher->id)
         ->with(['lessons' => function($query) use ($teacher) {
             $query->where('status', 'published')
                 ->whereNull('deleted_at')
-                ->where('teacher_id', $teacher->id)  // ← ADD THIS LINE
+                ->where('teacher_id', $teacher->id)
                 ->orderBy('module_order');
         }])
         ->orderBy('module_order')
         ->get();
 
-    // Get currently assigned lesson IDs for this student
+    // 🔥 FIX: Get ALL checkpoint exams for THIS teacher, grouped by module_id
+    $checkpointExams = CheckpointExam::where('teacher_id', $teacher->id)
+        ->where('status', 'published')
+        ->get()
+        ->groupBy('module_id');  // ← Changed from keyBy to groupBy
+
+    // Get currently assigned lesson IDs
     $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
         ->pluck('lesson_id')
         ->toArray();
 
-    // Build response
-    $modulesData = $modules->map(function($module) use ($assignedLessonIds) {
+    // Get currently assigned checkpoint exam IDs
+    $assignedExamIds = CheckpointExamAssignment::where('student_id', $student->student_id)
+        ->pluck('exam_id')
+        ->toArray();
+
+    $modulesData = $modules->map(function($module) use ($assignedLessonIds, $assignedExamIds, $checkpointExams) {
         $lessons = $module->lessons->map(function($lesson) use ($assignedLessonIds) {
             return [
                 'lesson_id' => $lesson->lesson_id,
@@ -1155,18 +1233,35 @@ public function getAvailableLessons($id)
                 'description' => $lesson->description,
                 'difficulty' => $lesson->difficulty,
                 'is_assigned' => in_array($lesson->lesson_id, $assignedLessonIds),
+                'type' => 'lesson',
             ];
-        });
+        })->toArray();
+
+        // 🔥 FIX: Add ALL checkpoint exams for this module
+        if (isset($checkpointExams[$module->module_id])) {
+            foreach ($checkpointExams[$module->module_id] as $exam) {
+                $lessons[] = [
+                    'lesson_id' => 'exam_' . $exam->exam_id,
+                    'exam_id' => $exam->exam_id,
+                    'title' => $exam->title,
+                    'description' => $exam->description ?? 'Checkpoint Exam',
+                    'is_assigned' => in_array($exam->exam_id, $assignedExamIds),
+                    'type' => 'checkpoint_exam',
+                    'total_points' => $exam->total_points,
+                    'passing_score' => $exam->passing_score,
+                ];
+            }
+        }
 
         return [
             'module_id' => $module->module_id,
             'module_title' => $module->title,
             'module_order' => $module->module_order,
             'lessons' => $lessons,
-            'all_assigned' => $lessons->every(fn($l) => $l['is_assigned']),
+            'all_assigned' => collect($lessons)->every(fn($l) => $l['is_assigned']),
         ];
     })->filter(function($module) {
-        return $module['lessons']->isNotEmpty();
+        return !empty($module['lessons']);
     })->values();
 
     return response()->json([
@@ -1176,7 +1271,7 @@ public function getAvailableLessons($id)
             'name' => $student->first_name . ' ' . $student->last_name,
         ],
         'modules' => $modulesData,
-        'assigned_count' => count($assignedLessonIds),
+        'assigned_count' => count($assignedLessonIds) + count($assignedExamIds),
     ]);
 }
 /**
@@ -1196,7 +1291,7 @@ public function assignLessons(Request $request, $id)
 
     $validator = Validator::make($request->all(), [
         'lesson_ids' => 'required|array',
-        'lesson_ids.*' => 'exists:lessons,lesson_id',
+        'lesson_ids.*' => 'string',
     ]);
 
     if ($validator->fails()) {
@@ -1206,38 +1301,78 @@ public function assignLessons(Request $request, $id)
         ], 422);
     }
 
-    $lessonIds = $request->lesson_ids;
-    $currentAssignments = LessonAssignment::where('student_id', $student->student_id)
+    // 🔥 FIX: Filter out invalid IDs and convert to strings
+    $lessonIds = array_filter($request->lesson_ids, function($id) {
+        // Filter out empty, null, NaN, or '0' values
+        return $id !== null && $id !== '' && $id !== '0' && $id !== 0 && $id !== 'NaN';
+    });
+    
+    // Convert all valid lesson_ids to strings
+    $lessonIds = array_map('strval', $lessonIds);
+
+    // 🔥 FIX: If no valid lesson IDs, return early
+    if (empty($lessonIds)) {
+        return response()->json([
+            'success' => true,
+            'message' => 'No valid lessons selected.',
+            'assigned_count' => 0,
+        ]);
+    }
+
+    $currentLessonAssignments = LessonAssignment::where('student_id', $student->student_id)
         ->pluck('lesson_id')
+        ->toArray();
+    
+    $currentExamAssignments = CheckpointExamAssignment::where('student_id', $student->student_id)
+        ->pluck('exam_id')
         ->toArray();
 
     DB::beginTransaction();
     try {
-        // Remove assignments for lessons not in the new list
-        $toRemove = array_diff($currentAssignments, $lessonIds);
-        if (!empty($toRemove)) {
+        // Separate lesson IDs from exam IDs
+        $lessonIdsOnly = [];
+        $examIdsOnly = [];
+        foreach ($lessonIds as $id) {
+            // Skip any invalid IDs
+            if (empty($id) || $id === 'NaN' || $id === '0') {
+                continue;
+            }
+            
+            if (strpos($id, 'exam_') === 0) {
+                $examId = (int) str_replace('exam_', '', $id);
+                if ($examId > 0) {
+                    $examIdsOnly[] = $examId;
+                }
+            } else {
+                $lessonId = (int) $id;
+                if ($lessonId > 0) {
+                    $lessonIdsOnly[] = $lessonId;
+                }
+            }
+        }
+
+        // ── Update Lesson Assignments ──────────────────────────────────
+        $toRemoveLessons = array_diff($currentLessonAssignments, $lessonIdsOnly);
+        if (!empty($toRemoveLessons)) {
             LessonAssignment::where('student_id', $student->student_id)
-                ->whereIn('lesson_id', $toRemove)
+                ->whereIn('lesson_id', $toRemoveLessons)
                 ->delete();
         }
 
-        // Add new assignments
-        $toAdd = array_diff($lessonIds, $currentAssignments);
-        foreach ($toAdd as $lessonId) {
-            // Determine if this is the first lesson in its module (should be unlocked)
+        $toAddLessons = array_diff($lessonIdsOnly, $currentLessonAssignments);
+        foreach ($toAddLessons as $lessonId) {
             $lesson = Lesson::find($lessonId);
-            $isLocked = true;
+            if (!$lesson) continue; // Skip if lesson doesn't exist
             
-            if ($lesson) {
-                $firstLesson = Lesson::where('module_id', $lesson->module_id)
-                    ->where('status', 'published')
-                    ->whereNull('deleted_at')
-                    ->orderBy('module_order', 'asc')
-                    ->first();
-                
-                if ($firstLesson && $firstLesson->lesson_id == $lessonId) {
-                    $isLocked = false;
-                }
+            $isLocked = true;
+            $firstLesson = Lesson::where('module_id', $lesson->module_id)
+                ->where('status', 'published')
+                ->whereNull('deleted_at')
+                ->orderBy('module_order', 'asc')
+                ->first();
+            
+            if ($firstLesson && $firstLesson->lesson_id == $lessonId) {
+                $isLocked = false;
             }
 
             LessonAssignment::create([
@@ -1250,9 +1385,37 @@ public function assignLessons(Request $request, $id)
             ]);
         }
 
+        // ── Update Checkpoint Exam Assignments ──────────────────────
+        $toRemoveExams = array_diff($currentExamAssignments, $examIdsOnly);
+        if (!empty($toRemoveExams)) {
+            CheckpointExamAssignment::where('student_id', $student->student_id)
+                ->whereIn('exam_id', $toRemoveExams)
+                ->delete();
+        }
+
+        $toAddExams = array_diff($examIdsOnly, $currentExamAssignments);
+        foreach ($toAddExams as $examId) {
+            $exam = CheckpointExam::find($examId);
+            if ($exam) {
+                CheckpointExamAssignment::create([
+                    'exam_id' => $examId,
+                    'student_id' => $student->student_id,
+                    'assigned_at' => now(),
+                    'status' => 'pending',
+                    'is_locked' => true,
+                    'notified' => false,
+                ]);
+            }
+        }
+
         // If student is active, notify them about new lessons
-        if ($student->status === 'active' && !empty($toAdd)) {
-            $this->createLessonAssignmentNotifications($student, $toAdd);
+        if ($student->status === 'active' && (!empty($toAddLessons) || !empty($toAddExams))) {
+            if (!empty($toAddLessons)) {
+                $this->createLessonAssignmentNotifications($student, $toAddLessons);
+            }
+            if (!empty($toAddExams)) {
+                $this->createExamAssignmentNotifications($student, $toAddExams);
+            }
         }
 
         DB::commit();
@@ -1260,9 +1423,10 @@ public function assignLessons(Request $request, $id)
         return response()->json([
             'success' => true,
             'message' => 'Lesson assignments updated successfully!',
-            'assigned_count' => count($lessonIds),
-            'added' => count($toAdd),
-            'removed' => count($toRemove),
+            'assigned_count' => count($lessonIdsOnly) + count($examIdsOnly),
+            'added_lessons' => count($toAddLessons),
+            'added_exams' => count($toAddExams),
+            'removed' => count($toRemoveLessons) + count($toRemoveExams),
         ]);
 
     } catch (\Exception $e) {
@@ -1271,6 +1435,35 @@ public function assignLessons(Request $request, $id)
             'success' => false,
             'message' => 'Failed to update assignments: ' . $e->getMessage(),
         ], 500);
+    }
+}
+
+/**
+ * Create notifications for newly assigned checkpoint exams
+ */
+private function createExamAssignmentNotifications($student, $examIds)
+{
+    $exams = CheckpointExam::whereIn('exam_id', $examIds)->get();
+    
+    foreach ($exams as $exam) {
+        $exists = StudentNotification::where('student_id', $student->student_id)
+            ->where('type', 'checkpoint_exam')
+            ->where('data->exam_id', $exam->exam_id)
+            ->exists();
+
+        if (!$exists) {
+            StudentNotification::create([
+                'student_id' => $student->student_id,
+                'type' => 'checkpoint_exam',
+                'title' => '📝 Checkpoint Exam Assigned!',
+                'message' => "\"{$exam->title}\" is ready for you to take! 🎯",
+                'icon' => 'trophy',
+                'color' => '#8B5CF6',
+                'data' => ['exam_id' => $exam->exam_id, 'exam_title' => $exam->title],
+                'action_url' => '/checkpoint-exams',
+                'is_read' => false,
+            ]);
+        }
     }
 }
 

@@ -2399,17 +2399,19 @@ function openAssignmentModal(studentId, studentName, pendingPayload) {
         
         // For new students, NOTHING should be pre-selected
         // For existing students, pre-select already assigned lessons
-        if (!_assignPendingPayload) {
-            _assignModules.forEach(module => {
-                module.lessons.forEach(lesson => {
-                    if (lesson.is_assigned) {
-                        _assignSelectedIds.add(lesson.lesson_id);
-                        _assignOriginalIds.add(lesson.lesson_id);
-                    }
-                });
-            });
-        }
-
+if (!_assignPendingPayload) {
+    _assignModules.forEach(module => {
+        module.lessons.forEach(lesson => {
+            if (lesson.is_assigned && lesson.lesson_id) {
+                const id = String(lesson.lesson_id);
+                if (id && id !== 'NaN' && id !== '0') {
+                    _assignSelectedIds.add(id);
+                    _assignOriginalIds.add(id);
+                }
+            }
+        });
+    });
+}
         renderAssignmentList();
         updateAssignmentStats();
         assignContent.classList.remove('hidden');
@@ -2472,21 +2474,25 @@ function renderAssignmentList() {
                     </span>
                 </div>
                 <div class="px-5 py-3 space-y-1.5">
-                    ${module.lessons.map(lesson => {
-                        lessonCounter++;
-                        const checked = _assignSelectedIds.has(lesson.lesson_id) ? 'checked' : '';
-                        return `
-                            <label class="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors select-none group">
-                                <input type="checkbox" class="lesson-checkbox w-4 h-4 rounded border-slate-300 text-[#0d326b] focus:ring-[#0d326b] focus:ring-offset-0 cursor-pointer" 
-                                       data-lesson-id="${lesson.lesson_id}" 
-                                       ${checked}>
-                                <span class="text-[13px] font-medium text-slate-700 group-hover:text-[#0d326b] transition-colors flex-1">
-                                    ${lesson.title}
-                                </span>
-                                ${lesson.is_assigned ? '<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Assigned</span>' : ''}
-                            </label>
-                        `;
-                    }).join('')}
+                   ${module.lessons.map(lesson => {
+    lessonCounter++;
+    const checked = _assignSelectedIds.has(lesson.lesson_id) ? 'checked' : '';
+    const isExam = lesson.type === 'checkpoint_exam';
+    const badge = isExam 
+        ? '<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full ml-2">📝 Exam</span>'
+        : (lesson.is_assigned ? '<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Assigned</span>' : '');
+    return `
+        <label class="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors select-none group">
+            <input type="checkbox" class="lesson-checkbox w-4 h-4 rounded border-slate-300 text-[#0d326b] focus:ring-[#0d326b] focus:ring-offset-0 cursor-pointer" 
+                   data-lesson-id="${lesson.lesson_id}" 
+                   ${checked}>
+            <span class="text-[13px] font-medium text-slate-700 group-hover:text-[#0d326b] transition-colors flex-1">
+                ${lesson.title}
+                ${badge}
+            </span>
+        </label>
+    `;
+}).join('')}
                 </div>
             </div>
         `;
@@ -2498,12 +2504,12 @@ function renderAssignmentList() {
     // Individual lesson checkboxes
     assignList.querySelectorAll('.lesson-checkbox').forEach(cb => {
         cb.addEventListener('change', function() {
-            const lessonId = parseInt(this.dataset.lessonId);
-            if (this.checked) {
-                _assignSelectedIds.add(lessonId);
-            } else {
-                _assignSelectedIds.delete(lessonId);
-            }
+    const lessonId = this.dataset.lessonId; // Keep as string, don't parseInt!
+    if (this.checked) {
+        _assignSelectedIds.add(lessonId);
+    } else {
+        _assignSelectedIds.delete(lessonId);
+    }
             // Update module checkbox state
             const moduleContainer = this.closest('.border');
             if (moduleContainer) {
@@ -2594,13 +2600,14 @@ document.getElementById('assignment-deselect-all').addEventListener('click', fun
 });
 
 // Save Assignments
+// Save Assignments
 document.getElementById('assignment-save').addEventListener('click', async function() {
     if (!_assignStudentId && !_assignPendingPayload) return;
     
-    // 🔥 FIX: Get ONLY the selected lesson IDs
-    const lessonIds = Array.from(_assignSelectedIds);
+    // 🔥 FIX: Get ONLY the selected lesson IDs and convert to strings
+    const lessonIds = Array.from(_assignSelectedIds).map(id => String(id));
     
-    console.log('✅ Sending ONLY these lesson IDs:', lessonIds);
+    console.log('✅ Sending ONLY these lesson IDs (as strings):', lessonIds);
     console.log('✅ Count:', lessonIds.length);
     
     const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
@@ -2613,10 +2620,9 @@ document.getElementById('assignment-save').addEventListener('click', async funct
     try {
         let res;
         if (_assignPendingPayload) {
-            // Brand-new student: ONLY send the selected lessons
             const payload = {
                 ..._assignPendingPayload,
-                lesson_ids: lessonIds  // ← This is the important part
+                lesson_ids: lessonIds
             };
             res = await axios.post("{{ route('students.store') }}", payload, {
                 headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
