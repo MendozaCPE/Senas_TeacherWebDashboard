@@ -124,8 +124,7 @@ class SettingsController extends Controller
         }
 
         $teacher->notification_prefs = [
-            'email_alerts'  => $request->boolean('email_alerts'),
-            'weekly_digest' => $request->boolean('weekly_digest'),
+            'email_alerts' => $request->boolean('email_alerts'),
         ];
         $teacher->save();
 

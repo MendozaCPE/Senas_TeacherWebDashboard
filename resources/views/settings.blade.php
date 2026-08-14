@@ -266,10 +266,6 @@
             <div class="set-eyebrow">Account</div>
             <h1>Settings</h1>
         </div>
-        <div class="settings-header-icons">
-            <a href="tel:" class="settings-icon-btn" title="Contact support"><span class="material-symbols-outlined" style="font-size:19px;">call</span></a>
-            <a href="#" class="settings-icon-btn" title="Help"><span class="material-symbols-outlined" style="font-size:19px;">help</span></a>
-        </div>
     </div>
 
     {{-- HERO / PROFILE SUMMARY --}}
@@ -602,31 +598,17 @@
                 @php $prefs = $teacher?->notification_prefs ?? []; @endphp
 
                 <div class="pref-group-label">Email</div>
-                <div class="pref-row">
+                <div class="pref-row" style="border-bottom:none;">
                     <div class="pref-row-left">
                         <div class="pref-icon"><span class="material-symbols-outlined" style="font-size:18px;">mail</span></div>
                         <div>
                             <h5>Email Alerts</h5>
-                            <p>Receive an email whenever a student completes a lesson or quiz</p>
+                            <p>Receive an email for every student activity notification</p>
                         </div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" name="email_alerts" value="1"
                                {{ ($prefs['email_alerts'] ?? true) ? 'checked' : '' }}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="pref-row" style="border-bottom:none;">
-                    <div class="pref-row-left">
-                        <div class="pref-icon"><span class="material-symbols-outlined" style="font-size:18px;">analytics</span></div>
-                        <div>
-                            <h5>Weekly Digest</h5>
-                            <p>Class performance summary every Monday</p>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" name="weekly_digest" value="1"
-                               {{ ($prefs['weekly_digest'] ?? false) ? 'checked' : '' }}>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>

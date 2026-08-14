@@ -106,36 +106,23 @@ class TeacherNotification extends Model
         ]);
 
         // ── Email alert ──────────────────────────────────────────────────────
-        // Only send for student activity events (lesson/quiz related) and only
-        // if the teacher has Email Alerts enabled in their notification prefs.
-        $emailTypes = [
-            'quiz_answered',
-            'module_completed',
-            'module_passed',
-            'level_up',
-            'checkpoint_passed',
-            'challenge_completed',
-            'fingerspelling_completed',
-            'streak_milestone',
-        ];
+        // Send an email to the teacher for every notification if Email Alerts
+        // is enabled in their notification preferences.
+        try {
+            $teacher = \App\Models\Teacher::with('user')->find($teacherId);
 
-        if (in_array($type, $emailTypes, true)) {
-            try {
-                $teacher = \App\Models\Teacher::with('user')->find($teacherId);
-
-                if ($teacher && $teacher->notifPref('email_alerts') && $teacher->user?->email) {
-                    \Illuminate\Support\Facades\Mail::to($teacher->user->email)
-                        ->queue(new \App\Mail\StudentActivityMail(
-                            teacherName:  $teacher->first_name,
-                            notifTitle:   $title,
-                            notifMessage: $message,
-                            notifType:    $type,
-                            actionUrl:    $actionUrl,
-                        ));
-                }
-            } catch (\Throwable $e) {
-                \Log::warning('Email alert failed: ' . $e->getMessage());
+            if ($teacher && $teacher->notifPref('email_alerts') && $teacher->user?->email) {
+                \Illuminate\Support\Facades\Mail::to($teacher->user->email)
+                    ->send(new \App\Mail\StudentActivityMail(
+                        teacherName:  $teacher->first_name,
+                        notifTitle:   $title,
+                        notifMessage: $message,
+                        notifType:    $type,
+                        actionUrl:    $actionUrl,
+                    ));
             }
+        } catch (\Throwable $e) {
+            Log::warning('Email alert failed: ' . $e->getMessage());
         }
 
         return $notification;
