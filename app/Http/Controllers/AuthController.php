@@ -78,8 +78,26 @@ class AuthController extends Controller
             $user = Auth::user();
 
             $request->session()->regenerate();
+
+            // Audit log: successful login
+            \App\Models\AuditLog::record(
+                action:      'login',
+                module:      'Authentication',
+                description: "{$user->name} logged in.",
+                userId:      $user->id,
+                userName:    $user->name,
+                userRole:    $user->role,
+            );
+
             return $this->redirectByRole($user);
         }
+
+        // Audit log: failed login attempt
+        \App\Models\AuditLog::record(
+            action:      'login_failed',
+            module:      'Authentication',
+            description: "Failed login attempt for email: {$request->email}",
+        );
 
         return back()->withErrors([
             'email' => 'The provided credentials do not match our records.',
@@ -318,6 +336,20 @@ class AuthController extends Controller
     /** Logout */
     public function logout(Request $request)
     {
+        $user = Auth::user();
+
+        // Audit log: logout (before session is destroyed)
+        if ($user) {
+            \App\Models\AuditLog::record(
+                action:      'logout',
+                module:      'Authentication',
+                description: "{$user->name} logged out.",
+                userId:      $user->id,
+                userName:    $user->name,
+                userRole:    $user->role,
+            );
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

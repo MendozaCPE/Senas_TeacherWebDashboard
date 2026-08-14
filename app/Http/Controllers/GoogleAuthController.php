@@ -83,6 +83,16 @@ class GoogleAuthController extends Controller
             Auth::login($user, true);
             request()->session()->regenerate();
 
+            // Audit log: Google login
+            \App\Models\AuditLog::record(
+                action:      'login',
+                module:      'Authentication',
+                description: "{$user->name} logged in via Google.",
+                userId:      $user->id,
+                userName:    $user->name,
+                userRole:    $user->role,
+            );
+
             if ($user->role === 'admin') {
                 return redirect()->route('admin.dashboard');
             }

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('action', 100);           // e.g. login, logout, create_lesson, delete_student
             $table->string('module', 60)->nullable(); // e.g. lessons, students, auth, settings
             $table->text('description')->nullable();
-            $table->morphs('subject');               // subject_type, subject_id — the affected record
+            $table->nullableMorphs('subject');               // subject_type, subject_id — the affected record
             $table->json('old_values')->nullable();
             $table->json('new_values')->nullable();
             $table->string('ip_address', 45)->nullable();

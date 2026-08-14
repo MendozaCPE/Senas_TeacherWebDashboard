@@ -190,14 +190,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         return `<div class="notif-row flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors duration-150 ${unread?'bg-blue-50/50 hover:bg-blue-50/80':'hover:bg-slate-50/80'}"
                      data-id="${n.id}" data-dest="${dest}"
-                     onclick="handleNotifClick(${n.id},'${dest}')">
+                     onclick="handleNotifClick(${n.id},'${dest}')"
+                     onmouseenter="showNotifTooltip(this)"
+                     onmouseleave="hideNotifTooltip()">
             <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-0.5 shadow-sm"
                  style="background:${c.bg};outline:1.5px solid ${c.ring};">
                 <span class="material-symbols-outlined text-[18px]" style="color:${c.fg};">${n.icon}</span>
             </div>
             <div class="flex-1 min-w-0 pr-1">
                 <p class="text-[13px] font-${unread?'bold':'semibold'} text-slate-800 leading-snug">${n.title}</p>
-                <p class="text-[12px] text-slate-500 mt-0.5 leading-snug line-clamp-2">${n.message}</p>
+                <p class="notif-message-preview text-[12px] text-slate-500 mt-0.5 leading-snug line-clamp-2">${n.message}</p>
                 <p class="text-[11px] font-semibold mt-1.5 ${unread?'text-blue-500':'text-slate-400'}">${n.time_ago}</p>
             </div>
             ${unread?'<span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-blue-500 mt-2 shadow-sm"></span>':''}
@@ -285,4 +287,68 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('DOMContentLoaded',()=>setInterval(pollBadge,45000));
 })();
+
+/* ── Notification full-message tooltip ─────────────────────────────── */
+const _ntip = document.createElement('div');
+_ntip.id = 'notif-tooltip';
+_ntip.style.cssText = [
+    'position:fixed',
+    'z-index:99999',
+    'max-width:320px',
+    'background:#1e293b',
+    'color:#f1f5f9',
+    'font-size:12px',
+    'line-height:1.55',
+    'font-weight:500',
+    'padding:10px 14px',
+    'border-radius:12px',
+    'box-shadow:0 8px 28px rgba(0,0,0,0.22)',
+    'pointer-events:none',
+    'opacity:0',
+    'transition:opacity 0.15s ease',
+    'word-break:break-word',
+].join(';');
+document.body.appendChild(_ntip);
+
+let _ntipTimer;
+
+window.showNotifTooltip = function(row) {
+    const msgEl = row.querySelector('.notif-message-preview');
+    if (!msgEl) return;
+
+    // Only show tooltip if text is actually clamped
+    if (msgEl.scrollHeight <= msgEl.clientHeight + 2) return;
+
+    const fullText = msgEl.textContent.trim();
+    _ntip.textContent = fullText;
+
+    const rect = row.getBoundingClientRect();
+    const dd   = document.getElementById('notif-dropdown');
+    const ddRect = dd ? dd.getBoundingClientRect() : null;
+
+    // Position to the left of the dropdown, aligned with the row
+    let left = ddRect ? ddRect.left - 336 : rect.left - 336;
+    let top  = rect.top;
+
+    // Fallback: if no room on the left, show below the row
+    if (left < 8) {
+        left = rect.left;
+        top  = rect.bottom + 6;
+    }
+
+    // Keep within viewport vertically
+    const tipH = 80; // rough estimate
+    if (top + tipH > window.innerHeight - 8) top = window.innerHeight - tipH - 8;
+
+    _ntip.style.left = left + 'px';
+    _ntip.style.top  = top  + 'px';
+
+    clearTimeout(_ntipTimer);
+    _ntipTimer = setTimeout(() => { _ntip.style.opacity = '1'; }, 120);
+};
+
+window.hideNotifTooltip = function() {
+    clearTimeout(_ntipTimer);
+    _ntip.style.opacity = '0';
+};
 </script>

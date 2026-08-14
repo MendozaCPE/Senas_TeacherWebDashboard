@@ -170,7 +170,7 @@ $rRLine=$bezier($rRPts,$Rbot); $rRArea=$bezier($rRPts,$Rbot,true);
                 $gAcc=($gs&&$gs->total_attempts>0)?round(($gs->total_successful/$gs->total_attempts)*100,1):0;
                 $gItems=[
                     ['label'=>'Students Practiced','val'=>$gs->students_who_practiced??0,'icon'=>'group','bg'=>'#dbeafe','fg'=>'#0d326b'],
-                    ['label'=>'Total Attempts','val'=>number_format($gs->total_attempts??0),'icon'=>'sports_martial_arts','bg'=>'#f0fdf4','fg'=>'#15803d'],
+                    ['label'=>'Total Attempts','val'=>number_format($gs->total_attempts??0),'icon'=>'repeat','bg'=>'#f0fdf4','fg'=>'#15803d'],
                     ['label'=>'Gestures Mastered','val'=>number_format($gs->total_mastered??0),'icon'=>'verified','bg'=>'#ecfdf5','fg'=>'#047857'],
                     ['label'=>'Overall Accuracy','val'=>$gAcc.'%','icon'=>'gps_fixed','bg'=>'#eff6ff','fg'=>'#1e3a8a'],
                 ];
