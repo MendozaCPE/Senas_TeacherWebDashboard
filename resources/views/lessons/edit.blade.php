@@ -2404,8 +2404,12 @@ function handleQuestionTypeChange(select) {
     if (select.value === 'true_false') {
         if (optionsContainer) optionsContainer.classList.remove('hidden');
         const optionsList = questionDiv.querySelector('.options-list');
-        const rows = optionsList.querySelectorAll('.option-row');
-        while (rows.length > 2) rows[rows.length - 1].remove();
+        // Remove extra options beyond 2 using a live query each iteration
+        let rows = optionsList.querySelectorAll('.option-row');
+        while (rows.length > 2) {
+            rows[rows.length - 1].remove();
+            rows = optionsList.querySelectorAll('.option-row');
+        }
         const textInputs = optionsList.querySelectorAll('.option-text-input');
         const radios = optionsList.querySelectorAll('input[type="radio"]');
         if (textInputs[0]) textInputs[0].value = 'True';
