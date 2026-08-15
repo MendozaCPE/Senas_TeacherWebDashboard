@@ -30,6 +30,8 @@ class StudentsController extends Controller
         $students      = collect();
 
         $availableSchoolYears = collect();
+        $sidebarStudents      = collect();
+        $teacherLessons       = collect();
 
         if ($teacher) {
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
@@ -91,9 +93,27 @@ class StudentsController extends Controller
                                            ->distinct()
                                            ->orderBy('school_year', 'desc')
                                            ->pluck('school_year');
+
+            // ── Sidebar: all active students with lesson scores (not paginated) ──
+            $sidebarStudents = Student::where('teacher_id', $teacher->id)
+                                      ->where('status', 'active')
+                                      ->with(['assignments' => function ($q) {
+                                          $q->select('student_id', 'lesson_id', 'score', 'status');
+                                      }])
+                                      ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
+
+            // ── Sidebar: published lessons belonging to this teacher ──
+            $teacherLessons = Lesson::where('teacher_id', $teacher->id)
+                                    ->where('status', 'published')
+                                    ->whereNull('deleted_at')
+                                    ->orderBy('module_order')
+                                    ->get(['lesson_id', 'title']);
         }
 
-        return view('students', compact('totalStudents', 'newThisWeek', 'students', 'availableSchoolYears'));
+        return view('students', compact(
+            'totalStudents', 'newThisWeek', 'students', 'availableSchoolYears',
+            'sidebarStudents', 'teacherLessons'
+        ));
     }
 
     /**
@@ -181,7 +201,7 @@ class StudentsController extends Controller
     $request->validate([
         'lrn' => 'required|numeric|digits:12',
         'full_name' => 'required|string|max:255',
-        'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained,SPED,Home-based',
+        'program_type' => 'required|in:Regular,Inclusion,Transition,Self-contained',
         'grade_level' => 'nullable|string|max:255',
         'age' => 'required|integer|min:1|max:120',
         'section' => 'nullable|string|max:255',
@@ -429,7 +449,7 @@ if (!empty($examIdsOnly)) {
         $transfers = [];
 
         // Valid values for enumerated fields
-        $validPrograms  = ['Regular', 'Inclusion', 'SPED', 'Home-based'];
+        $validPrograms  = ['Regular', 'Inclusion', 'Transition', 'Self-contained'];
         $validMastery   = ['Beginner', 'Intermediate', 'Advanced'];
         $needGradeSection = ['Regular', 'Inclusion'];
 
@@ -640,7 +660,7 @@ if (!empty($examIdsOnly)) {
         $validated = $request->validate([
             'full_name'         => 'required|string|max:255',
             'age'               => 'nullable|integer|min:1|max:120',
-            'program_type'      => 'required|in:Regular,Inclusion,SPED,Home-based,Self-contained,Transition',
+            'program_type'      => 'required|in:Regular,Inclusion,Self-contained,Transition',
             'grade_level'       => 'nullable|string|max:50',
             'section'           => 'nullable|string|max:100',
             'lrn'               => ['nullable', 'digits:12',

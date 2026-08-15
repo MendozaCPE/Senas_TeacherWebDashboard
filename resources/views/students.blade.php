@@ -77,14 +77,15 @@
 
     {{-- ══════════ STAT CARDS ══════════ --}}
     @php
-        $allStudents   = $students->getCollection();
-        $beginnerCnt   = $allStudents->where('fsl_mastery_level','Beginner')->count();
-        $intermCnt     = $allStudents->where('fsl_mastery_level','Intermediate')->count();
-        $advancedCnt   = $allStudents->where('fsl_mastery_level','Advanced')->count();
-        $completedCnt  = $allStudents->where('fsl_mastery_level','Completed')->count();
-        $avgXp         = $allStudents->count() ? round($allStudents->avg('total_xp')) : 0;
+        $allStudents   = $students->getCollection();        // current page (for table context)
+        $sbStudents    = $sidebarStudents ?? collect();     // all active students (for sidebar stats)
+        $beginnerCnt   = $sbStudents->where('fsl_mastery_level','Beginner')->count();
+        $intermCnt     = $sbStudents->where('fsl_mastery_level','Intermediate')->count();
+        $advancedCnt   = $sbStudents->where('fsl_mastery_level','Advanced')->count();
+        $completedCnt  = $sbStudents->where('fsl_mastery_level','Completed')->count();
+        $avgXp         = $sbStudents->count() ? round($sbStudents->avg('total_xp')) : 0;
         $progressPct   = min(100, round($avgXp / 1000 * 100));
-        $readyToPromote = $allStudents->filter(function($s) {
+        $readyToPromote = $sbStudents->filter(function($s) {
             $xp = $s->total_xp ?? 0; $lvl = $s->fsl_mastery_level;
             return ($lvl==='Beginner'&&$xp>=300)||($lvl==='Intermediate'&&$xp>=600)||($lvl==='Advanced'&&$xp>=1000);
         })->count();
@@ -422,7 +423,7 @@
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">FSL Mastery Distribution</p>
                 @php
-                    $total   = $allStudents->count() ?: 1;
+                    $total   = $sbStudents->count() ?: 1;
                     $begPct  = round($beginnerCnt  / $total * 100);
                     $intPct  = round($intermCnt    / $total * 100);
                     $advPct  = round($advancedCnt  / $total * 100);
@@ -474,7 +475,7 @@
                             @endforeach
                         </svg>
                         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span class="text-[22px] font-black text-[#0d326b]">{{ $allStudents->count() }}</span>
+                            <span class="text-[22px] font-black text-[#0d326b]">{{ $sbStudents->count() }}</span>
                             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Students</span>
                         </div>
                     </div>
@@ -508,45 +509,96 @@
                 </div>
             </div>
 
-            {{-- XP Milestones --}}
+            {{-- ── Lesson Selector for Sidebar Stats ── --}}
+            @if(isset($teacherLessons) && $teacherLessons->count())
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Filter by Lesson</p>
+                <div class="relative">
+                    <select id="sidebar-lesson-select"
+                        class="w-full appearance-none bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-700 py-2 pl-3 pr-8 rounded-xl outline-none focus:border-[#0d326b] transition-all cursor-pointer">
+                        <option value="">— All Lessons (Global XP) —</option>
+                        @foreach($teacherLessons as $tl)
+                        <option value="{{ $tl->lesson_id }}">{{ Str::limit($tl->title, 36) }}</option>
+                        @endforeach
+                    </select>
+                    <span class="absolute right-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-[15px] text-slate-400 pointer-events-none">expand_more</span>
+                </div>
+            </div>
+            @endif
+
+            {{-- Promotion Thresholds (per-lesson or global) --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Promotion Thresholds</p>
-                <div class="space-y-3">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Promotion Thresholds</p>
+                <p id="promo-lesson-label" class="text-[9px] text-slate-400 font-medium mb-3 truncate">Based on global XP</p>
+                <div class="space-y-3" id="promo-threshold-list">
                     @php
+                        // ── Default: compute per-student global XP eligibility ──
+                        $sbS = $sidebarStudents ?? collect();
                         $milestones = [
-                            ['from'=>'Beginner','to'=>'Intermediate','xp'=>300,'bg'=>'#ebf4ff','border'=>'#c7d2fe','iconBg'=>'#3b82f6','text'=>'#1e40af','ready'=>$allStudents->where('fsl_mastery_level','Beginner')->filter(fn($s)=>($s->total_xp??0)>=300)->count()],
-                            ['from'=>'Intermediate','to'=>'Advanced','xp'=>600,'bg'=>'#dbeafe','border'=>'#93c5fd','iconBg'=>'#1d4ed8','text'=>'#1e40af','ready'=>$allStudents->where('fsl_mastery_level','Intermediate')->filter(fn($s)=>($s->total_xp??0)>=600)->count()],
-                            ['from'=>'Advanced','to'=>'Completed','xp'=>1000,'bg'=>'#c7d2fe','border'=>'#6366f1','iconBg'=>'#0d3b82','text'=>'#0d316d','ready'=>$allStudents->where('fsl_mastery_level','Advanced')->filter(fn($s)=>($s->total_xp??0)>=1000)->count()],
+                            ['from'=>'Beginner','to'=>'Intermediate','xp'=>300,
+                             'bg'=>'#ebf4ff','border'=>'#c7d2fe','iconBg'=>'#3b82f6','text'=>'#1e40af',
+                             'ready'=>$sbS->where('fsl_mastery_level','Beginner')->filter(fn($s)=>($s->total_xp??0)>=300)->count()],
+                            ['from'=>'Intermediate','to'=>'Advanced','xp'=>600,
+                             'bg'=>'#dbeafe','border'=>'#93c5fd','iconBg'=>'#1d4ed8','text'=>'#1e40af',
+                             'ready'=>$sbS->where('fsl_mastery_level','Intermediate')->filter(fn($s)=>($s->total_xp??0)>=600)->count()],
+                            ['from'=>'Advanced','to'=>'Completed','xp'=>1000,
+                             'bg'=>'#c7d2fe','border'=>'#6366f1','iconBg'=>'#0d3b82','text'=>'#0d316d',
+                             'ready'=>$sbS->where('fsl_mastery_level','Advanced')->filter(fn($s)=>($s->total_xp??0)>=1000)->count()],
                         ];
+                        // ── Encode all student lesson data as JSON for JS updates ──
+                        $sidebarJson = $sbS->map(function($s) {
+                            return [
+                                'student_id'         => $s->student_id,
+                                'first_name'         => $s->first_name,
+                                'last_name'          => $s->last_name,
+                                'fsl_mastery_level'  => $s->fsl_mastery_level,
+                                'total_xp'           => $s->total_xp ?? 0,
+                                'assignments'        => $s->assignments->map(fn($a)=>[
+                                    'lesson_id' => $a->lesson_id,
+                                    'score'     => $a->score ?? 0,
+                                    'status'    => $a->status,
+                                ])->values()->all(),
+                            ];
+                        })->values()->toJson();
                     @endphp
+                    <script>window._sidebarStudents = {!! $sidebarJson !!};</script>
                     @foreach($milestones as $ms)
-                    <div class="flex items-center justify-between p-3 rounded-xl border" style="background:{{ $ms['bg'] }};border-color:{{ $ms['border'] }}">
+                    <div class="flex items-center justify-between p-3 rounded-xl border promo-row" style="background:{{ $ms['bg'] }};border-color:{{ $ms['border'] }}"
+                         data-from="{{ $ms['from'] }}" data-to="{{ $ms['to'] }}" data-xp="{{ $ms['xp'] }}"
+                         data-bg="{{ $ms['bg'] }}" data-border="{{ $ms['border'] }}" data-iconbg="{{ $ms['iconBg'] }}" data-text="{{ $ms['text'] }}">
                         <div class="flex items-center space-x-2">
                             <span class="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style="background:{{ $ms['iconBg'] }}">→</span>
                             <div>
                                 <p class="text-[10px] font-bold" style="color:{{ $ms['text'] }}">{{ $ms['from'] }} → {{ $ms['to'] }}</p>
-                                <p class="text-[9px]" style="color:{{ $ms['iconBg'] }}">{{ number_format($ms['xp']) }} XP needed</p>
+                                <p class="promo-xp-label text-[9px]" style="color:{{ $ms['iconBg'] }}">{{ number_format($ms['xp']) }} XP needed</p>
                             </div>
                         </div>
-                        <span class="text-[12px] font-black" style="color:{{ $ms['text'] }}">{{ $ms['ready'] }} ready</span>
+                        <span class="promo-ready-count text-[12px] font-black" style="color:{{ $ms['text'] }}">{{ $ms['ready'] }} ready</span>
                     </div>
                     @endforeach
                 </div>
             </div>
 
-            {{-- Top XP Earners --}}
+            {{-- Top Students (per-lesson or global) --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Top XP Earners</p>
-                @php $topStudents = $allStudents->sortByDesc('total_xp')->take(3); @endphp
-                @if($topStudents->count())
-                <div class="space-y-3">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Top Students</p>
+                <p id="top-lesson-label" class="text-[9px] text-slate-400 font-medium mb-3 truncate">By global XP (students with XP)</p>
+                @php
+                    $topStudents = ($sidebarStudents ?? collect())
+                        ->filter(fn($s) => ($s->total_xp ?? 0) > 0)
+                        ->sortByDesc('total_xp')
+                        ->values()
+                        ->take(3);
+                @endphp
+                <div id="top-students-list" class="space-y-3">
+                    @if($topStudents->count())
                     @foreach($topStudents as $idx => $ts)
                     @php
                         $rc = [
-                            ['ring'=>'ring-[#0d326b]', 'bg'=>'bg-[#eff6ff]',  'badge'=>'bg-[#0d326b] text-white'],
-                            ['ring'=>'ring-blue-200',  'bg'=>'bg-slate-50',    'badge'=>'bg-blue-100 text-[#1e4b8f]'],
-                            ['ring'=>'ring-blue-100',  'bg'=>'bg-blue-50/50',  'badge'=>'bg-blue-50 text-[#1e4b8f]'],
-                        ][$idx] ?? ['ring'=>'ring-slate-200','bg'=>'bg-slate-50','badge'=>'bg-slate-200 text-slate-600'];
+                            ['bg'=>'bg-[#eff6ff]',  'badge'=>'bg-[#0d326b] text-white'],
+                            ['bg'=>'bg-slate-50',    'badge'=>'bg-blue-100 text-[#1e4b8f]'],
+                            ['bg'=>'bg-blue-50/50',  'badge'=>'bg-blue-50 text-[#1e4b8f]'],
+                        ][$idx] ?? ['bg'=>'bg-slate-50','badge'=>'bg-slate-200 text-slate-600'];
                     @endphp
                     <div class="flex items-center space-x-3 p-2.5 rounded-xl {{ $rc['bg'] }}">
                         <div class="relative shrink-0">
@@ -555,15 +607,15 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-[12px] font-bold text-[#0d326b] truncate">{{ $ts->first_name }} {{ $ts->last_name }}</p>
-                            <p class="text-[10px] text-slate-400 font-medium">{{ number_format($ts->total_xp) }} XP</p>
+                            <p class="text-[10px] text-slate-400 font-medium top-score-label">{{ number_format($ts->total_xp) }} XP</p>
                         </div>
                         @if($idx===0)<span class="material-symbols-outlined text-[#facc15] text-[18px] shrink-0">star</span>@endif
                     </div>
                     @endforeach
+                    @else
+                    <p class="text-[12px] text-slate-400 text-center py-3">No XP data yet.</p>
+                    @endif
                 </div>
-                @else
-                <p class="text-[12px] text-slate-400 text-center py-3">No XP data yet.</p>
-                @endif
             </div>
 
         </div>
@@ -703,8 +755,6 @@
                                         class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
                                         <option value="Regular">Regular</option>
                                         <option value="Inclusion">Inclusion</option>
-                                        <option value="SPED">SPED</option>
-                                        <option value="Home-based">Home-based</option>
                                         <option value="Self-contained">Self-contained</option>
                                         <option value="Transition">Transition</option>
                                     </select>
@@ -1136,6 +1186,9 @@ function closeModal(){
         resetModal();
     }, 300);
 }
+closeModalBtn.addEventListener('click', closeModal);
+cancelBtns.forEach(btn => btn.addEventListener('click', closeModal));
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 const AT='text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all',IT='text-slate-400 border-b-2 border-transparent hover:text-slate-600 outline-none transition-all';
 tabSingle.addEventListener('click',()=>{tabSingle.className=AT;tabBulk.className=IT;formSingle.classList.remove('hidden');containerBulk.classList.add('hidden');});
 tabBulk.addEventListener('click',()=>{tabBulk.className=AT;tabSingle.className=IT;containerBulk.classList.remove('hidden');formSingle.classList.add('hidden');});
@@ -1220,16 +1273,23 @@ function mapExcelData(rows) {
     const sectionIdx = h.findIndex(x => x.includes('section'));
     const masteryIdx = h.findIndex(x => x.includes('fsl') || x.includes('mastery') || x.includes('skill'));
     const syIdx      = h.findIndex(x => x.includes('school') && x.includes('year'));
-    const PROGRAMS   = { regular:'Regular', inclusion:'Inclusion', sped:'SPED', 'home-based':'Home-based', homebased:'Home-based', home:'Home-based' };
+    const PROGRAMS   = { regular:'Regular', inclusion:'Inclusion', transition:'Transition', 'self-contained':'Self-contained', selfcontained:'Self-contained', sped:'Transition', 'home-based':'Self-contained', homebased:'Self-contained', home:'Self-contained' };
     return rows.slice(1)
         .filter(r => r && r.some(cell => String(cell || '').trim() !== ''))
         .map((row, i) => {
             const lrn = String(row[lrnIdx] ?? '').trim();
             let full_name = '';
+            let last_name = '';
             if (nameIdx !== -1) { full_name = String(row[nameIdx] ?? '').trim(); }
             else if (lastIdx !== -1 || firstIdx !== -1) {
                 const ln = String(row[lastIdx] ?? '').trim(), fn = String(row[firstIdx] ?? '').trim();
                 full_name = ln && fn ? ln + ', ' + fn : (ln || fn);
+            }
+            // Extract last_name for separate editing
+            if (lastIdx !== -1) {
+                last_name = String(row[lastIdx] ?? '').trim();
+            } else if (full_name.includes(',')) {
+                last_name = full_name.split(',')[0].trim();
             }
             let program_type = '';
             if (programIdx !== -1) {
@@ -1240,7 +1300,7 @@ function mapExcelData(rows) {
             const fsl_mastery_level = rawM.includes('inter') ? 'Intermediate' : rawM.includes('adv') ? 'Advanced' : 'Beginner';
             const age = ageIdx !== -1 ? parseInt(row[ageIdx], 10) : NaN;
             return {
-                _row: i + 2, lrn, full_name, program_type,
+                _row: i + 2, lrn, full_name, last_name, program_type,
                 grade_level:       gradeIdx   !== -1 ? String(row[gradeIdx]   ?? '').trim() || null : null,
                 age:               isNaN(age) ? null : age,
                 section:           sectionIdx !== -1 ? String(row[sectionIdx] ?? '').trim() || null : null,
@@ -1250,7 +1310,7 @@ function mapExcelData(rows) {
         });
 }
 // ─── Validation ───────────────────────────────────────────────────────────────
-const VALID_PROGRAMS     = ['Regular', 'Inclusion', 'SPED', 'Home-based'];
+const VALID_PROGRAMS     = ['Regular', 'Inclusion', 'Transition', 'Self-contained'];
 const VALID_MASTERY      = ['Beginner', 'Intermediate', 'Advanced'];
 const GRADE_SEC_PROGRAMS = ['Regular', 'Inclusion'];
 function validateStudent(s) {
@@ -1391,6 +1451,7 @@ function renderDataTable() {
         { key:'_row',              label:'#',           w:'44px',  edit:false },
         { key:'lrn',               label:'LRN',         w:'140px', edit:true, type:'text'   },
         { key:'full_name',         label:'Student Name',w:'175px', edit:true, type:'text'   },
+        { key:'last_name',         label:'Last Name',   w:'130px', edit:true, type:'text'   },
         { key:'program_type',      label:'Program',     w:'130px', edit:true, type:'select', opts:VALID_PROGRAMS },
         { key:'grade_level',       label:'Grade Level', w:'120px', edit:true, type:'select', opts:['','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','SPED A','SPED B'] },
         { key:'section',           label:'Section',     w:'105px', edit:true, type:'text'   },
@@ -1473,6 +1534,33 @@ document.getElementById('bulk-step-table').addEventListener('input', function(e)
     if (!el.dataset || !el.dataset.field) return;
     const idx = parseInt(el.dataset.idx, 10);
     parsedStudents[idx][el.dataset.field] = el.value.trim();
+    // If last_name is edited, rebuild full_name (Last, First format)
+    if (el.dataset.field === 'last_name') {
+        const ln = el.value.trim();
+        const current = parsedStudents[idx].full_name || '';
+        let fn = '';
+        if (current.includes(',')) { fn = current.split(',').slice(1).join(',').trim(); }
+        else { fn = current.trim(); }
+        parsedStudents[idx].full_name = ln && fn ? ln + ', ' + fn : (ln || fn);
+        // update the full_name cell input in the same row if visible
+        const tr = el.closest('tr');
+        if (tr) {
+            const fnInput = tr.querySelector('[data-field="full_name"]');
+            if (fnInput) fnInput.value = parsedStudents[idx].full_name;
+        }
+    }
+    // If full_name is edited, update last_name too
+    if (el.dataset.field === 'full_name') {
+        const fn = el.value.trim();
+        if (fn.includes(',')) {
+            parsedStudents[idx].last_name = fn.split(',')[0].trim();
+        }
+        const tr = el.closest('tr');
+        if (tr) {
+            const lnInput = tr.querySelector('[data-field="last_name"]');
+            if (lnInput) lnInput.value = parsedStudents[idx].last_name || '';
+        }
+    }
     const errs    = validateStudent(parsedStudents[idx]);
     const cellErr = errs[el.dataset.field];
     const td      = el.parentElement;
@@ -2699,6 +2787,133 @@ document.addEventListener('click', function(e) {
 
 
 
+
+
+// ── Sidebar: per-lesson promotion thresholds & top students ────────────────
+(function () {
+    const sel = document.getElementById('sidebar-lesson-select');
+    if (!sel) return;
+
+    const students = window._sidebarStudents || [];
+    const thresholds = [
+        { from: 'Beginner',     to: 'Intermediate', xp: 300 },
+        { from: 'Intermediate', to: 'Advanced',     xp: 600 },
+        { from: 'Advanced',     to: 'Completed',    xp: 1000 },
+    ];
+
+    const lessonSelect = document.getElementById('sidebar-lesson-select');
+    const promoLabel   = document.getElementById('promo-lesson-label');
+    const topLabel     = document.getElementById('top-lesson-label');
+    const topList      = document.getElementById('top-students-list');
+    const promoRows    = document.querySelectorAll('.promo-row');
+
+    const badgeClasses = [
+        'bg-[#0d326b] text-white',
+        'bg-blue-100 text-[#1e4b8f]',
+        'bg-blue-50 text-[#1e4b8f]',
+    ];
+    const bgClasses = ['bg-[#eff6ff]', 'bg-slate-50', 'bg-blue-50/50'];
+
+    function avatarUrl(first, last) {
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(first + '+' + last)}&background=0d326b&color=fff&rounded=true&size=80`;
+    }
+
+    function rebuildPromo(lessonId) {
+        promoRows.forEach(row => {
+            const from = row.dataset.from;
+            const to   = row.dataset.to;
+            const xp   = parseInt(row.dataset.xp);
+            const iconBg = row.dataset.iconbg;
+            const textClr = row.dataset.text;
+
+            let readyCount = 0;
+            if (!lessonId) {
+                // Global: count by total_xp
+                readyCount = students.filter(s =>
+                    s.fsl_mastery_level === from &&
+                    s.total_xp >= xp
+                ).length;
+            } else {
+                // Per-lesson: count by lesson assignment score
+                readyCount = students.filter(s => {
+                    if (s.fsl_mastery_level !== from) return false;
+                    const assign = s.assignments.find(a => String(a.lesson_id) === String(lessonId));
+                    return assign && (assign.score ?? 0) >= xp;
+                }).length;
+            }
+
+            const countEl = row.querySelector('.promo-ready-count');
+            if (countEl) {
+                countEl.textContent = readyCount + ' ready';
+            }
+            // Update XP label
+            const xpLabel = row.querySelector('.promo-xp-label');
+            if (xpLabel) {
+                xpLabel.textContent = xp.toLocaleString() + ' ' + (lessonId ? 'score' : 'XP') + ' needed';
+            }
+        });
+    }
+
+    function rebuildTopStudents(lessonId) {
+        let ranked = [];
+
+        if (!lessonId) {
+            // Global: sort by total_xp, exclude 0
+            ranked = students
+                .filter(s => s.total_xp > 0)
+                .sort((a, b) => b.total_xp - a.total_xp)
+                .slice(0, 3)
+                .map(s => ({ ...s, display_score: s.total_xp + ' XP' }));
+        } else {
+            // Per-lesson: sort by score, exclude 0 and null
+            ranked = students
+                .map(s => {
+                    const assign = s.assignments.find(a => String(a.lesson_id) === String(lessonId));
+                    return { ...s, lesson_score: assign ? (assign.score ?? 0) : 0 };
+                })
+                .filter(s => s.lesson_score > 0)
+                .sort((a, b) => b.lesson_score - a.lesson_score)
+                .slice(0, 3)
+                .map(s => ({ ...s, display_score: s.lesson_score + ' pts' }));
+        }
+
+        if (ranked.length === 0) {
+            topList.innerHTML = '<p class="text-[12px] text-slate-400 text-center py-3">No performance data yet.</p>';
+            return;
+        }
+
+        topList.innerHTML = ranked.map((s, i) => `
+            <div class="flex items-center space-x-3 p-2.5 rounded-xl ${bgClasses[i] || 'bg-slate-50'}">
+                <div class="relative shrink-0">
+                    <img src="${avatarUrl(s.first_name, s.last_name)}" class="w-10 h-10 rounded-full" />
+                    <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full ${badgeClasses[i] || 'bg-slate-200 text-slate-600'} text-[8px] font-black flex items-center justify-center">${i + 1}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[12px] font-bold text-[#0d326b] truncate">${s.first_name} ${s.last_name}</p>
+                    <p class="text-[10px] text-slate-400 font-medium top-score-label">${s.display_score}</p>
+                </div>
+                ${i === 0 ? '<span class="material-symbols-outlined text-[#facc15] text-[18px] shrink-0">star</span>' : ''}
+            </div>
+        `).join('');
+    }
+
+    sel.addEventListener('change', function () {
+        const lessonId = this.value;
+        const selectedText = this.options[this.selectedIndex].text;
+
+        if (!lessonId) {
+            if (promoLabel)  promoLabel.textContent  = 'Based on global XP';
+            if (topLabel)    topLabel.textContent    = 'By global XP (students with XP)';
+        } else {
+            const short = selectedText.length > 32 ? selectedText.slice(0, 32) + '…' : selectedText;
+            if (promoLabel)  promoLabel.textContent  = 'Lesson: ' + short;
+            if (topLabel)    topLabel.textContent    = 'Lesson: ' + short;
+        }
+
+        rebuildPromo(lessonId);
+        rebuildTopStudents(lessonId);
+    });
+})();
 
 </script>
 @endsection

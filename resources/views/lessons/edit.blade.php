@@ -2404,11 +2404,16 @@ function handleQuestionTypeChange(select) {
     if (select.value === 'true_false') {
         if (optionsContainer) optionsContainer.classList.remove('hidden');
         const optionsList = questionDiv.querySelector('.options-list');
-        // Remove extra options beyond 2 using a live query each iteration
-        let rows = optionsList.querySelectorAll('.option-row');
-        while (rows.length > 2) {
-            rows[rows.length - 1].remove();
-            rows = optionsList.querySelectorAll('.option-row');
+        // Ensure exactly 2 option rows exist
+        const rows = Array.from(optionsList.querySelectorAll('.option-row'));
+        // Remove extras beyond 2 (iterate static array, no re-query)
+        for (let i = rows.length - 1; i >= 2; i--) {
+            rows[i].remove();
+        }
+        // Add missing rows if fewer than 2
+        while (optionsList.querySelectorAll('.option-row').length < 2) {
+            const idx = optionsList.querySelectorAll('.option-row').length;
+            optionsList.appendChild(buildOptionRow(qIndex, idx));
         }
         const textInputs = optionsList.querySelectorAll('.option-text-input');
         const radios = optionsList.querySelectorAll('input[type="radio"]');
@@ -2421,14 +2426,11 @@ function handleQuestionTypeChange(select) {
         if (addBtn) addBtn.style.display = 'none';
     } else if (select.value === 'drag_drop') {
         if (dragDropContainer) dragDropContainer.classList.remove('hidden');
-        // Auto-add first pair if none exist
+        // Auto-add first pair if none exist — call directly, never via .click()
         const pairsList = dragDropContainer.querySelector('.drag-drop-pairs-list');
         if (pairsList && pairsList.querySelectorAll('.drag-drop-pair').length === 0) {
-            const addBtn = dragDropContainer.querySelector('button[onclick*="addDragDropPair"]');
-            if (addBtn) {
-                addBtn.click();
-                addBtn.click();
-            }
+            pairsList.appendChild(buildDragDropPair(qIndex, 0));
+            pairsList.appendChild(buildDragDropPair(qIndex, 1));
         }
     } else if (select.value === 'gesture') {
         if (gestureContainer) gestureContainer.classList.remove('hidden');
@@ -2443,6 +2445,11 @@ function handleQuestionTypeChange(select) {
     } else if (select.value === 'multiple_choice') {
         if (optionsContainer) optionsContainer.classList.remove('hidden');
         const optionsList = questionDiv.querySelector('.options-list');
+        // Ensure at least 2 options exist
+        while (optionsList.querySelectorAll('.option-row').length < 2) {
+            const idx = optionsList.querySelectorAll('.option-row').length;
+            optionsList.appendChild(buildOptionRow(qIndex, idx));
+        }
         optionsList.querySelectorAll('.option-image-row, .option-remove-btn').forEach(el => el.style.visibility = 'visible');
         const addBtn = optionsContainer.querySelector('button');
         if (addBtn) addBtn.style.display = 'inline-block';
@@ -2931,7 +2938,7 @@ function addQuizQuestion() {
     const container = document.getElementById('quizQuestions');
     const qIndex = quizIndex;
     const question = document.createElement('div');
-    question.className = 'quiz-question-card';
+    question.className = 'quiz-question quiz-question-card';
     question.innerHTML = `
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-3">
