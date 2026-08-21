@@ -248,12 +248,18 @@
         </div>
         @endif
 
-        <div style="padding: 12px 24px 20px; border-top: 1px solid #f8fafc;">
+        <div style="padding: 12px 24px 20px; border-top: 1px solid #f8fafc; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
             <a href="{{ route('admin.lesson-templates.create', ['module_id' => $module->module_id]) }}"
                class="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#92400e] hover:underline">
                 <span class="material-symbols-outlined text-[16px]">add</span>
                 Add Lesson to this Module
             </a>
+            <span class="text-slate-300">|</span>
+            <button onclick="openExamChoiceModal({{ $module->module_id }}, '{{ addslashes($module->title) }}', {{ $module->canCreateExam ? 'true' : 'false' }}, {{ $module->availableLessonsCount }})"
+               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 text-[#8b5cf6] border border-purple-200 text-[12px] font-bold hover:bg-purple-100 transition shadow-sm">
+                <span class="material-symbols-outlined text-[16px]">assignment_add</span>
+                Add Checkpoint Exam
+            </button>
         </div>
     </div>
     @empty
@@ -535,5 +541,78 @@ styleSheet.textContent = `@keyframes slideUp { from { opacity:0; transform:trans
 document.head.appendChild(styleSheet);
 </script>
 
+{{-- ── EXAM CHOICE MODAL ──────────────────────────────────────────────── --}}
+<div id="examChoiceModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9998] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+                <h3 class="text-base font-bold text-[#0d326b] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[#8b5cf6]">assignment_add</span>
+                    Add Checkpoint Exam
+                </h3>
+                <p class="text-xs text-slate-400 font-medium mt-0.5" id="adminModalModuleTitle">Module</p>
+            </div>
+            <button onclick="closeExamChoiceModal()" class="text-slate-400 hover:text-slate-600">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <div id="adminExamRequirementWarning" class="hidden p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-start gap-2">
+            <span class="material-symbols-outlined text-amber-600 text-[18px] shrink-0 mt-0.5">warning</span>
+            <div>
+                <span class="font-bold block mb-0.5">At least 2 new published lessons required!</span>
+                You need at least 2 published lessons with quizzes in this module that haven't been included in a checkpoint exam yet before creating a new exam.
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <div id="adminChoicePrevQuestions"
+                 class="p-4 rounded-xl border border-slate-200 hover:border-purple-300 bg-white hover:bg-purple-50/50 transition cursor-pointer flex items-center justify-between group"
+                 onclick="proceedWithAdminChoice()">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                        <span class="material-symbols-outlined text-[22px]">checklist</span>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-[#0d326b] group-hover:text-purple-700 transition">Choose from Module Lessons & Quizzes</h4>
+                        <p class="text-xs text-slate-400 font-medium">Select questions from published lessons in this module and customize point values.</p>
+                    </div>
+                </div>
+                <span class="material-symbols-outlined text-slate-300 group-hover:text-purple-600 text-[20px] transition">chevron_right</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAdminModuleId = null;
+
+function openExamChoiceModal(moduleId, moduleTitle, canCreate, availableCount) {
+    currentAdminModuleId = moduleId;
+    document.getElementById('adminModalModuleTitle').textContent = `Module: ${moduleTitle}`;
+    const warning = document.getElementById('adminExamRequirementWarning');
+    const choice = document.getElementById('adminChoicePrevQuestions');
+
+    if (!canCreate) {
+        warning.classList.remove('hidden');
+        choice.classList.add('opacity-50', 'pointer-events-none');
+    } else {
+        warning.classList.add('hidden');
+        choice.classList.remove('opacity-50', 'pointer-events-none');
+    }
+
+    document.getElementById('examChoiceModal').classList.remove('hidden');
+}
+
+function closeExamChoiceModal() {
+    document.getElementById('examChoiceModal').classList.add('hidden');
+}
+
+function proceedWithAdminChoice() {
+    if (currentAdminModuleId) {
+        window.location.href = `{{ url('/admin/lessons/checkpoint-exam/create') }}?module_id=${currentAdminModuleId}`;
+    }
+}
+</script>
 
 @endsection

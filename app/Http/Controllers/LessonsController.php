@@ -864,6 +864,9 @@ public function edit($id)
     $lesson = Lesson::with(['contents', 'quiz.questions.options'])->findOrFail($realId);
 
     if ($id !== $lesson->hash_id) {
+        if ($this->isAdminTemplateContext()) {
+            return redirect()->route('admin.lesson-templates.edit', $lesson->hash_id);
+        }
         return redirect()->route('lessons.edit', $lesson->hash_id);
     }
 
@@ -2064,7 +2067,8 @@ public function createCheckpointExam(Request $request)
     $moduleId = $request->query('module_id');
 
     if (!$moduleId) {
-        return redirect()->route('lessons.index')->with('error', 'Please select a module first.');
+        $indexRoute = $this->isAdminTemplateContext() ? 'admin.lesson-templates.index' : 'lessons.index';
+        return redirect()->route($indexRoute)->with('error', 'Please select a module first.');
     }
 
     // Verify module belongs to teacher
@@ -2252,7 +2256,11 @@ public function storeCheckpointExam(Request $request)
         return $exam;
     });
 
-    return redirect()->route('lessons.checkpoint-exam.show', $exam->hash_id)
+    $showRoute = $this->isAdminTemplateContext()
+        ? 'admin.lesson-templates.checkpoint-exam.show'
+        : 'lessons.checkpoint-exam.show';
+
+    return redirect()->route($showRoute, $exam->hash_id)
         ->with('success', 'Checkpoint exam created successfully! You can now publish it to students.');
 }
 

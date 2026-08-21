@@ -32,6 +32,7 @@ class StudentsController extends Controller
         $availableSchoolYears = collect();
         $sidebarStudents      = collect();
         $teacherLessons       = collect();
+        $promotionReadyCounts = ['Beginner' => 0, 'Intermediate' => 0, 'Advanced' => 0];
 
         if ($teacher) {
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
@@ -102,6 +103,26 @@ class StudentsController extends Controller
                                       }])
                                       ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
 
+            // ── Sidebar: Promotion Thresholds — how many active students at
+            // each level have completed all lessons assigned to them at that
+            // level (same rule as the individual student "Promotion" card).
+            $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
+            $promotionReadyCounts = ['Beginner' => 0, 'Intermediate' => 0, 'Advanced' => 0];
+            foreach ($sidebarStudents as $sbStudent) {
+                $sbLevel = $sbStudent->fsl_mastery_level;
+                if (!array_key_exists($sbLevel, $promotionReadyCounts)) {
+                    continue;
+                }
+                $readiness = $this->computeLessonReadiness(
+                    $sbStudent->student_id,
+                    $sbLevel,
+                    $promotionMap[$sbLevel] ?? null
+                );
+                if ($readiness['ready']) {
+                    $promotionReadyCounts[$sbLevel]++;
+                }
+            }
+
             // ── Sidebar: published lessons belonging to this teacher ──
             $teacherLessons = Lesson::where('teacher_id', $teacher->id)
                                     ->where('status', 'published')
@@ -112,7 +133,7 @@ class StudentsController extends Controller
 
         return view('students', compact(
             'totalStudents', 'newThisWeek', 'students', 'availableSchoolYears',
-            'sidebarStudents', 'teacherLessons'
+            'sidebarStudents', 'teacherLessons', 'promotionReadyCounts'
         ));
     }
 
@@ -758,6 +779,59 @@ if (!empty($examIdsOnly)) {
     /**
      * Format student details response.
      */
+    /**
+     * Lesson-completion-based promotion eligibility for one student, at
+     * their current mastery level. Shared by the student-details "Promotion"
+     * card and the sidebar "Promotion Thresholds" widget so both agree on
+     * what "ready" means.
+     *
+     * @return array{total:int, completed:int, ready:bool}
+     */
+    private function computeLessonReadiness(int $studentId, ?string $currentLevel, ?string $promoteTo): array
+    {
+        $lessonsTotal     = 0;
+        $lessonsCompleted = 0;
+        $lessonsReady     = false;
+
+        if ($promoteTo !== null && $currentLevel !== 'Completed') {
+            // Get all lessons assigned to this student at this level
+            $assignedLessonIds = LessonAssignment::where('student_id', $studentId)
+                ->whereHas('lesson', function($query) use ($currentLevel) {
+                    $query->where('status', 'published')
+                        ->whereNull('deleted_at')
+                        ->whereHas('module', function($q) use ($currentLevel) {
+                            $q->where('mastery_level', $currentLevel);
+                        });
+                })
+                ->pluck('lesson_id')
+                ->toArray();
+
+            $lessonsTotal = count($assignedLessonIds);
+
+            // If no assigned lessons, the student is "lesson-ready" (no lessons to complete)
+            if ($lessonsTotal === 0) {
+                $lessonsReady = true;
+            } else {
+                // Get completed lesson IDs from student_lesson_progress
+                $completedIds = \App\Models\StudentLessonProgress::where('student_id', $studentId)
+                    ->where('lesson_completed', true)
+                    ->pluck('lesson_id')
+                    ->toArray();
+
+                // Count only assigned lessons that are completed
+                $lessonsCompleted = count(array_intersect($assignedLessonIds, $completedIds));
+
+                $lessonsReady = $lessonsCompleted >= $lessonsTotal;
+            }
+        }
+
+        return [
+            'total'     => $lessonsTotal,
+            'completed' => $lessonsCompleted,
+            'ready'     => $lessonsReady,
+        ];
+    }
+
    private function getStudentDetailsResponse(Student $student)
 {
     $user = \App\Models\User::find($student->user_id);
@@ -775,42 +849,10 @@ if (!empty($examIdsOnly)) {
     $demoteTo   = $demotionMap[$lvl] ?? null;
 
     // ── Lesson-progress-based promotion eligibility ─────────────────
-    // 🔥 FIX: Count only lessons that are ASSIGNED to this student
-    $lessonsTotal = 0;
-    $lessonsCompleted = 0;
-    $lessonsReady = false;
-
-    if ($promoteTo !== null && $lvl !== 'Completed') {
-        // Get all lessons assigned to this student at this level
-        $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
-            ->whereHas('lesson', function($query) use ($lvl) {
-                $query->where('status', 'published')
-                    ->whereNull('deleted_at')
-                    ->whereHas('module', function($q) use ($lvl) {
-                        $q->where('mastery_level', $lvl);
-                    });
-            })
-            ->pluck('lesson_id')
-            ->toArray();
-
-        $lessonsTotal = count($assignedLessonIds);
-
-        // 🔥 If no assigned lessons, the student is "lesson-ready" (no lessons to complete)
-        if ($lessonsTotal === 0) {
-            $lessonsReady = true;
-        } else {
-            // Get completed lesson IDs from student_lesson_progress
-            $completedIds = \App\Models\StudentLessonProgress::where('student_id', $student->student_id)
-                ->where('lesson_completed', true)
-                ->pluck('lesson_id')
-                ->toArray();
-
-            // Count only assigned lessons that are completed
-            $lessonsCompleted = count(array_intersect($assignedLessonIds, $completedIds));
-
-            $lessonsReady = $lessonsCompleted >= $lessonsTotal;
-        }
-    }
+    $readiness        = $this->computeLessonReadiness($student->student_id, $lvl, $promoteTo);
+    $lessonsTotal     = $readiness['total'];
+    $lessonsCompleted = $readiness['completed'];
+    $lessonsReady     = $readiness['ready'];
 
     return [
         'student_id'        => $student->student_id,

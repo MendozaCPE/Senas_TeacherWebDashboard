@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('bg-class', 'bg-[#f4f7f9]')
+@section('bg-class', 'bg-[#f8fafc]')
 @section('title', 'Analytics')
 @section('content')
 
@@ -10,302 +10,344 @@
     --navy-700: #1e4b8f;
     --navy-500: #1a6fd4;
     --navy-400: #3b82f6;
-    --navy-300: #93c5fd;
     --navy-200: #bfdbfe;
     --navy-100: #dbeafe;
     --navy-50:  #eff6ff;
-    --analytics-slate: #64748b;
+
+    --gold-600: #b45309;
+    --gold-500: #d97706;
+    --gold-400: #f59e0b;
+    --gold-100: #fef3c7;
+    --gold-50:  #fffbeb;
 }
 
-/* ── Stat cards ───────────────────────────────────────────── */
-.stat-card { border-radius: 20px; padding: 20px; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
-.stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(13,50,107,.12); }
+/* ── Panels & Cards (Dashboard Design System) ── */
+.analytics-panel {
+    background: #ffffff;
+    border-radius: 26px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 4px 20px rgba(13, 50, 107, 0.03);
+    padding: 24px;
+    transition: box-shadow .25s ease;
+}
+.analytics-panel:hover {
+    box-shadow: 0 10px 30px rgba(13, 50, 107, 0.06);
+}
 
-/* ── Panels ───────────────────────────────────── */
-.panel { background: #fff; border-radius: 20px; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(13,50,107,.04); padding: 24px; }
-.panel:hover { box-shadow: 0 12px 32px rgba(13,50,107,.08); }
-
-/* ── Filter styles (matching Reports page) ──────────────────────── */
-.filter-container {
-    background: #fff;
-    border-radius: 16px;
+.stat-kpi-card {
+    border-radius: 24px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease;
     border: 1px solid #f1f5f9;
-    box-shadow: 0 1px 2px rgba(13,50,107,.04);
-    padding: 14px 18px;
+}
+.stat-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(13, 50, 107, 0.08);
+}
+
+/* ── Filter Toolbar ── */
+.filter-container {
+    background: #ffffff;
+    border-radius: 22px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 2px 10px rgba(13, 50, 107, 0.03);
+    padding: 14px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
 }
-
 .filter-group {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
 }
-
-.filter-select {
-    appearance: none;
-    background: #f1f5f9;
-    color: #1e293b;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 8px 32px 8px 14px;
-    border-radius: 9999px;
-    border: none;
-    outline: none;
-    cursor: pointer;
-    transition: all .2s;
-    position: relative;
-}
-.filter-select:hover { background: #e2e8f0; }
-.filter-select:focus { ring: 2px solid #0d326b; }
-
 .filter-wrap {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+}
+.filter-select {
+    appearance: none;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 8px 34px 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0d326b;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s, background-color .15s;
+}
+.filter-select:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
 }
 .filter-wrap .material-symbols-outlined {
     position: absolute;
     right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    color: #94a3b8;
     pointer-events: none;
+    font-size: 18px;
+    color: #0d326b;
 }
-
 .filter-btn {
-    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
-    color: #fff;
-    padding: 8px 20px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    transition: all .2s;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-.filter-btn:hover { opacity: .9; box-shadow: 0 4px 12px rgba(13,50,107,.25); }
-
-.filter-reset {
-    padding: 8px 16px;
-    border-radius: 9999px;
-    border: 1px solid #e2e8f0;
-    background: #fff;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .2s;
-    text-decoration: none;
-    display: inline-block;
-}
-.filter-reset:hover { background: #f8fafc; border-color: #cbd5e1; }
-
-.export-btn {
-    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
-    color: #fff;
-    padding: 9px 22px;
-    border-radius: 12px;
+    background: #0d326b;
+    color: #ffffff;
     font-size: 13px;
     font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 14px;
     border: none;
     cursor: pointer;
-    transition: all .25s;
-    display: flex;
+    transition: background .2s, transform .15s;
+}
+.filter-btn:hover {
+    background: #1a6fd4;
+}
+.filter-reset {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+}
+.filter-reset:hover {
+    background: #f1f5f9;
+    color: #0d326b;
+}
+
+.export-btn {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    text-decoration: none;
-    box-shadow: 0 3px 12px rgba(13,50,107,.22);
-    position: relative;
-    overflow: hidden;
+    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 9px 20px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(13, 50, 107, 0.18);
+    transition: transform .15s, box-shadow .2s, background .2s;
 }
-.export-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 100%);
-    opacity: 0;
-    transition: opacity .2s;
+.export-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(13, 50, 107, 0.25);
+    background: linear-gradient(135deg, #1e4b8f 0%, #1a6fd4 100%);
 }
-.export-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(13,50,107,.32); }
-.export-btn:hover::before { opacity: 1; }
-.export-btn:active { transform: translateY(0); }
 
-/* ── Export PDF Modal ─────────────────────────────────────────────────────── */
-.pdf-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(7,28,63,.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    z-index: 1000;
+/* ── Senya Gold Insight Containers (Always Gold & Emoji Free) ── */
+.senya-insight-gold {
+    background: linear-gradient(135deg, #fffdf8 0%, #fefce8 100%);
+    border: 1.5px solid #fbbf24;
+    border-radius: 20px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
+}
+.senya-insight-gold-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
+    color: #78350f;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+.senya-insight-gold-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #b45309;
+    margin-bottom: 2px;
+}
+.senya-insight-gold-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #78350f;
+    line-height: 1.55;
+}
+
+/* ── Interactive Leaderboard / Student Ranking ── */
+.rank-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    transition: background .15s, border-color .15s;
+}
+.rank-item-row:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.rank-badge-podium {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.rank-badge-gold {
+    background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
+    color: #78350f;
+    border: 1px solid #f59e0b;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+}
+.rank-badge-silver {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+.rank-badge-bronze {
+    background: #ffedd5;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+}
+.rank-badge-default {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+/* ── Gesture Master-Detail Split Component ── */
+.gesture-sign-card {
+    border-radius: 18px;
+    border: 1px solid #f1f5f9;
+    background: #ffffff;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all .2s ease;
+    text-align: left;
+    width: 100%;
+}
+.gesture-sign-card:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    transform: translateX(3px);
+}
+.gesture-sign-card.active {
+    border-color: #1a6fd4;
+    background: #eff6ff;
+    box-shadow: 0 4px 14px rgba(26, 111, 212, 0.08);
+}
+
+.gesture-status-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.gesture-status-mastered {
+    background: #dbeafe;
+    color: #0d326b;
+    border: 1px solid #bfdbfe;
+}
+.gesture-status-practice {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+/* ── Tooltips & Charts ── */
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+}
+.chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: #071c3f;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    transition: opacity .15s ease, transform .15s ease;
+    z-index: 40;
+}
+.chart-tooltip.visible {
+    opacity: 1;
+}
+
+/* ── PDF Modal ── */
+.pdf-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 28, 63, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity .25s;
+    transition: opacity .2s ease;
 }
-.pdf-modal-overlay.open { opacity: 1; pointer-events: all; }
+.pdf-modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
 .pdf-modal {
     background: #ffffff;
     border-radius: 28px;
     width: 100%;
-    max-width: 480px;
-    box-shadow: 0 32px 80px rgba(7,28,63,.3), 0 0 0 1px rgba(13,50,107,.06);
+    max-width: 520px;
+    box-shadow: 0 24px 60px rgba(7, 28, 63, 0.25);
     overflow: hidden;
-    transform: translateY(24px) scale(0.97);
-    transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .25s;
-    opacity: 0;
-}
-.pdf-modal-overlay.open .pdf-modal { transform: translateY(0) scale(1); opacity: 1; }
-.pdf-modal-header {
-    background: linear-gradient(135deg, #071c3f 0%, #0d326b 60%, #1e4b8f 100%);
-    padding: 28px 28px 24px;
-    position: relative;
-    overflow: hidden;
-}
-.pdf-modal-header::after {
-    content: '';
-    position: absolute;
-    top: -30px; right: -30px;
-    width: 120px; height: 120px;
-    background: rgba(255,255,255,.05);
-    border-radius: 50%;
-}
-.pdf-modal-icon { width: 52px; height: 52px; background: rgba(255,255,255,.12); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
-.pdf-modal-title { font-size: 20px; font-weight: 800; color: #ffffff; line-height: 1.2; margin-bottom: 4px; }
-.pdf-modal-subtitle { font-size: 12px; color: rgba(255,255,255,.6); font-weight: 500; }
-.pdf-modal-body { padding: 24px 28px; }
-.pdf-preview-card { background: linear-gradient(135deg, #f8faff 0%, #eff6ff 100%); border: 1px solid #dbeafe; border-radius: 16px; padding: 16px 18px; margin-bottom: 20px; }
-.pdf-preview-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
-.pdf-preview-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.pdf-preview-row:last-child { margin-bottom: 0; }
-.pdf-preview-dot { width: 6px; height: 6px; background: #0d326b; border-radius: 50%; flex-shrink: 0; }
-.pdf-preview-text { font-size: 12px; color: #334155; font-weight: 600; }
-.pdf-preview-text span { color: #0d326b; font-weight: 700; }
-.pdf-options { margin-bottom: 20px; }
-.pdf-options-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
-.pdf-option-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border-radius: 12px; margin-bottom: 8px; border: 1px solid #f1f5f9; }
-.pdf-option-label { font-size: 12px; font-weight: 600; color: #1e293b; }
-.pdf-option-value { font-size: 11px; color: #64748b; font-weight: 500; background: #e2e8f0; padding: 2px 10px; border-radius: 999px; }
-.pdf-option-select { font-size: 11px; color: #1e293b; font-weight: 500; background: #e2e8f0; border: none; border-radius: 999px; padding: 3px 10px; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 22px; transition: background-color .15s; }
-.pdf-option-select:hover { background-color: #cbd5e1; }
-.pdf-option-select:focus { box-shadow: 0 0 0 2px rgba(13,50,107,.25); background-color: #dde4ef; }
-.pdf-modal-actions { display: flex; flex-direction: column; gap: 10px; }
-.pdf-download-btn { width: 100%; padding: 14px 20px; background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%); color: #ffffff; border: none; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; transition: all .2s; box-shadow: 0 4px 16px rgba(13,50,107,.25); position: relative; overflow: hidden; }
-.pdf-download-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(13,50,107,.35); }
-.pdf-download-btn.loading { pointer-events: none; opacity: .85; }
-.pdf-download-btn .btn-text { transition: opacity .2s; }
-.pdf-download-btn .btn-spinner { display: none; position: absolute; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.4); border-top-color: #ffffff; border-radius: 50%; animation: a-spin .7s linear infinite; }
-.pdf-download-btn.loading .btn-text { opacity: 0; }
-.pdf-download-btn.loading .btn-spinner { display: block; }
-@keyframes a-spin { to { transform: rotate(360deg); } }
-.pdf-cancel-btn { width: 100%; padding: 11px 20px; background: transparent; color: #64748b; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
-.pdf-cancel-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
-.pdf-success-badge { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; font-size: 12px; color: #15803d; font-weight: 600; margin-bottom: 10px; opacity: 0; transition: opacity .3s; }
-.pdf-success-badge.visible { opacity: 1; }
-
-/* ── Chart tooltip ──────────────────────────────────────────────────── */
-.chart-tooltip {
-    pointer-events: none;
-    position: absolute;
-    z-index: 20;
-    opacity: 0;
-    transition: opacity .15s;
-    background: #0d326b;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 6px 14px;
-    border-radius: 10px;
-    box-shadow: 0 4px 16px rgba(13,50,107,.25);
-    white-space: nowrap;
-    transform: translateX(-50%) translateY(-100%);
-}
-.chart-tooltip::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: -6px;
-    transform: translateX(-50%);
-    width: 10px;
-    height: 10px;
-    background: #0d326b;
-    border-radius: 2px;
-    transform: translateX(-50%) rotate(45deg);
-}
-.chart-tooltip.visible { opacity: 1; }
-
-/* ── Chart wrapper ──────────────────────────────────────────────────── */
-.chart-wrapper {
-    position: relative;
-    overflow: hidden;
-    border-radius: 16px;
-    background: #fafcff;
-    padding: 12px 8px 4px 8px;
-    width: 100%;
-}
-
-.chart-svg-container {
-    width: 100%;
-    height: 300px;
-}
-
-.chart-svg-container svg {
-    width: 100%;
-    height: 100%;
-}
-
-/* ── Difficulty list with scroll - shows 5 items, scroll for more ── */
-.difficulty-list {
-    max-height: 260px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-.difficulty-list::-webkit-scrollbar {
-    width: 4px;
-}
-.difficulty-list::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 4px;
-}
-.difficulty-list::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
-.difficulty-list::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
-.difficulty-item {
-    padding: 10px 0;
-    border-bottom: 1px solid #f8fafc;
-}
-.difficulty-item:last-child {
-    border-bottom: none;
 }
 </style>
 
-<div class="space-y-6">
+<div class="space-y-6 max-w-7xl mx-auto pb-12">
 
-    {{-- ══════════ FILTER + EXPORT (matching Reports page) ══════════ --}}
+    {{-- ══════════ 1. TOOLBAR: FILTER + EXPORT ══════════ --}}
     @php $af = session('analytics_filters', []); @endphp
     <form method="POST" action="{{ route('analytics.filter') }}" id="filterForm">
         @csrf
         <div class="filter-container">
             <div class="filter-group">
+                <div class="flex items-center gap-2 mr-2">
+                    <span class="material-symbols-outlined text-[#0d326b] text-[22px]">tune</span>
+                    <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Period</span>
+                </div>
+
                 <div class="filter-wrap">
-                    <select name="period" class="filter-select">
-                        <option value="weekly" {{ ($af['period'] ?? 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly</option>
+                    <select name="period" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                        <option value="weekly" {{ ($af['period'] ?? 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly Trend</option>
                         <option value="monthly" {{ ($af['period'] ?? '') === 'monthly' ? 'selected' : '' }}>Monthly</option>
                         <option value="quarterly" {{ ($af['period'] ?? '') === 'quarterly' ? 'selected' : '' }}>Quarterly</option>
                         <option value="yearly" {{ ($af['period'] ?? '') === 'yearly' ? 'selected' : '' }}>Yearly</option>
@@ -314,7 +356,7 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="year" class="filter-select">
+                    <select name="year" class="filter-select" onchange="document.getElementById('filterForm').submit()">
                         @php $currentYear = date('Y'); @endphp
                         @for($y = $currentYear; $y >= $currentYear - 5; $y--)
                         <option value="{{ $y }}" {{ ($af['year'] ?? $currentYear) == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -325,7 +367,7 @@
 
                 @if(($af['period'] ?? '') === 'monthly' || ($af['period'] ?? '') === 'quarterly')
                 <div class="filter-wrap">
-                    <select name="month" class="filter-select">
+                    <select name="month" class="filter-select" onchange="document.getElementById('filterForm').submit()">
                         @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m => $name)
                         <option value="{{ $m + 1 }}" {{ ($af['month'] ?? date('n')) == ($m + 1) ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
@@ -334,580 +376,650 @@
                 </div>
                 @endif
 
-                <a href="{{ route('analytics') }}" class="filter-reset">Clear</a>
+                <a href="{{ route('analytics') }}" class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
-                    <span class="material-symbols-outlined text-[16px]">filter_alt</span>
-                    Apply Filter
+                    <span class="material-symbols-outlined text-[16px]">refresh</span>
+                    Apply
                 </button>
             </div>
 
-            {{-- Export PDF button (opens premium modal) --}}
+            {{-- Export PDF Button --}}
             <button type="button" class="export-btn" onclick="openAnalyticsPdfModal()">
-                <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-                Export Analytics
+                <span class="material-symbols-outlined text-[19px]">picture_as_pdf</span>
+                Export Report
             </button>
         </div>
     </form>
 
-    {{-- ══════════ STAT CARDS ══════════ --}}
-    @php
-        $statShades = [
-            ['bg' => 'linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)', 'text' => 'white',  'iconBg' => 'bg-white/10', 'iconColor' => 'text-white'],
-            ['bg' => '#ffffff', 'text' => 'navy', 'iconBg' => 'bg-[#e8eef8]', 'iconColor' => 'text-[#1e4b8f]'],
-            ['bg' => '#ffffff', 'text' => 'navy', 'iconBg' => 'bg-[#e8eef8]', 'iconColor' => 'text-[#1e4b8f]'],
-            ['bg' => 'golden', 'text' => 'golden', 'iconBg' => 'bg-amber-800/10', 'iconColor' => 'text-amber-700'],
-        ];
-    @endphp
+    {{-- ══════════ 2. CLASS SUMMARY KPI CARDS ══════════ --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-        @foreach($classSummary as $i => $stat)
-            @php $shade = $statShades[$i % count($statShades)]; @endphp
-            @if($shade['text'] === 'golden')
-                <div class="stat-card relative overflow-hidden"
-                     style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);">
-                    <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-amber-800/10">
-                                <span class="material-symbols-outlined text-[19px] text-amber-700">{{ $stat['icon'] }}</span>
-                            </div>
-                            <p class="text-[10px] font-bold uppercase tracking-widest text-amber-800/70">{{ $stat['title'] }}</p>
-                        </div>
-                        <p class="text-[32px] font-black leading-none mb-2 text-[#92400e]">{{ $stat['value'] }}</p>
-                        <p class="text-[12px] text-amber-800/60">{{ $stat['detail'] }}</p>
-                    </div>
+        {{-- Card 1: Avg Quiz Score --}}
+        <div class="stat-kpi-card text-white" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Avg Quiz Score</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px] text-white">quiz</span>
                 </div>
-            @else
-                <div class="stat-card {{ $shade['text'] === 'white' ? 'text-white' : 'bg-white border border-slate-100 shadow-sm' }}"
-                     style="{{ $shade['text'] === 'white' ? 'background:' . $shade['bg'] : '' }}">
-                    @if($shade['text'] === 'white')
-                        <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
-                        <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
-                    @endif
-                    <div class="relative z-10">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-11 h-11 rounded-2xl flex items-center justify-center {{ $shade['iconBg'] }}">
-                                <span class="material-symbols-outlined text-[19px] {{ $shade['iconColor'] }}">{{ $stat['icon'] }}</span>
-                            </div>
-                            <p class="text-[10px] font-bold uppercase tracking-widest {{ $shade['text'] === 'white' ? 'text-white/50' : 'text-slate-400' }}">{{ $stat['title'] }}</p>
-                        </div>
-                        <p class="text-[32px] font-black leading-none mb-2 {{ $shade['text'] === 'white' ? 'text-white' : 'text-[#0d326b]' }}">{{ $stat['value'] }}</p>
-                        <p class="text-[12px] {{ $shade['text'] === 'white' ? 'text-white/60' : 'text-slate-400' }}">{{ $stat['detail'] }}</p>
-                    </div>
-                </div>
-            @endif
-        @endforeach
-    </div>
-
-    {{-- ══════════ ROW 2: Progress line chart + Module difficulty ══════════ --}}
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
-
-        {{-- Class Progress Over Time — smooth line chart with tooltips --}}
-        <div class="panel">
-            <div class="flex items-start justify-between gap-3 mb-3">
-                <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Trend</p>
-                    <h3 class="text-[16px] font-bold text-[#0d326b]">Class Progress Over Time</h3>
-                    <p class="text-[12px] text-slate-400 mt-0.5">
-                        {{ ucfirst(request('period', 'weekly')) }} average quiz score
-                        @if(request('period') === 'monthly' || request('period') === 'quarterly')
-                            for {{ date('F', mktime(0,0,0, request('month', date('n')), 1)) }}
-                        @endif
-                        {{ request('year', date('Y')) }}
-                    </p>
-                </div>
-                <span class="text-[11px] font-bold text-slate-400 bg-[#f1f5f9] px-3 py-1.5 rounded-full shrink-0">
-                    {{ count($progressOverTime) }} {{ request('period', 'weekly') }}
-                </span>
             </div>
-
-            @php
-                // Fixed dimensions for consistent rendering
-                $chartW = 600;
-                $chartH = 200;
-                $padL = 32;
-                $padR = 8;
-                $padT = 24;
-                $padB = 28;
-                $plotW = $chartW - $padL - $padR;
-                $plotH = $chartH - $padT - $padB;
-                $count = count($progressOverTime);
-                $maxVal = 100;
-                $minVal = 0;
-
-                $pts = [];
-                foreach ($progressOverTime as $index => $week) {
-                    $x = $count > 1 ? $padL + ($index / ($count - 1)) * $plotW : $padL + $plotW / 2;
-                    $y = $padT + $plotH - (($week['value'] - $minVal) / max($maxVal - $minVal, 1)) * $plotH;
-                    $pts[] = ['x' => round($x, 2), 'y' => round($y, 2), 'value' => $week['value'], 'label' => $week['label']];
-                }
-
-                // Build smooth curve path
-                $curvePath = '';
-                $areaPath = '';
-                if (count($pts) > 0) {
-                    $curvePath = "M {$pts[0]['x']},{$pts[0]['y']}";
-                    for ($i = 0; $i < count($pts) - 1; $i++) {
-                        $p0 = $pts[$i];
-                        $p1 = $pts[$i + 1];
-                        $dx = ($p1['x'] - $p0['x']) / 2;
-                        $c1x = $p0['x'] + $dx; $c1y = $p0['y'];
-                        $c2x = $p1['x'] - $dx; $c2y = $p1['y'];
-                        $curvePath .= " C {$c1x},{$c1y} {$c2x},{$c2y} {$p1['x']},{$p1['y']}";
-                    }
-                    $areaPath = $curvePath . " L " . ($padL + $plotW) . "," . ($padT + $plotH) . " L " . $padL . "," . ($padT + $plotH) . " Z";
-                }
-            @endphp
-
-            <div class="chart-wrapper">
-                <div id="lineChartTooltip" class="chart-tooltip">
-                    <span id="lineTooltipLabel"></span>: <span id="lineTooltipValue"></span>%
-                </div>
-
-                @if(empty($pts))
-                    <p class="text-slate-400 text-[13px] text-center py-12">No progress data available yet.</p>
-                @else
-                    <div class="chart-svg-container">
-                        <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" preserveAspectRatio="xMidYMid meet">
-                            <defs>
-                                <linearGradient id="progressFill" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="#1a6fd4" stop-opacity="0.20" />
-                                    <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0" />
-                                </linearGradient>
-                                <linearGradient id="progressLine" x1="0" y1="0" x2="100%" y2="0">
-                                    <stop offset="0%" stop-color="#1e4b8f" />
-                                    <stop offset="100%" stop-color="#0d326b" />
-                                </linearGradient>
-                            </defs>
-
-                            <!-- Gridlines + Y labels -->
-                            @foreach([0, 25, 50, 75, 100] as $gv)
-                            @php $gy = round($padT + $plotH - ($gv / 100) * $plotH, 1); @endphp
-                            <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $padL + $plotW }}" y2="{{ $gy }}" stroke="#e8ecf0" stroke-width="0.8" stroke-dasharray="4,4"/>
-                            <text x="2" y="{{ $gy + 4 }}" font-size="9" fill="#94a3b8" font-weight="600">{{ $gv }}%</text>
-                            @endforeach
-
-                            <!-- Area fill -->
-                            <path d="{{ $areaPath }}" fill="url(#progressFill)"/>
-
-                            <!-- Line (smooth curve) -->
-                            <path d="{{ $curvePath }}" fill="none" stroke="url(#progressLine)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-
-                            <!-- Points with hover hit areas -->
-                            @foreach($pts as $i => $p)
-                            <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="{{ $i === count($pts) - 1 ? 5 : 4 }}" fill="{{ $i === count($pts) - 1 ? '#1a6fd4' : '#0d326b' }}" stroke="white" stroke-width="2.5"/>
-
-                            <!-- Invisible larger hit area for tooltip -->
-                            <circle class="line-point-hit" cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="14" fill="transparent" style="cursor:pointer"
-                                    data-label="{{ $p['label'] }}" data-value="{{ $p['value'] }}"></circle>
-                            @endforeach
-
-                            <!-- X labels -->
-                            @php
-                                $labelStep = max(1, floor(count($pts) / 10));
-                            @endphp
-                            @foreach($pts as $i => $p)
-                                @if($i % $labelStep === 0 || $i === count($pts) - 1)
-                                <text x="{{ $p['x'] }}" y="{{ $chartH - 4 }}" font-size="9" fill="#94a3b8" font-weight="500" text-anchor="middle">{{ $p['label'] }}</text>
-                                @endif
-                            @endforeach
-                        </svg>
-                    </div>
-
-                    <!-- Current value bubble -->
-                    @if(!empty($pts))
-                    <div class="absolute top-2 right-2 bg-white border border-slate-100 shadow-sm rounded-full px-3 py-0.5">
-                        <span class="text-[12px] font-black text-[#0d326b]">{{ end($pts)['value'] }}%</span>
-                    </div>
-                    @endif
-                @endif
-            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ number_format($avgQuizScore, 1) }}%</p>
+            <p class="text-[12px] text-white/70 font-medium">Overall quiz score average</p>
         </div>
 
-        {{-- Module Difficulty Ranking — navy gradient bars with scroll (shows 5, scroll for more) --}}
-        <div class="panel">
-            <div class="flex items-start justify-between gap-3 mb-4">
-                <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Focus areas</p>
-                    <h3 class="text-[16px] font-bold text-[#0d326b]">Module Difficulty Ranking</h3>
-                    <p class="text-[12px] text-slate-400 mt-0.5">Lessons ordered lowest to highest average score</p>
+        {{-- Card 2: Gesture Mastery --}}
+        <div class="stat-kpi-card bg-white">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Gesture Mastery</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">military_tech</span>
                 </div>
-                <span class="text-[11px] font-bold text-slate-400 bg-[#f1f5f9] px-3 py-1.5 rounded-full shrink-0">Hardest first</span>
             </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($avgMastery, 1) }}%</p>
+            <p class="text-[12px] text-slate-400 font-medium">Signs marked as mastered</p>
+        </div>
 
-            @if($lessonDifficulty->isEmpty())
-                <p class="text-slate-400 text-[13px] text-center py-16">No lesson score data available yet.</p>
-            @else
-                <div class="difficulty-list">
-                    @foreach($lessonDifficulty as $lesson)
-                        <div class="difficulty-item">
-                            <div class="flex items-center justify-between gap-3">
-                                <span class="text-[12.5px] font-semibold text-[#0d326b] truncate">{{ $lesson['title'] }}</span>
-                                <span class="text-[11px] font-bold text-slate-400 shrink-0">{{ $lesson['avg_score'] }}%</span>
-                            </div>
-                            <div class="h-2 rounded-full bg-[#eef2f7] overflow-hidden mt-1.5">
-                                <div class="h-full rounded-full" style="width: {{ max(4, $lesson['avg_score']) }}%; background: linear-gradient(90deg, #93c5fd, #1e4b8f);"></div>
-                            </div>
-                        </div>
-                    @endforeach
+        {{-- Card 3: Lesson Completion --}}
+        <div class="stat-kpi-card bg-white">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Lesson Completion</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1a6fd4] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
                 </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($completionRate, 1) }}%</p>
+            <p class="text-[12px] text-slate-400 font-medium">Completed vs assigned lessons</p>
+        </div>
 
-                {{-- Show count if there are many --}}
-                @if($lessonDifficulty->count() > 5)
-                <div class="text-center text-[10px] text-slate-400 font-medium mt-3 pt-2 border-t border-slate-100">
-                    Showing {{ $lessonDifficulty->count() }} lessons · Scroll for more
+        {{-- Card 4: Active Engagement (1 day / X days) --}}
+        <div class="stat-kpi-card text-amber-950" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.22);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Active Streak</span>
+                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                    <span class="material-symbols-outlined text-[20px]">bolt</span>
                 </div>
-                @endif
-            @endif
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">
+                {{ $avgStreakDays }} {{ $avgStreakDays === 1 ? 'day' : 'days' }}
+            </p>
+            <p class="text-[12px] text-amber-950/80 font-bold">{{ $activeLast7Pct }}% active in last 7 days</p>
         </div>
     </div>
 
-    {{-- ══════════ ROW 3: Student Ranking + sidebar charts ══════════ --}}
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+    {{-- Top Senya Pulse Insight Banner --}}
+    <div class="senya-insight-gold">
+        <div class="senya-insight-gold-icon">
+            <span class="material-symbols-outlined text-[20px]">lightbulb</span>
+        </div>
+        <div>
+            <div class="senya-insight-gold-title">Senya Class Overview Insight</div>
+            <div class="senya-insight-gold-text">{!! $senyaInsights['kpi'] ?? '' !!}</div>
+        </div>
+    </div>
 
-        {{-- Student Ranking — leaderboard by average quiz score --}}
-        <div class="xl:col-span-2 panel">
-            <div class="flex items-start justify-between gap-3 mb-6">
-                <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Leaderboard</p>
-                    <h3 class="text-[16px] font-bold text-[#0d326b]">Student Ranking</h3>
-                    <p class="text-[12px] text-slate-400 mt-0.5">Ranked by average quiz score across all attempts</p>
+    {{-- ══════════ 3. TOP SECTION: STUDENT RANKING + GESTURE MASTERY / SCORE DISTRIBUTIONS ══════════ --}}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        {{-- LEFT 7 COLS: STUDENT RANKING (WITH PER-LESSON SWITCHER) --}}
+        <div class="lg:col-span-7 analytics-panel flex flex-col justify-between space-y-5">
+            <div>
+                {{-- Header & Selector --}}
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[#0d326b] text-[22px]">workspace_premium</span>
+                            <h3 class="text-[18px] font-black text-[#0d326b]">Student Ranking</h3>
+                        </div>
+                        <p class="text-[12px] text-slate-400 font-medium mt-0.5" id="leaderboardModeSubtitle">
+                            Overall class score average across completed quizzes
+                        </p>
+                    </div>
+
+                    {{-- Lesson Selector Dropdown --}}
+                    <div class="filter-wrap shrink-0">
+                        <select id="leaderboardLessonSelector" class="filter-select max-w-[260px]">
+                            @foreach($availableLessonsList as $lItem)
+                                <option value="{{ $lItem['id'] }}">{{ $lItem['title'] }}</option>
+                            @endforeach
+                        </select>
+                        <span class="material-symbols-outlined">expand_more</span>
+                    </div>
                 </div>
-                <span class="text-[11px] font-bold text-slate-400 bg-[#f1f5f9] px-3 py-1.5 rounded-full shrink-0">{{ $studentRanking->count() ?? 0 }} students</span>
-            </div>
 
-            @if(($studentRanking ?? collect())->isEmpty())
-                <p class="text-slate-400 text-[13px] text-center py-16">No quiz attempt data available yet.</p>
-            @else
-                @php
-                    $rankShades = ['#0d326b', '#1e4b8f', '#3b82f6'];
-                @endphp
-                <div class="space-y-2.5">
-                    @foreach($studentRanking as $i => $s)
-                        @php
-                            $rank = $i + 1;
-                            $isTop3 = $rank <= 3;
-                            $badgeColor = $isTop3 ? $rankShades[$rank - 1] : '#e2e8f0';
-                            $badgeText = $isTop3 ? '#ffffff' : '#64748b';
-                        @endphp
-                        <div class="flex items-center gap-4 p-3 rounded-xl {{ $isTop3 ? 'bg-[#f8fafc]' : '' }} hover:bg-[#f8fafc] transition-colors">
-                            <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shrink-0"
-                                 style="background: {{ $badgeColor }}; color: {{ $badgeText }};">
-                                {{ $rank }}
-                            </div>
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($s['name']) }}&background=0d326b&color=fff&rounded=true&size=60"
-                                 class="w-9 h-9 rounded-full ring-2 ring-slate-100 shrink-0" />
-                            <div class="flex-1 min-w-0">
-                                <p class="text-[13px] font-bold text-[#0d326b] truncate">{{ $s['name'] }}</p>
-                                <p class="text-[10.5px] text-slate-400">{{ $s['attempts'] }} quiz attempt{{ $s['attempts'] !== 1 ? 's' : '' }}</p>
-                            </div>
-                            <div class="w-32 shrink-0">
-                                <div class="h-2 rounded-full bg-[#eef2f7] overflow-hidden">
-                                    <div class="h-full rounded-full" style="width: {{ max(4, $s['avg_score']) }}%; background: linear-gradient(90deg, #93c5fd, #0d326b);"></div>
+                {{-- Leaderboard Panes Container --}}
+                <div class="mt-4 space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
+                    @foreach($lessonLeaderboards as $lId => $lData)
+                        <div class="leaderboard-table-pane {{ $lId !== 'all' ? 'hidden' : '' }} space-y-2.5" data-lesson-id="{{ $lId }}">
+                            @if(empty($lData['rankings']) || count($lData['rankings']) === 0)
+                                <div class="text-center py-12 text-slate-400">
+                                    <span class="material-symbols-outlined text-[36px] text-slate-300 block mb-1">sentiment_dissatisfied</span>
+                                    <p class="text-[13px] font-semibold">No quiz attempts recorded for this lesson yet.</p>
                                 </div>
-                            </div>
-                            <span class="text-[13px] font-black text-[#0d326b] w-12 text-right shrink-0">{{ $s['avg_score'] }}%</span>
+                            @else
+                                @foreach($lData['rankings'] as $st)
+                                    @php
+                                        $badgeClass = $st['rank'] === 1 ? 'rank-badge-gold' : ($st['rank'] === 2 ? 'rank-badge-silver' : ($st['rank'] === 3 ? 'rank-badge-bronze' : 'rank-badge-default'));
+                                    @endphp
+                                    <div class="rank-item-row">
+                                        <div class="flex items-center gap-3.5 min-w-0">
+                                            <div class="rank-badge-podium {{ $badgeClass }}">
+                                                @if($st['rank'] === 1)
+                                                    <span class="material-symbols-outlined text-[16px]">workspace_premium</span>
+                                                @elseif($st['rank'] === 2)
+                                                    <span class="material-symbols-outlined text-[16px]">military_tech</span>
+                                                @elseif($st['rank'] === 3)
+                                                    <span class="material-symbols-outlined text-[16px]">star</span>
+                                                @else
+                                                    {{ $st['rank'] }}
+                                                @endif
+                                            </div>
+
+                                            <div class="w-9 h-9 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[12px] font-bold shrink-0">
+                                                {{ $st['initials'] ?? 'ST' }}
+                                            </div>
+
+                                            <div class="min-w-0">
+                                                <h4 class="text-[13.5px] font-bold text-[#0d326b] truncate">{{ $st['name'] }}</h4>
+                                                @if($lId === 'all')
+                                                    <p class="text-[11.5px] text-slate-400 font-medium">
+                                                        {{ $st['quizzes_count'] ?? 1 }} {{ ($st['quizzes_count'] ?? 1) === 1 ? 'quiz' : 'quizzes' }} · {{ $st['total_attempts'] ?? 1 }} total {{ ($st['total_attempts'] ?? 1) === 1 ? 'attempt' : 'attempts' }}
+                                                    </p>
+                                                @else
+                                                    <p class="text-[11.5px] text-slate-400 font-medium">
+                                                        Achieved on attempt #{{ $st['attempts_to_achieve'] }}
+                                                        @if(($st['total_attempts'] ?? 1) > 1)
+                                                            · ({{ $st['total_attempts'] }} total tries)
+                                                        @endif
+                                                    </p>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <div class="text-right shrink-0 pl-3">
+                                            <span class="text-[16px] font-black text-[#0d326b]">
+                                                {{ number_format($st['best_score'], 1) }}%
+                                            </span>
+                                            <div class="w-20 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                                                <div class="bg-[#0d326b] h-1.5 rounded-full" style="width: {{ min(100, max(5, $st['best_score'])) }}%;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            @endif
                         </div>
                     @endforeach
                 </div>
-            @endif
+            </div>
+
+            {{-- Leaderboard Senya Insight --}}
+            <div class="senya-insight-gold mt-3">
+                <div class="senya-insight-gold-icon">
+                    <span class="material-symbols-outlined text-[19px]">insights</span>
+                </div>
+                <div>
+                    <div class="senya-insight-gold-title">Student Ranking Insight</div>
+                    <div class="senya-insight-gold-text">{!! $senyaInsights['leaderboard'] ?? '' !!}</div>
+                </div>
+            </div>
         </div>
 
-        <div class="space-y-5">
+        {{-- RIGHT 5 COLS: GESTURE MASTERY DISTRIBUTION (SIGN PRACTICE) & QUIZ SCORE DISTRIBUTION --}}
+        <div class="lg:col-span-5 space-y-6">
 
-            {{-- Mastery Level Distribution — navy donut with tooltips --}}
-            <div class="panel !p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Mastery Level Distribution</p>
+            {{-- Gesture Mastery Distribution (Sign Practice) --}}
+            <div class="analytics-panel space-y-4">
+                <div>
+                    <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Sign Practice</span>
+                    <h3 class="text-[17px] font-black text-[#0d326b]">Gesture Mastery Distribution</h3>
+                    <p class="text-[12px] text-slate-400 mt-0.5">Breakdown of student gesture practice proficiency</p>
+                </div>
+
                 @php
-                    $navyScale = ['#dbeafe', '#93c5fd', '#3b82f6', '#1e4b8f', '#0d326b'];
-                    $circ = 251.3;
-                    $segments = [];
-                    $off = 0;
-                    foreach ($masteryDistribution as $i => $seg) {
-                        $shade = $navyScale[$i % count($navyScale)];
-                        $dash = round(($seg['pct'] / 100) * $circ, 1);
-                        $segments[] = ['color' => $shade, 'dash' => $dash, 'offset' => -$off, 'label' => $seg['label'], 'pct' => $seg['pct'], 'count' => $seg['count'] ?? 0];
-                        $off += $dash;
-                    }
+                    $mColors = ['#93c5fd', '#60a5fa', '#1e4b8f', '#0d326b'];
+                    $cx = 100; $cy = 100; $r = 74; $strokeW = 20;
+                    $circumference = 2 * M_PI * $r;
+                    $accumPct = 0;
                 @endphp
-                <div class="flex items-center gap-5">
-                    <div class="relative w-[120px] h-[120px] shrink-0">
-                        <div id="masteryDonutTooltip" class="chart-tooltip" style="transform:translateX(-50%) translateY(-130%);">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center pt-1">
+                    {{-- Donut SVG (Shades of Blue only) --}}
+                    <div class="relative flex items-center justify-center">
+                        <div id="masteryDonutTooltip" class="chart-tooltip">
                             <span id="masteryDonutLabel"></span>: <span id="masteryDonutValue"></span>
                         </div>
-                        <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                            @foreach($segments as $seg)
-                                @if($seg['dash'] > 0)
-                                <circle class="mastery-donut-hit" cx="50" cy="50" r="40" fill="none" stroke="{{ $seg['color'] }}" stroke-width="14"
-                                    stroke-dasharray="{{ $seg['dash'] }} {{ $circ - $seg['dash'] }}"
-                                    stroke-dashoffset="{{ $seg['offset'] }}" stroke-linecap="butt"
-                                    style="cursor:pointer"
-                                    data-label="{{ $seg['label'] }}"
-                                    data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"/>
-                                @endif
-                            @endforeach
-                        </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span class="text-[20px] font-black text-[#0d326b]">{{ $masteryTotal ?? 0 }}</span>
-                            <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Total</span>
-                        </div>
-                    </div>
-                    <div class="space-y-2.5 flex-1 min-w-0">
-                        @foreach($segments as $seg)
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ $seg['color'] }}"></span>
-                                    <span class="text-[11px] text-slate-600 truncate">{{ $seg['label'] }}</span>
-                                </div>
-                                <span class="text-[11px] font-bold text-[#0d326b] shrink-0">{{ $seg['pct'] }}%</span>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
 
-            {{-- Completion Funnel — navy shades --}}
-            <div class="panel !p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Completion Funnel</p>
-                @if($completionTotal === 0)
-                    <p class="text-slate-400 text-[13px] text-center py-10">No lesson assignments recorded yet.</p>
-                @else
-                    @php $funnelScale = ['#dbeafe', '#93c5fd', '#3b82f6', '#1e4b8f', '#0d326b']; @endphp
-                    <div class="h-4 rounded-full bg-slate-100 overflow-hidden mb-4 flex">
-                        @foreach($completionFunnel as $i => $step)
-                            @php $width = $completionTotal > 0 ? max(2, round(($step['count'] / $completionTotal) * 100)) : 0; @endphp
-                            <div class="h-full" style="width: {{ $width }}%; background: {{ $funnelScale[$i % count($funnelScale)] }}"></div>
-                        @endforeach
-                    </div>
-                    <div class="space-y-2.5">
-                        @foreach($completionFunnel as $i => $step)
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ $funnelScale[$i % count($funnelScale)] }}"></span>
-                                    <span class="text-[11px] text-slate-600">{{ $step['label'] }}</span>
-                                </div>
-                                <span class="text-[11px] font-bold text-[#0d326b]">{{ $step['count'] }}</span>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-
-            {{-- Score Distribution — donut with tooltips --}}
-            <div class="panel !p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Score Distribution</p>
-                <p class="text-[11px] text-slate-400 mb-4">Share of quiz attempts by score range</p>
-                @php
-                    $scoreTotal = collect($scoreBuckets)->sum('count');
-                @endphp
-                @if($scoreTotal === 0)
-                    <p class="text-slate-400 text-[13px] text-center py-10">No quiz attempt data available yet.</p>
-                @else
-                    @php
-                        $scoreScale = ['#dbeafe', '#93c5fd', '#3b82f6', '#1e4b8f', '#0d326b'];
-                        $sCirc = 251.3;
-                        $sSegments = [];
-                        $sOff = 0;
-                        foreach ($scoreBuckets as $i => $bucket) {
-                            $pct = round(($bucket['count'] / $scoreTotal) * 100);
-                            $shade = $scoreScale[$i % count($scoreScale)];
-                            $dash = round(($pct / 100) * $sCirc, 1);
-                            $sSegments[] = ['color' => $shade, 'dash' => $dash, 'offset' => -$sOff, 'label' => $bucket['label'], 'count' => $bucket['count'], 'pct' => $pct];
-                            $sOff += $dash;
-                        }
-                    @endphp
-                    <div class="flex items-center gap-5">
-                        <div class="relative w-[120px] h-[120px] shrink-0">
-                            <div id="scoreDonutTooltip" class="chart-tooltip" style="transform:translateX(-50%) translateY(-130%);">
-                                <span id="scoreDonutLabel"></span>: <span id="scoreDonutValue"></span>
-                            </div>
-                            <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
-                                <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                                @foreach($sSegments as $seg)
-                                    @if($seg['dash'] > 0)
-                                    <circle class="score-donut-hit" cx="50" cy="50" r="40" fill="none" stroke="{{ $seg['color'] }}" stroke-width="14"
-                                        stroke-dasharray="{{ $seg['dash'] }} {{ $sCirc - $seg['dash'] }}"
-                                        stroke-dashoffset="{{ $seg['offset'] }}" stroke-linecap="butt"
-                                        style="cursor:pointer"
-                                        data-label="{{ $seg['label'] }}"
-                                        data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"/>
+                        <svg viewBox="0 0 200 200" class="w-36 h-36 transform -rotate-90">
+                            <circle cx="{{ $cx }}" cy="{{ $cy }}" r="{{ $r }}" fill="none" stroke="#f1f5f9" stroke-width="{{ $strokeW }}"></circle>
+                            @if($masteryTotal > 0)
+                                @foreach($masteryDistribution as $i => $seg)
+                                    @php
+                                        $dashArray = ($seg['pct'] / 100) * $circumference;
+                                        $dashOffset = -($accumPct / 100) * $circumference;
+                                        $accumPct += $seg['pct'];
+                                    @endphp
+                                    @if($seg['pct'] > 0)
+                                    <circle cx="{{ $cx }}" cy="{{ $cy }}" r="{{ $r }}" fill="none"
+                                            stroke="{{ $mColors[$i % count($mColors)] }}" stroke-width="{{ $strokeW }}"
+                                            stroke-dasharray="{{ $dashArray }} {{ $circumference - $dashArray }}"
+                                            stroke-dashoffset="{{ $dashOffset }}"
+                                            class="mastery-donut-hit cursor-pointer transition-all hover:opacity-85"
+                                            data-label="{{ $seg['label'] }}"
+                                            data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"></circle>
                                     @endif
                                 @endforeach
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span class="text-[20px] font-black text-[#0d326b]">{{ $scoreTotal }}</span>
-                                <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Attempts</span>
-                            </div>
-                        </div>
-                        <div class="space-y-2.5 flex-1 min-w-0">
-                            @foreach($sSegments as $seg)
-                                <div class="flex items-center justify-between gap-2">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ $seg['color'] }}"></span>
-                                        <span class="text-[11px] text-slate-600 truncate">{{ $seg['label'] }}</span>
-                                    </div>
-                                    <span class="text-[11px] font-bold text-[#0d326b] shrink-0">{{ $seg['count'] }}</span>
-                                </div>
-                            @endforeach
+                            @endif
+                        </svg>
+
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                            <span class="text-[19px] font-black text-[#0d326b] leading-tight">{{ $masteryTotal }}</span>
+                            <span class="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Attempts</span>
                         </div>
                     </div>
-                @endif
+
+                    {{-- Legend --}}
+                    <div class="space-y-2">
+                        @foreach($masteryDistribution as $i => $seg)
+                        <div class="flex items-center justify-between text-[12px]">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ $mColors[$i % count($mColors)] }};"></span>
+                                <span class="font-bold text-[#0d326b] truncate">{{ $seg['label'] }}</span>
+                            </div>
+                            <span class="font-semibold text-slate-500 shrink-0">{{ $seg['count'] }} ({{ $seg['pct'] }}%)</span>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- Gesture Mastery Insight --}}
+                <div class="senya-insight-gold mt-2">
+                    <div class="senya-insight-gold-icon">
+                        <span class="material-symbols-outlined text-[19px]">sign_language</span>
+                    </div>
+                    <div>
+                        <div class="senya-insight-gold-title">Mastery Insight</div>
+                        <div class="senya-insight-gold-text">{!! $senyaInsights['mastery'] ?? '' !!}</div>
+                    </div>
+                </div>
             </div>
+
+            {{-- Score Distribution --}}
+            <div class="analytics-panel space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-[15px] font-black text-[#0d326b]">Quiz Score Ranges</h3>
+                        <p class="text-[11.5px] text-slate-400">Class score frequencies</p>
+                    </div>
+                    <span class="material-symbols-outlined text-slate-400 text-[18px]">bar_chart</span>
+                </div>
+
+                @php $scoreTotal = collect($scoreBuckets)->sum('count'); @endphp
+                <div class="space-y-2 pt-1">
+                    @foreach($scoreBuckets as $sb)
+                    @php $sbPct = $scoreTotal > 0 ? round(($sb['count'] / $scoreTotal) * 100) : 0; @endphp
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11.5px] font-bold">
+                            <span class="text-[#0d326b]">{{ $sb['label'] }}%</span>
+                            <span class="text-slate-500 font-semibold">{{ $sb['count'] }} ({{ $sbPct }}%)</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-[#0d326b] h-1.5 rounded-full" style="width: {{ $sbPct }}%;"></div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
         </div>
+
     </div>
 
-    {{-- ══════════ GESTURE PERFORMANCE ANALYTICS ══════════ --}}
-    <div class="space-y-5">
+    {{-- ══════════ 4. SECOND SECTION: PROGRESS CHART + LESSON DIFFICULTY ══════════ --}}
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-        {{-- Section heading — same pattern as "ROW 2" labels above --}}
-        <div class="flex items-start justify-between gap-3">
+        {{-- Class Progress Over Time --}}
+        <div class="analytics-panel flex flex-col justify-between space-y-4">
             <div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Gesture Performance</p>
-                <h3 class="text-[16px] font-bold text-[#0d326b]">Gesture Performance Analytics</h3>
-                <p class="text-[12px] text-slate-400 mt-0.5">Sign accuracy, attempts, and mastery performance sourced directly from <strong>gesture_performances</strong> records.</p>
-            </div>
-            <span class="material-symbols-outlined text-[#1a6fd4] text-[28px] shrink-0 mt-1">waving_hand</span>
-        </div>
-
-        {{-- ── Gesture stat cards — identical layout to STAT CARDS above ── --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-            {{-- Card 1: Navy gradient — Practiced Gestures --}}
-            <div class="stat-card text-white" style="background: linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
-                <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
-                <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
-                <div class="relative z-10">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-white/10">
-                            <span class="material-symbols-outlined text-[19px] text-white">pan_tool_alt</span>
-                        </div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-white/50">Practiced Signs</p>
-                    </div>
-                    <p class="text-[32px] font-black leading-none mb-2 text-white">{{ number_format($gesturePerformanceOverview['total_gestures'] ?? 0) }}</p>
-                    <p class="text-[12px] text-white/60">Total unique signs attempted</p>
-                </div>
-            </div>
-
-            {{-- Card 2: Gesture Accuracy --}}
-            <div class="stat-card bg-white border border-slate-100 shadow-sm">
-                <div class="relative z-10">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#e8eef8]">
-                            <span class="material-symbols-outlined text-[19px] text-[#1e4b8f]">verified</span>
-                        </div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Gesture Accuracy</p>
-                    </div>
-                    <p class="text-[32px] font-black leading-none mb-2 text-[#0d326b]">{{ number_format($gesturePerformanceOverview['overall_accuracy'] ?? 0, 1) }}%</p>
-                    <p class="text-[12px] text-slate-400">{{ number_format($gesturePerformanceOverview['total_successful'] ?? 0) }} correct / {{ number_format($gesturePerformanceOverview['total_attempts'] ?? 0) }} attempts</p>
-                </div>
-            </div>
-
-            {{-- Card 3: Incorrect Attempts --}}
-            <div class="stat-card bg-white border border-slate-100 shadow-sm">
-                <div class="relative z-10">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#e8eef8]">
-                            <span class="material-symbols-outlined text-[19px] text-[#1e4b8f]">cancel</span>
-                        </div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Incorrect Attempts</p>
-                    </div>
-                    <p class="text-[32px] font-black leading-none mb-2 text-[#0d326b]">{{ number_format($gesturePerformanceOverview['total_wrong'] ?? 0) }}</p>
-                    <p class="text-[12px] text-slate-400">Total wrong attempts recorded</p>
-                </div>
-            </div>
-
-            {{-- Card 4: Signs Mastered --}}
-            <div class="stat-card bg-white border border-slate-100 shadow-sm">
-                <div class="relative z-10">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center bg-[#e8eef8]">
-                            <span class="material-symbols-outlined text-[19px] text-[#1e4b8f]">military_tech</span>
-                        </div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Signs Mastered</p>
-                    </div>
-                    <p class="text-[32px] font-black leading-none mb-2 text-[#0d326b]">{{ number_format($gesturePerformanceOverview['total_mastered'] ?? 0) }}</p>
-                    <p class="text-[12px] text-slate-400">Mastered gesture entries</p>
-                </div>
-            </div>
-        </div>
-
-        {{-- ── Best vs Lowest — same grid pattern as other 2-col panels ── --}}
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
-
-            {{-- Best-Performing Gestures --}}
-            <div class="panel">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Top Signs</p>
-                        <h3 class="text-[16px] font-bold text-[#0d326b]">Best-Performing Gestures</h3>
-                        <p class="text-[12px] text-slate-400 mt-0.5">Signs with the highest accuracy rate</p>
+                        <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Performance Trend</span>
+                        <h3 class="text-[17px] font-black text-[#0d326b]">Class Progress Over Time</h3>
+                        <p class="text-[12px] text-slate-400 mt-0.5">Average quiz score progression across {{ request('period', 'weekly') }} intervals</p>
                     </div>
-                    <span class="material-symbols-outlined text-emerald-500 text-[22px] shrink-0 mt-1">thumb_up</span>
+                    <span class="text-[11px] font-bold text-[#0d326b] bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shrink-0">
+                        {{ count($progressOverTime) }} data points
+                    </span>
                 </div>
-                @if(empty($topPerformingGestures) || count($topPerformingGestures) === 0)
-                    <p class="text-slate-400 text-[13px] text-center py-10">No gesture performance data recorded yet.</p>
+
+                @php
+                    $chartW = 600; $chartH = 190;
+                    $padL = 34; $padR = 12; $padT = 20; $padB = 26;
+                    $plotW = $chartW - $padL - $padR;
+                    $plotH = $chartH - $padT - $padB;
+                    $count = count($progressOverTime);
+
+                    $pts = [];
+                    foreach ($progressOverTime as $idx => $item) {
+                        $x = $count > 1 ? $padL + ($idx / ($count - 1)) * $plotW : $padL + $plotW / 2;
+                        $y = $padT + $plotH - (($item['value']) / 100) * $plotH;
+                        $pts[] = ['x' => round($x, 2), 'y' => round($y, 2), 'value' => $item['value'], 'label' => $item['label']];
+                    }
+
+                    $curvePath = '';
+                    $areaPath = '';
+                    if (count($pts) > 0) {
+                        $curvePath = "M {$pts[0]['x']},{$pts[0]['y']}";
+                        for ($i = 0; $i < count($pts) - 1; $i++) {
+                            $p0 = $pts[$i];
+                            $p1 = $pts[$i + 1];
+                            $dx = ($p1['x'] - $p0['x']) / 2;
+                            $c1x = $p0['x'] + $dx; $c1y = $p0['y'];
+                            $c2x = $p1['x'] - $dx; $c2y = $p1['y'];
+                            $curvePath .= " C {$c1x},{$c1y} {$c2x},{$c2y} {$p1['x']},{$p1['y']}";
+                        }
+                        $areaPath = $curvePath . " L " . ($padL + $plotW) . "," . ($padT + $plotH) . " L " . $padL . "," . ($padT + $plotH) . " Z";
+                    }
+                @endphp
+
+                <div class="chart-wrapper">
+                    <div id="lineChartTooltip" class="chart-tooltip">
+                        <span id="lineTooltipLabel"></span>: <span id="lineTooltipValue"></span>%
+                    </div>
+
+                    @if(empty($pts))
+                        <p class="text-slate-400 text-[13px] text-center py-12">No progress data recorded yet.</p>
+                    @else
+                        <div class="w-full">
+                            <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" class="w-full h-auto">
+                                <defs>
+                                    <linearGradient id="progFill" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#1a6fd4" stop-opacity="0.20" />
+                                        <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0.0" />
+                                    </linearGradient>
+                                    <linearGradient id="progLine" x1="0" y1="0" x2="100%" y2="0">
+                                        <stop offset="0%" stop-color="#1e4b8f" />
+                                        <stop offset="100%" stop-color="#0d326b" />
+                                    </linearGradient>
+                                </defs>
+
+                                @foreach([0, 25, 50, 75, 100] as $gv)
+                                @php $gy = round($padT + $plotH - ($gv / 100) * $plotH, 1); @endphp
+                                <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $padL + $plotW }}" y2="{{ $gy }}" stroke="#f1f5f9" stroke-width="0.8" stroke-dasharray="3,3"/>
+                                <text x="4" y="{{ $gy + 3.5 }}" font-size="8.5" fill="#94a3b8" font-weight="600">{{ $gv }}%</text>
+                                @endforeach
+
+                                @if(!empty($areaPath))
+                                    <path d="{{ $areaPath }}" fill="url(#progFill)"/>
+                                @endif
+                                @if(!empty($curvePath))
+                                    <path d="{{ $curvePath }}" fill="none" stroke="url(#progLine)" stroke-width="2.5" stroke-linecap="round"/>
+                                @endif
+
+                                @foreach($pts as $p)
+                                    <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="4" fill="#0d326b" stroke="#ffffff" stroke-width="2" class="cursor-pointer"/>
+                                    <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="12" fill="transparent" class="line-point-hit cursor-pointer" data-label="{{ $p['label'] }}" data-value="{{ $p['value'] }}"/>
+                                    <text x="{{ $p['x'] }}" y="{{ $chartH - 8 }}" font-size="8" fill="#94a3b8" font-weight="600" text-anchor="middle">{{ $p['label'] }}</text>
+                                @endforeach
+                            </svg>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Progress Senya Insight --}}
+            <div class="senya-insight-gold mt-2">
+                <div class="senya-insight-gold-icon">
+                    <span class="material-symbols-outlined text-[19px]">trending_up</span>
+                </div>
+                <div>
+                    <div class="senya-insight-gold-title">Trend Insight</div>
+                    <div class="senya-insight-gold-text">{!! $senyaInsights['progress'] ?? '' !!}</div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Lesson Difficulty Ranking --}}
+        <div class="analytics-panel flex flex-col justify-between space-y-4">
+            <div>
+                <div class="mb-3">
+                    <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Focus Areas</span>
+                    <h3 class="text-[17px] font-black text-[#0d326b]">Lesson Difficulty Ranking</h3>
+                    <p class="text-[12px] text-slate-400 mt-0.5">Sorted from lowest average score to highest</p>
+                </div>
+
+                @if($lessonDifficulty->isEmpty())
+                    <p class="text-slate-400 text-[13px] text-center py-12">No lesson score data recorded yet.</p>
                 @else
-                    <div class="difficulty-list space-y-3">
-                        @foreach($topPerformingGestures as $g)
-                            <div class="difficulty-item">
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <span class="text-[13px] font-bold text-[#0d326b] truncate">{{ $g['gesture_name'] }}</span>
-                                    <span class="text-[13px] font-black text-emerald-600 shrink-0 ml-2">{{ number_format($g['accuracy'], 1) }}%</span>
-                                </div>
-                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1.5">
-                                    <div class="bg-emerald-500 h-full rounded-full transition-all" style="width: {{ min(100, $g['accuracy']) }}%"></div>
-                                </div>
-                                <div class="flex items-center gap-3 text-[10px] font-semibold text-slate-400">
-                                    <span>Attempts: <strong class="text-slate-600">{{ $g['attempts'] }}</strong></span>
-                                    <span class="text-emerald-600">Correct: <strong>{{ $g['successful_attempts'] }}</strong></span>
-                                    <span class="text-rose-500">Incorrect: <strong>{{ $g['wrong_attempts'] }}</strong></span>
-                                </div>
+                    <div class="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                        @foreach($lessonDifficulty as $l)
+                        <div class="p-3 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-1.5">
+                            <div class="flex items-center justify-between text-[12.5px]">
+                                <span class="font-bold text-[#0d326b] truncate max-w-[70%]">{{ $l['title'] }}</span>
+                                <span class="font-black text-[#0d326b]">{{ $l['avg_score'] }}% avg</span>
                             </div>
+                            <div class="w-full bg-slate-200/70 rounded-full h-2 overflow-hidden">
+                                <div class="h-2 rounded-full bg-[#0d326b]" style="width: {{ min(100, max(5, $l['avg_score'])) }}%;"></div>
+                            </div>
+                        </div>
                         @endforeach
                     </div>
                 @endif
             </div>
 
-            {{-- Lowest-Performing Gestures --}}
-            <div class="panel">
-                <div class="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Needs Practice</p>
-                        <h3 class="text-[16px] font-bold text-[#0d326b]">Struggling Gestures</h3>
-                        <p class="text-[12px] text-slate-400 mt-0.5">Signs requiring additional practice</p>
-                    </div>
-                    <span class="material-symbols-outlined text-rose-500 text-[22px] shrink-0 mt-1">warning</span>
+            {{-- Difficulty Senya Insight --}}
+            <div class="senya-insight-gold mt-2">
+                <div class="senya-insight-gold-icon">
+                    <span class="material-symbols-outlined text-[19px]">psychology</span>
                 </div>
-                @if(empty($lowestPerformingGestures) || count($lowestPerformingGestures) === 0)
-                    <p class="text-slate-400 text-[13px] text-center py-10">No gesture performance data recorded yet.</p>
-                @else
-                    <div class="difficulty-list space-y-3">
-                        @foreach($lowestPerformingGestures as $g)
-                            <div class="difficulty-item">
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <span class="text-[13px] font-bold text-[#0d326b] truncate">{{ $g['gesture_name'] }}</span>
-                                    <span class="text-[13px] font-black {{ $g['accuracy'] < 50 ? 'text-rose-600' : 'text-amber-600' }} shrink-0 ml-2">{{ number_format($g['accuracy'], 1) }}%</span>
-                                </div>
-                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1.5">
-                                    <div class="{{ $g['accuracy'] < 50 ? 'bg-rose-500' : 'bg-amber-500' }} h-full rounded-full transition-all" style="width: {{ min(100, $g['accuracy']) }}%"></div>
-                                </div>
-                                <div class="flex items-center gap-3 text-[10px] font-semibold text-slate-400">
-                                    <span>Attempts: <strong class="text-slate-600">{{ $g['attempts'] }}</strong></span>
-                                    <span class="text-emerald-600">Correct: <strong>{{ $g['successful_attempts'] }}</strong></span>
-                                    <span class="text-rose-500">Incorrect: <strong>{{ $g['wrong_attempts'] }}</strong></span>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
+                <div>
+                    <div class="senya-insight-gold-title">Lesson Difficulty Recommendation</div>
+                    <div class="senya-insight-gold-text">{!! $senyaInsights['difficulty'] ?? '' !!}</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- ══════════ 5. GESTURE PERFORMANCE ANALYTICS: MASTER-DETAIL INTERACTIVE VIEW ══════════ --}}
+    <div class="analytics-panel space-y-6">
+
+        {{-- Header & High-Level Summary Chips --}}
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+                <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Gesture Practice Tracking</span>
+                <h3 class="text-[19px] font-black text-[#0d326b]">Gesture Performance Analytics</h3>
+                <p class="text-[12.5px] text-slate-400 mt-0.5">Select a sign from the list to view its complete student practice breakdown</p>
             </div>
 
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="px-4 py-2 rounded-2xl bg-blue-50 border border-blue-100 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px] text-[#0d326b]">verified</span>
+                    <span class="text-[12px] font-bold text-[#0d326b]">{{ $masteredSignsCount }} Signs Mastered by Majority</span>
+                </div>
+                <div class="px-4 py-2 rounded-2xl flex items-center gap-2" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border: 1px solid #f59e0b; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);">
+                    <span class="material-symbols-outlined text-[18px] text-amber-950">help</span>
+                    <span class="text-[12px] font-black text-amber-950">{{ $lowMasterySignsCount }} Signs Need Practice</span>
+                </div>
+                <div class="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 flex items-center gap-2 font-bold text-[12px]">
+                    Accuracy: {{ $gesturePerformanceOverview['overall_accuracy'] ?? 0 }}%
+                </div>
+            </div>
+        </div>
+
+        @if(empty($signsBreakdown) || count($signsBreakdown) === 0)
+            <div class="text-center py-16 text-slate-400">
+                <span class="material-symbols-outlined text-[42px] text-slate-300 block mb-2">front_hand</span>
+                <p class="text-[14px] font-semibold">No student gesture practices recorded in this time period.</p>
+            </div>
+        @else
+            {{-- Master-Detail Split Grid --}}
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                {{-- Left Master List (5 Cols): Clickable Sign Cards --}}
+                <div class="lg:col-span-5 space-y-3 max-h-[580px] overflow-y-auto pr-1" id="signsMasterList">
+                    @foreach($signsBreakdown as $idx => $s)
+                        <div class="gesture-sign-card {{ $idx === 0 ? 'active' : '' }}"
+                             data-sign-id="{{ $s['gesture_id'] }}"
+                             onclick="selectGestureSign('{{ $s['gesture_id'] }}', this)">
+                            
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <span class="text-[14px] font-black text-[#0d326b]">Sign: {{ $s['gesture_name'] }}</span>
+                                <span class="gesture-status-pill {{ $s['status'] === 'mastered' ? 'gesture-status-mastered' : 'gesture-status-practice' }}">
+                                    @if($s['status'] === 'mastered')
+                                        <span class="material-symbols-outlined text-[13px]">check</span> Mastered
+                                    @else
+                                        <span class="material-symbols-outlined text-[13px]">priority_high</span> Needs Practice
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div class="space-y-1.5 mb-2.5">
+                                <div class="flex items-center justify-between text-[11.5px]">
+                                    <span class="text-slate-400 font-medium">{{ $s['total_attempts'] }} attempts ({{ $s['successful_attempts'] }} correct / {{ $s['wrong_attempts'] }} mistakes)</span>
+                                    <span class="font-black text-[#0d326b]">{{ $s['accuracy'] }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div class="h-1.5 rounded-full bg-[#0d326b]" style="width: {{ min(100, max(4, $s['accuracy'])) }}%;"></div>
+                                </div>
+                            </div>
+
+                            {{-- Student Highlights in Pill Format --}}
+                            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 text-[11px]">
+                                <div class="flex items-center gap-1.5 truncate text-[#0d326b]">
+                                    <span class="material-symbols-outlined text-[14px] text-amber-500">star</span>
+                                    <span class="truncate font-semibold">{{ $s['best_student']['name'] ?? 'None' }}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 truncate text-slate-500">
+                                    <span class="material-symbols-outlined text-[14px] text-slate-400">help</span>
+                                    <span class="truncate font-semibold">{{ $s['struggling_student']['name'] ?? 'None' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Right Detail View (7 Cols): Dynamic Student Ranking for Selected Sign --}}
+                <div class="lg:col-span-7 bg-[#f8fafc] rounded-2xl border border-slate-200/80 p-5 flex flex-col justify-between" id="signDetailContainer">
+                    <div>
+                        {{-- Detail Top Summary Banner --}}
+                        <div class="bg-white rounded-xl p-4 border border-slate-200/70 mb-4 shadow-sm">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[#0d326b] text-[22px]">front_hand</span>
+                                    <h4 class="text-[17px] font-black text-[#0d326b]" id="detailSignTitle">
+                                        Sign: {{ $signsBreakdown[0]['gesture_name'] ?? '' }}
+                                    </h4>
+                                </div>
+                                <span class="text-[14px] font-black text-[#0d326b]" id="detailSignAccuracy">
+                                    {{ $signsBreakdown[0]['accuracy'] ?? 0 }}% Class Accuracy
+                                </span>
+                            </div>
+                            <p class="text-[12px] text-slate-400 font-medium" id="detailSignSubtitle">
+                                {{ $signsBreakdown[0]['total_attempts'] ?? 0 }} total attempts ({{ $signsBreakdown[0]['successful_attempts'] ?? 0 }} correct · {{ $signsBreakdown[0]['wrong_attempts'] ?? 0 }} mistakes)
+                            </p>
+                        </div>
+
+                        {{-- Students List for Selected Gesture --}}
+                        <div class="space-y-2 max-h-[400px] overflow-y-auto pr-1" id="detailStudentsList">
+                            {{-- Populated dynamically via JS from signsData payload --}}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        @endif
+
+        {{-- Gesture Coaching Senya Insight --}}
+        <div class="senya-insight-gold mt-2">
+            <div class="senya-insight-gold-icon">
+                <span class="material-symbols-outlined text-[19px]">support_agent</span>
+            </div>
+            <div>
+                <div class="senya-insight-gold-title">Gesture Coaching Insight</div>
+                <div class="senya-insight-gold-text">{!! $senyaInsights['gestures'] ?? '' !!}</div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+{{-- ══════════ EXPORT PDF MODAL ══════════ --}}
+@php
+    $af = session('analytics_filters', []);
+    $aPeriod = ucfirst($af['period'] ?? 'Weekly');
+    $aYear   = $af['year'] ?? date('Y');
+    $aMonth  = isset($af['month']) ? date('F', mktime(0,0,0,$af['month'],1)) : null;
+    $aPeriodLabel = $aPeriod . ($aMonth ? ' — ' . $aMonth . ' ' . $aYear : ' — ' . $aYear);
+@endphp
+
+<div id="analyticsPdfModalOverlay" class="pdf-modal-overlay" onclick="if(event.target===this)closeAnalyticsPdfModal()">
+    <div class="pdf-modal">
+        <div class="p-6 bg-gradient-to-br from-[#071c3f] via-[#0d326b] to-[#1e4b8f] text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[24px]">picture_as_pdf</span>
+                </div>
+                <button type="button" onclick="closeAnalyticsPdfModal()" class="text-white/60 hover:text-white transition">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+            <h3 class="text-[19px] font-black text-white">Export Analytics Report</h3>
+            <p class="text-[12px] text-white/70 mt-1">Download a clean, printable PDF report for your classroom.</p>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div class="p-3.5 rounded-xl bg-blue-50 border border-blue-100 text-xs text-[#0d326b] space-y-1">
+                <div class="font-bold flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    Selected Period: <span class="text-[#0d326b] font-black">{{ $aPeriodLabel }}</span>
+                </div>
+                <p class="text-slate-600 pt-1">Includes Class KPIs, Student Rankings, Quiz Progress Trends, and Gesture Mastery breakdowns.</p>
+            </div>
+
+            <div class="pt-2 flex items-center justify-end gap-3">
+                <button type="button" onclick="closeAnalyticsPdfModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition">
+                    Cancel
+                </button>
+                <a href="{{ route('analytics.export-pdf') }}" target="_blank"
+                   class="px-5 py-2.5 rounded-xl bg-[#0d326b] hover:bg-[#1a6fd4] text-white font-bold text-xs flex items-center gap-2 shadow-md transition"
+                   onclick="closeAnalyticsPdfModal()">
+                    <span class="material-symbols-outlined text-[16px]">download</span>
+                    Download PDF
+                </a>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+// JSON payload of signs with their ranked students
+const signsData = @json($signsBreakdown ?? []);
+
 document.addEventListener('DOMContentLoaded', function() {
-    // ── Line Chart Tooltip ──────────────────────────────────────────────────
+
+    // ── 1. Interactive Leaderboard Lesson Switcher ────────────────────────
+    const selector = document.getElementById('leaderboardLessonSelector');
+    const modeSubtitle = document.getElementById('leaderboardModeSubtitle');
+
+    if (selector) {
+        selector.addEventListener('change', function() {
+            const selectedLessonId = this.value;
+            const panes = document.querySelectorAll('.leaderboard-table-pane');
+            panes.forEach(pane => {
+                if (pane.getAttribute('data-lesson-id') === selectedLessonId) {
+                    pane.classList.remove('hidden');
+                } else {
+                    pane.classList.add('hidden');
+                }
+            });
+
+            if (selectedLessonId === 'all') {
+                if (modeSubtitle) modeSubtitle.textContent = 'Overall class score average across completed quizzes';
+            } else {
+                if (modeSubtitle) modeSubtitle.textContent = 'Ranked by highest score in fewest attempts';
+            }
+        });
+    }
+
+    // ── 2. Line Chart Tooltip ──────────────────────────────────────────────
     (function() {
         const wrap = document.querySelector('.chart-wrapper');
         const tip = document.getElementById('lineChartTooltip');
@@ -916,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tipValue = document.getElementById('lineTooltipValue');
 
         wrap.querySelectorAll('.line-point-hit').forEach(function(hit) {
-            hit.addEventListener('mouseenter', function(e) {
+            hit.addEventListener('mouseenter', function() {
                 const rect = hit.getBoundingClientRect();
                 const wrapRect = wrap.getBoundingClientRect();
                 tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
@@ -931,21 +1043,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     })();
 
-    // ── Mastery Donut Tooltip ──────────────────────────────────────────────
+    // ── 3. Mastery Donut Tooltip ──────────────────────────────────────────
     (function() {
-        const wrap = document.querySelector('.panel:has(.mastery-donut-hit)');
-        if (!wrap) return;
-        const tip = wrap.querySelector('#masteryDonutTooltip');
+        const tip = document.getElementById('masteryDonutTooltip');
         if (!tip) return;
-        const tipLabel = tip.querySelector('#masteryDonutLabel');
-        const tipValue = tip.querySelector('#masteryDonutValue');
+        const tipLabel = document.getElementById('masteryDonutLabel');
+        const tipValue = document.getElementById('masteryDonutValue');
 
-        wrap.querySelectorAll('.mastery-donut-hit').forEach(function(seg) {
-            seg.addEventListener('mouseenter', function(e) {
+        document.querySelectorAll('.mastery-donut-hit').forEach(function(seg) {
+            seg.addEventListener('mouseenter', function() {
                 const rect = seg.getBoundingClientRect();
-                const wrapRect = wrap.getBoundingClientRect();
-                tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
-                tip.style.top = (rect.top - wrapRect.top - 8) + 'px';
+                const parentRect = seg.closest('.relative').getBoundingClientRect();
+                tip.style.left = (rect.left - parentRect.left + rect.width / 2) + 'px';
+                tip.style.top = (rect.top - parentRect.top - 8) + 'px';
                 tipLabel.textContent = seg.dataset.label;
                 tipValue.textContent = seg.dataset.value;
                 tip.classList.add('visible');
@@ -956,151 +1066,103 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     })();
 
-    // ── Score Donut Tooltip ────────────────────────────────────────────────
-    (function() {
-        const wrap = document.querySelector('.panel:has(.score-donut-hit)');
-        if (!wrap) return;
-        const tip = wrap.querySelector('#scoreDonutTooltip');
-        if (!tip) return;
-        const tipLabel = tip.querySelector('#scoreDonutLabel');
-        const tipValue = tip.querySelector('#scoreDonutValue');
-
-        wrap.querySelectorAll('.score-donut-hit').forEach(function(seg) {
-            seg.addEventListener('mouseenter', function(e) {
-                const rect = seg.getBoundingClientRect();
-                const wrapRect = wrap.getBoundingClientRect();
-                tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
-                tip.style.top = (rect.top - wrapRect.top - 8) + 'px';
-                tipLabel.textContent = seg.dataset.label;
-                tipValue.textContent = seg.dataset.value;
-                tip.classList.add('visible');
-            });
-            seg.addEventListener('mouseleave', function() {
-                tip.classList.remove('visible');
-            });
-        });
-    })();
+    // ── 4. Initialize Gesture Sign Detail View ─────────────────────────────
+    if (signsData && signsData.length > 0) {
+        renderSignDetail(signsData[0]);
+    }
 });
-</script>
-@php
-    $af = session('analytics_filters', []);
-    $aPeriod = ucfirst($af['period'] ?? 'Weekly');
-    $aYear   = $af['year'] ?? date('Y');
-    $aMonth  = isset($af['month']) ? date('F', mktime(0,0,0,$af['month'],1)) : null;
-    $aPeriodLabel = $aPeriod . ($aMonth ? ' — ' . $aMonth . ' ' . $aYear : ' — ' . $aYear);
-    $analyticsExportUrl = route('analytics.export-pdf.post');
-@endphp
 
-<div id="analyticsPdfModalOverlay" class="pdf-modal-overlay" onclick="if(event.target===this)closeAnalyticsPdfModal()">
-    <div class="pdf-modal">
-        <div class="pdf-modal-header">
-            <div class="pdf-modal-icon">
-                <span class="material-symbols-outlined text-white text-[26px]">analytics</span>
+// Function to select and render gesture sign details
+function selectGestureSign(signId, element) {
+    document.querySelectorAll('.gesture-sign-card').forEach(card => card.classList.remove('active'));
+    if (element) element.classList.add('active');
+
+    const sign = signsData.find(s => String(s.gesture_id) === String(signId));
+    if (sign) {
+        renderSignDetail(sign);
+    }
+}
+
+function renderSignDetail(sign) {
+    const titleEl = document.getElementById('detailSignTitle');
+    const accEl = document.getElementById('detailSignAccuracy');
+    const subEl = document.getElementById('detailSignSubtitle');
+    const listEl = document.getElementById('detailStudentsList');
+
+    if (titleEl) titleEl.textContent = 'Sign: ' + sign.gesture_name;
+    if (accEl) accEl.textContent = sign.accuracy + '% Class Accuracy';
+    if (subEl) subEl.textContent = sign.total_attempts + ' total attempts (' + sign.successful_attempts + ' correct · ' + sign.wrong_attempts + ' mistakes)';
+
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    if (!sign.students_ranking || sign.students_ranking.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-10 text-slate-400"><p class="text-[13px] font-semibold">No student attempts recorded for this sign.</p></div>';
+        return;
+    }
+
+    sign.students_ranking.forEach(st => {
+        let badgeIcon = '';
+        let badgeBg = 'bg-slate-100 text-slate-600';
+
+        if (st.rank === 1) {
+            badgeIcon = '<span class="material-symbols-outlined text-[15px] text-amber-700">workspace_premium</span>';
+            badgeBg = 'bg-amber-100 text-amber-800 border border-amber-200';
+        } else if (st.rank === 2) {
+            badgeIcon = '<span class="material-symbols-outlined text-[15px] text-slate-600">military_tech</span>';
+            badgeBg = 'bg-slate-200 text-slate-700 border border-slate-300';
+        } else if (st.rank === 3) {
+            badgeIcon = '<span class="material-symbols-outlined text-[15px] text-amber-800">star</span>';
+            badgeBg = 'bg-orange-100 text-orange-800 border border-orange-200';
+        } else {
+            badgeIcon = '<span class="text-[12px] font-black">' + st.rank + '</span>';
+        }
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 transition hover:border-slate-200';
+        row.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${badgeBg}">
+                    ${badgeIcon}
+                </div>
+                <div class="w-8 h-8 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+                    ${st.initials || 'ST'}
+                </div>
+                <div class="min-w-0">
+                    <h5 class="text-[13px] font-bold text-[#0d326b] truncate">${st.name}</h5>
+                    <p class="text-[11px] text-slate-400 font-medium">
+                        ${st.successful_attempts} / ${st.attempts} correct (${st.wrong_attempts} mistakes)
+                    </p>
+                </div>
             </div>
-            <div class="pdf-modal-title">Export Analytics Report</div>
-            <div class="pdf-modal-subtitle">Download a professionally formatted PDF</div>
-        </div>
-        <div class="pdf-modal-body">
-            <div class="pdf-preview-card">
-                <div class="pdf-preview-title">What will be included</div>
-                <div class="pdf-preview-row">
-                    <div class="pdf-preview-dot"></div>
-                    <div class="pdf-preview-text">Period: <span>{{ $aPeriodLabel }}</span></div>
-                </div>
-                <div class="pdf-preview-row">
-                    <div class="pdf-preview-dot"></div>
-                    <div class="pdf-preview-text">Sections: <span>KPI summary, module difficulty ranking</span></div>
-                </div>
-                <div class="pdf-preview-row">
-                    <div class="pdf-preview-dot"></div>
-                    <div class="pdf-preview-text">Student ranking, mastery distribution</div>
-                </div>
-                <div class="pdf-preview-row">
-                    <div class="pdf-preview-dot"></div>
-                    <div class="pdf-preview-text">Completion funnel, gesture performance analytics</div>
+            <div class="text-right shrink-0 pl-3">
+                <span class="text-[14px] font-black text-[#0d326b]">${st.accuracy}%</span>
+                <div class="w-16 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                    <div class="bg-[#0d326b] h-1.5 rounded-full" style="width: ${Math.min(100, Math.max(5, st.accuracy))}%;"></div>
                 </div>
             </div>
+        `;
+        listEl.appendChild(row);
+    });
+}
 
-            {{-- Document Settings Form --}}
-            <form id="analyticsPdfForm" method="POST" action="{{ $analyticsExportUrl }}" target="_blank">
-                @csrf
-
-                <div class="pdf-options">
-                    <div class="pdf-options-title">Document Settings</div>
-
-                    <div class="pdf-option-row">
-                        <span class="pdf-option-label">Paper Size</span>
-                        <select name="paper_size" class="pdf-option-select">
-                            <option value="A4" selected>A4 (210 × 297 mm)</option>
-                            <option value="A3">A3 (297 × 420 mm)</option>
-                            <option value="Letter">Letter (215.9 × 279.4 mm)</option>
-                            <option value="Legal">Legal (215.9 × 355.6 mm)</option>
-                            <option value="A5">A5 (148 × 210 mm)</option>
-                        </select>
-                    </div>
-
-                    <div class="pdf-option-row">
-                        <span class="pdf-option-label">Orientation</span>
-                        <span class="pdf-option-value">Portrait</span>
-                    </div>
-
-                    <div class="pdf-option-row">
-                        <span class="pdf-option-label">Running Header</span>
-                        <select name="running_header" class="pdf-option-select">
-                            <option value="first" selected>First page only</option>
-                            <option value="every">Every page</option>
-                            <option value="none">None</option>
-                        </select>
-                    </div>
-
-                    <div class="pdf-option-row">
-                        <span class="pdf-option-label">Page Numbers</span>
-                        <select name="page_numbers" class="pdf-option-select">
-                            <option value="footer" selected>Footer — Page N of M</option>
-                            <option value="none">None</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="pdf-modal-actions">
-                    <div id="analyticsSuccessBadge" class="pdf-success-badge">
-                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                        Your PDF is ready — check your Downloads folder.
-                    </div>
-                    <button id="analyticsDownloadBtn" type="submit" class="pdf-download-btn" onclick="handleAnalyticsPdfDownload(event, this)">
-                        <span class="btn-text" style="display:flex;align-items:center;gap:8px;">
-                            <span class="material-symbols-outlined text-[18px]">download</span>
-                            Download PDF
-                        </span>
-                        <span class="btn-spinner"></span>
-                    </button>
-                    <button type="button" class="pdf-cancel-btn" onclick="closeAnalyticsPdfModal()">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<script>
+// ── Export Analytics PDF Modal ─────────────────────────────────────────────
 function openAnalyticsPdfModal() {
-    document.getElementById('analyticsPdfModalOverlay').classList.add('open');
+    const overlay = document.getElementById('analyticsPdfModalOverlay');
+    if (overlay) {
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
 }
+
 function closeAnalyticsPdfModal() {
-    document.getElementById('analyticsPdfModalOverlay').classList.remove('open');
-    const btn = document.getElementById('analyticsDownloadBtn');
-    if (btn) btn.classList.remove('loading');
-    document.getElementById('analyticsSuccessBadge').classList.remove('visible');
+    const overlay = document.getElementById('analyticsPdfModalOverlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
 }
-function handleAnalyticsPdfDownload(e, btn) {
-    btn.classList.add('loading');
-    setTimeout(() => {
-        btn.classList.remove('loading');
-        document.getElementById('analyticsSuccessBadge').classList.add('visible');
-        setTimeout(() => closeAnalyticsPdfModal(), 2800);
-    }, 2500);
-}
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeAnalyticsPdfModal();
 });

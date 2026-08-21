@@ -586,20 +586,26 @@ class ReportsController extends Controller
         $pdf->AddPage();
         $pdf->sectionTitle('Student Ranking');
         if (!empty($data['studentRanking']) && count($data['studentRanking']) > 0) {
+            $isOverall = !isset($data['studentRanking'][0]['best_score']);
+
             $rankHeaders = [
                 ['label' => 'Rank',         'width' => 16,  'align' => 'C'],
                 ['label' => 'Student Name', 'width' => 80,  'align' => 'L'],
-                ['label' => 'Attempts',     'width' => 25,  'align' => 'C'],
-                ['label' => 'Avg Score',    'width' => 0,   'align' => 'C'],
+                ['label' => $isOverall ? 'Lessons' : 'Attempts', 'width' => 25,  'align' => 'C'],
+                ['label' => $isOverall ? 'Avg Score' : 'Best Score', 'width' => 0,   'align' => 'C'],
             ];
             $rankRows = [];
             foreach ($data['studentRanking'] as $i => $s) {
                 $rankLabel = ($i < 3) ? ['1st', '2nd', '3rd'][$i] : '#' . ($i + 1);
+                
+                $scoreVal = $isOverall ? ($s['avg_score'] ?? 0) : ($s['best_score'] ?? 0);
+                $attemptVal = $isOverall ? ($s['lesson_count'] ?? 0) : ($s['attempts_to_achieve'] ?? 0);
+                
                 $rankRows[] = [
                     $rankLabel,
                     $s['name'],
-                    $s['attempts'],
-                    number_format($s['avg_score'], 1) . '%',
+                    $attemptVal,
+                    number_format($scoreVal, 2) . '%',
                 ];
             }
             $pdf->dataTable($rankHeaders, $rankRows);

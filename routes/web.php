@@ -295,6 +295,16 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
     Route::post('/ai-generate-quiz', [LessonsController::class, 'aiGenerateQuiz'])->name('ai-generate-quiz');
     Route::post('/upload-media', [LessonsController::class, 'uploadMedia'])->name('upload-media');
 
+    // Checkpoint exams for the default curriculum
+    Route::prefix('checkpoint-exam')->name('checkpoint-exam.')->group(function () {
+        Route::get('/create', [LessonsController::class, 'createCheckpointExam'])->name('create');
+        Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
+        Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
+        Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
+        Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
+        Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
+    });
+
     Route::get('/{lesson}/view', [LessonsController::class, 'view'])->name('view');
     Route::get('/{lesson}/preview-modal', [LessonsController::class, 'previewModal'])->name('preview-modal');
     Route::get('/{lesson}/edit', [LessonsController::class, 'edit'])->name('edit');
@@ -312,16 +322,6 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
     Route::get('/media-library', [LessonsController::class, 'mediaLibraryFolders'])->name('media-library.folders');
     Route::get('/media-library/{folder}', [LessonsController::class, 'mediaLibraryFiles'])->name('media-library.files');
     Route::get('/my-uploads', [LessonsController::class, 'mediaLibraryMyUploads'])->name('media-library.my-uploads');
-
-    // Checkpoint exams for the default curriculum
-    Route::prefix('checkpoint-exam')->name('checkpoint-exam.')->group(function () {
-        Route::get('/create', [LessonsController::class, 'createCheckpointExam'])->name('create');
-        Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
-        Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
-        Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
-        Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
-        Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
-    });
 });
 
 });

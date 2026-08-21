@@ -137,9 +137,10 @@ class AnalyticsController extends Controller
             $endDate   = Carbon::now()->endOfDay();
         }
 
-        $avgQuizScore = (clone $quizQuery)
+        $rawAvgQuizScore = (clone $quizQuery)
             ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
             ->avg('quiz_attempts.percentage') ?? 0;
+        $avgQuizScore = round((float) $rawAvgQuizScore, 2);
 
         $totalGesturesAttempted = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
@@ -180,37 +181,39 @@ class AnalyticsController extends Controller
             ? round(($activeLast7Days / $totalStudents) * 100, 1)
             : 0;
 
+        $streakText = $avgStreakDays . ' ' . ($avgStreakDays === 1 ? 'day' : 'days');
+
         $classSummary = collect([
             [
-                'title' => 'Avg Quiz Score',
-                'value' => number_format($avgQuizScore, 1) . '%',
-                'detail' => 'From completed quizzes',
-                'icon' => 'insights',
-                'accent' => '#dbeafe',
+                'title'     => 'Avg Quiz Score',
+                'value'     => number_format($avgQuizScore, 1) . '%',
+                'detail'    => 'Overall quiz score average',
+                'icon'      => 'insights',
+                'accent'    => '#dbeafe',
                 'iconColor' => '#1e3a8a',
             ],
             [
-                'title' => 'Avg Mastery',
-                'value' => number_format($avgMastery, 1) . '%',
-                'detail' => 'Gestures marked mastered',
-                'icon' => 'school',
-                'accent' => '#ecfdf5',
+                'title'     => 'Gesture Mastery',
+                'value'     => number_format($avgMastery, 1) . '%',
+                'detail'    => 'Practiced signs marked mastered',
+                'icon'      => 'school',
+                'accent'    => '#ecfdf5',
                 'iconColor' => '#15803d',
             ],
             [
-                'title' => 'Completion Rate',
-                'value' => number_format($completionRate, 1) . '%',
-                'detail' => 'Lessons completed vs assigned',
-                'icon' => 'menu_book',
-                'accent' => '#eff6ff',
+                'title'     => 'Lesson Completion',
+                'value'     => number_format($completionRate, 1) . '%',
+                'detail'    => 'Assigned lessons completed',
+                'icon'      => 'menu_book',
+                'accent'    => '#eff6ff',
                 'iconColor' => '#1e3a8a',
             ],
             [
-                'title' => 'Avg Engagement',
-                'value' => $avgStreakDays . 'd',
-                'detail' => $activeLast7Pct . '% active last 7 days',
-                'icon' => 'bolt',
-                'accent' => '#fef3c7',
+                'title'     => 'Active Engagement',
+                'value'     => $streakText,
+                'detail'    => $activeLast7Pct . '% active in last 7 days',
+                'icon'      => 'bolt',
+                'accent'    => '#fef3c7',
                 'iconColor' => '#92400e',
             ],
         ]);
@@ -400,45 +403,163 @@ class AnalyticsController extends Controller
             ->all();
 
         $scoreBuckets = collect([
-            ['label' => '0-20', 'count' => $scoreBucketsRaw['0-20'] ?? 0],
-            ['label' => '21-40', 'count' => $scoreBucketsRaw['21-40'] ?? 0],
-            ['label' => '41-60', 'count' => $scoreBucketsRaw['41-60'] ?? 0],
-            ['label' => '61-80', 'count' => $scoreBucketsRaw['61-80'] ?? 0],
-            ['label' => '81-100', 'count' => $scoreBucketsRaw['81-100'] ?? 0],
+            ['label' => '0-20%', 'count' => $scoreBucketsRaw['0-20'] ?? 0],
+            ['label' => '21-40%', 'count' => $scoreBucketsRaw['21-40'] ?? 0],
+            ['label' => '41-60%', 'count' => $scoreBucketsRaw['41-60'] ?? 0],
+            ['label' => '61-80%', 'count' => $scoreBucketsRaw['61-80'] ?? 0],
+            ['label' => '81-100%', 'count' => $scoreBucketsRaw['81-100'] ?? 0],
         ]);
 
         $maxScoreBucket = max(1, $scoreBuckets->max('count'));
 
-        $studentRanking = Student::where('teacher_id', $teacherId)
-            ->where('status', 'active')
-            ->withCount(['quizAttempts as attempts' => function ($q) {
-                $q->where('quiz_attempts.status', 'completed')
-                  ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
-                  ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
-                  ->where('lessons.status', 'published')
-                  ->whereNull('lessons.deleted_at');
-            }])
-            ->with(['quizAttempts' => function ($q) {
-                $q->where('quiz_attempts.status', 'completed')
-                  ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
-                  ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
-                  ->where('lessons.status', 'published')
-                  ->whereNull('lessons.deleted_at')
-                  ->select('quiz_attempts.attempt_id', 'quiz_attempts.student_id', 'quiz_attempts.percentage');
-            }])
-            ->get()
-            ->map(function ($student) {
-                $avg = $student->quizAttempts->avg('percentage');
-                return [
-                    'name'      => trim($student->first_name . ' ' . $student->last_name),
-                    'avg_score' => $avg ? round($avg) : 0,
-                    'attempts'  => $student->attempts,
-                ];
-            })
-            ->sortByDesc('avg_score')
-            ->values();
+        // ── 1. OVERALL CLASS LEADERBOARD (Across All Quizzes) ──
+        $allQuizAttempts = DB::table('quiz_attempts as qa')
+            ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+            ->join('lessons as l', 'q.lesson_id', '=', 'l.lesson_id')
+            ->join('students as s', 'qa.student_id', '=', 's.student_id')
+            ->whereIn('qa.student_id', $studentIds)
+            ->where('qa.status', 'completed')
+            ->where('l.status', 'published')
+            ->whereNull('l.deleted_at')
+            ->select('qa.student_id', 's.first_name', 's.last_name', 'qa.percentage', 'qa.quiz_id', 'qa.created_at', 'qa.attempt_id')
+            ->orderBy('qa.created_at', 'asc')
+            ->get();
 
-        // ── DEDICATED GESTURE PERFORMANCE ANALYTICS (STRICTLY FROM gesture_performances) ──
+        $overallStudents = [];
+        foreach ($allQuizAttempts->groupBy('student_id') as $sId => $attempts) {
+            $studentInfo = $attempts->first();
+            $quizGroups = $attempts->groupBy('quiz_id');
+            
+            // Overall class ranking uses overall score average across all completed attempts
+            $overallScore = round($attempts->avg('percentage'), 1);
+
+            $overallStudents[] = [
+                'student_id'          => $sId,
+                'name'                => trim($studentInfo->first_name . ' ' . $studentInfo->last_name),
+                'overall_score'       => $overallScore,
+                'best_score'          => $overallScore,
+                'total_attempts'      => $attempts->count(),
+                'quizzes_count'       => $quizGroups->count(),
+                'initials'            => strtoupper(substr($studentInfo->first_name, 0, 1) . substr($studentInfo->last_name, 0, 1)),
+            ];
+        }
+
+        // Overall class ranking sort rule: Highest Overall Score DESC, Quizzes Count DESC
+        usort($overallStudents, function ($a, $b) {
+            if ($a['overall_score'] != $b['overall_score']) {
+                return $b['overall_score'] <=> $a['overall_score'];
+            }
+            return $b['total_attempts'] <=> $a['total_attempts'];
+        });
+
+        foreach ($overallStudents as $idx => &$st) {
+            $st['rank'] = $idx + 1;
+        }
+        unset($st);
+
+        // ── 2. PER-LESSON LEADERBOARDS (Exact Student App Ranking System) ──
+        $publishedLessons = Lesson::where('teacher_id', $teacherId)
+            ->where('status', 'published')
+            ->whereNull('deleted_at')
+            ->with(['quiz'])
+            ->orderBy('module_order')
+            ->orderBy('title')
+            ->get();
+
+        $lessonLeaderboards = [
+            'all' => [
+                'lesson_id'    => 'all',
+                'title'        => 'All Lessons (Overall Class)',
+                'is_overall'   => true,
+                'total_ranked' => count($overallStudents),
+                'rankings'     => $overallStudents,
+            ],
+        ];
+
+        $availableLessonsList = [
+            ['id' => 'all', 'title' => 'All Lessons (Overall Class)'],
+        ];
+
+        foreach ($publishedLessons as $lesson) {
+            if (!$lesson->quiz) {
+                continue;
+            }
+
+            $availableLessonsList[] = [
+                'id'    => (string) $lesson->lesson_id,
+                'title' => $lesson->title,
+            ];
+
+            $lessonAttempts = DB::table('quiz_attempts as qa')
+                ->join('students as s', 'qa.student_id', '=', 's.student_id')
+                ->where('qa.quiz_id', $lesson->quiz->quiz_id)
+                ->whereIn('qa.student_id', $studentIds)
+                ->where('qa.status', 'completed')
+                ->select(
+                    's.student_id',
+                    's.first_name',
+                    's.last_name',
+                    DB::raw('MAX(qa.percentage) as best_score'),
+                    DB::raw('COUNT(qa.attempt_id) as total_attempts')
+                )
+                ->groupBy('s.student_id', 's.first_name', 's.last_name')
+                ->get();
+
+            $lessonRankings = $lessonAttempts->map(function ($item) use ($lesson) {
+                // Find attempt number where they achieved their best score
+                $allStudentAttempts = DB::table('quiz_attempts')
+                    ->where('student_id', $item->student_id)
+                    ->where('quiz_id', $lesson->quiz->quiz_id)
+                    ->where('status', 'completed')
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                $attemptsToAchieve = 1;
+                foreach ($allStudentAttempts as $idx => $att) {
+                    if ($att->percentage == $item->best_score) {
+                        $attemptsToAchieve = $idx + 1;
+                        break;
+                    }
+                }
+
+                return [
+                    'student_id'          => $item->student_id,
+                    'name'                => trim($item->first_name . ' ' . $item->last_name),
+                    'best_score'          => (float) $item->best_score,
+                    'attempts_to_achieve' => $attemptsToAchieve,
+                    'total_attempts'      => (int) $item->total_attempts,
+                    'initials'            => strtoupper(substr($item->first_name, 0, 1) . substr($item->last_name, 0, 1)),
+                ];
+            })->all();
+
+            // Ranking order: best_score DESC, attempts_to_achieve ASC, total_attempts ASC
+            usort($lessonRankings, function ($a, $b) {
+                if ($a['best_score'] != $b['best_score']) {
+                    return $b['best_score'] <=> $a['best_score'];
+                }
+                if ($a['attempts_to_achieve'] != $b['attempts_to_achieve']) {
+                    return $a['attempts_to_achieve'] <=> $b['attempts_to_achieve'];
+                }
+                return $a['total_attempts'] <=> $b['total_attempts'];
+            });
+
+            foreach ($lessonRankings as $idx => &$lr) {
+                $lr['rank'] = $idx + 1;
+            }
+            unset($lr);
+
+            $lessonLeaderboards[(string) $lesson->lesson_id] = [
+                'lesson_id'    => $lesson->lesson_id,
+                'title'        => $lesson->title,
+                'is_overall'   => false,
+                'total_ranked' => count($lessonRankings),
+                'rankings'     => $lessonRankings,
+            ];
+        }
+
+        $studentRanking = collect($overallStudents);
+
+        // ── 3. DEDICATED GESTURE PERFORMANCE ANALYTICS WITH PER-SIGN BREAKDOWN ──
         $gestureStatsRaw = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
             ->selectRaw('
@@ -463,101 +584,180 @@ class AnalyticsController extends Controller
             'total_mastered'   => (int) ($gestureStatsRaw->total_mastered ?? 0),
         ];
 
-        // Best-performing gestures (highest accuracy) from gesture_performances
-        $topPerformingGestures = DB::table('gesture_performances as gp')
+        // Group performances by gesture for per-sign teacher insights
+        $gesturePerSignRows = DB::table('gesture_performances as gp')
             ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
-            ->whereIn('gp.student_id', $studentIds)
-            ->where('gp.attempts', '>', 0)
-            ->select(
-                'g.gesture_id',
-                'g.name',
-                'g.display_name',
-                DB::raw('SUM(gp.attempts) as total_attempts'),
-                DB::raw('SUM(gp.successful_attempts) as total_successful'),
-                DB::raw('SUM(gp.wrong_attempts) as total_wrong'),
-                DB::raw('ROUND((SUM(gp.successful_attempts) / SUM(gp.attempts)) * 100, 1) as accuracy')
-            )
-            ->groupBy('g.gesture_id', 'g.name', 'g.display_name')
-            ->orderByDesc('accuracy')
-            ->orderByDesc('total_attempts')
-            ->limit(5)
-            ->get()
-            ->map(function ($row) {
-                return [
-                    'gesture_name'        => $row->display_name ?: $row->name,
-                    'attempts'            => (int) $row->total_attempts,
-                    'successful_attempts' => (int) $row->total_successful,
-                    'wrong_attempts'      => (int) $row->total_wrong,
-                    'accuracy'            => (float) $row->accuracy,
-                ];
-            });
-
-        // Lowest-performing gestures (lowest accuracy / struggling) from gesture_performances
-        $lowestPerformingGestures = DB::table('gesture_performances as gp')
-            ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
-            ->whereIn('gp.student_id', $studentIds)
-            ->where('gp.attempts', '>', 0)
-            ->select(
-                'g.gesture_id',
-                'g.name',
-                'g.display_name',
-                DB::raw('SUM(gp.attempts) as total_attempts'),
-                DB::raw('SUM(gp.successful_attempts) as total_successful'),
-                DB::raw('SUM(gp.wrong_attempts) as total_wrong'),
-                DB::raw('ROUND((SUM(gp.successful_attempts) / SUM(gp.attempts)) * 100, 1) as accuracy')
-            )
-            ->groupBy('g.gesture_id', 'g.name', 'g.display_name')
-            ->orderBy('accuracy', 'asc')
-            ->orderByDesc('total_attempts')
-            ->limit(5)
-            ->get()
-            ->map(function ($row) {
-                return [
-                    'gesture_name'        => $row->display_name ?: $row->name,
-                    'attempts'            => (int) $row->total_attempts,
-                    'successful_attempts' => (int) $row->total_successful,
-                    'wrong_attempts'      => (int) $row->total_wrong,
-                    'accuracy'            => (float) $row->accuracy,
-                ];
-            });
-
-        // Student performance per gesture from gesture_performances
-        $studentGesturePerformance = DB::table('gesture_performances as gp')
             ->join('students as s', 'gp.student_id', '=', 's.student_id')
-            ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
             ->whereIn('gp.student_id', $studentIds)
             ->where('gp.attempts', '>', 0)
             ->select(
+                'g.gesture_id',
+                'g.name',
+                'g.display_name',
                 's.student_id',
                 's.first_name',
                 's.last_name',
-                'g.gesture_id',
-                'g.name as g_name',
-                'g.display_name as g_display_name',
                 'gp.attempts',
                 'gp.successful_attempts',
                 'gp.wrong_attempts',
-                'gp.mastery_level',
                 'gp.is_mastered',
-                'gp.last_attempt_at'
+                'gp.mastery_level'
             )
-            ->orderBy('s.first_name')
-            ->orderBy('s.last_name')
             ->get()
-            ->map(function ($row) {
-                $attempts = (int) $row->attempts;
-                $success  = (int) $row->successful_attempts;
-                $accuracy = $attempts > 0 ? round(($success / $attempts) * 100, 1) : 0;
+            ->groupBy('gesture_id');
+
+        $signsBreakdown = [];
+        $lowMasterySignsCount = 0;
+        $masteredSignsCount = 0;
+
+        foreach ($gesturePerSignRows as $gId => $records) {
+            $first = $records->first();
+            $gName = $first->display_name ?: $first->name;
+            $totAtt = $records->sum('attempts');
+            $totSuc = $records->sum('successful_attempts');
+            $totWrn = $records->sum('wrong_attempts');
+            $acc = $totAtt > 0 ? round(($totSuc / $totAtt) * 100, 1) : 0;
+            $masteredStudents = $records->where('is_mastered', 1)->count();
+
+            // Full list of students who attempted this sign, ranked by accuracy DESC, then success DESC
+            $rankedStudentsForSign = $records->map(function ($r) {
+                $studentAcc = $r->attempts > 0 ? round(($r->successful_attempts / $r->attempts) * 100, 1) : 0;
                 return [
-                    'student_name'        => trim($row->first_name . ' ' . $row->last_name),
-                    'gesture_name'        => $row->g_display_name ?: $row->g_name,
-                    'attempts'            => $attempts,
-                    'successful_attempts' => $success,
-                    'wrong_attempts'      => (int) $row->wrong_attempts,
-                    'accuracy'            => $accuracy,
-                    'mastery_level'       => $row->mastery_level ?? 'needs_practice',
-                    'is_mastered'         => (bool) $row->is_mastered,
-                    'last_attempt_at'     => $row->last_attempt_at ? Carbon::parse($row->last_attempt_at)->format('M d, Y') : '—',
+                    'student_id'          => $r->student_id,
+                    'name'                => trim($r->first_name . ' ' . $r->last_name),
+                    'initials'            => strtoupper(substr($r->first_name, 0, 1) . substr($r->last_name, 0, 1)),
+                    'attempts'            => (int) $r->attempts,
+                    'successful_attempts' => (int) $r->successful_attempts,
+                    'wrong_attempts'      => (int) $r->wrong_attempts,
+                    'accuracy'            => $studentAcc,
+                    'is_mastered'         => (bool) $r->is_mastered,
+                    'mastery_level'       => $r->mastery_level ?: 'needs_practice',
+                ];
+            })->sortBy([
+                ['accuracy', 'desc'],
+                ['successful_attempts', 'desc'],
+                ['attempts', 'asc'],
+            ])->values()->all();
+
+            foreach ($rankedStudentsForSign as $sIdx => &$sRankItem) {
+                $sRankItem['rank'] = $sIdx + 1;
+            }
+            unset($sRankItem);
+
+            // Find best performing student on this gesture
+            $bestStudentRec = $records->sortByDesc(function ($r) {
+                $accVal = $r->attempts > 0 ? ($r->successful_attempts / $r->attempts) : 0;
+                return ($accVal * 1000) + $r->successful_attempts;
+            })->first();
+
+            // Find struggling student on this gesture
+            $strugglingStudentRec = $records->filter(function ($r) {
+                return $r->attempts > 0;
+            })->sortBy(function ($r) {
+                $accVal = $r->attempts > 0 ? ($r->successful_attempts / $r->attempts) : 0;
+                return ($accVal * 1000) - $r->wrong_attempts;
+            })->first();
+
+            $isMasteredMajority = ($acc >= 75 || ($totalStudents > 0 && $masteredStudents >= ceil($totalStudents / 2)));
+            if ($isMasteredMajority) {
+                $masteredSignsCount++;
+            } else {
+                $lowMasterySignsCount++;
+            }
+
+            $signsBreakdown[] = [
+                'gesture_id'          => (string) $gId,
+                'gesture_name'        => $gName,
+                'total_attempts'      => $totAtt,
+                'successful_attempts' => $totSuc,
+                'wrong_attempts'      => $totWrn,
+                'accuracy'            => $acc,
+                'mastered_students'   => $masteredStudents,
+                'status'              => $isMasteredMajority ? 'mastered' : 'needs_practice',
+                'status_label'        => $isMasteredMajority ? 'Mastered by Majority' : 'Needs Class Practice',
+                'best_student'        => $bestStudentRec ? [
+                    'name'     => trim($bestStudentRec->first_name . ' ' . $bestStudentRec->last_name),
+                    'accuracy' => $bestStudentRec->attempts > 0 ? round(($bestStudentRec->successful_attempts / $bestStudentRec->attempts) * 100) : 0,
+                    'attempts' => $bestStudentRec->attempts,
+                ] : null,
+                'struggling_student'  => ($strugglingStudentRec && $strugglingStudentRec->wrong_attempts > 0) ? [
+                    'name'     => trim($strugglingStudentRec->first_name . ' ' . $strugglingStudentRec->last_name),
+                    'accuracy' => round(($strugglingStudentRec->successful_attempts / $strugglingStudentRec->attempts) * 100),
+                    'wrong'    => $strugglingStudentRec->wrong_attempts,
+                ] : null,
+                'students_ranking'    => $rankedStudentsForSign,
+            ];
+        }
+
+        // Sort signs by needs practice first, then accuracy ASC
+        usort($signsBreakdown, function ($a, $b) {
+            if ($a['status'] !== $b['status']) {
+                return $a['status'] === 'needs_practice' ? -1 : 1;
+            }
+            return $a['accuracy'] <=> $b['accuracy'];
+        });
+
+        // ── 4. SENYA INSIGHTS GENERATION FOR EACH SECTION (EMOJI-FREE) ──
+        $topScorerName = $overallStudents[0]['name'] ?? 'your students';
+        $topScorerScore = number_format($overallStudents[0]['best_score'] ?? 0, 2);
+        $hardestLessonTitle = $lessonDifficulty->first()['title'] ?? 'recent lessons';
+        $hardestLessonAvg = number_format($lessonDifficulty->first()['avg_score'] ?? 0, 2);
+        $formattedAvgScore = number_format($avgQuizScore, 2);
+
+        $mostStrugglingSign = collect($signsBreakdown)->where('status', 'needs_practice')->first();
+        $topMasteredSign = collect($signsBreakdown)->where('status', 'mastered')->sortByDesc('accuracy')->first();
+
+        $senyaInsights = [
+            'kpi' => $avgQuizScore >= 75
+                ? "<strong>Great class momentum:</strong> Your students are maintaining a strong <strong>{$formattedAvgScore}% average quiz score</strong> with {$activeLast7Pct}% active in the past 7 days."
+                : "<strong>Opportunity for reinforcement:</strong> The class average is currently <strong>{$formattedAvgScore}%</strong>. A quick 10-minute group review could help boost scores.",
+
+            'progress' => count($progressOverTime) > 1
+                ? "<strong>Performance Trend:</strong> Quiz scores have tracked from <strong>" . number_format($progressOverTime[0]['value'] ?? 0, 2) . "%</strong> to <strong>" . number_format(end($progressOverTime)['value'] ?? 0, 2) . "%</strong> over this {$period} period."
+                : "<strong>Trend:</strong> Continue assigning regular quizzes to build a rich progress trajectory for your class.",
+
+            'difficulty' => !empty($lessonDifficulty) && $lessonDifficulty->isNotEmpty()
+                ? "<strong>Focus Recommendation:</strong> <em>'{$hardestLessonTitle}'</em> is currently the most challenging lesson with an average score of <strong>{$hardestLessonAvg}%</strong>."
+                : "<strong>Curriculum Balance:</strong> Lessons are progressing smoothly across your modules.",
+
+            'leaderboard' => count($overallStudents) > 0
+                ? "<strong>Leading Student:</strong> <strong>{$topScorerName}</strong> is leading the class ranking with <strong>{$topScorerScore}%</strong>. Use the lesson selector above to check standings for any specific lesson."
+                : "<strong>Student Ranking:</strong> Student rankings will populate automatically as quizzes and attempts are submitted.",
+
+            'mastery' => ($masteryTotal > 0)
+                ? "<strong>Gesture Mastery Breakdown:</strong> <strong>" . number_format($masteryDistribution->firstWhere('key', 'mastered')['pct'] ?? 0, 2) . "%</strong> of total gesture attempts have reached Mastered status. " . ($masteryDistribution->firstWhere('key', 'needs_practice')['count'] ?? 0) . " attempts still need practice."
+                : "<strong>Gesture Data:</strong> Gesture mastery distribution will reflect student camera practice results.",
+
+            'gestures' => $mostStrugglingSign
+                ? "<strong>Gesture Coaching Tip:</strong> Sign <em>'{$mostStrugglingSign['gesture_name']}'</em> has the lowest class accuracy (<strong>" . number_format($mostStrugglingSign['accuracy'], 2) . "%</strong>)" . ($mostStrugglingSign['struggling_student'] ? ", with <strong>{$mostStrugglingSign['struggling_student']['name']}</strong> needing extra support." : ". Consider demonstrating it in your next class.")
+                : ($topMasteredSign
+                    ? "<strong>Strong Signing Skills:</strong> Sign <em>'{$topMasteredSign['gesture_name']}'</em> is mastered by the class with a stellar <strong>" . number_format($topMasteredSign['accuracy'], 2) . "%</strong> accuracy rate."
+                    : "<strong>Gesture Tracking:</strong> Sign accuracy and student comparisons will appear here as students practice gestures."),
+        ];
+
+        $topPerformingGestures = collect($signsBreakdown)
+            ->sortByDesc('accuracy')
+            ->take(5)
+            ->map(function ($s) {
+                return [
+                    'gesture_name'        => $s['gesture_name'],
+                    'attempts'            => $s['total_attempts'],
+                    'successful_attempts' => $s['successful_attempts'],
+                    'wrong_attempts'      => $s['wrong_attempts'],
+                    'accuracy'            => $s['accuracy'],
+                ];
+            });
+
+        $lowestPerformingGestures = collect($signsBreakdown)
+            ->sortBy('accuracy')
+            ->take(5)
+            ->map(function ($s) {
+                return [
+                    'gesture_name'        => $s['gesture_name'],
+                    'attempts'            => $s['total_attempts'],
+                    'successful_attempts' => $s['successful_attempts'],
+                    'wrong_attempts'      => $s['wrong_attempts'],
+                    'accuracy'            => $s['accuracy'],
                 ];
             });
 
@@ -579,34 +779,51 @@ class AnalyticsController extends Controller
             'maxScoreBucket'             => $maxScoreBucket,
             'masteryTotal'               => $masteryTotal,
             'studentRanking'             => $studentRanking,
+            'lessonLeaderboards'         => $lessonLeaderboards,
+            'availableLessonsList'       => $availableLessonsList,
             'gesturePerformanceOverview' => $gesturePerformanceOverview,
+            'signsBreakdown'             => $signsBreakdown,
+            'lowMasterySignsCount'       => $lowMasterySignsCount,
+            'masteredSignsCount'         => $masteredSignsCount,
+            'senyaInsights'              => $senyaInsights,
             'topPerformingGestures'      => $topPerformingGestures,
             'lowestPerformingGestures'   => $lowestPerformingGestures,
-            'studentGesturePerformance'  => $studentGesturePerformance,
+            'studentGesturePerformance'  => collect(),
         ];
     }
 
     private function emptyTeacherData($user): array
     {
         return [
-            'totalAttempts'              => 0,
-            'avgPerformance'             => 0,
-            'practiceCompletion'         => 0,
-            'activeStudents'             => 0,
             'totalStudents'              => 0,
-            'topPerformer'               => null,
-            'weeklyData'                 => [],
-            'topLessons'                 => collect(),
-            'quizBuckets'                => collect([
-                ['label' => '0-49', 'count' => 0, 'color' => '#ef4444'],
-                ['label' => '50-69', 'count' => 0, 'color' => '#f59e0b'],
-                ['label' => '70-84', 'count' => 0, 'color' => '#3b82f6'],
-                ['label' => '85-100', 'count' => 0, 'color' => '#10b981'],
+            'avgQuizScore'               => 0,
+            'avgMastery'                 => 0,
+            'completionRate'             => 0,
+            'avgStreakDays'              => 0,
+            'activeLast7Pct'             => 0,
+            'classSummary'               => collect([
+                ['title' => 'Avg Quiz Score', 'value' => '0%', 'detail' => 'No quiz attempts yet', 'icon' => 'insights', 'accent' => '#dbeafe', 'iconColor' => '#1e3a8a'],
+                ['title' => 'Gesture Mastery', 'value' => '0%', 'detail' => 'No gestures practiced', 'icon' => 'school', 'accent' => '#ecfdf5', 'iconColor' => '#15803d'],
+                ['title' => 'Lesson Completion', 'value' => '0%', 'detail' => 'No assignments completed', 'icon' => 'menu_book', 'accent' => '#eff6ff', 'iconColor' => '#1e3a8a'],
+                ['title' => 'Active Engagement', 'value' => '0 days', 'detail' => '0% active recently', 'icon' => 'bolt', 'accent' => '#fef3c7', 'iconColor' => '#92400e'],
             ]),
-            'displayName'                => $user->name ?? 'Teacher',
-            'teacher'                    => null,
-            'atRiskCount'                => 0,
-            'avgLessonsPerStudent'        => 0,
+            'progressOverTime'           => [],
+            'lessonDifficulty'           => collect(),
+            'gestureHeatmap'             => collect(),
+            'masteryDistribution'        => collect([
+                ['label' => 'Needs Practice', 'key' => 'needs_practice', 'color' => '#ef4444', 'count' => 0, 'pct' => 0],
+                ['label' => 'Developing', 'key' => 'developing', 'color' => '#f59e0b', 'count' => 0, 'pct' => 0],
+                ['label' => 'Proficient', 'key' => 'proficient', 'color' => '#3b82f6', 'count' => 0, 'pct' => 0],
+                ['label' => 'Mastered', 'key' => 'mastered', 'color' => '#10b981', 'count' => 0, 'pct' => 0],
+            ]),
+            'completionFunnel'           => collect(),
+            'completionTotal'            => 0,
+            'scoreBuckets'               => collect(),
+            'maxScoreBucket'             => 1,
+            'masteryTotal'               => 0,
+            'studentRanking'             => collect(),
+            'lessonLeaderboards'         => ['all' => ['lesson_id' => 'all', 'title' => 'All Lessons', 'total_ranked' => 0, 'rankings' => []]],
+            'availableLessonsList'       => [['id' => 'all', 'title' => 'All Lessons']],
             'gesturePerformanceOverview' => [
                 'total_gestures'   => 0,
                 'total_attempts'   => 0,
@@ -614,6 +831,17 @@ class AnalyticsController extends Controller
                 'total_wrong'      => 0,
                 'overall_accuracy' => 0,
                 'total_mastered'   => 0,
+            ],
+            'signsBreakdown'             => [],
+            'lowMasterySignsCount'       => 0,
+            'masteredSignsCount'         => 0,
+            'senyaInsights'              => [
+                'kpi'         => "👋 <strong>Welcome!</strong> Class insights will automatically appear once students begin completing lessons and practicing gestures.",
+                'progress'    => "📈 <strong>Track Progress:</strong> Weekly and monthly trends will graph here after assignments are submitted.",
+                'difficulty'  => "🎯 <strong>Lesson Insights:</strong> Hardest modules will be detected to highlight where to focus classroom time.",
+                'leaderboard' => "🏆 <strong>Class Rankings:</strong> Student leaderboards per lesson will display here.",
+                'mastery'     => "📊 <strong>Gesture Mastery:</strong> Distribution of student sign skills will be tracked here.",
+                'gestures'    => "👋 <strong>Sign Breakdown:</strong> Compare top vs struggling performers on each sign gesture.",
             ],
             'topPerformingGestures'      => collect(),
             'lowestPerformingGestures'   => collect(),

@@ -26,7 +26,7 @@ public function index()
     $modules = Module::where('teacher_id', $systemTeacherId)
         ->where('is_template', true)
         ->with(['lessons' => function ($q) {
-            $q->withTrashed()->orderBy('module_order');
+            $q->withTrashed()->orderBy('module_order')->with('quiz.questions');
         }])
         ->with(['checkpointExams' => function ($q) {
             $q->orderBy('created_at', 'desc');
@@ -74,6 +74,25 @@ public function index()
 
     foreach ($modules as $module) {
         $module->teacherCopyCount = $teacherCopyCounts[$module->module_id] ?? 0;
+
+        // Compute which lessons are still available for a new checkpoint exam
+        $moduleUsedLessonIds = CheckpointExamQuestion::whereHas('exam', function ($q) use ($systemTeacherId) {
+            $q->where('teacher_id', $systemTeacherId);
+        })->where(function ($q) use ($module) {
+            $q->whereHas('exam', function ($q2) use ($module) {
+                $q2->where('module_id', $module->module_id);
+            });
+        })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
+
+        $availableLessons = $module->lessons->filter(function ($lesson) use ($moduleUsedLessonIds) {
+            return !in_array($lesson->lesson_id, $moduleUsedLessonIds)
+                && $lesson->status === 'published'
+                && $lesson->quiz
+                && $lesson->quiz->questions->count() > 0;
+        });
+
+        $module->availableLessonsCount = $availableLessons->count();
+        $module->canCreateExam = $module->availableLessonsCount >= 2;
     }
 
     return view('admin.lessons', compact('modules', 'usedLessonIds', 'allTeachers'));

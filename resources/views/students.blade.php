@@ -941,12 +941,19 @@
                 <h2 class="text-[18px] font-black text-[#0d326b] flex items-center gap-2">
                     <span class="material-symbols-outlined text-[24px]">assignment</span>
                     <span id="assignment-title-label">Assign Lessons</span>
+                    <span id="assignment-queue-badge" class="hidden text-[10px] font-bold text-white bg-[#0d326b] px-2 py-0.5 rounded-full uppercase tracking-wide"></span>
                 </h2>
                 <p id="assignment-student-name" class="text-[13px] text-slate-500 font-medium mt-0.5">Loading...</p>
             </div>
             <button id="assignment-close" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
                 <span class="material-symbols-outlined text-slate-500 text-[18px]">close</span>
             </button>
+        </div>
+
+        {{-- Required-next-step banner (queue mode only) --}}
+        <div id="assignment-queue-banner" class="hidden shrink-0 mx-7 mt-4 px-4 py-2.5 rounded-xl text-[11px] font-semibold flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800">
+            <span class="material-symbols-outlined text-[16px] shrink-0">priority_high</span>
+            <span>This is the next required step. If you cancel, this student will be added with no lessons assigned.</span>
         </div>
 
         {{-- Loading --}}
@@ -984,9 +991,13 @@
             </div>
 
             {{-- Footer --}}
-            <div class="px-7 py-4 border-t border-slate-100 shrink-0 flex items-center justify-end gap-3 bg-white">
+            <div class="px-7 py-4 border-t border-slate-100 shrink-0 flex items-center justify-end gap-3 bg-white flex-wrap">
                 <button id="assignment-cancel" class="px-5 py-2.5 rounded-xl text-[13px] font-semibold text-slate-500 hover:bg-slate-50 transition-colors">
                     Cancel
+                </button>
+                <button id="assignment-apply-all" class="hidden px-5 py-2.5 rounded-xl text-[13px] font-bold text-[#0d326b] bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-all flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">groups</span>
+                    <span id="assignment-apply-all-label">Apply to All New Students</span>
                 </button>
                 <button id="assignment-save" class="px-6 py-2.5 rounded-xl text-[13px] font-bold bg-[#0d326b] hover:bg-[#154188] text-white transition-all flex items-center gap-2 shadow-sm">
                     <span class="material-symbols-outlined text-[16px]">save</span>
@@ -1264,9 +1275,11 @@ function mapExcelData(rows) {
     if (!rows || rows.length < 2) return [];
     const h = rows[0].map(x => String(x || '').trim().toLowerCase());
     const lrnIdx     = h.findIndex(x => x.includes('lrn') || x.includes('reference') || x.includes('learner'));
-    const nameIdx    = h.findIndex(x => x.includes('name') || x.includes('student') || x.includes('full'));
     const firstIdx   = h.findIndex(x => x.includes('first'));
     const lastIdx    = h.findIndex(x => x.includes('last'));
+    // Only treat a column as the combined "full name" column if it isn't actually
+    // a separate first_name/last_name column (those also contain the word "name").
+    const nameIdx    = h.findIndex(x => (x.includes('name') || x.includes('student') || x.includes('full')) && !x.includes('first') && !x.includes('last'));
     const programIdx = h.findIndex(x => x.includes('program') || x.includes('type') || x.includes('track'));
     const gradeIdx   = h.findIndex(x => (x.includes('grade') || x.includes('level') || x.includes('class')) && !x.includes('mastery'));
     const ageIdx     = h.findIndex(x => x === 'age' || x.includes('age'));
@@ -1622,6 +1635,22 @@ async function runImport() {
                     '<div class="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-2">' +
                     transfers.map(t=>'<span class="inline-block font-semibold mr-2">'+escHtml(t.name)+'</span>').join('') + '</div></div>';
             }
+            const createdStudents = d.created_students || [];
+            const needsLessons = createdStudents.length > 0;
+            let nextStepHtml = '';
+            let footerButtonHtml;
+            if (needsLessons) {
+                nextStepHtml = '<div class="mt-4 px-4 py-3 rounded-xl text-[11px] font-semibold flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800">' +
+                    '<span class="material-symbols-outlined text-[16px] shrink-0">priority_high</span>' +
+                    '<span>Next step: assign lessons to your ' + createdStudents.length + ' new student' + (createdStudents.length > 1 ? 's' : '') + ' so they can start learning.</span></div>';
+                footerButtonHtml =
+                    '<button type="button" id="btn-start-assignment-queue" class="mt-5 w-full bg-[#0d326b] hover:bg-[#154188] text-white py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm flex items-center justify-center gap-2">' +
+                    '<span class="material-symbols-outlined text-[16px]">assignment</span>Continue — Assign Lessons (' + createdStudents.length + ')</button>';
+            } else {
+                footerButtonHtml =
+                    '<button type="button" onclick="window.location.reload()" class="mt-5 w-full bg-[#0d326b] hover:bg-[#154188] text-white py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm flex items-center justify-center gap-2">' +
+                    '<span class="material-symbols-outlined text-[16px]">refresh</span>Done — Reload Page</button>';
+            }
             sr.innerHTML =
                 '<div class="flex items-center gap-3 mb-5">' +
                 '<div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-emerald-600 text-[22px]">check_circle</span></div>' +
@@ -1631,9 +1660,15 @@ async function runImport() {
                 '<div class="bg-blue-50 p-3 rounded-xl text-center"><p class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-1">Total</p><p class="text-3xl font-black text-blue-900">'+d.total+'</p></div>' +
                 '<div class="bg-emerald-50 p-3 rounded-xl text-center"><p class="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mb-1">Imported</p><p class="text-3xl font-black text-emerald-900">'+d.imported+'</p></div>' +
                 '<div class="bg-amber-50 p-3 rounded-xl text-center"><p class="text-[9px] text-amber-600 font-bold uppercase tracking-widest mb-1">Skipped</p><p class="text-3xl font-black text-amber-900">'+d.skipped+'</p></div>' +
-                '</div>' + failHtml + xferHtml +
-                '<button type="button" onclick="window.location.reload()" class="mt-5 w-full bg-[#0d326b] hover:bg-[#154188] text-white py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm flex items-center justify-center gap-2">' +
-                '<span class="material-symbols-outlined text-[16px]">refresh</span>Done — Reload Page</button>';
+                '</div>' + failHtml + xferHtml + nextStepHtml + footerButtonHtml;
+
+            if (needsLessons) {
+                const startBtn = document.getElementById('btn-start-assignment-queue');
+                if (startBtn) startBtn.addEventListener('click', () => startAssignmentQueue(createdStudents));
+                // Launch automatically too, so the teacher doesn't skip past the required step —
+                // the button above still lets them re-open it if they close the modal early.
+                setTimeout(() => startAssignmentQueue(createdStudents), 700);
+            }
         } else {
             showAlert(res.data.message || 'Import error.', 'error');
             if (confirmBtn) { confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">upload</span>Confirm Import'; confirmBtn.disabled = false; }
@@ -2407,9 +2442,42 @@ let _assignSelectedIds = new Set();
 let _assignOriginalIds = new Set(); // To track changes
 let _assignPendingPayload = null; // Set when picking lessons for a NOT-YET-created student
 
+// ── Post-bulk-import "assign lessons" queue ────────────────────────────────
+// After a bulk Excel import, every brand-new student needs lessons assigned.
+// _assignQueue holds the students still waiting; _assignQueueDone tracks how
+// many have been handled (saved or explicitly skipped) so far.
+let _assignQueue = [];
+let _assignQueueDone = 0;
+let _assignQueueTotal = 0;
+
 const assignTitleLabel = document.getElementById('assignment-title-label');
 const assignSaveBtn = document.getElementById('assignment-save');
 const assignSaveLabel = document.getElementById('assignment-save-label');
+const assignQueueBadge = document.getElementById('assignment-queue-badge');
+const assignQueueBanner = document.getElementById('assignment-queue-banner');
+const assignApplyAllBtn = document.getElementById('assignment-apply-all');
+const assignApplyAllLabel = document.getElementById('assignment-apply-all-label');
+
+// Kick off the post-import queue: opens the assign-lessons modal for the first
+// newly-created student, then automatically advances to the next one after
+// each save/skip until the queue is empty.
+function startAssignmentQueue(students) {
+    if (!students || !students.length) return;
+    _assignQueue = students.slice();
+    _assignQueueDone = 0;
+    _assignQueueTotal = students.length;
+    openNextInAssignmentQueue();
+}
+
+function openNextInAssignmentQueue() {
+    if (!_assignQueue.length) {
+        // Queue finished — refresh the roster so newly-assigned lessons show up.
+        window.location.reload();
+        return;
+    }
+    const next = _assignQueue[0];
+    openAssignmentModal(next.student_id, next.full_name);
+}
 
 // studentId: existing student's id, or null when adding a new student
 // pendingPayload: when adding a new student, pass the validated form payload here.
@@ -2428,6 +2496,30 @@ function openAssignmentModal(studentId, studentName, pendingPayload) {
         assignStudentName.textContent = 'Assign lessons for: ' + studentName;
         if (assignTitleLabel) assignTitleLabel.textContent = 'Assign Lessons';
         if (assignSaveLabel) assignSaveLabel.textContent = 'Save Assignments';
+    }
+
+    // ── Queue-mode UI (post-bulk-import) ────────────────────────────────────
+    const inQueue = _assignQueue.length > 0 && _assignQueue[0].student_id === studentId;
+    if (inQueue) {
+        const position = _assignQueueDone + 1;
+        if (assignQueueBadge) {
+            assignQueueBadge.textContent = 'Student ' + position + ' of ' + _assignQueueTotal;
+            assignQueueBadge.classList.remove('hidden');
+        }
+        if (assignQueueBanner) assignQueueBanner.classList.remove('hidden');
+        if (assignApplyAllBtn) {
+            const remaining = _assignQueue.length - 1; // students after this one
+            if (remaining > 0) {
+                assignApplyAllLabel.textContent = 'Apply to All New Students (' + _assignQueue.length + ')';
+                assignApplyAllBtn.classList.remove('hidden');
+            } else {
+                assignApplyAllBtn.classList.add('hidden');
+            }
+        }
+    } else {
+        if (assignQueueBadge) assignQueueBadge.classList.add('hidden');
+        if (assignQueueBanner) assignQueueBanner.classList.add('hidden');
+        if (assignApplyAllBtn) assignApplyAllBtn.classList.add('hidden');
     }
 
     // Reset button state
@@ -2521,6 +2613,48 @@ function closeAssignmentModal() {
         _assignOriginalIds = new Set();
         _assignPendingPayload = null;
     }, 300);
+}
+
+// Whether the modal is currently showing the head of the post-import queue.
+function isAssignmentQueueActive() {
+    return _assignQueue.length > 0 && _assignQueue[0].student_id === _assignStudentId;
+}
+
+// Marks the current queue student as handled (saved or skipped), closes the
+// modal, then opens the next student in the queue — or reloads once done.
+function advanceAssignmentQueue() {
+    if (isAssignmentQueueActive()) {
+        _assignQueue.shift();
+        _assignQueueDone++;
+    }
+    assignModal.classList.add('opacity-0');
+    assignCard.classList.add('scale-95');
+    setTimeout(() => {
+        assignModal.classList.add('hidden');
+        _assignStudentId = null;
+        _assignModules = [];
+        _assignSelectedIds = new Set();
+        _assignOriginalIds = new Set();
+        _assignPendingPayload = null;
+        openNextInAssignmentQueue();
+    }, 300);
+}
+
+// Cancel/close: during the post-import queue, warn the teacher that skipping
+// leaves this student with no lessons, since this is meant to be a required step.
+function handleAssignmentCancelClick() {
+    if (isAssignmentQueueActive()) {
+        const name = _assignQueue[0].full_name;
+        sdcConfirm({
+            title: 'Skip lesson assignment?',
+            body: name + ' will be added to your class with no lessons assigned. You can assign lessons later from their student profile.',
+            okLabel: 'Skip Anyway',
+            okClass: 'bg-amber-500 hover:bg-amber-600',
+            onConfirm: () => advanceAssignmentQueue()
+        });
+    } else {
+        closeAssignmentModal();
+    }
 }
 
 function renderAssignmentList() {
@@ -2665,9 +2799,9 @@ function assignNotifShow(msg, type) {
 }
 
 // ── Assignment Modal Event Listeners ──────────────────────────────────────
-document.getElementById('assignment-close').addEventListener('click', closeAssignmentModal);
-document.getElementById('assignment-cancel').addEventListener('click', closeAssignmentModal);
-assignModal.addEventListener('click', e => { if (e.target === assignModal) closeAssignmentModal(); });
+document.getElementById('assignment-close').addEventListener('click', handleAssignmentCancelClick);
+document.getElementById('assignment-cancel').addEventListener('click', handleAssignmentCancelClick);
+assignModal.addEventListener('click', e => { if (e.target === assignModal) handleAssignmentCancelClick(); });
 
 // Select All / Deselect All
 document.getElementById('assignment-select-all').addEventListener('click', function() {
@@ -2747,11 +2881,16 @@ document.getElementById('assignment-save').addEventListener('click', async funct
 
         if (res.data.success) {
             assignNotifShow(res.data.message, 'success');
+            const wasInQueue = isAssignmentQueueActive();
             setTimeout(() => {
-                closeAssignmentModal();
-                applyServerFilters();
                 saveBtn.innerHTML = origHtml;
                 saveBtn.disabled = false;
+                if (wasInQueue) {
+                    advanceAssignmentQueue();
+                } else {
+                    closeAssignmentModal();
+                }
+                applyServerFilters();
             }, 1200);
         } else {
             assignNotifShow(res.data.message || 'Failed to save.', 'error');
@@ -2768,6 +2907,70 @@ document.getElementById('assignment-save').addEventListener('click', async funct
         assignNotifShow(msg, 'error');
         saveBtn.innerHTML = origHtml;
         saveBtn.disabled = false;
+    }
+});
+
+// "Apply to All New Students" — assigns the currently-selected lessons to the
+// student on screen AND every other student still waiting in the queue, using
+// one confirmation instead of clicking through each one individually.
+document.getElementById('assignment-apply-all').addEventListener('click', async function() {
+    if (!isAssignmentQueueActive()) return;
+
+    const lessonIds = Array.from(_assignSelectedIds).map(id => String(id));
+    if (!lessonIds.length) {
+        assignNotifShow('Select at least one lesson before applying it to all students.', 'warning');
+        return;
+    }
+
+    const targets = _assignQueue.slice(); // current student + everyone still waiting
+    const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+    const applyBtn = this;
+    const saveBtn = document.getElementById('assignment-save');
+    const origApplyHtml = applyBtn.innerHTML;
+
+    applyBtn.disabled = true;
+    saveBtn.disabled = true;
+    applyBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Applying to ' + targets.length + ' students...';
+
+    let succeeded = 0;
+    let failed = [];
+    for (const student of targets) {
+        try {
+            const res = await axios.post('/students/' + student.student_id + '/assign-lessons', {
+                lesson_ids: lessonIds
+            }, {
+                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+            });
+            if (res.data.success) {
+                succeeded++;
+            } else {
+                failed.push(student.full_name);
+            }
+        } catch (err) {
+            failed.push(student.full_name);
+        }
+    }
+
+    _assignQueue = [];
+    _assignQueueDone = _assignQueueTotal;
+
+    applyBtn.innerHTML = origApplyHtml;
+    applyBtn.disabled = false;
+    saveBtn.disabled = false;
+
+    if (failed.length) {
+        assignNotifShow(succeeded + ' of ' + targets.length + ' students updated. Failed: ' + failed.join(', '), 'warning');
+        setTimeout(() => { openNextInAssignmentQueue(); }, 1800);
+    } else {
+        assignNotifShow('Lessons applied to all ' + targets.length + ' new students.', 'success');
+        setTimeout(() => {
+            assignModal.classList.add('opacity-0');
+            assignCard.classList.add('scale-95');
+            setTimeout(() => {
+                assignModal.classList.add('hidden');
+                openNextInAssignmentQueue();
+            }, 300);
+        }, 1200);
     }
 });
 

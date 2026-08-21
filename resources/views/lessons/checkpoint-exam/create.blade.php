@@ -1,4 +1,5 @@
-@extends('layouts.app')
+@php $layout = request()->routeIs('admin.*') ? 'layouts.admin' : 'layouts.app'; @endphp
+@extends($layout)
 @section('title', 'Create Checkpoint Exam')
 
 @section('content')
@@ -60,7 +61,9 @@
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
-        <a href="{{ route('lessons.index') }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0d326b] transition mb-2">
+        @php $isAdmin = request()->routeIs('admin.*'); @endphp
+        <a href="{{ $isAdmin ? route('admin.lesson-templates.index') : route('lessons.index') }}"
+           class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0d326b] transition mb-2">
             <span class="material-symbols-outlined text-[16px]">arrow_back</span>
             Back to Lessons
         </a>
@@ -82,7 +85,7 @@
 </div>
 @endif
 
-<form action="{{ route('lessons.checkpoint-exam.store') }}" method="POST" id="checkpointForm">
+<form action="{{ $isAdmin ? route('admin.lesson-templates.checkpoint-exam.store') : route('lessons.checkpoint-exam.store') }}" method="POST" id="checkpointForm">
     @csrf
     <input type="hidden" name="module_id" value="{{ $module->module_id }}">
 

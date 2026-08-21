@@ -1,4 +1,9 @@
-@extends('layouts.app')
+@php
+    $isAdmin = request()->routeIs('admin.*');
+    $layout = $isAdmin ? 'layouts.admin' : 'layouts.app';
+@endphp
+
+@extends($layout)
 @section('title', 'Create New Lesson')
 
 @section('content')

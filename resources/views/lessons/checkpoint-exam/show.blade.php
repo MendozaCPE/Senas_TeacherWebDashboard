@@ -1,4 +1,5 @@
-@extends('layouts.app')
+@php $layout = request()->routeIs('admin.*') ? 'layouts.admin' : 'layouts.app'; @endphp
+@extends($layout)
 @section('title', 'Checkpoint Exam Details')
 
 @section('content')
