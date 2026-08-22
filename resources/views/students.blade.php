@@ -526,54 +526,34 @@
             </div>
             @endif
 
-            {{-- Promotion Thresholds (per-lesson or global) --}}
+            {{-- Promotion Thresholds — how many active students at each level
+                 have completed all lessons assigned to them at that level
+                 (same rule as the individual student "Promotion" card). --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Promotion Thresholds</p>
-                <p id="promo-lesson-label" class="text-[9px] text-slate-400 font-medium mb-3 truncate">Based on global XP</p>
-                <div class="space-y-3" id="promo-threshold-list">
+                <p class="text-[9px] text-slate-400 font-medium mb-3">Based on lessons completed at each level</p>
+                <div class="space-y-3">
                     @php
-                        // ── Default: compute per-student global XP eligibility ──
-                        $sbS = $sidebarStudents ?? collect();
-                        $milestones = [
-                            ['from'=>'Beginner','to'=>'Intermediate','xp'=>300,
-                             'bg'=>'#ebf4ff','border'=>'#c7d2fe','iconBg'=>'#3b82f6','text'=>'#1e40af',
-                             'ready'=>$sbS->where('fsl_mastery_level','Beginner')->filter(fn($s)=>($s->total_xp??0)>=300)->count()],
-                            ['from'=>'Intermediate','to'=>'Advanced','xp'=>600,
-                             'bg'=>'#dbeafe','border'=>'#93c5fd','iconBg'=>'#1d4ed8','text'=>'#1e40af',
-                             'ready'=>$sbS->where('fsl_mastery_level','Intermediate')->filter(fn($s)=>($s->total_xp??0)>=600)->count()],
-                            ['from'=>'Advanced','to'=>'Completed','xp'=>1000,
-                             'bg'=>'#c7d2fe','border'=>'#6366f1','iconBg'=>'#0d3b82','text'=>'#0d316d',
-                             'ready'=>$sbS->where('fsl_mastery_level','Advanced')->filter(fn($s)=>($s->total_xp??0)>=1000)->count()],
+                        $promoDisplay = [
+                            ['from'=>'Beginner','to'=>'Intermediate',
+                             'bg'=>'#ebf4ff','border'=>'#c7d2fe','iconBg'=>'#3b82f6','text'=>'#1e40af'],
+                            ['from'=>'Intermediate','to'=>'Advanced',
+                             'bg'=>'#dbeafe','border'=>'#93c5fd','iconBg'=>'#1d4ed8','text'=>'#1e40af'],
+                            ['from'=>'Advanced','to'=>'Completed',
+                             'bg'=>'#c7d2fe','border'=>'#6366f1','iconBg'=>'#0d3b82','text'=>'#0d316d'],
                         ];
-                        // ── Encode all student lesson data as JSON for JS updates ──
-                        $sidebarJson = $sbS->map(function($s) {
-                            return [
-                                'student_id'         => $s->student_id,
-                                'first_name'         => $s->first_name,
-                                'last_name'          => $s->last_name,
-                                'fsl_mastery_level'  => $s->fsl_mastery_level,
-                                'total_xp'           => $s->total_xp ?? 0,
-                                'assignments'        => $s->assignments->map(fn($a)=>[
-                                    'lesson_id' => $a->lesson_id,
-                                    'score'     => $a->score ?? 0,
-                                    'status'    => $a->status,
-                                ])->values()->all(),
-                            ];
-                        })->values()->toJson();
+                        $promoReadyCounts = $promotionReadyCounts ?? ['Beginner'=>0,'Intermediate'=>0,'Advanced'=>0];
                     @endphp
-                    <script>window._sidebarStudents = {!! $sidebarJson !!};</script>
-                    @foreach($milestones as $ms)
-                    <div class="flex items-center justify-between p-3 rounded-xl border promo-row" style="background:{{ $ms['bg'] }};border-color:{{ $ms['border'] }}"
-                         data-from="{{ $ms['from'] }}" data-to="{{ $ms['to'] }}" data-xp="{{ $ms['xp'] }}"
-                         data-bg="{{ $ms['bg'] }}" data-border="{{ $ms['border'] }}" data-iconbg="{{ $ms['iconBg'] }}" data-text="{{ $ms['text'] }}">
+                    @foreach($promoDisplay as $ms)
+                    <div class="flex items-center justify-between p-3 rounded-xl border" style="background:{{ $ms['bg'] }};border-color:{{ $ms['border'] }}">
                         <div class="flex items-center space-x-2">
                             <span class="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style="background:{{ $ms['iconBg'] }}">→</span>
                             <div>
                                 <p class="text-[10px] font-bold" style="color:{{ $ms['text'] }}">{{ $ms['from'] }} → {{ $ms['to'] }}</p>
-                                <p class="promo-xp-label text-[9px]" style="color:{{ $ms['iconBg'] }}">{{ number_format($ms['xp']) }} XP needed</p>
+                                <p class="text-[9px]" style="color:{{ $ms['iconBg'] }}">All assigned lessons completed</p>
                             </div>
                         </div>
-                        <span class="promo-ready-count text-[12px] font-black" style="color:{{ $ms['text'] }}">{{ $ms['ready'] }} ready</span>
+                        <span class="text-[12px] font-black" style="color:{{ $ms['text'] }}">{{ $promoReadyCounts[$ms['from']] ?? 0 }} ready</span>
                     </div>
                     @endforeach
                 </div>
@@ -583,6 +563,27 @@
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Top Students</p>
                 <p id="top-lesson-label" class="text-[9px] text-slate-400 font-medium mb-3 truncate">By global XP (students with XP)</p>
+                @php
+                    // ── Student lesson data for the "Filter by Lesson" → Top
+                    // Students client-side rebuild (Promotion Thresholds above
+                    // is now server-computed and no longer depends on this). ──
+                    $sbS = $sidebarStudents ?? collect();
+                    $sidebarJson = $sbS->map(function($s) {
+                        return [
+                            'student_id'         => $s->student_id,
+                            'first_name'         => $s->first_name,
+                            'last_name'          => $s->last_name,
+                            'fsl_mastery_level'  => $s->fsl_mastery_level,
+                            'total_xp'           => $s->total_xp ?? 0,
+                            'assignments'        => $s->assignments->map(fn($a)=>[
+                                'lesson_id' => $a->lesson_id,
+                                'score'     => $a->score ?? 0,
+                                'status'    => $a->status,
+                            ])->values()->all(),
+                        ];
+                    })->values()->toJson();
+                @endphp
+                <script>window._sidebarStudents = {!! $sidebarJson !!};</script>
                 @php
                     $topStudents = ($sidebarStudents ?? collect())
                         ->filter(fn($s) => ($s->total_xp ?? 0) > 0)
@@ -2992,23 +2993,17 @@ document.addEventListener('click', function(e) {
 
 
 
-// ── Sidebar: per-lesson promotion thresholds & top students ────────────────
+// ── Sidebar: "Filter by Lesson" → Top Students (per-lesson or global) ──────
+// Promotion Thresholds is no longer part of this: it's server-computed from
+// lesson completion per level and doesn't change when a lesson is selected.
 (function () {
     const sel = document.getElementById('sidebar-lesson-select');
     if (!sel) return;
 
     const students = window._sidebarStudents || [];
-    const thresholds = [
-        { from: 'Beginner',     to: 'Intermediate', xp: 300 },
-        { from: 'Intermediate', to: 'Advanced',     xp: 600 },
-        { from: 'Advanced',     to: 'Completed',    xp: 1000 },
-    ];
 
-    const lessonSelect = document.getElementById('sidebar-lesson-select');
-    const promoLabel   = document.getElementById('promo-lesson-label');
-    const topLabel     = document.getElementById('top-lesson-label');
-    const topList      = document.getElementById('top-students-list');
-    const promoRows    = document.querySelectorAll('.promo-row');
+    const topLabel = document.getElementById('top-lesson-label');
+    const topList  = document.getElementById('top-students-list');
 
     const badgeClasses = [
         'bg-[#0d326b] text-white',
@@ -3019,42 +3014,6 @@ document.addEventListener('click', function(e) {
 
     function avatarUrl(first, last) {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(first + '+' + last)}&background=0d326b&color=fff&rounded=true&size=80`;
-    }
-
-    function rebuildPromo(lessonId) {
-        promoRows.forEach(row => {
-            const from = row.dataset.from;
-            const to   = row.dataset.to;
-            const xp   = parseInt(row.dataset.xp);
-            const iconBg = row.dataset.iconbg;
-            const textClr = row.dataset.text;
-
-            let readyCount = 0;
-            if (!lessonId) {
-                // Global: count by total_xp
-                readyCount = students.filter(s =>
-                    s.fsl_mastery_level === from &&
-                    s.total_xp >= xp
-                ).length;
-            } else {
-                // Per-lesson: count by lesson assignment score
-                readyCount = students.filter(s => {
-                    if (s.fsl_mastery_level !== from) return false;
-                    const assign = s.assignments.find(a => String(a.lesson_id) === String(lessonId));
-                    return assign && (assign.score ?? 0) >= xp;
-                }).length;
-            }
-
-            const countEl = row.querySelector('.promo-ready-count');
-            if (countEl) {
-                countEl.textContent = readyCount + ' ready';
-            }
-            // Update XP label
-            const xpLabel = row.querySelector('.promo-xp-label');
-            if (xpLabel) {
-                xpLabel.textContent = xp.toLocaleString() + ' ' + (lessonId ? 'score' : 'XP') + ' needed';
-            }
-        });
     }
 
     function rebuildTopStudents(lessonId) {
@@ -3105,15 +3064,12 @@ document.addEventListener('click', function(e) {
         const selectedText = this.options[this.selectedIndex].text;
 
         if (!lessonId) {
-            if (promoLabel)  promoLabel.textContent  = 'Based on global XP';
-            if (topLabel)    topLabel.textContent    = 'By global XP (students with XP)';
+            if (topLabel) topLabel.textContent = 'By global XP (students with XP)';
         } else {
             const short = selectedText.length > 32 ? selectedText.slice(0, 32) + '…' : selectedText;
-            if (promoLabel)  promoLabel.textContent  = 'Lesson: ' + short;
-            if (topLabel)    topLabel.textContent    = 'Lesson: ' + short;
+            if (topLabel) topLabel.textContent = 'Lesson: ' + short;
         }
 
-        rebuildPromo(lessonId);
         rebuildTopStudents(lessonId);
     });
 })();

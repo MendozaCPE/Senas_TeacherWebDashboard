@@ -21,11 +21,11 @@
         padding: 6px 22px;
         font-size: 10px;
         font-weight: 800;
-        color: #ffffff;
+        color: #0d326b;
         text-transform: uppercase;
         letter-spacing: 0.14em;
         clip-path: polygon(0 0, 100% 0, 88% 100%, 0% 100%);
-        background: linear-gradient(90deg, #92400e, #d97706) !important;
+        background: linear-gradient(90deg, #fde047, #facc15) !important;
         min-width: 90px;
     }
 
@@ -57,7 +57,7 @@
     }
     .lesson-table tbody td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .lesson-table tbody tr { transition: all .2s ease; }
-    .lesson-table tbody tr:hover { background: #fffbeb; }
+    .lesson-table tbody tr:hover { background: #f0f6ff; }
     .lesson-title-cell { font-weight: 700; color: #0d326b; font-size: 14px; }
 
     .badge-difficulty {
@@ -66,8 +66,8 @@
         text-transform: uppercase; letter-spacing: 0.05em;
     }
     .badge-difficulty.beginner { background: #eff6ff; color: #1e4b8f; border: 1px solid #bfdbfe; }
-    .badge-difficulty.intermediate { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
-    .badge-difficulty.advanced { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-difficulty.intermediate { background: #dbeafe; color: #1a4fc4; border: 1px solid #93c5fd; }
+    .badge-difficulty.advanced { background: #dbe4f3; color: #0d326b; border: 1px solid #a8bfe0; }
 
     .badge-status {
         display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px;
@@ -75,7 +75,7 @@
         text-transform: uppercase; letter-spacing: 0.05em;
     }
     .badge-status.published { background: #0d326b; color: #ffffff; box-shadow: 0 2px 6px rgba(13,50,107,0.18); }
-    .badge-status.draft { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-status.draft { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
     .badge-status.archived { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
     .action-link {
@@ -87,7 +87,7 @@
     .action-link:hover { color: #0d326b; background: #e0e8ff; border-color: #bfdbfe; transform: translateY(-1px); }
     .action-link.danger { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
     .action-link.danger:hover { color: #b91c1c; background: #fee2e2; border-color: #fca5a5; }
-    .action-link.primary { color: #fff; background: linear-gradient(135deg, #92400e, #d97706); border: none; box-shadow: 0 3px 10px rgba(146,64,14,0.2); }
+    .action-link.primary { color: #fff; background: linear-gradient(135deg, #0d326b, #1a6fd4); border: none; box-shadow: 0 3px 10px rgba(13,50,107,0.22); }
     .action-link.primary:hover { opacity: 0.95; transform: translateY(-1px); }
 </style>
 
@@ -100,7 +100,7 @@
 
 {{-- ── Header banner ─────────────────────────────────────────────────── --}}
 <div class="rounded-[24px] p-6 mb-6 flex items-center justify-between flex-wrap gap-4"
-     style="background:linear-gradient(135deg,#78350f 0%,#92400e 50%,#d97706 100%);">
+     style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%);">
     <div class="flex items-center gap-4">
         <div class="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center flex-shrink-0">
             <span class="material-symbols-outlined text-white text-[26px]">lock</span>
@@ -139,7 +139,7 @@
 
 <div class="flex flex-col space-y-6">
     @php
-        $moduleColors = ['#92400e','#b45309','#d97706','#c2410c'];
+        $moduleColors = ['#0d326b','#1e4b8f','#1a6fd4','#2563eb'];
         $moduleIcons  = ['📚','📖','✏️','📝'];
     @endphp
 
@@ -183,7 +183,7 @@
                 <div class="py-8 text-center">
                     <p class="text-[14px] font-semibold text-slate-400">No lessons in this module yet</p>
                     <a href="{{ route('admin.lesson-templates.create', ['module_id' => $module->module_id]) }}"
-   class="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#92400e] hover:underline">
+   class="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#0d326b] hover:underline">
     <span class="material-symbols-outlined text-[16px]">add</span>
     Add Lesson to this Module
 </a>
@@ -250,13 +250,13 @@
 
         <div style="padding: 12px 24px 20px; border-top: 1px solid #f8fafc; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
             <a href="{{ route('admin.lesson-templates.create', ['module_id' => $module->module_id]) }}"
-               class="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#92400e] hover:underline">
+               class="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#0d326b] hover:underline">
                 <span class="material-symbols-outlined text-[16px]">add</span>
                 Add Lesson to this Module
             </a>
             <span class="text-slate-300">|</span>
             <button onclick="openExamChoiceModal({{ $module->module_id }}, '{{ addslashes($module->title) }}', {{ $module->canCreateExam ? 'true' : 'false' }}, {{ $module->availableLessonsCount }})"
-               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 text-[#8b5cf6] border border-purple-200 text-[12px] font-bold hover:bg-purple-100 transition shadow-sm">
+               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-50 text-[#a16207] border border-amber-200 text-[12px] font-bold hover:bg-amber-100 transition shadow-sm">
                 <span class="material-symbols-outlined text-[16px]">assignment_add</span>
                 Add Checkpoint Exam
             </button>
@@ -266,7 +266,7 @@
     <div class="module-card">
         <div class="py-16 text-center">
             <p class="text-[15px] font-semibold text-slate-400">No default modules yet.</p>
-            <a href="{{ route('admin.lesson-templates.create') }}" class="mt-3 inline-flex items-center gap-1 text-[13px] font-bold text-[#92400e] hover:underline">
+            <a href="{{ route('admin.lesson-templates.create') }}" class="mt-3 inline-flex items-center gap-1 text-[13px] font-bold text-[#0d326b] hover:underline">
                 <span class="material-symbols-outlined text-[16px]">add</span> Create the first default lesson
             </a>
         </div>
@@ -280,7 +280,7 @@
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
             <div>
                 <h3 class="text-base font-bold text-[#0d326b] flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[#d97706]">sync</span>
+                    <span class="material-symbols-outlined text-[#1a6fd4]">sync</span>
                     Push to Selected Teachers
                 </h3>
                 <p class="text-xs text-slate-400 font-medium mt-0.5">
@@ -547,7 +547,7 @@ document.head.appendChild(styleSheet);
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
                 <h3 class="text-base font-bold text-[#0d326b] flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[#8b5cf6]">assignment_add</span>
+                    <span class="material-symbols-outlined text-[#ca8a04]">assignment_add</span>
                     Add Checkpoint Exam
                 </h3>
                 <p class="text-xs text-slate-400 font-medium mt-0.5" id="adminModalModuleTitle">Module</p>
@@ -567,18 +567,18 @@ document.head.appendChild(styleSheet);
 
         <div class="space-y-3">
             <div id="adminChoicePrevQuestions"
-                 class="p-4 rounded-xl border border-slate-200 hover:border-purple-300 bg-white hover:bg-purple-50/50 transition cursor-pointer flex items-center justify-between group"
+                 class="p-4 rounded-xl border border-slate-200 hover:border-[#1a6fd4]/40 bg-white hover:bg-[#f0f6ff] transition cursor-pointer flex items-center justify-between group"
                  onclick="proceedWithAdminChoice()">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                    <div class="w-10 h-10 rounded-xl bg-[#0d326b]/10 text-[#0d326b] flex items-center justify-center font-bold">
                         <span class="material-symbols-outlined text-[22px]">checklist</span>
                     </div>
                     <div>
-                        <h4 class="text-sm font-bold text-[#0d326b] group-hover:text-purple-700 transition">Choose from Module Lessons & Quizzes</h4>
+                        <h4 class="text-sm font-bold text-[#0d326b] group-hover:text-[#1a6fd4] transition">Choose from Module Lessons & Quizzes</h4>
                         <p class="text-xs text-slate-400 font-medium">Select questions from published lessons in this module and customize point values.</p>
                     </div>
                 </div>
-                <span class="material-symbols-outlined text-slate-300 group-hover:text-purple-600 text-[20px] transition">chevron_right</span>
+                <span class="material-symbols-outlined text-slate-300 group-hover:text-[#1a6fd4] text-[20px] transition">chevron_right</span>
             </div>
         </div>
     </div>

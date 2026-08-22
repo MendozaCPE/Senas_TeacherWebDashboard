@@ -468,6 +468,9 @@ if (!empty($examIdsOnly)) {
         $skipped   = 0;
         $errors    = [];
         $transfers = [];
+        // Brand-new student records only (excludes transfers of existing students) —
+        // these are the ones the teacher still needs to assign lessons to.
+        $createdStudents = [];
 
         // Valid values for enumerated fields
         $validPrograms  = ['Regular', 'Inclusion', 'Transition', 'Self-contained'];
@@ -622,7 +625,7 @@ if (!empty($examIdsOnly)) {
                     'status'   => 'active',
                 ]);
 
-                Student::create([
+                $newStudent = Student::create([
                     'user_id'          => $user->id,
                     'teacher_id'       => $teacher->id,
                     'school_id'        => $teacher->school_id,
@@ -640,18 +643,23 @@ if (!empty($examIdsOnly)) {
                 ]);
 
                 $imported++;
+                $createdStudents[] = [
+                    'student_id' => $newStudent->student_id,
+                    'full_name'  => trim($firstName . ' ' . $lastName),
+                ];
             }
 
             DB::commit();
 
             return response()->json([
-                'success'   => true,
-                'total'     => count($studentsData),
-                'imported'  => $imported,
-                'skipped'   => $skipped,
-                'transfers' => count($transfers),
-                'errors'    => $errors,
-                'message'   => "Successfully imported {$imported} students. Skipped {$skipped} records.",
+                'success'          => true,
+                'total'            => count($studentsData),
+                'imported'         => $imported,
+                'skipped'          => $skipped,
+                'transfers'        => count($transfers),
+                'errors'           => $errors,
+                'created_students' => $createdStudents,
+                'message'          => "Successfully imported {$imported} students. Skipped {$skipped} records.",
             ]);
 
         } catch (\Exception $e) {
