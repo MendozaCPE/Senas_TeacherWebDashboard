@@ -188,6 +188,8 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
     Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
     Route::patch('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
     Route::post('/settings/logout-others', [SettingsController::class, 'logoutOthers'])->name('settings.logout-others');
+    Route::post('/settings/rating', [SettingsController::class, 'submitRating'])->name('settings.rating');
+
 
     // ── Teacher Notifications (API only — no separate page) ──────────────────
     Route::get('/api/notifications/latest', [NotificationsController::class, 'latest'])->name('notifications.latest');

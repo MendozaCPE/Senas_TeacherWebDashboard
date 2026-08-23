@@ -2182,6 +2182,168 @@ footer {
       .foot-simple{flex-direction:column;text-align:center;gap:12px;}
       .foot-simple .right{flex-wrap:wrap;justify-content:center;}
     }
+    /* ===== TEACHER REVIEWS ===== */
+    #reviews {
+      background: linear-gradient(180deg, #FDF3E6 0%, #EDF1FA 100%);
+      padding: clamp(56px,8vw,100px) 0;
+      position: relative;
+      overflow: hidden;
+    }
+    #reviews::before {
+      content:''; position:absolute; top:-120px; left:-80px; width:420px; height:420px;
+      border-radius:50%; background:radial-gradient(circle, rgba(245,166,35,.10), transparent 70%);
+      animation: blobDrift 22s ease-in-out infinite; pointer-events:none; z-index:0;
+    }
+    #reviews::after {
+      content:''; position:absolute; bottom:-90px; right:-60px; width:320px; height:320px;
+      border-radius:50%; background:radial-gradient(circle, rgba(15,61,139,.07), transparent 70%);
+      animation: blobDrift 18s ease-in-out infinite reverse; pointer-events:none; z-index:0;
+    }
+    #reviews .wrap { position:relative; z-index:1; }
+
+    /* Summary panel */
+    .reviews-summary {
+      display:flex; align-items:center; gap:clamp(28px,4vw,56px);
+      background:rgba(255,255,255,.72); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      border:1px solid rgba(255,255,255,.85); border-radius:24px;
+      padding:clamp(22px,3vw,36px) clamp(24px,4vw,44px);
+      box-shadow:var(--shadow-sm);
+      margin-bottom:clamp(32px,4vw,52px);
+      flex-wrap:wrap;
+    }
+    .reviews-big-score {
+      display:flex; flex-direction:column; align-items:center; flex-shrink:0;
+      min-width:100px;
+    }
+    .reviews-big-num {
+      font-family:'Baloo 2',sans-serif; font-weight:800;
+      font-size:clamp(3rem,6vw,5rem); line-height:1;
+      color:var(--navy); letter-spacing:-.02em;
+    }
+    .reviews-stars-row {
+      display:flex; gap:3px; margin:4px 0 6px;
+    }
+    .reviews-stars-row .rs {
+      width:clamp(14px,1.6vw,18px); height:clamp(14px,1.6vw,18px);
+      object-fit:contain;
+      transition: transform .2s;
+    }
+    .reviews-stars-row .rs:hover { transform:scale(1.15); }
+    .reviews-total-label {
+      font-size:clamp(.7rem,.8vw,.8rem); font-weight:600; color:var(--ink-faint);
+    }
+    .reviews-dist {
+      flex:1; min-width:200px; display:flex; flex-direction:column; gap:6px;
+    }
+    .reviews-dist-row {
+      display:flex; align-items:center; gap:10px;
+    }
+    .reviews-dist-label {
+      font-size:clamp(.7rem,.8vw,.8rem); font-weight:700; color:var(--ink-soft);
+      white-space:nowrap; min-width:38px;
+    }
+    .reviews-dist-bar {
+      flex:1; height:8px; border-radius:100px;
+      background:rgba(11,30,61,.08); overflow:hidden;
+    }
+    .reviews-dist-fill {
+      height:100%; border-radius:100px;
+      background:linear-gradient(90deg, var(--amber), var(--amber-deep));
+      transition: width .6s cubic-bezier(.16,1,.3,1);
+    }
+    .reviews-dist-count {
+      font-size:clamp(.7rem,.75vw,.78rem); font-weight:600; color:var(--ink-faint);
+      min-width:22px; text-align:right;
+    }
+    .reviews-cta-side {
+      display:flex; flex-direction:column; align-items:center; gap:12px;
+      flex-shrink:0; text-align:center; min-width:140px;
+    }
+    .reviews-cta-side p {
+      font-size:clamp(.75rem,.85vw,.85rem); color:var(--ink-soft);
+      font-weight:500; line-height:1.5;
+    }
+    .reviews-cta-side .btn-review {
+      display:inline-flex; align-items:center; gap:7px;
+      padding:10px 20px; border-radius:100px;
+      background:linear-gradient(135deg, var(--navy), var(--blue-light));
+      color:#fff; font-weight:700; font-size:clamp(.75rem,.85vw,.88rem);
+      border:none; cursor:pointer;
+      box-shadow:0 8px 20px -6px rgba(11,30,61,.3);
+      transition:transform .2s, box-shadow .2s;
+      text-decoration:none; white-space:nowrap;
+    }
+    .reviews-cta-side .btn-review:hover { transform:translateY(-2px); box-shadow:0 12px 28px -6px rgba(11,30,61,.4); }
+
+    /* Cards grid */
+    .reviews-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(clamp(280px,28vw,360px), 1fr));
+      gap:clamp(14px,2vw,22px);
+    }
+    .review-card {
+      background:rgba(255,255,255,.75); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      border:1px solid rgba(255,255,255,.9); border-radius:20px;
+      padding:clamp(18px,2.2vw,26px);
+      box-shadow:var(--shadow-sm);
+      transition:transform .28s ease, box-shadow .28s ease;
+      position:relative; overflow:hidden;
+    }
+    .review-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      border-radius:20px 20px 0 0;
+      background:linear-gradient(90deg, var(--amber), var(--blue-light));
+      opacity:0; transition: opacity .28s;
+    }
+    .review-card:hover { transform:translateY(-5px); box-shadow:var(--shadow-lg); }
+    .review-card:hover::before { opacity:1; }
+    .review-card-header {
+      display:flex; align-items:center; gap:12px; margin-bottom:12px;
+    }
+    .review-senya {
+      width:46px; height:46px; object-fit:cover; flex-shrink:0;
+      border-radius:50%;
+      border:2px solid rgba(255,255,255,.9);
+      box-shadow:0 2px 8px rgba(11,30,61,.15);
+      background:#edf1fa;
+    }
+    .review-card-meta { flex:1; min-width:0; }
+    .review-name {
+      font-weight:700; font-size:.9rem; color:var(--navy); line-height:1.2;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .review-role { font-size:.75rem; color:var(--ink-faint); font-weight:500; margin-top:1px; }
+    .review-card-stars {
+      display:flex; gap:2px;
+    }
+    .review-card-stars img {
+      width:14px; height:14px; object-fit:contain;
+    }
+    .review-card-stars img.dim { filter:grayscale(1) brightness(0.6) opacity(0.3); }
+    .review-text {
+      font-size:clamp(.85rem,.9vw,.92rem); color:var(--ink-soft); line-height:1.65;
+      display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden;
+    }
+    .review-date {
+      font-size:.72rem; color:var(--ink-faint); font-weight:500; margin-top:10px;
+    }
+    /* Empty state */
+    .reviews-empty {
+      text-align:center; padding:clamp(32px,5vw,64px) 0;
+      display:flex; flex-direction:column; align-items:center; gap:16px;
+    }
+    .reviews-empty img { width:80px; opacity:.5; filter:grayscale(.5); }
+    .reviews-empty p {
+      font-size:1rem; color:var(--ink-faint); font-weight:600;
+    }
+    .reviews-empty small { font-size:.85rem; color:var(--ink-faint); }
+
+    @media(max-width:720px) {
+      .reviews-summary { flex-direction:column; align-items:flex-start; }
+      .reviews-big-score { align-items:flex-start; }
+      .reviews-cta-side { align-items:flex-start; width:100%; }
+    }
+    @media(max-width:560px) { .reviews-grid { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -2201,6 +2363,7 @@ footer {
       <a href="#teacher-dash">Dashboard</a>
       <a href="#mobile-app">Mobile App</a>
       <a href="#deaf-community">Community</a>
+      <a href="#reviews">Reviews</a>
     </nav>
     <div class="nav-actions">
      <a href="{{ route('login') }}" class="btn btn-ghost-d">Log in</a>
@@ -2216,6 +2379,7 @@ footer {
     <a href="#teacher-dash">Dashboard</a>
     <a href="#mobile-app">Mobile App</a>
     <a href="#deaf-community">Community</a>
+    <a href="#reviews">Reviews</a>
    <a href="{{ route('login') }}" class="btn btn-ghost-d">Log in</a>
 <a href="{{ route('register') }}" class="btn btn-amber">Get Started</a>
   </div>
@@ -2710,6 +2874,122 @@ footer {
         Deaf people are not defined by what they cannot hear. They are a community with their own language, culture, experiences, and ways of connecting with the world.
       </p>
     </div>
+  </div>
+</section>
+
+<!-- ===== TEACHER REVIEWS ===== -->
+<section id="reviews">
+  <div class="wrap">
+    <div class="section-head center reveal" style="max-width:680px;margin:0 auto;text-align:center;">
+      <span class="kicker">Teacher Feedback</span>
+      <h2>What Our Teachers
+        <span style="background:linear-gradient(135deg,var(--amber),var(--amber-deep));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Say About Senas</span>
+      </h2>
+      <p>Real ratings and feedback from the teachers using SEÑAS every day in their classrooms.</p>
+    </div>
+
+    @if($totalRatings > 0)
+
+    {{-- ── Summary panel ── --}}
+    <div class="reviews-summary reveal">
+
+      {{-- Big score --}}
+      <div class="reviews-big-score">
+        <div class="reviews-big-num">{{ number_format($avgRating, 1) }}</div>
+        <div class="reviews-stars-row">
+          @for($s = 1; $s <= 5; $s++)
+            @php $filled = $s <= round($avgRating); @endphp
+            <img class="rs"
+                 src="{{ asset('images/senya_face.png') }}"
+                 alt="{{ $filled ? 'star' : 'empty star' }}"
+                 style="{{ $filled ? 'filter:saturate(1.4) brightness(1.05);' : 'filter:grayscale(1) brightness(0.55) opacity(0.35);' }}">
+          @endfor
+        </div>
+        <div class="reviews-total-label">{{ $totalRatings }} {{ Str::plural('rating', $totalRatings) }}</div>
+      </div>
+
+      {{-- Distribution bars --}}
+      <div class="reviews-dist">
+        @foreach($ratingDist as $star => $data)
+        <div class="reviews-dist-row">
+          <div class="reviews-dist-label">{{ $star }} ★</div>
+          <div class="reviews-dist-bar">
+            <div class="reviews-dist-fill" style="width:{{ $data['pct'] }}%;"></div>
+          </div>
+          <div class="reviews-dist-count">{{ $data['count'] }}</div>
+        </div>
+        @endforeach
+      </div>
+
+      {{-- CTA side --}}
+      <div class="reviews-cta-side">
+        <p>Using SEÑAS in your classroom? Share your experience.</p>
+        <a href="{{ route('login') }}" class="btn-review">
+          <i class="fa-solid fa-star"></i> Rate Senas
+        </a>
+      </div>
+
+    </div>
+
+    {{-- ── Review cards ── --}}
+    @if($featuredReviews->count() > 0)
+    <div class="reviews-grid stagger">
+      @foreach($featuredReviews as $review)
+      @php
+        $labels = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+        $ratingLabel = $labels[$review['rating']] ?? '';
+        // Star filters per rating level
+        $starFilters = [
+          1 => 'grayscale(0.85) brightness(0.75)',
+          2 => 'grayscale(0.45) sepia(0.3) hue-rotate(190deg) brightness(0.85)',
+          3 => 'saturate(0.7) brightness(0.95)',
+          4 => 'saturate(1.15) brightness(1.05)',
+          5 => 'saturate(1.5) brightness(1.15)',
+        ];
+        $activeFilter = $starFilters[$review['rating']] ?? 'none';
+      @endphp
+      <div class="review-card reveal">
+        <div class="review-card-header">
+          <img class="review-senya"
+               src="{{ $review['avatar'] }}"
+               alt="{{ $review['name'] }}"
+               onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($review['name']) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true';">
+          <div class="review-card-meta">
+            <div class="review-name">{{ $review['name'] }}</div>
+            <div class="review-role">SENAS Teacher</div>
+          </div>
+          <div class="review-card-stars">
+            @for($s = 1; $s <= 5; $s++)
+              <img src="{{ asset('images/senya_face.png') }}"
+                   alt="{{ $s <= $review['rating'] ? 'filled' : 'empty' }}"
+                   class="{{ $s <= $review['rating'] ? '' : 'dim' }}"
+                   style="{{ $s <= $review['rating'] ? 'filter:'.$activeFilter.';' : '' }}">
+            @endfor
+          </div>
+        </div>
+        <div class="review-text">"{{ $review['feedback'] }}"</div>
+        <div class="review-date">{{ $review['updated_at']->diffForHumans() }}</div>
+      </div>
+      @endforeach
+    </div>
+    @else
+    {{-- Has ratings but no feedback text --}}
+    <div class="reviews-empty reveal">
+      <img src="{{ asset('images/senya_face.png') }}" alt="Senya">
+      <p>Teachers have rated Senas — feedback coming soon!</p>
+      <small>Be the first to leave a written review.</small>
+    </div>
+    @endif
+
+    @else
+    {{-- No ratings yet --}}
+    <div class="reviews-empty reveal">
+      <img src="{{ asset('images/senya_face.png') }}" alt="Senya">
+      <p>No ratings yet — be the first!</p>
+      <small>Log in as a teacher, go to Settings → Rate Us, and share your experience.</small>
+    </div>
+    @endif
+
   </div>
 </section>
 

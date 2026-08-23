@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Teacher;
 use App\Models\School;
+use App\Models\TeacherRating;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -13,11 +14,12 @@ class SettingsController extends Controller
 {
     public function index()
     {
-        $user    = Auth::user();
-        $teacher = $user->teacher;
-        $school  = $teacher ? $teacher->school : null;
+        $user          = Auth::user();
+        $teacher       = $user->teacher;
+        $school        = $teacher ? $teacher->school : null;
+        $teacherRating = $teacher ? TeacherRating::where('teacher_id', $teacher->id)->first() : null;
 
-        return view('settings', compact('user', 'teacher', 'school'));
+        return view('settings', compact('user', 'teacher', 'school', 'teacherRating'));
     }
 
     public function updateProfile(Request $request)
@@ -171,5 +173,30 @@ class SettingsController extends Controller
         $user->save();
 
         return back()->with('success', 'Password updated successfully. Please use your new password on your next login.');
+    }
+
+    public function submitRating(Request $request)
+    {
+        $teacher = Auth::user()->teacher;
+
+        if (!$teacher) {
+            return back()->with('error', 'Teacher record not found.');
+        }
+
+        $validated = $request->validate([
+            'rating'   => 'required|integer|between:1,5',
+            'feedback' => 'nullable|string|max:1000',
+        ]);
+
+        TeacherRating::updateOrCreate(
+            ['teacher_id' => $teacher->id],
+            [
+                'rating'   => $validated['rating'],
+                'feedback' => $validated['feedback'] ?? null,
+            ]
+        );
+
+        return back()->with('success', 'Thank you for your rating! Your feedback means a lot to us.')
+                     ->with('active_tab', 'rateus');
     }
 }

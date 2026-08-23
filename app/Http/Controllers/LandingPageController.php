@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lesson;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\TeacherRating;
 use App\Models\StudentLessonProgress;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -17,18 +18,21 @@ class LandingPageController extends Controller
             return $this->getRealTimeStats();
         });
 
-        return view('landing.landing', $stats);
+        // Ratings are intentionally NOT cached so new submissions appear promptly
+        $ratingsData = $this->getRatingsData();
+
+        return view('landing.landing', array_merge($stats, $ratingsData));
     }
 
     private function getRealTimeStats(): array
     {
         // ─── TOTAL STUDENTS ─────────────────────────────────────────────
-        $totalStudents = Student::where('status', 'active')->count(); // 17
+        $totalStudents = Student::where('status', 'active')->count();
 
         // ─── TOTAL LESSONS ──────────────────────────────────────────────
         $totalLessons = Lesson::where('status', 'published')
             ->whereNull('deleted_at')
-            ->count(); // 21
+            ->count();
 
         // ─── GESTURE ACCURACY ──────────────────────────────────────────
         $gestureStats = DB::table('gesture_performances')
@@ -46,10 +50,9 @@ class LandingPageController extends Controller
         // ─── ACTIVE LEARNERS (last 7 days) ─────────────────────────────
         $activeLearners = Student::where('status', 'active')
             ->where('last_activity_date', '>=', now()->subDays(7))
-            ->count(); // 11
+            ->count();
 
         // ─── STUDENT ENGAGEMENT ──────────────────────────────────────────
-        // Students who completed at least 1 lesson = 6 out of 17 = 35%
         $studentsWithProgress = StudentLessonProgress::whereIn('student_id', function($query) {
                 $query->select('student_id')
                     ->from('students')
@@ -57,34 +60,98 @@ class LandingPageController extends Controller
             })
             ->where('lesson_completed', 1)
             ->distinct('student_id')
-            ->count('student_id'); // 6
+            ->count('student_id');
         
         $studentEngagement = $totalStudents > 0 
-            ? round(($studentsWithProgress / $totalStudents) * 100)  // 35%
+            ? round(($studentsWithProgress / $totalStudents) * 100)
             : 0;
 
         // ─── TOTAL TEACHERS ─────────────────────────────────────────────
-        $totalTeachers = Teacher::count(); // 3
+        $totalTeachers = Teacher::count();
 
         // ─── TOTAL LESSONS COMPLETED ────────────────────────────────────
-        $totalLessonsCompleted = StudentLessonProgress::where('lesson_completed', 1)->count(); // 35
+        $totalLessonsCompleted = StudentLessonProgress::where('lesson_completed', 1)->count();
 
-        // ─── TEACHER RATING ─────────────────────────────────────────────
-        $teacherRating = '4.8★';
+        // ─── TEACHER RATING (real average from database) ─────────────────
+        $avgRating = TeacherRating::avg('rating');
+        $teacherRating = $avgRating ? number_format($avgRating, 1) . '★' : '—';
 
-        // 🔥 MAKE SURE ALL THESE ARE RETURNED
         return [
             // Hero stats
-            'totalStudents' => $totalStudents,           // 17
-            'totalLessons' => $totalLessons,             // 21
-            'gestureAccuracy' => 98,                     // Design default
-            'activeLearners' => $activeLearners,         // 11
-            
-            // Teacher Dashboard stats - THESE MUST BE INCLUDED!
-            'totalTeachers' => $totalTeachers,           // 3
-            'studentEngagement' => $studentEngagement,   // 35%
-            'totalLessonsCompleted' => $totalLessonsCompleted, // 35
-            'teacherRating' => $teacherRating,           // 4.8★
+            'totalStudents'         => $totalStudents,
+            'totalLessons'          => $totalLessons,
+            'gestureAccuracy'       => 98,
+            'activeLearners'        => $activeLearners,
+            // Teacher Dashboard stats
+            'totalTeachers'         => $totalTeachers,
+            'studentEngagement'     => $studentEngagement,
+            'totalLessonsCompleted' => $totalLessonsCompleted,
+            'teacherRating'         => $teacherRating,
+        ];
+    }
+
+    private function getRatingsData(): array
+    {
+        $totalRatings = TeacherRating::count();
+
+        if ($totalRatings === 0) {
+            return [
+                'avgRating'       => null,
+                'totalRatings'    => 0,
+                'ratingDist'      => [],
+                'featuredReviews' => collect(),
+            ];
+        }
+
+        $avgRating = round(TeacherRating::avg('rating'), 1);
+
+        // Distribution: count per star (5 → 1, descending for display)
+        $distRaw = TeacherRating::select('rating', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('rating')
+            ->pluck('cnt', 'rating')
+            ->toArray();
+
+        $ratingDist = [];
+        for ($s = 5; $s >= 1; $s--) {
+            $cnt = $distRaw[$s] ?? 0;
+            $ratingDist[$s] = [
+                'count' => $cnt,
+                'pct'   => $totalRatings > 0 ? round(($cnt / $totalRatings) * 100) : 0,
+            ];
+        }
+
+        // Featured reviews: ratings with non-empty feedback, most recent first, max 6
+        $featuredReviews = TeacherRating::with(['teacher.user'])
+            ->whereNotNull('feedback')
+            ->where('feedback', '!=', '')
+            ->orderByDesc('updated_at')
+            ->limit(6)
+            ->get()
+            ->map(function ($r) {
+                $teacher     = $r->teacher;
+                $firstName   = $teacher?->first_name ?? 'Teacher';
+                $lastName    = $teacher?->last_name  ?? '';
+                // Show first name + last initial for privacy
+                $displayName = $firstName . ($lastName ? ' ' . strtoupper(substr($lastName, 0, 1)) . '.' : '');
+                // Use the User model's avatarUrl() — handles Google photo, local upload, or initials fallback
+                $avatarUrl   = $teacher?->user?->avatarUrl()
+                    ?? "https://ui-avatars.com/api/?name=" . urlencode($firstName . '+' . $lastName)
+                       . "&background=0d326b&color=fff&size=128&font-size=0.45&bold=true&rounded=true";
+                return [
+                    'rating'     => $r->rating,
+                    'feedback'   => $r->feedback,
+                    'name'       => $displayName,
+                    'avatar'     => $avatarUrl,
+                    'updated_at' => $r->updated_at,
+                ];
+            });
+
+
+        return [
+            'avgRating'       => $avgRating,
+            'totalRatings'    => $totalRatings,
+            'ratingDist'      => $ratingDist,
+            'featuredReviews' => $featuredReviews,
         ];
     }
 

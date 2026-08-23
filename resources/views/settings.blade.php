@@ -237,6 +237,91 @@
     .set-hero-stats { width: 100%; }
     .set-hero-stat { flex: 1; min-width: 0; }
 }
+
+/* ── Rate Us ── */
+.rateus-intro { display: flex; align-items: center; gap: 14px; padding: 18px 0 22px; border-bottom: 1px solid var(--gray-divider); margin-bottom: 4px; }
+.rateus-intro-text h3 { font-size: 15px; font-weight: 800; color: var(--navy-900); margin-bottom: 3px; }
+.rateus-intro-text p  { font-size: 12.5px; color: var(--gray-text); font-weight: 500; line-height: 1.55; }
+
+.senya-rating-row {
+    display: flex; gap: 12px; align-items: center; justify-content: center;
+    padding: 22px 0 10px;
+}
+.senya-rating-btn {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; border: none; background: transparent; padding: 6px 4px; outline: none;
+    transition: transform .2s ease;
+}
+.senya-rating-btn:focus-visible { outline: 2px solid var(--navy-500); border-radius: 12px; }
+.senya-rating-btn img {
+    width: 64px; height: 64px; object-fit: contain; display: block;
+    filter: grayscale(1) brightness(0.5) opacity(0.35);
+    transition: filter .25s ease, transform .25s ease;
+}
+.senya-rating-btn .star-label {
+    font-size: 10px; font-weight: 700; color: var(--gray-text); letter-spacing: .03em;
+    text-transform: uppercase; transition: color .2s;
+    white-space: nowrap;
+}
+/* Hover state — highlight up-to hovered */
+.senya-rating-row.hovered .senya-rating-btn.lit img   { filter: none; }
+.senya-rating-row.hovered .senya-rating-btn.lit:nth-child(1) img { filter: grayscale(0.85) brightness(0.75); }
+.senya-rating-row.hovered .senya-rating-btn.lit:nth-child(2) img { filter: grayscale(0.45) sepia(0.3) hue-rotate(190deg) brightness(0.85); }
+.senya-rating-row.hovered .senya-rating-btn.lit:nth-child(3) img { filter: saturate(0.7) brightness(0.95); }
+.senya-rating-row.hovered .senya-rating-btn.lit:nth-child(4) img { filter: saturate(1.15) brightness(1.05); }
+.senya-rating-row.hovered .senya-rating-btn.lit:nth-child(5) img { filter: saturate(1.5) brightness(1.15) drop-shadow(0 0 10px #fbbf2488); }
+
+.senya-rating-row.hovered .senya-rating-btn.lit .star-label { color: var(--navy-700); }
+.senya-rating-btn.hov-scale { transform: scale(1.12); }
+
+/* Selected (clicked) state */
+.senya-rating-row.has-selection .senya-rating-btn.selected img,
+.senya-rating-row.has-selection .senya-rating-btn.below-selected img {
+    filter: none;
+}
+.senya-rating-row.has-selection .senya-rating-btn.below-selected:nth-child(1) img,
+.senya-rating-row.has-selection .senya-rating-btn.selected:nth-child(1)   img { filter: grayscale(0.85) brightness(0.75); }
+.senya-rating-row.has-selection .senya-rating-btn.below-selected:nth-child(2) img,
+.senya-rating-row.has-selection .senya-rating-btn.selected:nth-child(2)   img { filter: grayscale(0.45) sepia(0.3) hue-rotate(190deg) brightness(0.85); }
+.senya-rating-row.has-selection .senya-rating-btn.below-selected:nth-child(3) img,
+.senya-rating-row.has-selection .senya-rating-btn.selected:nth-child(3)   img { filter: saturate(0.7) brightness(0.95); }
+.senya-rating-row.has-selection .senya-rating-btn.below-selected:nth-child(4) img,
+.senya-rating-row.has-selection .senya-rating-btn.selected:nth-child(4)   img { filter: saturate(1.15) brightness(1.05); }
+.senya-rating-row.has-selection .senya-rating-btn.below-selected:nth-child(5) img,
+.senya-rating-row.has-selection .senya-rating-btn.selected:nth-child(5)   img { filter: saturate(1.5) brightness(1.15) drop-shadow(0 0 10px #fbbf2488); }
+
+.senya-rating-row.has-selection .senya-rating-btn.below-selected .star-label,
+.senya-rating-row.has-selection .senya-rating-btn.selected .star-label { color: var(--navy-700); font-weight: 800; }
+
+.senya-rating-btn.selected img { transform: scale(1.18); }
+
+.rateus-selected-label {
+    text-align: center; font-size: 13px; font-weight: 800; color: var(--navy-900); min-height: 20px;
+    margin: 6px 0 18px; transition: opacity .2s;
+}
+.rateus-selected-label.empty { opacity: 0; }
+
+.rateus-feedback-label { font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 7px; display: flex; align-items: center; gap: 5px; }
+.rateus-feedback-label .material-symbols-outlined { font-size: 15px; color: var(--navy-500); }
+.rateus-textarea {
+    width: 100%; border: 1.5px solid var(--gray-border); border-radius: 14px;
+    padding: 12px 16px; font-size: 13px; font-weight: 500; color: #1e293b;
+    resize: vertical; min-height: 90px; max-height: 200px; outline: none; transition: .2s;
+    background: #fff; line-height: 1.6;
+}
+.rateus-textarea:focus { border-color: var(--navy-500); box-shadow: 0 0 0 3px rgba(26,111,212,.1); }
+.rateus-char-count { font-size: 11px; color: var(--gray-text); font-weight: 500; text-align: right; margin-top: 4px; }
+
+.rateus-submit-row { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; flex-wrap: wrap; gap: 10px; }
+.rateus-updated-note { font-size: 11.5px; color: var(--gray-text); font-weight: 500; display: flex; align-items: center; gap: 5px; }
+.rateus-updated-note .material-symbols-outlined { font-size: 14px; }
+
+.rateus-success-banner {
+    display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border: 1.5px solid #86efac; border-radius: 14px; padding: 14px 18px; margin-bottom: 18px;
+}
+.rateus-success-banner .material-symbols-outlined { font-size: 22px; color: #16a34a; flex-shrink: 0; }
+.rateus-success-banner p { font-size: 13px; font-weight: 600; color: #15803d; }
 </style>
 
 <div class="pb-20">
@@ -335,6 +420,7 @@
         @if($school)<div class="set-nav-item" data-tab="institution"><span class="material-symbols-outlined">apartment</span>Institution</div>@endif
         <div class="set-nav-item" data-tab="security"><span class="material-symbols-outlined">shield</span>Security <span class="nav-badge">Secure</span></div>
         <div class="set-nav-item" data-tab="notifications"><span class="material-symbols-outlined">notifications</span>Notifications <span class="nav-badge">2</span></div>
+        <div class="set-nav-item" data-tab="rateus" id="rateusTabBtn"><span class="material-symbols-outlined">star</span>Rate Us</div>
     </div>
 
     <div class="settings-content">
@@ -616,6 +702,105 @@
             </div>
         </div>
 
+        {{-- RATE US --}}
+        <div class="settings-tab-pane" id="tab-rateus">
+            <div class="set-card">
+                <div class="set-section-header">
+                    <div class="set-section-title-wrap">
+                        <div class="set-section-icon" style="background:#fef3c7;color:#b45309;"><span class="material-symbols-outlined">star</span></div>
+                        <div>
+                            <div class="set-section-title">Rate Senas</div>
+                            <div class="set-section-sub">Share your experience and help us improve.</div>
+                        </div>
+                    </div>
+                </div>
+
+                @if(session('active_tab') === 'rateus' && session('success'))
+                <div class="rateus-success-banner">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <p>{{ session('success') }}</p>
+                </div>
+                @endif
+
+                <form method="POST" action="{{ route('settings.rating') }}" id="rateUsForm">
+                    @csrf
+
+                    {{-- Senya star visual rating --}}
+                    <input type="hidden" name="rating" id="ratingValue" value="{{ $teacherRating?->rating ?? '' }}">
+
+                    <div class="senya-rating-row{{ $teacherRating ? ' has-selection' : '' }}" id="senyaRatingRow">
+                        @php
+                            $labels    = ['Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+                            $existing  = $teacherRating?->rating ?? 0;
+                        @endphp
+                        @for($i = 1; $i <= 5; $i++)
+                            @php
+                                $cls = '';
+                                if ($existing > 0) {
+                                    if ($i === $existing)   $cls = 'selected';
+                                    elseif ($i < $existing) $cls = 'below-selected';
+                                }
+                            @endphp
+                            <button type="button"
+                                    class="senya-rating-btn {{ $cls }}"
+                                    data-value="{{ $i }}"
+                                    id="senyaBtn{{ $i }}"
+                                    aria-label="Rate {{ $i }} star"
+                                    title="{{ $labels[$i-1] }}">
+                                <img src="{{ asset('images/senya_face.png') }}"
+                                     alt="{{ $labels[$i-1] }} – {{ $i }} star"
+                                     draggable="false">
+                                <span class="star-label">{{ $labels[$i-1] }}</span>
+                            </button>
+                        @endfor
+                    </div>
+
+                    <div class="rateus-selected-label {{ $teacherRating ? '' : 'empty' }}" id="rateusSelectedLabel">
+                        @if($teacherRating)
+                            @php $lvl = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][$teacherRating->rating]; @endphp
+                            ★ {{ $teacherRating->rating }}/5 — {{ $lvl }}
+                        @else
+                            &nbsp;
+                        @endif
+                    </div>
+
+                    <div>
+                        <div class="rateus-feedback-label">
+                            <span class="material-symbols-outlined">chat_bubble</span>Feedback <span style="color:var(--gray-text);font-weight:500;">(optional)</span>
+                        </div>
+                        <textarea name="feedback"
+                                  id="rateUsFeedback"
+                                  class="rateus-textarea"
+                                  maxlength="1000"
+                                  placeholder="Tell us what you love, or what we can improve…">{{ old('feedback', $teacherRating?->feedback ?? '') }}</textarea>
+                        <div class="rateus-char-count"><span id="rateUsFeedbackCount">{{ strlen($teacherRating?->feedback ?? '') }}</span>/1000</div>
+                    </div>
+
+                    <div class="rateus-submit-row">
+                        <div>
+                            @if($teacherRating)
+                            <div class="rateus-updated-note">
+                                <span class="material-symbols-outlined">update</span>
+                                Last rated {{ $teacherRating->updated_at->diffForHumans() }}
+                            </div>
+                            @endif
+                        </div>
+                        <button type="submit" class="set-btn-primary" id="rateUsSubmitBtn">
+                            <span class="material-symbols-outlined" style="font-size:16px;">star</span>
+                            {{ $teacherRating ? 'Update Rating' : 'Submit Rating' }}
+                        </button>
+                    </div>
+
+                    @error('rating')
+                        <p class="text-red-500 text-[12px] font-medium mt-2">{{ $message }}</p>
+                    @enderror
+                    @error('feedback')
+                        <p class="text-red-500 text-[12px] font-medium mt-2">{{ $message }}</p>
+                    @enderror
+                </form>
+            </div>
+        </div>
+
     </div>
     </div>
 
@@ -652,6 +837,7 @@
                 <div class="set-side-link" data-jump="security"><span class="material-symbols-outlined">lock_reset</span>Change password</div>
                 <div class="set-side-link" data-jump="notifications"><span class="material-symbols-outlined">notifications</span>Notification settings</div>
                 @if($school)<div class="set-side-link" data-jump="institution"><span class="material-symbols-outlined">apartment</span>Institution info</div>@endif
+                <div class="set-side-link" data-jump="rateus"><span class="material-symbols-outlined">star</span>Rate Senas</div>
             </div>
         </div>
 
@@ -691,8 +877,15 @@ document.querySelectorAll('.set-side-link[data-jump]').forEach(link => {
 
 @if($errors->has('current_password') || $errors->has('password'))
     activateTab('security');
+@elseif($errors->has('rating') || $errors->has('feedback'))
+    activateTab('rateus');
 @elseif($errors->any())
     activateTab('profile');
+@endif
+
+// Re-open Rate Us tab after a successful rating submission
+@if(session('active_tab') === 'rateus')
+    activateTab('rateus');
 @endif
 
 function previewProfilePhoto(input) {
@@ -742,6 +935,95 @@ function togglePwdField(inputId, iconId) {
     el.type = el.type === 'password' ? 'text' : 'password';
     ic.textContent = el.type === 'password' ? 'visibility' : 'visibility_off';
 }
+
+// ── Rate Us interaction ──────────────────────────────────────────────────────
+(function () {
+    const row         = document.getElementById('senyaRatingRow');
+    const hiddenInput = document.getElementById('ratingValue');
+    const selectedLbl = document.getElementById('rateusSelectedLabel');
+    const submitBtn   = document.getElementById('rateUsSubmitBtn');
+    const form        = document.getElementById('rateUsForm');
+    const textarea    = document.getElementById('rateUsFeedback');
+    const charCount   = document.getElementById('rateUsFeedbackCount');
+
+    if (!row) return;
+
+    const labels  = ['Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+    const buttons = Array.from(row.querySelectorAll('.senya-rating-btn'));
+    let   current = parseInt(hiddenInput.value) || 0;
+
+    // Textarea character counter
+    if (textarea && charCount) {
+        textarea.addEventListener('input', () => {
+            charCount.textContent = textarea.value.length;
+        });
+    }
+
+    function setSelectedState(val) {
+        current = val;
+        hiddenInput.value = val;
+        row.classList.add('has-selection');
+
+        buttons.forEach((btn, idx) => {
+            const starNum = idx + 1;
+            btn.classList.remove('selected', 'below-selected');
+            if (starNum === val)      btn.classList.add('selected');
+            else if (starNum < val)   btn.classList.add('below-selected');
+        });
+
+        const lbl = labels[val - 1];
+        selectedLbl.textContent = `★ ${val}/5 — ${lbl}`;
+        selectedLbl.classList.remove('empty');
+    }
+
+    function clearHoverState() {
+        row.classList.remove('hovered');
+        buttons.forEach(btn => btn.classList.remove('lit', 'hov-scale'));
+    }
+
+    buttons.forEach((btn, idx) => {
+        const starNum = idx + 1;
+
+        btn.addEventListener('mouseenter', () => {
+            row.classList.add('hovered');
+            buttons.forEach((b, i) => {
+                b.classList.toggle('lit', i < starNum);
+                b.classList.toggle('hov-scale', i === idx);
+            });
+        });
+
+        btn.addEventListener('mouseleave', () => {
+            clearHoverState();
+        });
+
+        btn.addEventListener('click', () => {
+            setSelectedState(starNum);
+        });
+
+        btn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedState(starNum);
+            }
+        });
+    });
+
+    row.addEventListener('mouseleave', clearHoverState);
+
+    // Form validation — must have a rating selected
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (!current || current < 1 || current > 5) {
+                e.preventDefault();
+                selectedLbl.textContent = 'Please select a rating before submitting.';
+                selectedLbl.classList.remove('empty');
+                selectedLbl.style.color = 'var(--danger)';
+                row.style.animation = 'setFadeIn .3s ease';
+                setTimeout(() => { selectedLbl.style.color = ''; }, 3000);
+            }
+        });
+    }
+})();
 </script>
 
 @endsection
