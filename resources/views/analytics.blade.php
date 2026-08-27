@@ -974,6 +974,12 @@
 
             <form id="analyticsPdfForm" method="POST" action="{{ route('analytics.export-pdf.post') }}" target="_blank">
                 @csrf
+                {{-- Pass active filter values so the PDF matches the page --}}
+                <input type="hidden" name="period" value="{{ $af['period'] ?? 'weekly' }}">
+                <input type="hidden" name="year"   value="{{ $af['year']   ?? date('Y') }}">
+                @if(!empty($af['month']))
+                <input type="hidden" name="month"  value="{{ $af['month'] }}">
+                @endif
                 <div class="space-y-3 pt-1">
                     <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Document Settings</div>
 

@@ -532,8 +532,14 @@ class ReportsController extends Controller
 
         if (!$teacher) abort(403);
 
-        // Merge session analytics filters so the PDF matches the web view
-        $filters = session('analytics_filters', []);
+        // Prefer POST-submitted filter values (from hidden inputs in the modal),
+        // fall back to session values so the PDF always matches the page filter.
+        $sessionFilters = session('analytics_filters', []);
+        $filters = array_merge($sessionFilters, array_filter([
+            'period' => $request->input('period'),
+            'year'   => $request->input('year'),
+            'month'  => $request->input('month'),
+        ], fn($v) => $v !== null && $v !== ''));
         $request->merge($filters);
 
         $data        = (new AnalyticsController())->buildAnalyticsData($teacher, $request);
