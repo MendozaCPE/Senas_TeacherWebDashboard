@@ -361,12 +361,12 @@ class AnalyticsController extends Controller
         };
 
         $gestureHeatmap = DB::table('gesture_performances')
-            ->whereIn('student_id', $studentIds)
-            ->where('attempts', '>', 0)
+            ->whereIn('gesture_performances.student_id', $studentIds)
+            ->where('gesture_performances.attempts', '>', 0)
             ->where(function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('last_attempt_at', [$startDate, $endDate])
-                  ->orWhereBetween('updated_at', [$startDate, $endDate])
-                  ->orWhereBetween('created_at', [$startDate, $endDate]);
+                $q->whereBetween('gesture_performances.last_attempt_at', [$startDate, $endDate])
+                  ->orWhereBetween('gesture_performances.updated_at', [$startDate, $endDate])
+                  ->orWhereBetween('gesture_performances.created_at', [$startDate, $endDate]);
             })
             ->join('gestures', 'gesture_performances.gesture_id', '=', 'gestures.gesture_id')
             ->select('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name', DB::raw('sum(gesture_performances.successful_attempts) as successes'), DB::raw('sum(gesture_performances.attempts) as attempts'))
@@ -642,7 +642,7 @@ class AnalyticsController extends Controller
 
         // Group performances by gesture for per-sign teacher insights
         $gesturePerSignRows = DB::table('gesture_performances as gp')
-            ->join('gestures as g', 'gp.gesture_id', '=', 'gestures.gesture_id')
+            ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
             ->join('students as s', 'gp.student_id', '=', 's.student_id')
             ->whereIn('gp.student_id', $studentIds)
             ->where('gp.attempts', '>', 0)
