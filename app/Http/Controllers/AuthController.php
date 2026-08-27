@@ -181,11 +181,22 @@ class AuthController extends Controller
         }
 
         if (now()->timestamp > $pending['expires_at']) {
-            return back()->withErrors(['otp' => 'The verification code has expired. Please request a new code.']);
+            session()->forget('pending_registration');
+            return redirect()->route('register')->withErrors(['email' => 'The verification code has expired. Please register again.']);
+        }
+
+        // ── OTP Brute-force protection: max 5 wrong guesses ─────────────────
+        $attempts = session('otp_attempts', 0);
+        if ($attempts >= 5) {
+            session()->forget(['pending_registration', 'otp_attempts']);
+            return redirect()->route('register')
+                ->withErrors(['email' => 'Too many incorrect attempts. Your verification session has been invalidated. Please register again.']);
         }
 
         if ($request->otp !== $pending['otp']) {
-            return back()->withErrors(['otp' => 'Invalid verification code. Please check your email and try again.']);
+            session(['otp_attempts' => $attempts + 1]);
+            $remaining = 4 - $attempts;
+            return back()->withErrors(['otp' => "Invalid verification code. {$remaining} attempt(s) remaining before lockout."]);
         }
 
         // --- OTP Validated! Now create User and Teacher records ---
@@ -233,8 +244,8 @@ class AuthController extends Controller
             Log::error('Default curriculum cloning failed for new teacher ' . $teacher->id . ': ' . $e->getMessage());
         }
 
-        // Clear pending registration session
-        session()->forget('pending_registration');
+        // Clear pending registration session and attempt counter
+        session()->forget(['pending_registration', 'otp_attempts']);
 
         $isGoogle = $pending['is_google'] ?? false;
         $message  = $isGoogle
@@ -257,6 +268,8 @@ class AuthController extends Controller
         $pending['expires_at'] = now()->addMinutes(15)->timestamp;
 
         session(['pending_registration' => $pending]);
+        // Reset attempt counter when a fresh OTP is issued
+        session()->forget('otp_attempts');
 
         try {
             \Illuminate\Support\Facades\Notification::route('mail', $pending['email'])

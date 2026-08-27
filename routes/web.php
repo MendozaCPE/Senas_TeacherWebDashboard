@@ -36,18 +36,18 @@ Route::post('/lessons/upload-media-test', function (Request $request) {
 // ── Auth Routes (guests only) ────────────────────────────────────────────────
 Route::middleware(['guest', 'no.cache'])->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');  // Max 5 attempts/min
     Route::get('/forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
-    Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetLink'])->name('password.email');
+    Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetLink'])->name('password.email')->middleware('throttle:3,5'); // Max 3 requests per 5 min
     Route::get('/reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1'); // Max 5 attempts/min
 
     // OTP Account Verification (Before account creation)
     Route::get('/register/verify-otp', [AuthController::class, 'showVerifyOtp'])->name('register.show-verify-otp');
-    Route::post('/register/verify-otp', [AuthController::class, 'verifyOtp'])->name('register.verify-otp');
-    Route::post('/register/resend-otp', [AuthController::class, 'resendOtp'])->name('register.resend-otp');
+    Route::post('/register/verify-otp', [AuthController::class, 'verifyOtp'])->name('register.verify-otp')->middleware('throttle:5,5'); // Max 5 guesses per 5 min
+    Route::post('/register/resend-otp', [AuthController::class, 'resendOtp'])->name('register.resend-otp')->middleware('throttle:3,10'); // Max 3 resends per 10 min
 
     // API Helper for Login Loading State
     Route::get('/api/teacher-name', [AuthController::class, 'getTeacherName'])->name('api.teacher-name');
@@ -75,21 +75,24 @@ Route::get('/download/app', function () {
 })->name('app.download');
 
 // ── Video Proxy Layer ────────────────────────────────────────────────────────
+// SECURITY: Path traversal protection — resolved path must stay within storage/app/public
 Route::get('/video-proxy/{path}', function ($path) {
-    $fullPath = storage_path('app/public/' . $path);
-    
-    if (!file_exists($fullPath)) {
+    $baseDir  = realpath(storage_path('app/public'));
+    $fullPath = realpath(storage_path('app/public/' . $path));
+
+    // Block traversal attempts like ../../.env
+    if (!$fullPath || !$baseDir || !str_starts_with($fullPath, $baseDir . DIRECTORY_SEPARATOR) || !file_exists($fullPath)) {
         abort(404, 'Video path cannot be found.');
     }
-    
+
     $response = new BinaryFileResponse($fullPath);
     BinaryFileResponse::trustXSendfileTypeHeader();
-    
+
     $response->headers->set('Access-Control-Allow-Origin', '*');
     $response->headers->set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     $response->headers->set('Access-Control-Allow-Headers', '*');
     $response->headers->set('Cache-Control', 'public, max-age=86400');
-    
+
     return $response;
 })->where('path', '.*');
 

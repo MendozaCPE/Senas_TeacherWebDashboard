@@ -312,7 +312,7 @@ class StudentsController extends Controller
             'name' => trim($firstName . ' ' . $lastName),
             'username' => $username,
             'email' => $lrn,
-            'password' => Hash::make($lrn),
+            'password' => Hash::make(substr($lrn, -4)), // Default password = last 4 digits of LRN
             'role' => 'student',
             'status' => 'active',
         ]);
@@ -322,7 +322,7 @@ class StudentsController extends Controller
             'teacher_id' => $teacher->id,
             'school_id' => $teacher->school_id,
             'lrn' => $lrn,
-            'pin' => $pin,
+            'pin' => Hash::make($pin), // Store PIN as bcrypt hash
             'first_name' => $firstName,
             'last_name' => $lastName,
             'age' => $request->age,
@@ -620,7 +620,7 @@ if (!empty($examIdsOnly)) {
                     'name'     => trim($firstName . ' ' . $lastName),
                     'username' => $username,
                     'email'    => $lrn,
-                    'password' => Hash::make($lrn),
+                    'password' => Hash::make(substr($lrn, -4)), // Default password = last 4 digits of LRN
                     'role'     => 'student',
                     'status'   => 'active',
                 ]);
@@ -630,7 +630,7 @@ if (!empty($examIdsOnly)) {
                     'teacher_id'       => $teacher->id,
                     'school_id'        => $teacher->school_id,
                     'lrn'              => $lrn,
-                    'pin'              => $pin,
+                    'pin'              => Hash::make($pin), // Store PIN as bcrypt hash
                     'first_name'       => $firstName,
                     'last_name'        => $lastName,
                     'age'              => $age,
@@ -868,7 +868,7 @@ if (!empty($examIdsOnly)) {
         'last_name'         => $student->last_name,
         'full_name'         => $student->first_name . ' ' . $student->last_name,
         'lrn'               => $student->lrn,
-        'pin'               => $student->pin,
+        'pin'               => '****', // Never expose raw or hashed PIN to the UI
         'age'               => $student->age,
         'grade_level'       => $student->grade_level,
         'section'           => $student->section,

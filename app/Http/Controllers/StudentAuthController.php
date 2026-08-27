@@ -32,6 +32,7 @@ use App\Models\GestureHintUsage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;  
 use Carbon\Carbon; 
@@ -59,8 +60,8 @@ class StudentAuthController extends Controller
             return response()->json(['message' => 'Student not found'], 404);
         }
 
-        // Verify PIN
-        if ($student->pin !== $request->pin) {
+        // Verify PIN (uses Hash::check — PINs are stored as bcrypt hashes)
+        if (!Hash::check($request->pin, $student->pin)) {
             return response()->json(['message' => 'Invalid PIN'], 401);
         }
 

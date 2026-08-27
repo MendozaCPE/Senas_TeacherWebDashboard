@@ -90,7 +90,7 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => 'password_resets',
-            'expire' => 60,
+            'expire' => 15, // Synced with OTP expiry (15 minutes)
             'throttle' => 60,
         ],
     ],

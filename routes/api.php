@@ -14,8 +14,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Student Auth Routes
-Route::post('/student/login', [StudentAuthController::class, 'login']);
+// Student Auth Routes — throttled to prevent PIN brute-force (only 10,000 combos)
+Route::post('/student/login', [StudentAuthController::class, 'login'])->middleware('throttle:5,1');
 
 // Gesture route
 Route::get('/gesture', function () {
