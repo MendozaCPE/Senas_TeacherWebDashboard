@@ -498,7 +498,7 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="student_id" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                    <select name="student_id" class="filter-select">
                         <option value="all" {{ ($rf['student_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Students</option>
                         @foreach($students as $s)
                             <option value="{{ $s->student_id }}" {{ ($rf['student_id'] ?? '') == $s->student_id ? 'selected' : '' }}>
@@ -510,7 +510,7 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="lesson_id" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                    <select name="lesson_id" class="filter-select">
                         <option value="all" {{ ($rf['lesson_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Lessons</option>
                         @foreach($lessons as $l)
                             <option value="{{ $l->lesson_id }}" {{ ($rf['lesson_id'] ?? '') == $l->lesson_id ? 'selected' : '' }}>

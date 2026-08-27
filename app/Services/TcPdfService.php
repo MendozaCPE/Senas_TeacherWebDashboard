@@ -362,30 +362,35 @@ class TcPdfService extends TCPDF
         $n      = max(1, count($stats));
         $colW   = $usable / $n;
         $y0     = $this->GetY();
+        $stripH = 22;
 
-        $this->SetFillColor(247, 250, 255);
-        $this->Rect($lm, $y0, $usable, 22, 'F');
+        $this->SetFillColor(248, 250, 255);
+        $this->RoundedRect($lm, $y0, $usable, $stripH, 2, '1111', 'F');
         $this->SetDrawColor(...self::BORDER);
         $this->SetLineWidth(0.3);
-        $this->Rect($lm, $y0, $usable, 22, 'D');
+        $this->RoundedRect($lm, $y0, $usable, $stripH, 2, '1111', 'D');
+
+        $valFontSz   = ($n >= 6) ? 13 : 15;
+        $labelFontSz = ($n >= 6) ? 5.8 : 6.5;
 
         foreach ($stats as $i => $stat) {
             $cx = $lm + $i * $colW;
             if ($i > 0) {
-                $this->Line($cx, $y0 + 3, $cx, $y0 + 19);
+                $this->SetDrawColor(226, 232, 240);
+                $this->Line($cx, $y0 + 3, $cx, $y0 + $stripH - 3);
             }
-            $this->SetFont('helvetica', 'B', 16);
+            $this->SetFont('helvetica', 'B', $valFontSz);
             $this->SetTextColor(...self::NAVY);
-            $this->SetXY($cx, $y0 + 4);
-            $this->Cell($colW, 8, $stat['value'], 0, 0, 'C');
+            $this->SetXY($cx + 0.5, $y0 + 3.5);
+            $this->Cell($colW - 1, 7.5, (string)$stat['value'], 0, 0, 'C');
 
-            $this->SetFont('helvetica', 'B', 6.5);
+            $this->SetFont('helvetica', 'B', $labelFontSz);
             $this->SetTextColor(...self::SLATE_LIGHT);
-            $this->SetXY($cx, $y0 + 13);
-            $this->Cell($colW, 5, strtoupper($stat['label']), 0, 0, 'C');
+            $this->SetXY($cx + 0.5, $y0 + 12.5);
+            $this->Cell($colW - 1, 5, strtoupper((string)$stat['label']), 0, 0, 'C');
         }
 
-        $this->SetXY($lm, $y0 + 22);
+        $this->SetXY($lm, $y0 + $stripH);
         $this->Ln(4);
         $this->SetFont('helvetica', '', 9);
         $this->SetTextColor(...self::SLATE);
@@ -446,7 +451,7 @@ class TcPdfService extends TCPDF
         $this->SetTextColor(...self::SLATE);
     }
 
-    public function studentBand(string $name, string $grade, int $completed, int $total, float $pct, int $quizzes, float $avgScore): void
+    public function studentBand(string $name, string $grade, int $completed, int $total, float $pct, int $quizzes, float $avgScore, float $gestureAccuracy = 0): void
     {
         $lm     = $this->getOriginalMargins()['left'];
         $rm     = $this->getOriginalMargins()['right'];
@@ -457,28 +462,30 @@ class TcPdfService extends TCPDF
         }
 
         $y = $this->GetY();
-        $this->SetFillColor(...self::BG_STRIP);
-        $this->Rect($lm, $y, $usable, 12, 'F');
+        $this->SetFillColor(241, 246, 254);
+        $this->RoundedRect($lm, $y, $usable, 12, 1.5, '1111', 'F');
         $this->SetDrawColor(...self::BORDER);
         $this->SetLineWidth(0.3);
-        $this->Line($lm, $y, $lm + $usable, $y);
-        $this->Line($lm, $y + 12, $lm + $usable, $y + 12);
+        $this->RoundedRect($lm, $y, $usable, 12, 1.5, '1111', 'D');
 
-        $this->SetFont('helvetica', 'B', 10);
+        $this->SetFont('helvetica', 'B', 9.5);
         $this->SetTextColor(...self::NAVY);
-        $this->SetXY($lm + 2, $y + 1.5);
-        $this->Cell(70, 5, $name, 0, 0, 'L');
+        $this->SetXY($lm + 3, $y + 1.5);
+        $this->Cell(65, 5, $name, 0, 0, 'L');
 
         $this->SetFont('helvetica', '', 7.5);
         $this->SetTextColor(...self::SLATE_LIGHT);
-        $this->SetXY($lm + 2, $y + 7);
-        $this->Cell(70, 4, $grade, 0, 0, 'L');
+        $this->SetXY($lm + 3, $y + 6.8);
+        $this->Cell(65, 4, $grade, 0, 0, 'L');
 
         $this->SetFont('helvetica', 'B', 7.5);
-        $this->SetTextColor(74, 111, 165);
+        $this->SetTextColor(30, 75, 143);
         $statsStr = $completed . '/' . $total . ' Lessons    ' . $pct . '% Complete    ' . $quizzes . ' Quiz' . ($quizzes !== 1 ? 'zes' : '') . '    Avg ' . number_format($avgScore, 1) . ' pts';
-        $this->SetXY($lm, $y + 4);
-        $this->Cell($usable - 2, 5, $statsStr, 0, 0, 'R');
+        if ($gestureAccuracy > 0) {
+            $statsStr .= '    ' . number_format($gestureAccuracy, 1) . '% Gesture Acc';
+        }
+        $this->SetXY($lm + 65, $y + 3.5);
+        $this->Cell($usable - 68, 5, $statsStr, 0, 0, 'R');
 
         $this->SetXY($lm, $y + 12);
         $this->Ln(1);
@@ -492,15 +499,15 @@ class TcPdfService extends TCPDF
 
         $y = $this->GetY();
         $this->SetFillColor(241, 245, 249);
-        $this->Rect($lm, $y, $usable, 7, 'F');
+        $this->Rect($lm, $y, $usable, 6.5, 'F');
         $this->SetDrawColor(203, 213, 225);
         $this->SetLineWidth(0.2);
-        $this->Line($lm, $y + 7, $lm + $usable, $y + 7);
+        $this->Line($lm, $y + 6.5, $lm + $usable, $y + 6.5);
 
         $this->SetFont('helvetica', 'B', 7.5);
         $this->SetTextColor(...self::NAVY);
-        $this->SetXY($lm + 2, $y + 1.5);
-        $this->Cell($usable - 4, 5, 'MODULE: ' . strtoupper($title), 0, 1, 'L');
+        $this->SetXY($lm + 3, $y + 1.2);
+        $this->Cell($usable - 6, 4.5, 'MODULE: ' . strtoupper($title), 0, 1, 'L');
     }
 
     public function lessonRow(
@@ -916,7 +923,7 @@ class TcPdfService extends TCPDF
         $this->SetLineWidth(0.2);
     }
 
-    public function insightBox(string $title, string $body): void
+    public function insightBox(string $title, string $body, string $theme = 'gold'): void
     {
         $lm     = $this->getOriginalMargins()['left'];
         $rm     = $this->getOriginalMargins()['right'];
@@ -925,26 +932,57 @@ class TcPdfService extends TCPDF
         $startY = $this->GetY();
         $this->startTransaction();
         $this->SetFont('helvetica', '', 8.5);
-        $this->SetX($lm + 5);
-        $this->MultiCell($usable - 7, 4.5, $body, 0, 'L');
+        $this->SetX($lm + 6);
+        $this->MultiCell($usable - 10, 4.5, $body, 0, 'L');
         $endY = $this->GetY();
         $this->rollbackTransaction(true);
 
-        $boxH = max(16, $endY - $startY + 8);
-        $this->SetFillColor(240, 249, 255);
-        $this->Rect($lm, $startY, $usable, $boxH, 'F');
-        $this->SetFillColor(59, 130, 246);
-        $this->Rect($lm, $startY, 3, $boxH, 'F');
+        $boxH = max(18, $endY - $startY + 9);
 
-        $this->SetFont('helvetica', 'B', 9);
-        $this->SetTextColor(...self::NAVY);
-        $this->SetXY($lm + 5, $startY + 3);
-        $this->Cell($usable - 7, 5, $title, 0, 1, 'L');
+        if ($theme === 'gold') {
+            // Warm Gold / Amber Insight styling (matches senya-insight-gold on web)
+            $this->SetFillColor(255, 251, 235); // #fffbeb
+            $this->RoundedRect($lm, $startY, $usable, $boxH, 1.5, '1111', 'F');
+            $this->SetDrawColor(254, 243, 199); // #fef3c7
+            $this->SetLineWidth(0.3);
+            $this->RoundedRect($lm, $startY, $usable, $boxH, 1.5, '1111', 'D');
 
-        $this->SetFont('helvetica', '', 8.5);
-        $this->SetTextColor(71, 85, 105);
-        $this->SetX($lm + 5);
-        $this->MultiCell($usable - 7, 4.5, $body, 0, 'L');
+            // Gold left indicator bar
+            $this->SetFillColor(217, 119, 6); // #d97706
+            $this->RoundedRect($lm, $startY, 3, $boxH, 1, '1001', 'F');
+
+            // Title
+            $this->SetFont('helvetica', 'B', 8.5);
+            $this->SetTextColor(146, 64, 14); // #92400e
+            $this->SetXY($lm + 6, $startY + 3);
+            $this->Cell($usable - 9, 4.5, strtoupper($title), 0, 1, 'L');
+
+            // Body
+            $this->SetFont('helvetica', '', 8);
+            $this->SetTextColor(120, 53, 15); // #78350f
+            $this->SetX($lm + 6);
+            $this->MultiCell($usable - 9, 4.2, $body, 0, 'L');
+        } else {
+            // Navy / Blue styling
+            $this->SetFillColor(240, 249, 255);
+            $this->RoundedRect($lm, $startY, $usable, $boxH, 1.5, '1111', 'F');
+            $this->SetDrawColor(224, 242, 254);
+            $this->SetLineWidth(0.3);
+            $this->RoundedRect($lm, $startY, $usable, $boxH, 1.5, '1111', 'D');
+
+            $this->SetFillColor(26, 111, 212);
+            $this->RoundedRect($lm, $startY, 3, $boxH, 1, '1001', 'F');
+
+            $this->SetFont('helvetica', 'B', 8.5);
+            $this->SetTextColor(...self::NAVY);
+            $this->SetXY($lm + 6, $startY + 3);
+            $this->Cell($usable - 9, 4.5, strtoupper($title), 0, 1, 'L');
+
+            $this->SetFont('helvetica', '', 8);
+            $this->SetTextColor(71, 85, 105);
+            $this->SetX($lm + 6);
+            $this->MultiCell($usable - 9, 4.2, $body, 0, 'L');
+        }
 
         $this->SetY($startY + $boxH + 4);
         $this->SetFillColor(255, 255, 255);

@@ -346,7 +346,7 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="period" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                    <select name="period" id="periodSelect" class="filter-select">
                         <option value="weekly" {{ ($af['period'] ?? 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly Trend</option>
                         <option value="monthly" {{ ($af['period'] ?? '') === 'monthly' ? 'selected' : '' }}>Monthly</option>
                         <option value="quarterly" {{ ($af['period'] ?? '') === 'quarterly' ? 'selected' : '' }}>Quarterly</option>
@@ -356,7 +356,7 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="year" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                    <select name="year" class="filter-select">
                         @php $currentYear = date('Y'); @endphp
                         @for($y = $currentYear; $y >= $currentYear - 5; $y--)
                         <option value="{{ $y }}" {{ ($af['year'] ?? $currentYear) == $y ? 'selected' : '' }}>{{ $y }}</option>
@@ -365,18 +365,16 @@
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
 
-                @if(($af['period'] ?? '') === 'monthly' || ($af['period'] ?? '') === 'quarterly')
-                <div class="filter-wrap">
-                    <select name="month" class="filter-select" onchange="document.getElementById('filterForm').submit()">
+                <div class="filter-wrap {{ in_array($af['period'] ?? 'weekly', ['monthly', 'quarterly']) ? '' : 'hidden' }}" id="monthFilterWrap">
+                    <select name="month" class="filter-select">
                         @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m => $name)
                         <option value="{{ $m + 1 }}" {{ ($af['month'] ?? date('n')) == ($m + 1) ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
-                @endif
 
-                <a href="{{ route('analytics') }}" class="filter-reset">Reset</a>
+                <a href="{{ route('analytics') }}" onclick="event.preventDefault(); fetch('{{ route('analytics.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({period:'weekly',year:{{ date('Y') }},month:{{ date('n') }}})}).then(()=>window.location.href='{{ route('analytics') }}')" class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">refresh</span>
                     Apply
@@ -971,20 +969,60 @@
                     <span class="material-symbols-outlined text-[16px]">check_circle</span>
                     Selected Period: <span class="text-[#0d326b] font-black">{{ $aPeriodLabel }}</span>
                 </div>
-                <p class="text-slate-600 pt-1">Includes Class KPIs, Student Rankings, Quiz Progress Trends, and Gesture Mastery breakdowns.</p>
+                <p class="text-slate-600 pt-1">Includes 6 Class KPIs, Performance Insights, Quiz Progress Trends, Module Difficulty, and Student Rankings.</p>
             </div>
 
-            <div class="pt-2 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeAnalyticsPdfModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition">
-                    Cancel
-                </button>
-                <a href="{{ route('analytics.export-pdf') }}" target="_blank"
-                   class="px-5 py-2.5 rounded-xl bg-[#0d326b] hover:bg-[#1a6fd4] text-white font-bold text-xs flex items-center gap-2 shadow-md transition"
-                   onclick="closeAnalyticsPdfModal()">
-                    <span class="material-symbols-outlined text-[16px]">download</span>
-                    Download PDF
-                </a>
-            </div>
+            <form id="analyticsPdfForm" method="POST" action="{{ route('analytics.export-pdf.post') }}" target="_blank">
+                @csrf
+                <div class="space-y-3 pt-1">
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Document Settings</div>
+
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+                        <span class="font-semibold text-slate-600">Paper Size</span>
+                        <select name="paper_size" class="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:border-[#0d326b]">
+                            <option value="A4" selected>A4 (210 × 297 mm)</option>
+                            <option value="A3">A3 (297 × 420 mm)</option>
+                            <option value="Letter">Letter (215.9 × 279.4 mm)</option>
+                            <option value="Legal">Legal (215.9 × 355.6 mm)</option>
+                            <option value="A5">A5 (148 × 210 mm)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+                        <span class="font-semibold text-slate-600">Orientation</span>
+                        <span class="font-bold text-slate-500 text-xs">Portrait</span>
+                    </div>
+
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+                        <span class="font-semibold text-slate-600">Running Header</span>
+                        <select name="running_header" class="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:border-[#0d326b]">
+                            <option value="first" selected>First page only</option>
+                            <option value="every">Every page</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+                        <span class="font-semibold text-slate-600">Page Numbers</span>
+                        <select name="page_numbers" class="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:border-[#0d326b]">
+                            <option value="footer" selected>Footer — Page N of M</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeAnalyticsPdfModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                       class="px-5 py-2.5 rounded-xl bg-[#0d326b] hover:bg-[#1a6fd4] text-white font-bold text-xs flex items-center gap-2 shadow-md transition"
+                       onclick="setTimeout(closeAnalyticsPdfModal, 500)">
+                        <span class="material-symbols-outlined text-[16px]">download</span>
+                        Download PDF
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -994,6 +1032,19 @@
 const signsData = @json($signsBreakdown ?? []);
 
 document.addEventListener('DOMContentLoaded', function() {
+
+    // ── 0. Period Filter Month Toggle ──────────────────────────────────────
+    const periodSelect = document.getElementById('periodSelect');
+    const monthFilterWrap = document.getElementById('monthFilterWrap');
+    if (periodSelect && monthFilterWrap) {
+        periodSelect.addEventListener('change', function() {
+            if (this.value === 'monthly' || this.value === 'quarterly') {
+                monthFilterWrap.classList.remove('hidden');
+            } else {
+                monthFilterWrap.classList.add('hidden');
+            }
+        });
+    }
 
     // ── 1. Interactive Leaderboard Lesson Switcher ────────────────────────
     const selector = document.getElementById('leaderboardLessonSelector');

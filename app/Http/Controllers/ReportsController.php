@@ -350,6 +350,14 @@ class ReportsController extends Controller
                 $lastActiveRaw    = $rows->isNotEmpty()
                     ? $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at
                     : null;
+                $gestureAccuracyData = DB::table('gesture_performances')
+                    ->where('student_id', $student->student_id)
+                    ->where('attempts', '>', 0)
+                    ->selectRaw('SUM(successful_attempts) as successes, SUM(attempts) as total')
+                    ->first();
+                $gestureAccuracy = ($gestureAccuracyData && $gestureAccuracyData->total > 0)
+                    ? round(($gestureAccuracyData->successes / $gestureAccuracyData->total) * 100, 1)
+                    : 0;
 
                 return [
                     'studentName'      => trim($student->first_name . ' ' . $student->last_name) ?: 'Unknown Student',
@@ -359,6 +367,7 @@ class ReportsController extends Controller
                     'quizzesTaken'     => $quizzesTaken,
                     'avgScore'         => round($avgScore, 1),
                     'overallPct'       => $overallPct,
+                    'gestureAccuracy'  => $gestureAccuracy,
                     'lastAccessed'     => $lastActiveRaw
                         ? Carbon::parse($lastActiveRaw)->format('M d, Y')
                         : '—',
@@ -374,6 +383,7 @@ class ReportsController extends Controller
         $totalCompleted = $allRows->where('lesson_completed', 1)->count();
         $completionPct  = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
         $avgScore       = $allRows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
+        $activeLearners = $studentReports->where('overallPct', '>', 0)->count();
 
         $generatedAt   = Carbon::now()->format('F d, Y · g:i A');
         $schoolName    = optional($teacher->school)->name ?? 'School';
@@ -423,15 +433,25 @@ class ReportsController extends Controller
          * of the navy header instead of underneath it. */
         $pdf->SetY($pdf->bodyStartY());
 
-        /* -- Report Summary KPI strip (sits BELOW the header, visually separate) -- */
+        /* -- Report Summary KPI strip (6 Uniform KPIs) -- */
         $pdf->sectionTitle('Report Summary');
         $pdf->summaryStrip([
             ['label' => 'Total Students',    'value' => (string) $totalStudents],
-            ['label' => 'Progress Records',  'value' => (string) $totalProgress],
-            ['label' => 'Lessons Completed', 'value' => (string) $totalCompleted],
+            ['label' => 'Lessons Assigned',  'value' => (string) $lessons->count()],
+            ['label' => 'Completions',       'value' => (string) $totalCompleted],
             ['label' => 'Completion Rate',   'value' => $completionPct . '%'],
             ['label' => 'Avg Quiz Score',    'value' => number_format($avgScore, 1)],
+            ['label' => 'Active Learners',   'value' => (string) $activeLearners],
         ]);
+        $pdf->Ln(2);
+
+        /* ── Insight Box ── */
+        $pdf->insightBox(
+            'Curriculum Progress Insight',
+            "Across {$totalStudents} students and {$lessons->count()} assigned lessons, the class has achieved a {$completionPct}% overall completion rate with an average quiz score of " . number_format($avgScore, 1) . " pts. {$activeLearners} learners are actively progressing through the curriculum.",
+            'gold'
+        );
+        $pdf->Ln(2);
 
         /* ── Filter info line ── */
         $pdf->SetFont('helvetica', 'I', 8);
@@ -439,7 +459,7 @@ class ReportsController extends Controller
         $lm = $pdf->getOriginalMargins()['left'];
         $usableW = $pdf->getPageWidth() - $lm - $pdf->getOriginalMargins()['right'];
         $pdf->Cell($usableW, 5, 'Filter: ' . $selectedStudentName . '  ·  ' . $selectedLessonName, 0, 1, 'R');
-        $pdf->Ln(3);
+        $pdf->Ln(2);
 
         /* ── Student Progress Breakdown ── */
         $pdf->sectionTitle('Student Progress Breakdown');
@@ -467,7 +487,8 @@ class ReportsController extends Controller
                     $student['totalLessons'],
                     $student['overallPct'],
                     $student['quizzesTaken'],
-                    $student['avgScore']
+                    $student['avgScore'],
+                    $student['gestureAccuracy'] ?? 0
                 );
 
                 /* Group lessons by module */
@@ -547,25 +568,28 @@ class ReportsController extends Controller
         $lm     = $pdf->getOriginalMargins()['left'];
         $usableW = $pdf->getPageWidth() - $lm - $pdf->getOriginalMargins()['right'];
 
-        /* ── KPI Summary Strip ── */
+        /* ── 6 KPI Summary Strip ── */
         $pdf->sectionTitle('Class Summary');
-        $stripStats = [];
-        foreach (($data['classSummary'] ?? []) as $stat) {
-            $stripStats[] = ['label' => $stat['title'], 'value' => $stat['value']];
-        }
-        if (!empty($stripStats)) {
-            $pdf->summaryStrip($stripStats);
-        }
-        $pdf->Ln(4);
+        $pdf->summaryStrip([
+            ['label' => 'Total Students',  'value' => (string) ($data['totalStudents'] ?? 0)],
+            ['label' => 'Avg Quiz Score',  'value' => number_format($data['avgQuizScore'] ?? 0, 1) . '%'],
+            ['label' => 'Gesture Mastery', 'value' => number_format($data['avgMastery'] ?? 0, 1) . '%'],
+            ['label' => 'Completion Rate','value' => number_format($data['completionRate'] ?? 0, 1) . '%'],
+            ['label' => 'Avg Streak',      'value' => ($data['avgStreakDays'] ?? 0) . ' d'],
+            ['label' => 'Active (Last 7d)','value' => number_format($data['activeLast7Pct'] ?? 0, 1) . '%'],
+        ]);
+        $pdf->Ln(2);
 
         /* ── Insight box ── */
         $pdf->insightBox(
-            'Class Summary',
+            'Class Performance Summary',
             'As of ' . now()->format('F d, Y') . ', your class has ' . ($data['totalStudents'] ?? 0) . ' enrolled students. ' .
             'The average quiz score is ' . number_format($data['avgQuizScore'] ?? 0, 1) . '% and average gesture mastery is ' .
             number_format($data['avgMastery'] ?? 0, 1) . '%. Lesson completion rate stands at ' .
-            number_format($data['completionRate'] ?? 0, 1) . '%.'
+            number_format($data['completionRate'] ?? 0, 1) . '%.',
+            'gold'
         );
+        $pdf->Ln(2);
 
         /* ── Class Progress Over Time ── */
         $period       = $request->get('period', 'weekly');
@@ -589,23 +613,23 @@ class ReportsController extends Controller
             $isOverall = !isset($data['studentRanking'][0]['best_score']);
 
             $rankHeaders = [
-                ['label' => 'Rank',         'width' => 16,  'align' => 'C'],
+                ['label' => 'Rank',         'width' => 18,  'align' => 'C'],
                 ['label' => 'Student Name', 'width' => 80,  'align' => 'L'],
-                ['label' => $isOverall ? 'Lessons' : 'Attempts', 'width' => 25,  'align' => 'C'],
+                ['label' => $isOverall ? 'Quizzes' : 'Attempts', 'width' => 28,  'align' => 'C'],
                 ['label' => $isOverall ? 'Avg Score' : 'Best Score', 'width' => 0,   'align' => 'C'],
             ];
             $rankRows = [];
             foreach ($data['studentRanking'] as $i => $s) {
-                $rankLabel = ($i < 3) ? ['1st', '2nd', '3rd'][$i] : '#' . ($i + 1);
+                $rankLabel = ($i === 0) ? '1st' : (($i === 1) ? '2nd' : (($i === 2) ? '3rd' : '#' . ($i + 1)));
                 
-                $scoreVal = $isOverall ? ($s['avg_score'] ?? 0) : ($s['best_score'] ?? 0);
-                $attemptVal = $isOverall ? ($s['lesson_count'] ?? 0) : ($s['attempts_to_achieve'] ?? 0);
+                $scoreVal = $isOverall ? ($s['overall_score'] ?? $s['avg_score'] ?? 0) : ($s['best_score'] ?? 0);
+                $attemptVal = $isOverall ? ($s['quizzes_count'] ?? $s['lesson_count'] ?? 0) : ($s['attempts_to_achieve'] ?? 0);
                 
                 $rankRows[] = [
                     $rankLabel,
                     $s['name'],
                     $attemptVal,
-                    number_format($scoreVal, 2) . '%',
+                    number_format($scoreVal, 1) . '%',
                 ];
             }
             $pdf->dataTable($rankHeaders, $rankRows);
