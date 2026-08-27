@@ -332,7 +332,7 @@
 }
 </style>
 
-<div class="space-y-6 max-w-7xl mx-auto pb-12">
+<div class="space-y-6 pb-12">
 
     {{-- ══════════ 1. TOOLBAR: FILTER + EXPORT ══════════ --}}
     @php $af = session('analytics_filters', []); @endphp

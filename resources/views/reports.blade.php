@@ -14,128 +14,183 @@
     --navy-200: #bfdbfe;
     --navy-100: #dbeafe;
     --navy-50:  #eff6ff;
+
+    --gold-600: #b45309;
+    --gold-500: #d97706;
+    --gold-400: #f59e0b;
+    --gold-100: #fef3c7;
+    --gold-50:  #fffbeb;
 }
 
-.stat-card { border-radius: 20px; padding: 20px; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
-.stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(13,50,107,.12); }
-
-/* ── KPI Ready to Promote (golden gradient) ────────────────────────────── */
-.kpi-ready {
-    background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
+/* ── Panels & Cards (Dashboard Design System) ── */
+.analytics-panel {
+    background: #ffffff;
+    border-radius: 26px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 4px 20px rgba(13, 50, 107, 0.03);
+    padding: 24px;
+    transition: box-shadow .25s ease;
+}
+.analytics-panel:hover {
+    box-shadow: 0 10px 30px rgba(13, 50, 107, 0.06);
 }
 
-/* ── Filter styles (matching Reports page) ──────────────────────────────── */
-.filter-container {
-    background: #fff;
-    border-radius: 16px;
+.stat-kpi-card {
+    border-radius: 24px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease;
     border: 1px solid #f1f5f9;
-    box-shadow: 0 1px 2px rgba(13,50,107,.04);
-    padding: 14px 18px;
+}
+.stat-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(13, 50, 107, 0.08);
+}
+
+/* ── Filter Toolbar ── */
+.filter-container {
+    background: #ffffff;
+    border-radius: 22px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 2px 10px rgba(13, 50, 107, 0.03);
+    padding: 14px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
 }
-
 .filter-group {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
 }
-
-.filter-select {
-    appearance: none;
-    background: #f1f5f9;
-    color: #1e293b;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 8px 32px 8px 14px;
-    border-radius: 9999px;
-    border: none;
-    outline: none;
-    cursor: pointer;
-    transition: all .2s;
-    position: relative;
-}
-.filter-select:hover { background: #e2e8f0; }
-.filter-select:focus { ring: 2px solid #0d326b; }
-
 .filter-wrap {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+}
+.filter-select {
+    appearance: none;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 8px 34px 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0d326b;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s, background-color .15s;
+}
+.filter-select:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
 }
 .filter-wrap .material-symbols-outlined {
     position: absolute;
     right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    color: #94a3b8;
     pointer-events: none;
+    font-size: 18px;
+    color: #0d326b;
 }
-
 .filter-btn {
-    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
-    color: #fff;
-    padding: 8px 20px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    transition: all .2s;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-.filter-btn:hover { opacity: .9; box-shadow: 0 4px 12px rgba(13,50,107,.25); }
-
-.filter-reset {
-    padding: 8px 16px;
-    border-radius: 9999px;
-    border: 1px solid #e2e8f0;
-    background: #fff;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .2s;
-    text-decoration: none;
-    display: inline-block;
-}
-.filter-reset:hover { background: #f8fafc; border-color: #cbd5e1; }
-
-.export-btn {
-    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%);
-    color: #fff;
-    padding: 9px 22px;
-    border-radius: 12px;
+    background: #0d326b;
+    color: #ffffff;
     font-size: 13px;
     font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 14px;
     border: none;
     cursor: pointer;
-    transition: all .25s;
-    display: flex;
+    transition: background .2s, transform .15s;
+}
+.filter-btn:hover {
+    background: #1a6fd4;
+}
+.filter-reset {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+}
+.filter-reset:hover {
+    background: #f1f5f9;
+    color: #0d326b;
+}
+
+.export-btn {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
+    background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 9px 20px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(13, 50, 107, 0.18);
+    transition: transform .15s, box-shadow .2s, background .2s;
     text-decoration: none;
-    box-shadow: 0 3px 12px rgba(13,50,107,.22);
-    position: relative;
-    overflow: hidden;
 }
-.export-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 100%);
-    opacity: 0;
-    transition: opacity .2s;
+.export-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(13, 50, 107, 0.25);
+    background: linear-gradient(135deg, #1e4b8f 0%, #1a6fd4 100%);
 }
-.export-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(13,50,107,.32); }
-.export-btn:hover::before { opacity: 1; }
-.export-btn:active { transform: translateY(0); }
+
+/* ── Senya Gold Insight Containers ── */
+.senya-insight-gold {
+    background: linear-gradient(135deg, #fffdf8 0%, #fefce8 100%);
+    border: 1.5px solid #fbbf24;
+    border-radius: 20px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
+}
+.senya-insight-gold-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
+    color: #78350f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+.senya-insight-gold-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #b45309;
+    margin-bottom: 2px;
+}
+.senya-insight-gold-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #78350f;
+    line-height: 1.55;
+}
 
 /* ── Export PDF Modal ─────────────────────────────────────────────────────── */
 .pdf-modal-overlay {
@@ -383,7 +438,7 @@
 .report-table thead th {
     padding: 14px 16px;
     text-align: left;
-    font-size: 10px;
+    font-size: 10.5px;
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
@@ -421,8 +476,7 @@
 .badge-status.pending { background: #f1f5f9; color: #64748b; }
 </style>
 
-<div class="space-y-6">
-
+<div class="space-y-6 pb-12">
 
     {{-- Flash messages --}}
     @if(session('success'))
@@ -432,136 +486,19 @@
         </div>
     @endif
 
-    {{-- ══════════ STAT CARDS (TOP) ══════════ --}}
-    @php
-        $totalStudentsShown = $studentReports->count();
-        $fullyCompleted     = $studentReports->where('overallPct', 100)->count();
-        $totalQuizzesTaken  = $studentReports->sum('quizzesTaken');
-        $scoredReports      = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
-        $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
-
-        // Additional analytics-style stats
-        $totalLessonsAssigned = $studentReports->sum('totalLessons');
-        $totalLessonsCompleted = $studentReports->sum('completedLessons');
-        $classCompletionRate  = $totalLessonsAssigned > 0
-            ? round(($totalLessonsCompleted / $totalLessonsAssigned) * 100, 1)
-            : 0;
-
-        $gestureStudents = $studentReports->filter(fn($r) => ($r['gestureAttempts'] ?? 0) > 0);
-        $avgGestureAccuracy = $gestureStudents->isNotEmpty()
-            ? round($gestureStudents->avg('gestureAccuracy'), 1)
-            : 0;
-
-        $summaryCards = [
-            [
-                'title'     => 'Total Students',
-                'value'     => $totalStudentsShown,
-                'detail'    => 'in current view',
-                'icon'      => 'group',
-                'hero'      => true,
-            ],
-            [
-                'title'     => 'Completion Rate',
-                'value'     => number_format($classCompletionRate, 1) . '%',
-                'detail'    => $totalLessonsCompleted . ' of ' . $totalLessonsAssigned . ' lessons',
-                'icon'      => 'menu_book',
-                'hero'      => false,
-                'iconColor' => 'text-[#1e4b8f]',
-            ],
-            [
-                'title'     => 'Fully Completed',
-                'value'     => $fullyCompleted,
-                'detail'    => 'student' . ($fullyCompleted !== 1 ? 's' : '') . ' at 100%',
-                'icon'      => 'check_circle',
-                'hero'      => false,
-                'iconColor' => 'text-emerald-600',
-            ],
-            [
-                'title'     => 'Quizzes Taken',
-                'value'     => $totalQuizzesTaken,
-                'detail'    => 'total attempts',
-                'icon'      => 'quiz',
-                'hero'      => false,
-                'iconColor' => 'text-[#1a6fd4]',
-            ],
-            [
-                'title'     => 'Avg Quiz Score',
-                'value'     => number_format($avgScoreOverall, 1),
-                'detail'    => 'points per attempt',
-                'icon'      => 'insights',
-                'hero'      => false,
-                'iconColor' => 'text-[#1e4b8f]',
-            ],
-            [
-                'title'     => 'Gesture Accuracy',
-                'value'     => number_format($avgGestureAccuracy, 1) . '%',
-                'detail'    => $gestureStudents->count() . ' student' . ($gestureStudents->count() !== 1 ? 's' : '') . ' with data',
-                'icon'      => 'back_hand',
-                'hero'      => false,
-                'iconColor' => 'text-amber-600',
-                'golden'    => true,
-            ],
-        ];
-    @endphp
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
-        @foreach($summaryCards as $card)
-            @if($card['hero'] ?? false)
-                {{-- Hero navy gradient card --}}
-                <div class="stat-card text-white xl:col-span-1"
-                     style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
-                    <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
-                    <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-white text-[18px]">{{ $card['icon'] }}</span>
-                            </div>
-                            <p class="text-[10px] font-bold text-white/50 uppercase tracking-widest">{{ $card['title'] }}</p>
-                        </div>
-                        <p class="text-[36px] font-black text-white leading-none">{{ $card['value'] }}</p>
-                        <p class="text-[11px] font-semibold text-[#facc15] mt-2">{{ $card['detail'] }}</p>
-                    </div>
-                </div>
-            @elseif($card['golden'] ?? false)
-                {{-- Golden KPI card --}}
-                <div class="stat-card kpi-ready">
-                    <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-9 h-9 rounded-xl bg-amber-800/10 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-amber-700 text-[18px]">{{ $card['icon'] }}</span>
-                            </div>
-                            <p class="text-[10px] font-bold text-amber-800/70 uppercase tracking-widest">{{ $card['title'] }}</p>
-                        </div>
-                        <p class="text-[36px] font-black text-[#92400e] leading-none">{{ $card['value'] }}</p>
-                        <p class="text-[11px] font-semibold text-amber-800 mt-2">{{ $card['detail'] }}</p>
-                    </div>
-                </div>
-            @else
-                {{-- Standard white card --}}
-                <div class="stat-card bg-white border border-slate-100 shadow-sm">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-9 h-9 rounded-xl bg-[#e8eef8] flex items-center justify-center">
-                            <span class="material-symbols-outlined {{ $card['iconColor'] ?? 'text-[#1e4b8f]' }} text-[18px]">{{ $card['icon'] }}</span>
-                        </div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ $card['title'] }}</p>
-                    </div>
-                    <p class="text-[36px] font-black text-[#0d326b] leading-none">{{ $card['value'] }}</p>
-                    <p class="text-[11px] text-slate-400 font-medium mt-2">{{ $card['detail'] }}</p>
-                </div>
-            @endif
-        @endforeach
-    </div>
-
-    {{-- ══════════ FILTERS (matching Analytics/Students) ══════════ --}}
+    {{-- ══════════ 1. TOOLBAR: FILTER + EXPORT (UNIFORM WITH ANALYTICS) ══════════ --}}
     @php $rf = session('reports_filters', []); @endphp
     <form method="POST" action="{{ route('reports.filter') }}" id="filterForm">
         @csrf
         <div class="filter-container">
             <div class="filter-group">
+                <div class="flex items-center gap-2 mr-2">
+                    <span class="material-symbols-outlined text-[#0d326b] text-[22px]">tune</span>
+                    <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Reports</span>
+                </div>
+
                 <div class="filter-wrap">
-                    <select name="student_id" class="filter-select">
+                    <select name="student_id" class="filter-select" onchange="document.getElementById('filterForm').submit()">
                         <option value="all" {{ ($rf['student_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Students</option>
                         @foreach($students as $s)
                             <option value="{{ $s->student_id }}" {{ ($rf['student_id'] ?? '') == $s->student_id ? 'selected' : '' }}>
@@ -573,7 +510,7 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="lesson_id" class="filter-select">
+                    <select name="lesson_id" class="filter-select" onchange="document.getElementById('filterForm').submit()">
                         <option value="all" {{ ($rf['lesson_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Lessons</option>
                         @foreach($lessons as $l)
                             <option value="{{ $l->lesson_id }}" {{ ($rf['lesson_id'] ?? '') == $l->lesson_id ? 'selected' : '' }}>
@@ -584,29 +521,148 @@
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
 
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 ml-2">
-                    {{ $studentReports->count() }} student{{ $studentReports->count() !== 1 ? 's' : '' }}
-                </span>
-
-                <a href="{{ route('reports') }}" onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all'})}).then(()=>window.location.href='{{ route('reports') }}')" class="filter-reset">Clear</a>
+                <a href="{{ route('reports') }}" onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all'})}).then(()=>window.location.href='{{ route('reports') }}')" class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
-                    <span class="material-symbols-outlined text-[16px]">filter_alt</span>
-                    Apply Filter
+                    <span class="material-symbols-outlined text-[16px]">refresh</span>
+                    Apply
                 </button>
             </div>
 
-            {{-- Export PDF button (opens premium modal) --}}
+            {{-- Export PDF button (opens modal) --}}
             <button type="button" id="openExportModal" class="export-btn" onclick="openPdfModal()">
-                <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                <span class="material-symbols-outlined text-[19px]">picture_as_pdf</span>
                 Export Report
             </button>
         </div>
     </form>
 
-    {{-- ══════════ REPORT TABLE ══════════ --}}
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
-            <h3 class="text-[14px] font-bold text-[#0d326b]">Student Progress Report</h3>
+    {{-- ══════════ 2. CLASS SUMMARY KPI CARDS ══════════ --}}
+    @php
+        $totalStudentsShown = $studentReports->count();
+        $fullyCompleted     = $studentReports->where('overallPct', 100)->count();
+        $totalQuizzesTaken  = $studentReports->sum('quizzesTaken');
+        $scoredReports      = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
+        $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
+
+        // Additional stats
+        $totalLessonsAssigned = $studentReports->sum('totalLessons');
+        $totalLessonsCompleted = $studentReports->sum('completedLessons');
+        $classCompletionRate  = $totalLessonsAssigned > 0
+            ? round(($totalLessonsCompleted / $totalLessonsAssigned) * 100, 1)
+            : 0;
+
+        $gestureStudents = $studentReports->filter(fn($r) => ($r['gestureAttempts'] ?? 0) > 0);
+        $avgGestureAccuracy = $gestureStudents->isNotEmpty()
+            ? round($gestureStudents->avg('gestureAccuracy'), 1)
+            : 0;
+    @endphp
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5">
+        {{-- Card 1: Total Students (Hero navy gradient) --}}
+        <div class="stat-kpi-card text-white" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Total Students</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px] text-white">group</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $totalStudentsShown }}</p>
+            <p class="text-[12px] text-white/70 font-medium">in current view</p>
+        </div>
+
+        {{-- Card 2: Completion Rate --}}
+        <div class="stat-kpi-card bg-white">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Completion Rate</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1e4b8f] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($classCompletionRate, 1) }}%</p>
+            <p class="text-[12px] text-slate-400 font-medium truncate">{{ $totalLessonsCompleted }} of {{ $totalLessonsAssigned }} lessons</p>
+        </div>
+
+        {{-- Card 3: Fully Completed --}}
+        <div class="stat-kpi-card bg-white">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Fully Completed</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $fullyCompleted }}</p>
+            <p class="text-[12px] text-slate-400 font-medium">student{{ $fullyCompleted !== 1 ? 's' : '' }} at 100%</p>
+        </div>
+
+        {{-- Card 4: Quizzes Taken --}}
+        <div class="stat-kpi-card bg-white">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Quizzes Taken</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1a6fd4] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">quiz</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $totalQuizzesTaken }}</p>
+            <p class="text-[12px] text-slate-400 font-medium">total attempts</p>
+        </div>
+
+        {{-- Card 5: Avg Quiz Score --}}
+        <div class="stat-kpi-card bg-white">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Avg Quiz Score</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">insights</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($avgScoreOverall, 1) }}</p>
+            <p class="text-[12px] text-slate-400 font-medium">points per attempt</p>
+        </div>
+
+        {{-- Card 6: Gesture Accuracy (Golden Highlight) --}}
+        <div class="stat-kpi-card text-amber-950" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.22);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Gesture Accuracy</span>
+                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                    <span class="material-symbols-outlined text-[20px]">front_hand</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ number_format($avgGestureAccuracy, 1) }}%</p>
+            <p class="text-[12px] text-amber-950/80 font-bold truncate">{{ $gestureStudents->count() }} {{ $gestureStudents->count() !== 1 ? 'students' : 'student' }} with data</p>
+        </div>
+    </div>
+
+    {{-- ══════════ 3. SENYA CLASS PROGRESS INSIGHT BANNER ══════════ --}}
+    <div class="senya-insight-gold">
+        <div class="senya-insight-gold-icon">
+            <span class="material-symbols-outlined text-[20px]">lightbulb</span>
+        </div>
+        <div>
+            <div class="senya-insight-gold-title">Senya Class Progress Insight</div>
+            <div class="senya-insight-gold-text">
+                @if($totalStudentsShown === 0)
+                    No student records found with current filters. Adjust your student or lesson filter to see progress.
+                @elseif($fullyCompleted > 0)
+                    <strong>Outstanding achievement:</strong> {{ $fullyCompleted }} student{{ $fullyCompleted !== 1 ? 's have' : ' has' }} achieved 100% completion rate across assigned lessons. Overall quiz score average is {{ number_format($avgScoreOverall, 1) }} pts.
+                @else
+                    <strong>Class Overview:</strong> {{ $totalStudentsShown }} student{{ $totalStudentsShown !== 1 ? 's are' : ' is' }} actively progressing with a {{ number_format($classCompletionRate, 1) }}% overall completion rate and {{ number_format($avgGestureAccuracy, 1) }}% gesture accuracy.
+                @endif
+            </div>
+        </div>
+    </div>
+
+    {{-- ══════════ 4. STUDENT PROGRESS REPORT PANEL ══════════ --}}
+    <div class="analytics-panel space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#0d326b] text-[22px]">assignment</span>
+                <div>
+                    <h3 class="text-[18px] font-black text-[#0d326b]">Student Progress Report</h3>
+                    <p class="text-[12px] text-slate-400 font-medium mt-0.5">Comprehensive breakdown of student lesson progress, quiz scores, and gesture accuracy</p>
+                </div>
+            </div>
+            <span class="text-[12px] font-bold text-[#0d326b] bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100 shrink-0 self-start sm:self-auto">
+                {{ $studentReports->count() }} {{ $studentReports->count() !== 1 ? 'students' : 'student' }}
+            </span>
         </div>
 
         @if($studentReports->isEmpty())
