@@ -2575,5 +2575,48 @@ public function adminPublishLesson(Request $request, $id)
         ->with('success', "Lesson '{$lesson->title}' published successfully to the default curriculum!");
 }
 
+/**
+ * Reorder lessons in a module or unassigned list.
+ * POST /lessons/reorder
+ */
+public function reorder(Request $request)
+{
+    $teacherId = $this->resolveTeacherId();
+    if (!$teacherId) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+    }
+
+    $validated = $request->validate([
+        'module_id'   => 'nullable|integer',
+        'lesson_ids'  => 'required|array',
+        'lesson_ids.*'=> 'required',
+    ]);
+
+    $lessonIds = $validated['lesson_ids'];
+    $moduleId  = $validated['module_id'] ?? null;
+
+    // Decode hash IDs or integers
+    $decodedIds = array_map(function($id) {
+        return \App\Support\UrlObfuscator::decode($id) ?? $id;
+    }, $lessonIds);
+
+    DB::transaction(function () use ($decodedIds, $teacherId, $moduleId) {
+        foreach ($decodedIds as $index => $lessonId) {
+            $updateData = ['module_order' => $index + 1];
+            if ($moduleId !== null) {
+                $updateData['module_id'] = $moduleId;
+            }
+            Lesson::withTrashed()
+                ->where('lesson_id', $lessonId)
+                ->where('teacher_id', $teacherId)
+                ->update($updateData);
+        }
+    });
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Lesson order updated successfully.',
+    ]);
+}
 
 }

@@ -311,7 +311,33 @@
         background: #cbd5e1;
         border-radius: 4px;
     }
+
+    /* ── Drag & Drop Reordering ─────────────────────────────────────────── */
+    .drag-handle {
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+    }
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+    .sortable-ghost {
+        opacity: 0.35 !important;
+        background: #e0f2fe !important;
+        outline: 2px dashed #1a6fd4 !important;
+    }
+    .sortable-chosen {
+        background: #f0f7ff !important;
+        box-shadow: 0 4px 16px rgba(13, 50, 107, 0.1);
+    }
+    .sortable-drag {
+        opacity: 0.95 !important;
+        background: #ffffff !important;
+        box-shadow: 0 12px 30px rgba(13, 50, 107, 0.2);
+    }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
 @if(session('success'))
 <div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 flex items-center gap-3 shadow-sm">
@@ -386,6 +412,16 @@
         </div>
 
         <div class="flex items-center gap-2">
+            @if($lessonCount > 1)
+            {{-- Reorder Module Lessons Button --}}
+            <button type="button"
+               onclick="openReorderModal({{ $module->module_id }}, '{{ addslashes($module->title) }}')"
+               class="w-9 h-9 rounded-lg border-2 border-slate-200 hover:border-[#1a6fd4] hover:bg-blue-50 transition-all flex items-center justify-center text-slate-400 hover:text-[#1a6fd4] flex-shrink-0"
+               title="Reorder All Lessons in this Module">
+                <span class="material-symbols-outlined text-[18px]">swap_vert</span>
+            </button>
+            @endif
+
             {{-- Edit Module Icon Button --}}
             <button type="button"
                onclick="openEditModuleModal({{ $module->module_id }}, '{{ addslashes($module->title) }}', '{{ addslashes($module->description ?? '') }}', '{{ $module->mastery_level ?? 'beginner' }}')"
@@ -432,9 +468,9 @@
                             <tbody id="lesson-tbody-{{ $module->module_id }}">
                                 @foreach($allLessons as $lessonIndex => $lesson)
                                 @php $lessonPage = intdiv($lessonIndex, $pageSize) + 1; @endphp
-                                <tr class="lesson-row" data-page="{{ $lessonPage }}"
+                                <tr class="lesson-row" data-lesson-id="{{ $lesson->lesson_id }}" data-page="{{ $lessonPage }}"
                                     onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" style="cursor:pointer;">
-                                    <td class="text-slate-300" onclick="event.stopPropagation();">
+                                    <td class="drag-handle text-slate-300 hover:text-[#0d326b] transition-colors" onclick="event.stopPropagation();" title="Drag to reorder">
                                         <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
                                     </td>
                                     <td class="lesson-title-cell">{{ $lesson->title }}</td>
@@ -825,6 +861,64 @@ document.addEventListener('DOMContentLoaded', function () {
         const saved = parseInt(sessionStorage.getItem('lessons_page_' + moduleId), 10) || 1;
         changePage(moduleId, saved);
     });
+
+    // Initialize SortableJS drag & drop reordering for each module's lesson table
+    if (typeof Sortable !== 'undefined') {
+        document.querySelectorAll('tbody[id^="lesson-tbody-"]').forEach(function (tbody) {
+            const moduleId = tbody.id.replace('lesson-tbody-', '');
+            new Sortable(tbody, {
+                handle: '.drag-handle',
+                animation: 200,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                onEnd: function (evt) {
+                    if (evt.oldIndex === evt.newIndex) return;
+
+                    // Collect all lesson IDs in current DOM order for this module
+                    const rows = Array.from(tbody.querySelectorAll('tr.lesson-row'));
+                    const lessonIds = rows.map(r => r.dataset.lessonId).filter(Boolean);
+                    const wrapper = document.getElementById('pagination-' + moduleId);
+                    const pageSize = parseInt(wrapper?.dataset.pageSize || '5', 10);
+
+                    // Update data-page on each row according to new positions
+                    rows.forEach((row, idx) => {
+                        row.dataset.page = Math.floor(idx / pageSize) + 1;
+                    });
+
+                    // Keep current page view consistent
+                    const currentPage = currentPageOf(moduleId);
+                    changePage(moduleId, currentPage);
+
+                    // Send AJAX reorder request
+                    fetch('{{ route("lessons.reorder") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+                        },
+                        body: JSON.stringify({
+                            module_id: parseInt(moduleId, 10),
+                            lesson_ids: lessonIds
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data && data.success) {
+                            showToast('success', 'Lesson order updated successfully!');
+                        } else {
+                            showToast('error', data?.message || 'Failed to update lesson order.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Reorder error:', err);
+                        showToast('error', 'Network error while updating lesson order.');
+                    });
+                }
+            });
+        });
+    }
 });
 
 // ── NEW LESSON MODAL ────────────────────────────────────────────────────────
@@ -850,12 +944,14 @@ document.addEventListener('click', function(e) {
     if (e.target === document.getElementById('newLessonModal')) closeNewLessonModal();
     if (e.target === document.getElementById('deleteModal')) closeDeleteModal();
     if (e.target === document.getElementById('studentsModal')) closeStudentsModal();
+    if (e.target === document.getElementById('reorderLessonsModal')) closeReorderModal();
 });
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeNewLessonModal();
         closeDeleteModal();
         closeStudentsModal();
+        closeReorderModal();
     }
 });
 
@@ -1676,6 +1772,198 @@ document.getElementById('editModuleForm').addEventListener('submit', function (e
             saveBtn.textContent = 'Save Changes';
         });
 });
+</script>
+
+{{-- ── REORDER LESSONS MODAL (CROSS-PAGE REORDERING) ──────────────────────── --}}
+<div id="reorderLessonsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 flex flex-col max-h-[85vh]">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">swap_vert</span>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-[#0d326b]">Reorder Lessons</h3>
+                    <p id="reorderModalSubtitle" class="text-xs text-slate-400 font-medium"></p>
+                </div>
+            </div>
+            <button onclick="closeReorderModal()" class="text-slate-400 hover:text-slate-600">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <p class="text-xs text-slate-500 flex-shrink-0">
+            Drag items using the handle <span class="material-symbols-outlined text-[14px] align-middle text-slate-400">drag_indicator</span> or click the arrows to arrange the learning sequence for your students.
+        </p>
+
+        <div class="overflow-y-auto flex-1 space-y-2 pr-1" id="reorderListContainer">
+            <!-- Dynamic lesson items -->
+        </div>
+
+        <div class="flex items-center justify-between border-t border-slate-100 pt-3 flex-shrink-0">
+            <button type="button" onclick="closeReorderModal()" class="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition">
+                Cancel
+            </button>
+            <button type="button" id="saveReorderBtn" onclick="saveModalReorder()" class="px-5 py-2.5 bg-[#0d326b] hover:bg-[#1a6fd4] text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-md">
+                <span class="material-symbols-outlined text-[16px]">save</span>
+                Save Sequence
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentReorderModuleId = null;
+let modalSortableInstance = null;
+
+function openReorderModal(moduleId, moduleTitle) {
+    currentReorderModuleId = moduleId;
+    document.getElementById('reorderModalSubtitle').textContent = `Module: ${moduleTitle}`;
+    
+    const tbody = document.getElementById(`lesson-tbody-${moduleId}`);
+    const container = document.getElementById('reorderListContainer');
+    container.innerHTML = '';
+
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr.lesson-row'));
+    if (rows.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">No lessons to reorder.</p>';
+    } else {
+        rows.forEach((row, idx) => {
+            const lessonId = row.dataset.lessonId;
+            const title = row.querySelector('.lesson-title-cell')?.textContent.trim() || 'Untitled Lesson';
+            const diffEl = row.querySelector('.badge-difficulty');
+            const statusEl = row.querySelector('.badge-status');
+
+            const item = document.createElement('div');
+            item.className = 'reorder-item flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-blue-300 transition-colors';
+            item.dataset.lessonId = lessonId;
+
+            item.innerHTML = `
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="reorder-num w-6 h-6 rounded-full bg-[#0d326b] text-white text-[11px] font-black flex items-center justify-center shrink-0">
+                        ${idx + 1}
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-bold text-[#0d326b] truncate">${title}</p>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            ${diffEl ? `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${diffEl.className}">${diffEl.textContent.trim()}</span>` : ''}
+                            ${statusEl ? `<span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${statusEl.className}">${statusEl.textContent.trim()}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" onclick="moveModalItem(this, -1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-[#0d326b] hover:border-blue-300 flex items-center justify-center transition" title="Move Up">
+                        <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+                    </button>
+                    <button type="button" onclick="moveModalItem(this, 1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-[#0d326b] hover:border-blue-300 flex items-center justify-center transition" title="Move Down">
+                        <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+                    </button>
+                    <div class="reorder-modal-handle w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#0d326b] flex items-center justify-center cursor-grab active:cursor-grabbing ml-1" title="Drag to reorder">
+                        <span class="material-symbols-outlined text-[16px]">drag_indicator</span>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(item);
+        });
+
+        // Initialize Sortable on modal list
+        if (typeof Sortable !== 'undefined') {
+            if (modalSortableInstance) modalSortableInstance.destroy();
+            modalSortableInstance = new Sortable(container, {
+                handle: '.reorder-modal-handle',
+                animation: 200,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                onEnd: function() {
+                    updateModalSequenceNumbers();
+                }
+            });
+        }
+    }
+
+    document.getElementById('reorderLessonsModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeReorderModal() {
+    document.getElementById('reorderLessonsModal').classList.add('hidden');
+    document.body.style.overflow = '';
+    currentReorderModuleId = null;
+}
+
+function moveModalItem(btn, direction) {
+    const item = btn.closest('.reorder-item');
+    if (!item) return;
+    const container = document.getElementById('reorderListContainer');
+
+    if (direction === -1 && item.previousElementSibling) {
+        container.insertBefore(item, item.previousElementSibling);
+    } else if (direction === 1 && item.nextElementSibling) {
+        container.insertBefore(item.nextElementSibling, item);
+    }
+    updateModalSequenceNumbers();
+}
+
+function updateModalSequenceNumbers() {
+    const container = document.getElementById('reorderListContainer');
+    const items = container.querySelectorAll('.reorder-item');
+    items.forEach((item, idx) => {
+        const numBadge = item.querySelector('.reorder-num');
+        if (numBadge) numBadge.textContent = idx + 1;
+    });
+}
+
+function saveModalReorder() {
+    if (!currentReorderModuleId) return;
+
+    const container = document.getElementById('reorderListContainer');
+    const items = Array.from(container.querySelectorAll('.reorder-item'));
+    const lessonIds = items.map(it => it.dataset.lessonId).filter(Boolean);
+
+    if (lessonIds.length === 0) {
+        closeReorderModal();
+        return;
+    }
+
+    const saveBtn = document.getElementById('saveReorderBtn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    fetch('{{ route("lessons.reorder") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+        },
+        body: JSON.stringify({
+            module_id: parseInt(currentReorderModuleId, 10),
+            lesson_ids: lessonIds
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data && data.success) {
+            closeReorderModal();
+            showToast('success', 'Lesson order updated successfully!');
+            setTimeout(() => window.location.reload(), 800);
+        } else {
+            showToast('error', data?.message || 'Failed to update lesson order.');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Save Sequence';
+        }
+    })
+    .catch(err => {
+        console.error('Reorder error:', err);
+        showToast('error', 'Network error while saving order.');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Save Sequence';
+    });
+}
 </script>
 
 @endsection

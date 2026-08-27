@@ -31,7 +31,7 @@ class Module extends Model
 
     public function lessons()
     {
-        return $this->hasMany(Lesson::class, 'module_id');
+        return $this->hasMany(Lesson::class, 'module_id')->orderBy('module_order');
     }
 
     public function checkpointExams()

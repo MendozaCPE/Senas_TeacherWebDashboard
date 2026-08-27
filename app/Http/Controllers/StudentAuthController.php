@@ -1287,7 +1287,9 @@ public function getLessons(Request $request)
             // Get lessons for this module from assignments
             $moduleLessons = $assignments->filter(function($assignment) use ($moduleId) {
                 return $assignment->lesson && $assignment->lesson->module_id === $moduleId;
-            });
+            })->sortBy(function($assignment) {
+                return $assignment->lesson->module_order ?? 0;
+            })->values();
 
             // Calculate module completion status (all published lessons passed >= 60%)
             $totalLessonsInModule = $moduleLessons->count();
@@ -1701,7 +1703,11 @@ public function getAllLessons(Request $request)
         // Remove any assignments where lesson is null (safety check)
         $assignments = $assignments->filter(function($assignment) {
             return $assignment->lesson !== null;
-        });
+        })->sortBy(function($assignment) {
+            $modOrder = $assignment->lesson->module->module_order ?? 9999;
+            $lesOrder = $assignment->lesson->module_order ?? 9999;
+            return sprintf('%05d-%05d', $modOrder, $lesOrder);
+        })->values();
 
         $lessons = $assignments->map(function ($assignment) {
             $lesson = $assignment->lesson;

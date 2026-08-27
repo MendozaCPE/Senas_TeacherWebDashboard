@@ -135,6 +135,7 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
     Route::post('/lessons/ai-generate-pdf', [LessonsController::class, 'aiGeneratePdf'])->name('lessons.ai-generate-pdf');
     Route::post('/lessons/ai-generate-quiz', [LessonsController::class, 'aiGenerateQuiz'])->name('lessons.ai-generate-quiz');
     Route::post('/lessons/upload-media', [LessonsController::class, 'uploadMedia'])->name('lessons.upload-media');
+    Route::post('/lessons/reorder', [LessonsController::class, 'reorder'])->name('lessons.reorder');
 
     // Lesson management
     Route::get('/lessons/{lesson}/view', [LessonsController::class, 'view'])->name('lessons.view');
