@@ -142,13 +142,18 @@ class AnalyticsController extends Controller
             ->avg('quiz_attempts.percentage') ?? 0;
         $avgQuizScore = round((float) $rawAvgQuizScore, 2);
 
-        $totalGesturesAttempted = DB::table('gesture_performances')
+        $gestureBaseQuery = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
             ->where('attempts', '>', 0)
-            ->count();
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_attempt_at', [$startDate, $endDate])
+                  ->orWhereBetween('updated_at', [$startDate, $endDate])
+                  ->orWhereBetween('created_at', [$startDate, $endDate]);
+            });
 
-        $masteredGestures = DB::table('gesture_performances')
-            ->whereIn('student_id', $studentIds)
+        $totalGesturesAttempted = (clone $gestureBaseQuery)->count();
+
+        $masteredGestures = (clone $gestureBaseQuery)
             ->where('is_mastered', 1)
             ->count();
 
@@ -159,11 +164,16 @@ class AnalyticsController extends Controller
         $assignmentTotals = DB::table('lesson_assignments')
             ->whereIn('student_id', $studentIds)
             ->whereIn('lesson_id', $lessonIds)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('assigned_at', [$startDate, $endDate])
+                  ->orWhereBetween('completed_at', [$startDate, $endDate])
+                  ->orWhereBetween('updated_at', [$startDate, $endDate]);
+            })
             ->selectRaw('count(*) as total')
             ->selectRaw('sum(case when status = "completed" then 1 else 0 end) as completed')
             ->first();
 
-        $completionRate = $assignmentTotals->total > 0
+        $completionRate = ($assignmentTotals && $assignmentTotals->total > 0)
             ? round(($assignmentTotals->completed / $assignmentTotals->total) * 100, 1)
             : 0;
 
@@ -172,13 +182,31 @@ class AnalyticsController extends Controller
             ->avg('streak_days') ?? 0;
         $avgStreakDays = round($avgStreakDays);
 
-        $activeLast7Days = Student::where('teacher_id', $teacherId)
+        $activeInPeriod = Student::where('teacher_id', $teacherId)
             ->where('status', 'active')
-            ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_activity_date', [$startDate, $endDate])
+                  ->orWhereExists(function ($sub) use ($startDate, $endDate) {
+                      $sub->select(DB::raw(1))
+                          ->from('quiz_attempts')
+                          ->whereColumn('quiz_attempts.student_id', 'students.student_id')
+                          ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate]);
+                  })
+                  ->orWhereExists(function ($sub) use ($startDate, $endDate) {
+                      $sub->select(DB::raw(1))
+                          ->from('gesture_performances')
+                          ->whereColumn('gesture_performances.student_id', 'students.student_id')
+                          ->where(function ($gq) use ($startDate, $endDate) {
+                              $gq->whereBetween('last_attempt_at', [$startDate, $endDate])
+                                 ->orWhereBetween('updated_at', [$startDate, $endDate])
+                                 ->orWhereBetween('created_at', [$startDate, $endDate]);
+                          });
+                  });
+            })
             ->count();
 
         $activeLast7Pct = $totalStudents > 0
-            ? round(($activeLast7Days / $totalStudents) * 100, 1)
+            ? round(($activeInPeriod / $totalStudents) * 100, 1)
             : 0;
 
         $streakText = $avgStreakDays . ' ' . ($avgStreakDays === 1 ? 'day' : 'days');
@@ -187,7 +215,7 @@ class AnalyticsController extends Controller
             [
                 'title'     => 'Avg Quiz Score',
                 'value'     => number_format($avgQuizScore, 1) . '%',
-                'detail'    => 'Overall quiz score average',
+                'detail'    => 'Filtered period average',
                 'icon'      => 'insights',
                 'accent'    => '#dbeafe',
                 'iconColor' => '#1e3a8a',
@@ -195,7 +223,7 @@ class AnalyticsController extends Controller
             [
                 'title'     => 'Gesture Mastery',
                 'value'     => number_format($avgMastery, 1) . '%',
-                'detail'    => 'Practiced signs marked mastered',
+                'detail'    => 'Practiced signs in period',
                 'icon'      => 'school',
                 'accent'    => '#ecfdf5',
                 'iconColor' => '#15803d',
@@ -211,7 +239,7 @@ class AnalyticsController extends Controller
             [
                 'title'     => 'Active Engagement',
                 'value'     => $streakText,
-                'detail'    => $activeLast7Pct . '% active in last 7 days',
+                'detail'    => $activeLast7Pct . '% active in period',
                 'icon'      => 'bolt',
                 'accent'    => '#fef3c7',
                 'iconColor' => '#92400e',
@@ -298,6 +326,10 @@ class AnalyticsController extends Controller
             ->whereIn('lesson_assignments.student_id', $studentIds)
             ->whereIn('lesson_assignments.lesson_id', $lessonIds)
             ->whereNotNull('lesson_assignments.score')
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('lesson_assignments.completed_at', [$startDate, $endDate])
+                  ->orWhereBetween('lesson_assignments.updated_at', [$startDate, $endDate]);
+            })
             ->join('lessons', 'lesson_assignments.lesson_id', '=', 'lessons.lesson_id')
             ->where('lessons.status', 'published')
             ->whereNull('lessons.deleted_at')
@@ -331,6 +363,11 @@ class AnalyticsController extends Controller
         $gestureHeatmap = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
             ->where('attempts', '>', 0)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_attempt_at', [$startDate, $endDate])
+                  ->orWhereBetween('updated_at', [$startDate, $endDate])
+                  ->orWhereBetween('created_at', [$startDate, $endDate]);
+            })
             ->join('gestures', 'gesture_performances.gesture_id', '=', 'gestures.gesture_id')
             ->select('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name', DB::raw('sum(gesture_performances.successful_attempts) as successes'), DB::raw('sum(gesture_performances.attempts) as attempts'))
             ->groupBy('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name')
@@ -348,6 +385,11 @@ class AnalyticsController extends Controller
 
         $masteryCountsRaw = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_attempt_at', [$startDate, $endDate])
+                  ->orWhereBetween('updated_at', [$startDate, $endDate])
+                  ->orWhereBetween('created_at', [$startDate, $endDate]);
+            })
             ->selectRaw('mastery_level, count(*) as count')
             ->groupBy('mastery_level')
             ->pluck('count', 'mastery_level')
@@ -369,6 +411,11 @@ class AnalyticsController extends Controller
         $completionFunnelRaw = DB::table('lesson_assignments')
             ->whereIn('student_id', $studentIds)
             ->whereIn('lesson_id', $lessonIds)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('assigned_at', [$startDate, $endDate])
+                  ->orWhereBetween('completed_at', [$startDate, $endDate])
+                  ->orWhereBetween('updated_at', [$startDate, $endDate]);
+            })
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
@@ -390,6 +437,7 @@ class AnalyticsController extends Controller
             ->where('quiz_attempts.status', 'completed')
             ->where('lessons.status', 'published')
             ->whereNull('lessons.deleted_at')
+            ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
             ->selectRaw("CASE
                 WHEN quiz_attempts.percentage <= 20 THEN '0-20'
                 WHEN quiz_attempts.percentage <= 40 THEN '21-40'
@@ -412,7 +460,7 @@ class AnalyticsController extends Controller
 
         $maxScoreBucket = max(1, $scoreBuckets->max('count'));
 
-        // ── 1. OVERALL CLASS LEADERBOARD (Across All Quizzes) ──
+        // ── 1. OVERALL CLASS LEADERBOARD (Across Quizzes within the period) ──
         $allQuizAttempts = DB::table('quiz_attempts as qa')
             ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
             ->join('lessons as l', 'q.lesson_id', '=', 'l.lesson_id')
@@ -421,6 +469,7 @@ class AnalyticsController extends Controller
             ->where('qa.status', 'completed')
             ->where('l.status', 'published')
             ->whereNull('l.deleted_at')
+            ->whereBetween('qa.completed_at', [$startDate, $endDate])
             ->select('qa.student_id', 's.first_name', 's.last_name', 'qa.percentage', 'qa.quiz_id', 'qa.created_at', 'qa.attempt_id')
             ->orderBy('qa.created_at', 'asc')
             ->get();
@@ -430,7 +479,7 @@ class AnalyticsController extends Controller
             $studentInfo = $attempts->first();
             $quizGroups = $attempts->groupBy('quiz_id');
             
-            // Overall class ranking uses overall score average across all completed attempts
+            // Overall class ranking uses overall score average across completed attempts in period
             $overallScore = round($attempts->avg('percentage'), 1);
 
             $overallStudents[] = [
@@ -457,7 +506,7 @@ class AnalyticsController extends Controller
         }
         unset($st);
 
-        // ── 2. PER-LESSON LEADERBOARDS (Exact Student App Ranking System) ──
+        // ── 2. PER-LESSON LEADERBOARDS (Filtered by period) ──
         $publishedLessons = Lesson::where('teacher_id', $teacherId)
             ->where('status', 'published')
             ->whereNull('deleted_at')
@@ -495,6 +544,7 @@ class AnalyticsController extends Controller
                 ->where('qa.quiz_id', $lesson->quiz->quiz_id)
                 ->whereIn('qa.student_id', $studentIds)
                 ->where('qa.status', 'completed')
+                ->whereBetween('qa.completed_at', [$startDate, $endDate])
                 ->select(
                     's.student_id',
                     's.first_name',
@@ -505,12 +555,13 @@ class AnalyticsController extends Controller
                 ->groupBy('s.student_id', 's.first_name', 's.last_name')
                 ->get();
 
-            $lessonRankings = $lessonAttempts->map(function ($item) use ($lesson) {
+            $lessonRankings = $lessonAttempts->map(function ($item) use ($lesson, $startDate, $endDate) {
                 // Find attempt number where they achieved their best score
                 $allStudentAttempts = DB::table('quiz_attempts')
                     ->where('student_id', $item->student_id)
                     ->where('quiz_id', $lesson->quiz->quiz_id)
                     ->where('status', 'completed')
+                    ->whereBetween('completed_at', [$startDate, $endDate])
                     ->orderBy('created_at', 'asc')
                     ->get();
 
@@ -559,9 +610,14 @@ class AnalyticsController extends Controller
 
         $studentRanking = collect($overallStudents);
 
-        // ── 3. DEDICATED GESTURE PERFORMANCE ANALYTICS WITH PER-SIGN BREAKDOWN ──
+        // ── 3. DEDICATED GESTURE PERFORMANCE ANALYTICS (Filtered by period) ──
         $gestureStatsRaw = DB::table('gesture_performances')
             ->whereIn('student_id', $studentIds)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_attempt_at', [$startDate, $endDate])
+                  ->orWhereBetween('updated_at', [$startDate, $endDate])
+                  ->orWhereBetween('created_at', [$startDate, $endDate]);
+            })
             ->selectRaw('
                 COUNT(DISTINCT gesture_id) as total_gestures,
                 SUM(attempts) as total_attempts,
@@ -586,10 +642,15 @@ class AnalyticsController extends Controller
 
         // Group performances by gesture for per-sign teacher insights
         $gesturePerSignRows = DB::table('gesture_performances as gp')
-            ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
+            ->join('gestures as g', 'gp.gesture_id', '=', 'gestures.gesture_id')
             ->join('students as s', 'gp.student_id', '=', 's.student_id')
             ->whereIn('gp.student_id', $studentIds)
             ->where('gp.attempts', '>', 0)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('gp.last_attempt_at', [$startDate, $endDate])
+                  ->orWhereBetween('gp.updated_at', [$startDate, $endDate])
+                  ->orWhereBetween('gp.created_at', [$startDate, $endDate]);
+            })
             ->select(
                 'g.gesture_id',
                 'g.name',
