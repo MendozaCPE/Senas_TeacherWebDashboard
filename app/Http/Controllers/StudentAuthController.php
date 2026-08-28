@@ -60,8 +60,8 @@ class StudentAuthController extends Controller
             return response()->json(['message' => 'Student not found'], 404);
         }
 
-        // Verify PIN (uses Hash::check — PINs are stored as bcrypt hashes)
-        if (!Hash::check($request->pin, $student->pin)) {
+        // Verify PIN (plain text comparison — PINs are stored unhashed in DB)
+        if ($request->pin !== $student->pin) {
             return response()->json(['message' => 'Invalid PIN'], 401);
         }
 
