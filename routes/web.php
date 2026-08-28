@@ -14,6 +14,7 @@ use App\Http\Controllers\ModulesController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
+ use App\Http\Controllers\TestingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -222,6 +223,7 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
             })
         ]);
     })->name('api.gesture-module.gestures');
+    
 
     // Checkpoint Exam Routes
     Route::prefix('lessons/checkpoint-exam')->name('lessons.checkpoint-exam.')->group(function () {
@@ -330,4 +332,12 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
     Route::get('/my-uploads', [LessonsController::class, 'mediaLibraryMyUploads'])->name('media-library.my-uploads');
 });
 
+Route::get('/testing/alphabet', [TestingController::class, 'alphabetPage'])->name('testing.alphabet');
+ 
+Route::get('/api/testing/signs', [TestingController::class, 'signs'])->name('api.testing.signs');
+Route::get('/api/testing/trials', [TestingController::class, 'trials'])->name('api.testing.trials');
+Route::post('/api/testing/trials', [TestingController::class, 'store'])->name('api.testing.trials.store');
+Route::get('/api/testing/export', [TestingController::class, 'export'])->name('api.testing.export');
+Route::get('/api/testing/metrics', [TestingController::class, 'metrics'])->name('api.testing.metrics');
+Route::get('/api/testing/export-csv', [TestingController::class, 'exportCsv'])->name('api.testing.export-csv');
 });

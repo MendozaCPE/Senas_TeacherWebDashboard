@@ -54,9 +54,15 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
         <div class="absolute top-0 right-44 w-44 h-44 rounded-full opacity-10 bg-white"></div>
         <div class="absolute -bottom-8 left-1/3 w-32 h-32 rounded-full opacity-10 bg-white"></div>
         <div class="relative z-10 px-10 py-7 flex-1">
-            <h2 class="text-[24px] font-black text-white leading-tight mb-1">System Overview</h2>
-            <p class="text-[13px] text-white/70 font-medium">Welcome back, <span class="text-white font-bold">{{ Auth::user()->name }}</span>. Here's a live summary of the SEÑAS platform.</p>
-        </div>
+    <h2 class="text-[24px] font-black text-white leading-tight mb-1">System Overview</h2>
+    <p class="text-[13px] text-white/70 font-medium">Welcome back, <span class="text-white font-bold">{{ Auth::user()->name }}</span>. Here's a live summary of the SEÑAS platform.</p>
+
+    <a href="{{ route('admin.testing.alphabet') }}"
+       class="inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 border border-white/30 text-white text-[12px] font-bold transition-colors">
+        <span class="material-symbols-outlined text-[16px]">science</span>
+        Test Environment
+    </a>
+</div>
         <div class="relative z-10 flex-shrink-0 pr-10 hidden lg:flex items-center gap-8">
             @foreach([['label'=>'Teachers','val'=>$totalTeachers],['label'=>'Students','val'=>$totalStudents],['label'=>'Lessons','val'=>$totalLessons]] as $bi)
             @if(!$loop->first)<div class="w-px h-10 bg-white/20"></div>@endif

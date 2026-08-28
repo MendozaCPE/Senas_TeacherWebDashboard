@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEÑAS — Model Testing & Evaluation Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --navy: #0f3172;
+            --navy-dark: #0a1628;
+            --navy-light: #1e428a;
+            --gold: #FFD700;
+            --teal: #4ECDC4;
+            --green: #10B981;
+            --red: #EF4444;
+            --bg: #f4f6fb;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-dim: #64748b;
+        }
+
+        body {
+            background: var(--bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        #topbar {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-link {
+            text-decoration: none;
+            color: var(--navy);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-badge {
+            background: rgba(15,49,114,0.08);
+            color: var(--navy);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        select, .btn {
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        select {
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #progress-pill {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-dash {
+            background: var(--bg);
+            color: var(--text-dim);
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        #layout {
+            display: flex;
+            gap: 20px;
+            padding: 20px 24px;
+            max-width: 1560px;
+            margin: 0 auto;
+        }
+
+        #sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        #sign-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-height: calc(100vh - 220px);
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .sign-btn {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: var(--card);
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px;
+            text-align: center;
+            transition: all 0.15s ease;
+        }
+
+        .sign-btn.selected {
+            border-color: var(--navy);
+            background: rgba(15,49,114,0.06);
+            color: var(--navy);
+            box-shadow: 0 0 0 2px rgba(15,49,114,0.2);
+        }
+
+        .sign-type-badge {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+        .sign-type-badge.static { background: #e0e7ff; color: #3730a3; }
+        .sign-type-badge.dynamic { background: #fae8ff; color: #86198f; }
+
+        #main { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+
+        #test-row { display: flex; gap: 20px; flex-wrap: wrap; }
+
+        #reference-panel, #camera-panel { flex: 1; min-width: 320px; }
+
+        .panel-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .panel-label {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        #perform-label {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 12px;
+        }
+
+        #reference-media-wrap {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #0f172a;
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #camera-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: var(--navy-dark);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        #overlay-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #live-readout {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            background: rgba(10, 22, 40, 0.85);
+            color: var(--gold);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 16px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+
+        #countdown-overlay {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10,22,40,0.65);
+            font-size: 80px;
+            font-weight: 900;
+            color: var(--gold);
+            text-shadow: 0 0 40px rgba(255,215,0,0.6);
+            z-index: 10;
+        }
+
+        #controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        #record-btn {
+            background: var(--navy);
+            color: #fff;
+            font-size: 15px;
+            padding: 14px 32px;
+        }
+
+        #record-btn.recording { background: var(--red); }
+
+        .btn-ghost {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        #status-line {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 12px;
+        }
+
+        #result-banner {
+            display: none;
+            margin-top: 14px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        #result-banner.correct { background: #dcfce7; color: #166534; }
+        #result-banner.incorrect { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+
+<body>
+    <div id="topbar">
+        <div class="topbar-left">
+            <a href="/admin/testing/alphabet" class="brand-link">
+                SEÑAS <span class="brand-badge">Testing Environment</span>
+            </a>
+        </div>
+        <div class="topbar-right">
+            <select id="signer-select">
+                <option value="researcher1">Researcher 1 — Danah</option>
+                <option value="researcher2">Researcher 2 — Christian</option>
+                <option value="researcher3">Researcher 3 — Theresa</option>
+            </select>
+            <div id="progress-pill">
+                <span id="progress-text">26 Alphabet Signs</span>
+            </div>
+            <a href="/admin/testing/alphabet" class="btn-dash">Active Testing Page →</a>
+        </div>
+    </div>
+
+    <div id="layout">
+        <div id="sidebar">
+            <div class="card">
+                <div class="sidebar-header">
+                    <div class="panel-label">Alphabet Signs</div>
+                    <span id="sign-count-badge" style="font-size: 11px; font-weight: 700; color: var(--text-dim);">26 Signs</span>
+                </div>
+                <div id="sign-grid"></div>
+            </div>
+        </div>
+
+        <div id="main">
+            <div class="card">
+                <div id="test-row">
+                    <div id="reference-panel">
+                        <div class="panel-label-row">
+                            <div class="panel-label">Target Sign</div>
+                            <span id="sign-type-tag" class="sign-type-badge static">Static</span>
+                        </div>
+                        <div id="perform-label">A</div>
+                        <div id="reference-media-wrap">
+                            <span style="color:#94a3b8">Media Preview</span>
+                        </div>
+                    </div>
+
+                    <div id="camera-panel">
+                        <div class="panel-label-row">
+                            <div class="panel-label">Live Camera</div>
+                            <div id="camera-status-tag" style="font-size: 11px; font-weight: 700; color: var(--text-dim);">Camera Loading…</div>
+                        </div>
+                        <div id="camera-wrap">
+                            <video id="video" autoplay playsinline muted></video>
+                            <canvas id="overlay-canvas"></canvas>
+                            <div id="live-readout">✋ —</div>
+                            <div id="countdown-overlay">3</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="controls">
+                    <button class="btn" id="record-btn">Record Sign</button>
+                    <button class="btn btn-ghost" id="prev-btn">← Previous</button>
+                    <button class="btn btn-ghost" id="next-btn">Next →</button>
+                </div>
+
+                <div id="status-line">Select a sign to begin.</div>
+                <div id="result-banner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.min.js"></script>
+
+    <script>
+        function getDistance2D(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        function getFingerStates(landmarks) {
+            const tips = [4, 8, 12, 16, 20];
+            const pips = [3, 6, 10, 14, 18];
+            const fingers = [];
+            const handScale = getDistance2D(landmarks[0], landmarks[5]);
+            const thumbExtended = Math.abs(landmarks[4].x - landmarks[2].x) > (handScale * 0.35) || (landmarks[4].y < landmarks[2].y - handScale * 0.1);
+            fingers.push(thumbExtended);
+            for (let i = 1; i < tips.length; i++) {
+                const extended = landmarks[tips[i]].y < (landmarks[pips[i]].y - (handScale * 0.05));
+                fingers.push(extended);
+            }
+            return fingers;
+        }
+
+        function getFingerSpread(landmarks) {
+            const indexLength = getDistance2D(landmarks[5], landmarks[8]);
+            const tipSpread = getDistance2D(landmarks[8], landmarks[12]);
+            return (tipSpread / (indexLength || 1));
+        }
+
+        function verifyZigzagGeometry(points) {
+            if (points.length < 3) return false;
+            const xs = points.map(p => p[0]);
+            const ys = points.map(p => p[1]);
+            const width = Math.max(...xs) - Math.min(...xs);
+            const height = Math.max(...ys) - Math.min(...ys);
+            return (width > 1.5 || height > 1.5);
+        }
+
+        function verifyJScoopGeometry(points) {
+            return points.length >= 2;
+        }
+
+        function processHierarchicalOverrides(predicted, avgConf, landmarks, isActivelyDrawing) {
+            if (isActivelyDrawing && (predicted === 'Z' || predicted === 'J')) {
+                return { letter: predicted, confidence: 0.99 };
+            }
+            const handScale = getDistance2D(landmarks[0], landmarks[5]);
+            const fingers = getFingerStates(landmarks);
+            const fingerSpread = getFingerSpread(landmarks);
+            const wrist = landmarks[0];
+            const thumbTip = landmarks[4], thumbIP = landmarks[3], thumbMcp = landmarks[2];
+            const indexTip = landmarks[8], indexDip = landmarks[7], indexPip = landmarks[6], indexMcp = landmarks[5];
+            const middleTip = landmarks[12], middleDip = landmarks[11], middlePip = landmarks[10], middleMcp = landmarks[9];
+            const ringTip = landmarks[16], ringPip = landmarks[14], ringMcp = landmarks[13];
+            const pinkyTip = landmarks[20], pinkyPip = landmarks[18], pinkyMcp = landmarks[17];
+            const indexUp = fingers[1], middleUp = fingers[2], ringUp = fingers[3], pinkyUp = fingers[4], thumbUp = fingers[0];
+            const distThumbIndex = getDistance2D(thumbTip, indexTip);
+            const distThumbMiddle = getDistance2D(thumbTip, middleTip);
+            const distThumbRing = getDistance2D(thumbTip, ringTip);
+            const distThumbPinky = getDistance2D(thumbTip, pinkyTip);
+            const indexIsDownwards = indexTip.y > indexMcp.y + (handScale * 0.15);
+            const middleIsDownwards = middleTip.y > middleMcp.y + (handScale * 0.15);
+            const indexSideways = Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.25) && Math.abs(indexTip.y - indexMcp.y) < (handScale * 0.55);
+            const middleSideways = Math.abs(middleTip.x - middleMcp.x) > (handScale * 0.25) && Math.abs(middleTip.y - middleMcp.y) < (handScale * 0.55);
+            const indexUpwards = indexTip.y < indexMcp.y - (handScale * 0.15);
+            const isFistState = !indexUp && !middleUp && !ringUp && !pinkyUp;
+            const isIndexHooked = (indexTip.y > indexPip.y) || (getDistance2D(indexTip, indexMcp) < handScale * 0.45) || (getDistance2D(indexTip, indexDip) < handScale * 0.12);
+
+            const indexBaseLen = getDistance2D(indexPip, indexMcp);
+            const indexTotalLen = getDistance2D(indexTip, indexMcp);
+            const middleTotalLen = getDistance2D(middleTip, middleMcp);
+            const ringTotalLen = getDistance2D(ringTip, ringMcp);
+            const pinkyTotalLen = getDistance2D(pinkyTip, pinkyMcp);
+            const isDefinitivelyHookedX = indexTotalLen < (indexBaseLen * 2.1) && indexTotalLen > (indexBaseLen * 0.5);
+            const othersAreClosed = middleTotalLen < (handScale * 0.75) && ringTotalLen < (handScale * 0.75) && pinkyTotalLen < (handScale * 0.75);
+            if (isDefinitivelyHookedX && othersAreClosed && !isFistState && !indexSideways) {
+                const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
+                if (distThumbToIndexPip > (handScale * 0.22)) return { letter: 'X', confidence: 0.99 };
+            }
+
+            const isEnclosedO = distThumbIndex < (handScale * 0.35) && distThumbMiddle < (handScale * 0.35) && distThumbRing < (handScale * 0.38) && distThumbPinky < (handScale * 0.42);
+            if (isEnclosedO || predicted === 'O') { if (!indexUp && !middleUp) return { letter: 'O', confidence: 0.99 }; }
+
+            const indexCurvedC = indexTip.y > indexDip.y && indexTip.y < indexMcp.y + (handScale * 0.12);
+            const middleCurvedC = middleTip.y > middleDip.y && middleTip.y < middleMcp.y + (handScale * 0.12);
+            const isThumbOpenC = thumbTip.y > indexMcp.y && Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.30);
+            if ((indexCurvedC && middleCurvedC && isThumbOpenC && !indexUp && !middleUp) || predicted === 'C') {
+                if (predicted === 'C' || (!indexUp && !middleUp && distThumbIndex > handScale * 0.26 && predicted !== 'H' && predicted !== 'K')) return { letter: 'C', confidence: 0.99 };
+            }
+
+            if (!ringUp && !pinkyUp && predicted !== 'C' && predicted !== 'O' && predicted !== 'T' && predicted !== 'X') {
+                const indexExtendedSide = (indexMcp.x - indexTip.x) > (handScale * 0.28) || indexSideways;
+                const middleExtendedSide = (middleMcp.x - middleTip.x) > (handScale * 0.22) || middleSideways;
+                if (indexExtendedSide && middleExtendedSide) {
+                    const distTips = getDistance2D(indexTip, middleTip);
+                    const isKSpread = distTips > (handScale * 0.28);
+                    const isHClosePair = distTips < (handScale * 0.25) && thumbTip.y > indexTip.y;
+                    if ((isHClosePair || !isKSpread) && (predicted === 'H' || predicted === 'G' || predicted === 'A' || isFistState)) return { letter: 'H', confidence: 0.99 };
+                    if (isKSpread || predicted === 'K') return { letter: 'K', confidence: 0.99 };
+                }
+            }
+
+            if (isFistState || predicted === 'T' || (!middleUp && !ringUp && !pinkyUp && !isIndexHooked)) {
+                const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
+                if (distThumbToIndexPip < (handScale * 0.28) || (thumbTip.x > indexMcp.x && thumbTip.x < middleMcp.x && thumbTip.y > indexMcp.y)) return { letter: 'T', confidence: 0.99 };
+            }
+
+            if (indexIsDownwards && middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2)) return { letter: 'P', confidence: 0.99 };
+            if (indexIsDownwards && !middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2) && (predicted === 'Q' || predicted === 'G' || predicted === 'P')) return { letter: 'Q', confidence: 0.99 };
+
+            if (isFistState) {
+                const distThumbRingMcp = getDistance2D(thumbTip, ringMcp);
+                const distThumbMiddleMcp = getDistance2D(thumbTip, middleMcp);
+                const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp);
+                const ringTipY = ringTip.y, middleTipY = middleTip.y;
+                if (distThumbRingMcp < (handScale * 0.28) && ringTipY > ringMcp.y && middleTipY > middleMcp.y && distThumbRingMcp < distThumbMiddleMcp && distThumbRingMcp < distThumbIndexMcp) return { letter: 'M', confidence: 0.99 };
+                if (distThumbMiddleMcp < (handScale * 0.24) && middleTipY > middleMcp.y && ringTipY > ringMcp.y && distThumbMiddleMcp < distThumbIndexMcp) return { letter: 'N', confidence: 0.99 };
+                const distThumbToMiddleKnuckle = getDistance2D(thumbTip, middleMcp);
+                const distThumbToIndexKnuckle = getDistance2D(thumbTip, indexMcp);
+                if (distThumbToMiddleKnuckle < (handScale * 0.26) || distThumbToIndexKnuckle < (handScale * 0.26) || predicted === 'S') return { letter: 'S', confidence: 0.99 };
+                if (predicted === 'M' || predicted === 'N') return { letter: predicted, confidence: 0.95 };
+            }
+
+            const allExtendedUp = indexTip.y < indexPip.y && middleTip.y < middlePip.y && ringTip.y < ringPip.y && pinkyTip.y < pinkyPip.y;
+            if (allExtendedUp) return { letter: 'B', confidence: 0.99 };
+
+            if (pinkyUp && !indexUp && !middleUp && !ringUp && Math.abs(thumbTip.x - indexMcp.x) < (handScale * 0.35)) return { letter: 'I', confidence: 0.99 };
+
+            const horizontalYSpread = Math.abs(thumbTip.x - pinkyTip.x);
+            if (pinkyUp && thumbUp && !indexUp && !middleUp && !ringUp && horizontalYSpread > (handScale * 0.62)) return { letter: 'Y', confidence: 0.99 };
+
+            if (indexUp && middleUp && !ringUp && !pinkyUp && !isIndexHooked) {
+                const fingersSpread = getDistance2D(indexTip, middleTip) > (handScale * 0.22);
+                const isPointingUp = indexUpwards && middleUp && indexTip.y < indexMcp.y - (handScale * 0.3) && middleTip.y < middleMcp.y - (handScale * 0.3);
+                const isHorizontal = (indexSideways || middleSideways) && !indexIsDownwards && !middleIsDownwards;
+                const isDiagonal = Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.15) && Math.abs(indexTip.y - indexMcp.y) > (handScale * 0.15);
+                if ((isHorizontal || isDiagonal || predicted === 'K') && fingersSpread && !isPointingUp) return { letter: 'K', confidence: 0.99 };
+            }
+
+            if (indexSideways && !middleUp && !ringUp && !pinkyUp && thumbTip.y < indexMcp.y && !indexUpwards) {
+                if (getDistance2D(thumbTip, indexPip) > (handScale * 0.25)) return { letter: 'G', confidence: 0.99 };
+            }
+
+            if (!middleUp && !ringUp && !pinkyUp && !isFistState) {
+                const indexExtended = (indexUp || indexUpwards || Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.25)) && indexTip.y < indexPip.y;
+                if (indexExtended) {
+                    const thumbIsTuckedTight = getDistance2D(thumbTip, middleMcp) < (handScale * 0.39) || getDistance2D(thumbTip, ringMcp) < (handScale * 0.39) || getDistance2D(thumbTip, indexMcp) < (handScale * 0.39) || getDistance2D(thumbTip, middleTip) < (handScale * 0.32);
+                    if (thumbIsTuckedTight && predicted !== 'L') return { letter: 'D', confidence: 0.99 };
+                    const thumbExtendedOut = Math.abs(thumbTip.x - indexMcp.x) > (handScale * 0.36);
+                    const thumbPointingUp = thumbTip.y < indexMcp.y - (handScale * 0.10);
+                    if (thumbExtendedOut || thumbPointingUp || predicted === 'L') return { letter: 'L', confidence: 0.99 };
+                    if (predicted === 'D') return { letter: 'D', confidence: 0.99 };
+                }
+            }
+
+            if ((indexIsDownwards || predicted === 'Q') && !middleUp && !ringUp && !pinkyUp) {
+                if (getDistance2D(indexTip, indexMcp) > (handScale * 0.25)) return { letter: 'Q', confidence: 0.99 };
+            }
+
+            if (isFistState) {
+                const isEShape = indexTip.y < indexMcp.y && middleTip.y < middleMcp.y && indexTip.y > indexPip.y;
+                if (isEShape || predicted === 'E') return { letter: 'E', confidence: 0.97 };
+                return { letter: 'A', confidence: 0.99 };
+            }
+
+            if (indexUp && middleUp && ringUp && !pinkyUp) return { letter: 'W', confidence: 0.99 };
+
+            if (indexUp && middleUp && !ringUp && !pinkyUp && !indexSideways) {
+                const isCrossed = (middleTip.x > indexTip.x + 0.01) || (Math.abs(indexTip.x - middleTip.x) < 0.025);
+                if (isCrossed || predicted === 'R') return { letter: 'R', confidence: 0.99 };
+                if (fingerSpread < 0.18 || getDistance2D(indexTip, middleTip) < (handScale * 0.32)) return { letter: 'U', confidence: 0.99 };
+                else return { letter: 'V', confidence: 0.99 };
+            }
+
+            const isFShape = (indexTip.y > middleTip.y) && (middleTip.y < middlePip.y) && (ringTip.y < ringPip.y);
+            if (isFShape && distThumbIndex < (handScale * 0.35)) return { letter: 'F', confidence: 0.99 };
+
+            return { letter: predicted, confidence: avgConf };
+        }
+
+        const videoElement = document.getElementById('video');
+        const overlayCanvas = document.getElementById('overlay-canvas');
+        const overlayCtx = overlayCanvas.getContext('2d');
+        const liveReadout = document.getElementById('live-readout');
+        const countdownOverlay = document.getElementById('countdown-overlay');
+        const recordBtn = document.getElementById('record-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const statusLine = document.getElementById('status-line');
+        const resultBanner = document.getElementById('result-banner');
+        const signerSelect = document.getElementById('signer-select');
+        const performLabel = document.getElementById('perform-label');
+        const signTypeTag = document.getElementById('sign-type-tag');
+        const cameraStatusTag = document.getElementById('camera-status-tag');
+        const signGrid = document.getElementById('sign-grid');
+
+        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const signs = ALPHABET.map((letter, i) => ({
+            gesture_id: i + 1,
+            name: letter,
+            sign_label: letter,
+            sign_type: (letter === 'J' || letter === 'Z') ? 'dynamic' : 'static',
+            trial_count: 0
+        }));
+
+        let currentSignIndex = 0;
+        let currentFacingMode = 'user';
+        let trailBuffer = [];
+        let jTrackingCooldown = 0;
+        const MAX_TRAIL = 25;
+        let lastPinkyPos = { x: 0, y: 0 };
+        let lastIndexPos = { x: 0, y: 0 };
+
+        let mobileNetModel = null;
+        let lstmModel = null;
+        let handsInstance = null;
+        let lstmFeatureSequenceBuffer = [];
+        const LSTM_SEQUENCE_LENGTH = 30;
+
+        function getPixelCoords(landmark, videoWidth, videoHeight, displayWidth, displayHeight) {
+            const s = Math.max(displayWidth / videoWidth, displayHeight / videoHeight);
+            const scaledW = videoWidth * s;
+            const scaledH = videoHeight * s;
+            const offX = (displayWidth - scaledW) / 2;
+            const offY = (displayHeight - scaledH) / 2;
+            return {
+                x: (currentFacingMode === 'user' ? (1 - landmark.x) : landmark.x) * videoWidth * s + offX,
+                y: landmark.y * videoHeight * s + offY
+            };
+        }
+
+        function drawDetectionBox(ctx, landmarks, cWidth, cHeight, vWidth, vHeight) {
+            const xs = landmarks.map(lm => lm.x);
+            const ys = landmarks.map(lm => lm.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+
+            const handWidth = maxX - minX;
+            const handHeight = maxY - minY;
+            const handSize = Math.max(handWidth, handHeight);
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+
+            const padding = 35;
+            const boxMinX = Math.max(0, centerX - handSize / 2 - padding / vWidth);
+            const boxMaxX = Math.min(1, centerX + handSize / 2 + padding / vWidth);
+            const boxMinY = Math.max(0, centerY - handSize / 2 - padding / vHeight);
+            const boxMaxY = Math.min(1, centerY + handSize / 2 + padding / vHeight);
+
+            const s = Math.max(cWidth / vWidth, cHeight / vHeight);
+            const scaledW = vWidth * s;
+            const scaledH = vHeight * s;
+            const offX = (cWidth - scaledW) / 2;
+            const offY = (cHeight - scaledH) / 2;
+
+            const px1 = (currentFacingMode === 'user' ? (1 - boxMaxX) : boxMinX) * vWidth * s + offX;
+            const py1 = boxMinY * vHeight * s + offY;
+            const px2 = (currentFacingMode === 'user' ? (1 - boxMinX) : boxMaxX) * vWidth * s + offX;
+            const py2 = boxMaxY * vHeight * s + offY;
+
+            ctx.strokeStyle = 'rgba(10, 90, 180, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 6]);
+            ctx.strokeRect(px1, py1, px2 - px1, py2 - py1);
+            ctx.setLineDash([]);
+        }
+
+        function drawHandMesh(ctx, landmarks, cWidth, cHeight, vWidth, vHeight) {
+            const connections = [
+                [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
+                [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15],
+                [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17], [5, 9],
+                [9, 13], [13, 17]
+            ];
+
+            const s = Math.max(cWidth / vWidth, cHeight / vHeight);
+            const scaledW = vWidth * s;
+            const scaledH = vHeight * s;
+            const offX = (cWidth - scaledW) / 2;
+            const offY = (cHeight - scaledH) / 2;
+
+            const pts = landmarks.map(lm => ({
+                x: (currentFacingMode === 'user' ? (1 - lm.x) : lm.x) * vWidth * s + offX,
+                y: lm.y * vHeight * s + offY,
+                z: lm.z
+            }));
+
+            const palmSize = Math.sqrt(Math.pow(pts[0].x - pts[9].x, 2) + Math.pow(pts[0].y - pts[9].y, 2)) || 80;
+
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y);
+            ctx.lineTo(pts[5].x, pts[5].y); ctx.lineTo(pts[9].x, pts[9].y); ctx.lineTo(pts[13].x, pts[13].y);
+            ctx.lineTo(pts[17].x, pts[17].y);
+            ctx.closePath();
+
+            const palmGrad = ctx.createRadialGradient(pts[9].x, pts[9].y, palmSize * 0.2, pts[9].x, pts[9].y, palmSize * 1.5);
+            palmGrad.addColorStop(0, 'rgba(255, 215, 0, 0.12)');
+            palmGrad.addColorStop(0.5, 'rgba(78, 205, 196, 0.06)');
+            palmGrad.addColorStop(1, 'rgba(15, 49, 114, 0)');
+            ctx.fillStyle = palmGrad; ctx.fill();
+
+            ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+            connections.forEach(([i, j]) => {
+                if (i < pts.length && j < pts.length) {
+                    ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
+                }
+            });
+
+            pts.forEach(pt => {
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
+                ctx.fillStyle = '#FFD700'; ctx.fill();
+            });
+        }
+
+        function detectLetter(landmarks, isActivelyDrawing) {
+            if (!landmarks || landmarks.length < 21) {
+                lstmFeatureSequenceBuffer = [];
+                return { letter: '✋', confidence: 0 };
+            }
+            try {
+                const fingers = getFingerStates(landmarks);
+                const flatFeatures = [];
+                landmarks.forEach(lm => flatFeatures.push(lm.x, lm.y, lm.z));
+
+                if (fingers[1] || fingers[4]) {
+                    lstmFeatureSequenceBuffer.push(flatFeatures);
+                    if (lstmFeatureSequenceBuffer.length > LSTM_SEQUENCE_LENGTH) lstmFeatureSequenceBuffer.shift();
+                }
+
+                let predictedLetter = 'A';
+                let modelConfidence = 0.5;
+
+                if (mobileNetModel) {
+                    try {
+                        const inputTensor = tf.tensor2d([flatFeatures], [1, 63], 'float32');
+                        const outputTensor = mobileNetModel.predict(inputTensor);
+                        const probabilities = outputTensor.dataSync();
+                        const maxIdx = probabilities.indexOf(Math.max(...probabilities));
+                        predictedLetter = ALPHABET[maxIdx] || 'A';
+                        modelConfidence = probabilities[maxIdx] || 0.5;
+                        inputTensor.dispose();
+                        outputTensor.dispose();
+                    } catch (e) { console.warn('Inference fallback:', e); }
+                }
+
+                let result = processHierarchicalOverrides(predictedLetter, modelConfidence, landmarks, isActivelyDrawing);
+                if (result.letter === 'A' && (fingers[1] || fingers[2] || fingers[3] || fingers[4])) {
+                    return { letter: '✋', confidence: 0.1 };
+                }
+                return result;
+            } catch (error) {
+                console.error('Prediction Error:', error);
+                return { letter: '✋', confidence: 0 };
+            }
+        }
+
+        let lstmInferenceCooldown = 0;
+
+        function onResults(results) {
+            const containerW = videoElement.clientWidth || 640;
+            const containerH = videoElement.clientHeight || 480;
+            if (overlayCanvas.width !== containerW || overlayCanvas.height !== containerH) {
+                overlayCanvas.width = containerW;
+                overlayCanvas.height = containerH;
+            }
+
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                liveReadout.textContent = '✋ —';
+                trailBuffer = [];
+                lstmFeatureSequenceBuffer = [];
+                lastPinkyPos = { x: 0, y: 0 };
+                lastIndexPos = { x: 0, y: 0 };
+                return;
+            }
+
+            const landmarks = results.multiHandLandmarks[0];
+            const displayWidth = overlayCanvas.width;
+            const displayHeight = overlayCanvas.height;
+            const videoWidth = videoElement.videoWidth || 640;
+            const videoHeight = videoElement.videoHeight || 480;
+
+            drawHandMesh(overlayCtx, landmarks, displayWidth, displayHeight, videoWidth, videoHeight);
+            drawDetectionBox(overlayCtx, landmarks, displayWidth, displayHeight, videoWidth, videoHeight);
+
+            const fingers = getFingerStates(landmarks);
+            const indexTip = landmarks[8], pinkyTip = landmarks[20];
+            const indexTipPx = getPixelCoords(indexTip, videoWidth, videoHeight, displayWidth, displayHeight);
+            const pinkyTipPx = getPixelCoords(pinkyTip, videoWidth, videoHeight, displayWidth, displayHeight);
+
+            let pinkyVelocity = 0;
+            let indexVelocity = 0;
+            if (lastPinkyPos.x !== 0 && lastPinkyPos.y !== 0) {
+                pinkyVelocity = getDistance2D(pinkyTipPx, lastPinkyPos);
+                indexVelocity = getDistance2D(indexTipPx, lastIndexPos);
+            }
+
+            lastPinkyPos = pinkyTipPx; 
+            lastIndexPos = indexTipPx;
+
+            const isActivelyMovingHand = (pinkyVelocity > 3.0 || indexVelocity > 3.0);
+            const isMovingZ = fingers[1] && !fingers[2] && !fingers[3] && !fingers[4] && isActivelyMovingHand;
+            const isMovingJRaw = fingers[4] && !fingers[1] && !fingers[2] && !fingers[3] && isActivelyMovingHand;
+
+            if (isMovingJRaw) {
+                jTrackingCooldown = 12;
+            } else if (jTrackingCooldown > 0) {
+                jTrackingCooldown--;
+            }
+            const isMovingJ = (jTrackingCooldown > 0);
+
+            if (isMovingZ || isMovingJ) {
+                const currentTip = isMovingZ ? indexTipPx : pinkyTipPx;
+                trailBuffer.push([currentTip.x, currentTip.y]);
+                if (trailBuffer.length > MAX_TRAIL) trailBuffer.shift();
+            } else if (!isActivelyMovingHand && trailBuffer.length > 0) {
+                trailBuffer.shift();
+            }
+
+            if (trailBuffer.length > 1) {
+                for (let i = 1; i < trailBuffer.length; i++) {
+                    const thickness = Math.max(2, Math.sqrt(25 / (i + 1)) * 3);
+                    const alpha = Math.min(1, i / trailBuffer.length);
+
+                    overlayCtx.beginPath();
+                    overlayCtx.moveTo(trailBuffer[i - 1][0], trailBuffer[i - 1][1]);
+                    overlayCtx.lineTo(trailBuffer[i][0], trailBuffer[i][1]);
+                    overlayCtx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.9})`;
+                    overlayCtx.lineWidth = thickness;
+                    overlayCtx.stroke();
+                }
+            }
+
+            const isActivelyDrawing = trailBuffer.length > 3;
+            let result = detectLetter(landmarks, isActivelyDrawing);
+
+            if (lstmInferenceCooldown > 0) lstmInferenceCooldown--;
+
+            if (lstmModel && lstmFeatureSequenceBuffer.length === LSTM_SEQUENCE_LENGTH && lstmInferenceCooldown === 0) {
+                lstmInferenceCooldown = 3;
+                try {
+                    const lstmInputTensor = tf.tensor3d([lstmFeatureSequenceBuffer], [1, LSTM_SEQUENCE_LENGTH, 63], 'float32');
+                    const lstmOutput = lstmModel.predict(lstmInputTensor);
+                    const dynamicProbabilities = lstmOutput.dataSync();
+                    const maxDynamicIdx = dynamicProbabilities.indexOf(Math.max(...dynamicProbabilities));
+                    const dynamicConfidence = dynamicProbabilities[maxDynamicIdx];
+
+                    if (dynamicConfidence > 0.82) {
+                        if (isMovingJ && maxDynamicIdx === 0) result = { letter: 'J', confidence: dynamicConfidence };
+                        else if (isMovingZ && maxDynamicIdx === 1) result = { letter: 'Z', confidence: dynamicConfidence };
+                    }
+                    lstmInputTensor.dispose();
+                    lstmOutput.dispose();
+                } catch (e) { console.warn('LSTM error:', e); }
+            }
+
+            if (trailBuffer.length > 4) {
+                if (isMovingZ && verifyZigzagGeometry(trailBuffer)) {
+                    result = { letter: 'Z', confidence: 0.98 };
+                } else if (isMovingJ && verifyJScoopGeometry(trailBuffer)) {
+                    result = { letter: 'J', confidence: 0.96 };
+                }
+            }
+
+            liveReadout.textContent = `${result.letter} ${Math.round(result.confidence * 100)}%`;
+        }
+
+        async function processFrame() {
+            if (handsInstance && videoElement.readyState >= 2) {
+                try { await handsInstance.send({ image: videoElement }); } catch (e) { }
+            }
+            requestAnimationFrame(processFrame);
+        }
+
+        function renderSignGrid() {
+            signGrid.innerHTML = '';
+            signs.forEach((s, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'sign-btn' + (i === currentSignIndex ? ' selected' : '');
+                btn.innerHTML = `<span class="sign-type-badge ${s.sign_type}">${s.sign_type}</span><span>${s.name}</span>`;
+                btn.onclick = () => selectSign(i);
+                signGrid.appendChild(btn);
+            });
+        }
+
+        function selectSign(idx) {
+            currentSignIndex = idx;
+            renderSignGrid();
+            const sign = signs[idx];
+            performLabel.textContent = sign.name;
+            signTypeTag.className = `sign-type-badge ${sign.sign_type}`;
+            signTypeTag.textContent = sign.sign_type === 'dynamic' ? 'Dynamic (LSTM)' : 'Static';
+            recordBtn.textContent = `Record ${sign.name}`;
+            statusLine.textContent = sign.sign_type === 'dynamic' ? 'Perform gesture motion during capture.' : 'Hold sign steady.';
+
+            trailBuffer = [];
+            lstmFeatureSequenceBuffer = [];
+            jTrackingCooldown = 0;
+            lastPinkyPos = { x: 0, y: 0 };
+            lastIndexPos = { x: 0, y: 0 };
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                videoElement.srcObject = stream;
+                await videoElement.play();
+                overlayCanvas.width = videoElement.clientWidth || 640;
+                overlayCanvas.height = videoElement.clientHeight || 480;
+
+                handsInstance = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+                handsInstance.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+                handsInstance.onResults(onResults);
+
+                try {
+                    mobileNetModel = await tflite.loadTFLiteModel('/models/mobilenetv2_alphabet.tflite');
+                    lstmModel = await tflite.loadTFLiteModel('/models/senas_lstm_dynamic.tflite');
+                    cameraStatusTag.textContent = 'Models Live';
+                } catch(e) { console.error('Model load error:', e); }
+
+                processFrame();
+            } catch(err) {
+                console.error('Camera error:', err);
+                cameraStatusTag.textContent = 'Camera Blocked';
+            }
+        }
+
+        renderSignGrid();
+        selectSign(0);
+        startCamera();
+    </script>
+</body>
+
+</html>

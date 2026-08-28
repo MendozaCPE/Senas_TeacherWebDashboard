@@ -942,6 +942,16 @@
                     }));
                 }
 
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'SENAS_DETECTION',
+                        letter: result.letter || '✋',
+                        confidence: result.confidence || 0,
+                        landmarks: landmarks ? landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z })) : null,
+                        timestamp: performance.now()
+                    }, '*');
+                }
+
                 lastLetter = result.letter;
                 lastConfidence = result.confidence;
                 detectionCount++;
@@ -955,6 +965,16 @@
                     detectionCount = 0;
                     detectionBox.style.display = 'none';
                     trailBuffer = [];
+
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'SENAS_DETECTION',
+                            letter: '✋',
+                            confidence: 0,
+                            landmarks: null,
+                            timestamp: performance.now()
+                        }, '*');
+                    }
                 }
             }
 
