@@ -557,13 +557,6 @@ document.head.appendChild(styleSheet);
             </button>
         </div>
 
-        <div id="adminExamRequirementWarning" class="hidden p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-start gap-2">
-            <span class="material-symbols-outlined text-amber-600 text-[18px] shrink-0 mt-0.5">warning</span>
-            <div>
-                <span class="font-bold block mb-0.5">At least 2 new published lessons required!</span>
-                You need at least 2 published lessons with quizzes in this module that haven't been included in a checkpoint exam yet before creating a new exam.
-            </div>
-        </div>
 
         <div class="space-y-3">
             <div id="adminChoicePrevQuestions"
@@ -590,17 +583,6 @@ let currentAdminModuleId = null;
 function openExamChoiceModal(moduleId, moduleTitle, canCreate, availableCount) {
     currentAdminModuleId = moduleId;
     document.getElementById('adminModalModuleTitle').textContent = `Module: ${moduleTitle}`;
-    const warning = document.getElementById('adminExamRequirementWarning');
-    const choice = document.getElementById('adminChoicePrevQuestions');
-
-    if (!canCreate) {
-        warning.classList.remove('hidden');
-        choice.classList.add('opacity-50', 'pointer-events-none');
-    } else {
-        warning.classList.add('hidden');
-        choice.classList.remove('opacity-50', 'pointer-events-none');
-    }
-
     document.getElementById('examChoiceModal').classList.remove('hidden');
 }
 

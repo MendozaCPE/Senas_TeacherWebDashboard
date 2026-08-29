@@ -81,7 +81,7 @@ class LessonsController extends Controller
                 });
                 
                 $module->availableLessonsCount = $availableLessons->count();
-                $module->canCreateExam = $module->availableLessonsCount >= 2;
+                $module->canCreateExam = true;
                 $module->checkpointExamsCount = $module->checkpointExams->count();
             }
 
@@ -2126,13 +2126,7 @@ public function createCheckpointExam(Request $request)
         return $lesson->quiz && $lesson->quiz->questions->count() > 0;
     });
 
-    // Check if there are at least 2 lessons with quizzes
-    if ($lessonsWithQuizzes->count() < 2) {
-        return redirect()->route('lessons.index')
-            ->with('error', 'You need at least 2 published lessons with quizzes in this module to create a checkpoint exam.');
-    }
-
-    // Check if there are lessons that haven't been used in a checkpoint exam yet
+    // Get lessons that haven't been used in a checkpoint exam yet
     $usedLessonIds = CheckpointExamQuestion::whereHas('exam', function($query) use ($moduleId) {
         $query->where('module_id', $moduleId);
     })->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
@@ -2141,9 +2135,9 @@ public function createCheckpointExam(Request $request)
         return !in_array($lesson->lesson_id, $usedLessonIds);
     });
 
-    if ($availableLessons->count() < 2) {
-        return redirect()->route('lessons.index')
-            ->with('error', 'All lessons in this module have already been used in checkpoint exams. Please add new lessons first.');
+    // If no new lessons available, fall back to all lessons with quizzes
+    if ($availableLessons->isEmpty()) {
+        $availableLessons = $lessonsWithQuizzes;
     }
 
     // Get all quiz questions from available lessons

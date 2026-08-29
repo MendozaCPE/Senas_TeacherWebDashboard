@@ -174,6 +174,17 @@
                                 Mastered: {{ implode(', ', $notif->data['letters_mastered']) }}
                             </span>
                         @endif
+                        @if(!empty($notif->data['hints_used']))
+                            @php
+                                $hintsFormatted = collect($notif->data['hints_used'])->map(function($count, $letter) {
+                                    return "{$letter} ({$count}x)";
+                                })->values()->implode(', ');
+                            @endphp
+                            <span class="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
+                                <span class="material-symbols-outlined text-[12px]">lightbulb</span>
+                                Hints: {{ $hintsFormatted }}
+                            </span>
+                        @endif
                         @if(!empty($notif->data['needs_practice']))
                             <span class="inline-flex items-center gap-1 font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200/50">
                                 <span class="material-symbols-outlined text-[12px]">priority_high</span>
