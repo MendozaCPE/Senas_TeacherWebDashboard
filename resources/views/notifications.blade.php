@@ -166,32 +166,93 @@
                     {{ $cleanTitle }}
                 </p>
 
-                @if($notif->type === 'module_completed' && !empty($notif->data))
-                    <div class="mt-1 flex items-center gap-2 flex-wrap text-[11.5px] text-slate-500">
-                        @if(!empty($notif->data['letters_mastered']))
-                            <span class="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
-                                <span class="material-symbols-outlined text-[12px]">verified</span>
-                                Mastered: {{ implode(', ', $notif->data['letters_mastered']) }}
-                            </span>
-                        @endif
-                        @if(!empty($notif->data['hints_used']))
-                            @php
-                                $hintsFormatted = collect($notif->data['hints_used'])->map(function($count, $letter) {
-                                    return "{$letter} ({$count}x)";
-                                })->values()->implode(', ');
-                            @endphp
-                            <span class="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
-                                <span class="material-symbols-outlined text-[12px]">lightbulb</span>
-                                Hints: {{ $hintsFormatted }}
-                            </span>
-                        @endif
-                        @if(!empty($notif->data['needs_practice']))
-                            <span class="inline-flex items-center gap-1 font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200/50">
-                                <span class="material-symbols-outlined text-[12px]">priority_high</span>
-                                Practice: {{ implode(', ', $notif->data['needs_practice']) }}
-                            </span>
-                        @endif
-                    </div>
+                @if($notif->type === 'module_completed')
+                    @php
+                        // 1. Extract Mastered letters
+                        $masteredList = [];
+                        if (!empty($notif->data['letters_mastered'])) {
+                            $masteredList = is_array($notif->data['letters_mastered']) 
+                                ? $notif->data['letters_mastered'] 
+                                : explode(',', $notif->data['letters_mastered']);
+                        } elseif (!empty($notif->message) && preg_match('/Letters Mastered:\s*([^.]+?)(?=\.\s*(?:Hints|Needs)|$)/i', $notif->message, $m)) {
+                            $val = trim($m[1]);
+                            if (strcasecmp($val, 'None') !== 0 && !empty($val)) {
+                                $masteredList = preg_split('/[\s,]+/', $val, -1, PREG_SPLIT_NO_EMPTY);
+                            }
+                        }
+
+                        // 2. Extract Hints
+                        $hintsList = [];
+                        $rawHints = $notif->data['hint_usage'] ?? $notif->data['hints_used'] ?? $notif->data['hints'] ?? null;
+                        if (!empty($rawHints)) {
+                            if (is_array($rawHints)) {
+                                foreach ($rawHints as $k => $v) {
+                                    if (is_array($v) && isset($v['letter'])) {
+                                        $cnt = $v['count'] ?? 1;
+                                        if ($cnt > 0) $hintsList[] = "{$v['letter']} ({$cnt}x)";
+                                    } elseif (is_numeric($v) && $v > 0) {
+                                        $hintsList[] = "{$k} ({$v}x)";
+                                    } elseif (is_string($v) && !empty($v)) {
+                                        $hintsList[] = $v;
+                                    }
+                                }
+                            } elseif (is_string($rawHints)) {
+                                $hintsList = [$rawHints];
+                            }
+                        }
+                        // Fallback: parse from message text
+                        if (empty($hintsList) && !empty($notif->message)) {
+                            if (preg_match('/Hints used:\s*([^.]+?)(?=\.\s*(?:Needs|Letters)|$)/i', $notif->message, $hm)) {
+                                $val = trim($hm[1]);
+                                if (strcasecmp($val, 'None') !== 0 && !empty($val)) {
+                                    $hintsList = array_map('trim', explode(',', $val));
+                                }
+                            } elseif (preg_match('/hints used on letters:\s*([^.]+?)(?=\.\s*|$)/i', $notif->message, $hm)) {
+                                $val = trim($hm[1]);
+                                if (!empty($val)) {
+                                    $hintsList = array_map('trim', explode(',', $val));
+                                }
+                            }
+                        }
+
+                        // 3. Extract Practice letters
+                        $practiceList = [];
+                        if (!empty($notif->data['needs_practice'])) {
+                            $practiceList = is_array($notif->data['needs_practice']) 
+                                ? $notif->data['needs_practice'] 
+                                : explode(',', $notif->data['needs_practice']);
+                        } elseif (!empty($notif->message) && preg_match('/Needs practice on:\s*([^.]+?)(?=\.|$)/i', $notif->message, $pm)) {
+                            $val = trim($pm[1]);
+                            if (strcasecmp($val, 'None') !== 0 && !empty($val)) {
+                                $practiceList = preg_split('/[\s,]+/', $val, -1, PREG_SPLIT_NO_EMPTY);
+                            }
+                        }
+                    @endphp
+
+                    @if(!empty($masteredList) || !empty($hintsList) || !empty($practiceList))
+                        <div class="mt-1 flex items-center gap-2 flex-wrap text-[11.5px] text-slate-500">
+                            @if(!empty($masteredList))
+                                <span class="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                                    <span class="material-symbols-outlined text-[12px]">verified</span>
+                                    Mastered: {{ implode(', ', $masteredList) }}
+                                </span>
+                            @endif
+                            @if(!empty($hintsList))
+                                <span class="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
+                                    <span class="material-symbols-outlined text-[12px]">lightbulb</span>
+                                    Hints: {{ implode(', ', $hintsList) }}
+                                </span>
+                            @endif
+                            @if(!empty($practiceList))
+                                <span class="inline-flex items-center gap-1 font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200/50">
+                                    <span class="material-symbols-outlined text-[12px]">priority_high</span>
+                                    Practice: {{ implode(', ', $practiceList) }}
+                                </span>
+                            @endif
+                        </div>
+                    @elseif(!empty($notif->message))
+                        <p class="text-[12.5px] text-slate-500 mt-0.5 leading-snug line-clamp-1">{{ $notif->message }}</p>
+                    @endif
                 @elseif(!empty($notif->message))
                     <p class="text-[12.5px] text-slate-500 mt-0.5 leading-snug line-clamp-1">{{ $notif->message }}</p>
                 @endif

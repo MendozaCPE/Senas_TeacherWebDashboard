@@ -2934,6 +2934,7 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
                 'mastered_count' => $masteredCount,
                 'total_letters' => $totalLetters,
                 'hint_usage' => $hintUsageData,
+                'hints_used' => $hintUsageData,
                 'hint_count' => $totalHints,
                 'is_perfect' => ($masteredCount === $totalLetters),
                 'session_id' => null,
