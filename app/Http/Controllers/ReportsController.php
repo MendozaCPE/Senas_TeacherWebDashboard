@@ -404,22 +404,55 @@ class ReportsController extends Controller
                     ? round(($gestureAccuracyData->successes / $gestureAccuracyData->total) * 100, 1)
                     : 0;
 
+                // Per-sign breakdown for richer gesture report
+                $gesturePerSign = DB::table('gesture_performances as gp')
+                    ->join('gestures as g', 'g.gesture_id', '=', 'gp.gesture_id')
+                    ->where('gp.student_id', $student->student_id)
+                    ->where('gp.attempts', '>', 0)
+                    ->selectRaw('g.name as gesture_name, SUM(gp.successful_attempts) as successes, SUM(gp.attempts) as total, SUM(gp.wrong_attempts) as wrongs')
+                    ->groupBy('gp.gesture_id', 'g.name')
+                    ->get()
+                    ->map(function ($r) {
+                        $acc = $r->total > 0 ? round(($r->successes / $r->total) * 100, 1) : 0;
+                        return [
+                            'name'     => $r->gesture_name,
+                            'accuracy' => $acc,
+                            'attempts' => (int) $r->total,
+                            'correct'  => (int) $r->successes,
+                            'wrong'    => (int) $r->wrongs,
+                        ];
+                    });
+
+                $gestureMastered   = $gesturePerSign->where('accuracy', '>=', 75)->sortByDesc('accuracy')->values()->all();
+                $gestureStruggling = $gesturePerSign->where('accuracy', '<', 75)->sortBy('accuracy')->values()->all();
+                $gestureTotalSigns = $gesturePerSign->count();
+                // Full list sorted: mastered first, then by accuracy desc
+                $gestureSignList   = $gesturePerSign->sortByDesc('accuracy')->values()->all();
+
+
+
                 return [
-                    'studentName'      => trim($student->first_name . ' ' . $student->last_name) ?: 'Unknown Student',
-                    'gradeLevel'       => $student->grade_level ?? 'N/A',
-                    'totalLessons'     => $totalLessons,
-                    'completedLessons' => $completedLessons,
-                    'quizzesTaken'     => $quizzesTaken,
-                    'quizzesPassed'    => $quizzesPassed,
-                    'quizPassRate'     => $quizPassRate,
-                    'avgScore'         => round($avgScore, 1),
-                    'overallPct'       => $overallPct,
-                    'gestureAccuracy'  => $gestureAccuracy,
-                    'lastAccessed'     => $lastActiveRaw
+                    'studentName'        => trim($student->first_name . ' ' . $student->last_name) ?: 'Unknown Student',
+                    'gradeLevel'         => $student->grade_level ?? 'N/A',
+                    'totalLessons'       => $totalLessons,
+                    'completedLessons'   => $completedLessons,
+                    'quizzesTaken'       => $quizzesTaken,
+                    'quizzesPassed'      => $quizzesPassed,
+                    'quizPassRate'       => $quizPassRate,
+                    'avgScore'           => round($avgScore, 1),
+                    'overallPct'         => $overallPct,
+                    'gestureAccuracy'    => $gestureAccuracy,
+                    'gestureTotalSigns'  => $gestureTotalSigns,
+                    'gestureMastered'    => $gestureMastered,
+                    'gestureStruggling'  => $gestureStruggling,
+                    'gestureSignList'    => $gestureSignList,
+                    'lastAccessed'       => $lastActiveRaw
                         ? Carbon::parse($lastActiveRaw)->format('M d, Y')
                         : '—',
-                    'lessons'          => $lessonBreakdown,
+                    'lessons'            => $lessonBreakdown,
                 ];
+
+
             })
             ->sortBy('studentName')
             ->values();
@@ -535,7 +568,8 @@ class ReportsController extends Controller
                     $student['overallPct'],
                     $student['quizzesTaken'],
                     $student['avgScore'],
-                    $student['gestureAccuracy'] ?? 0
+                    $student['gestureAccuracy'] ?? 0,
+                    $student['gestureTotalSigns'] ?? 0
                 );
 
                 /* Group lessons by module */
@@ -561,8 +595,125 @@ class ReportsController extends Controller
                     }
                 }
 
+                /* ── Per-Student Gesture Performance Per Sign ── */
+                $gestureSignList = $student['gestureSignList'] ?? [];
+
+                if (!empty($gestureSignList)) {
+                    $pdf->Ln(2);
+                    // Section header bar
+                    $pdf->SetFont('helvetica', 'B', 8);
+                    $pdf->SetTextColor(13, 50, 107);
+                    $pdf->SetFillColor(236, 244, 255);
+                    $pdf->SetDrawColor(193, 213, 240);
+                    $pdf->SetX($lm);
+                    $pdf->Cell($usableW, 8, '  Student Performance Per Gesture  (' . count($gestureSignList) . ' signs)', 'B', 1, 'L', true);
+
+                    // Column header row
+                    $sNameW = $usableW * 0.28;
+                    $sBadgW = $usableW * 0.20;
+                    $sAttW  = $usableW * 0.12;
+                    $sCorW  = $usableW * 0.12;
+                    $sIncW  = $usableW * 0.12;
+                    $sAccW  = $usableW - $sNameW - $sBadgW - $sAttW - $sCorW - $sIncW;
+
+                    $pdf->SetFont('helvetica', 'B', 7);
+                    $pdf->SetTextColor(100, 116, 139);
+                    $pdf->SetFillColor(248, 250, 252);
+                    $pdf->SetX($lm);
+                    $pdf->Cell($sNameW, 6.5, 'SIGN', 'B', 0, 'L', true);
+                    $pdf->Cell($sBadgW, 6.5, 'MASTERY LEVEL', 'B', 0, 'L', true);
+                    $pdf->Cell($sAttW,  6.5, 'ATTEMPTS', 'B', 0, 'C', true);
+                    $pdf->Cell($sCorW,  6.5, 'CORRECT', 'B', 0, 'C', true);
+                    $pdf->Cell($sIncW,  6.5, 'INCORRECT', 'B', 0, 'C', true);
+                    $pdf->Cell($sAccW,  6.5, 'ACCURACY', 'B', 1, 'R', true);
+
+                    $pdf->SetFillColor(255, 255, 255);
+                    $gRowH   = 8;
+                    $altFill = false;
+
+                    foreach ($gestureSignList as $g) {
+                        if ($pdf->GetY() + $gRowH > $pdf->getPageHeight() - $pdf->getBreakMargin()) {
+                            $pdf->AddPage();
+                            // Reprint column headers on continuation page
+                            $pdf->SetFont('helvetica', 'B', 7);
+                            $pdf->SetTextColor(100, 116, 139);
+                            $pdf->SetFillColor(248, 250, 252);
+                            $pdf->SetX($lm);
+                            $pdf->Cell($sNameW, 6.5, 'SIGN', 'B', 0, 'L', true);
+                            $pdf->Cell($sBadgW, 6.5, 'MASTERY LEVEL', 'B', 0, 'L', true);
+                            $pdf->Cell($sAttW,  6.5, 'ATTEMPTS', 'B', 0, 'C', true);
+                            $pdf->Cell($sCorW,  6.5, 'CORRECT', 'B', 0, 'C', true);
+                            $pdf->Cell($sIncW,  6.5, 'INCORRECT', 'B', 0, 'C', true);
+                            $pdf->Cell($sAccW,  6.5, 'ACCURACY', 'B', 1, 'R', true);
+                            $pdf->SetFillColor(255, 255, 255);
+                            $altFill = false;
+                        }
+
+                        // Mastery badge label + colors
+                        $acc = $g['accuracy'];
+                        if ($acc >= 75) {
+                            $badgeLabel = 'MASTERED';
+                            $badgeColor = [16, 185, 129];
+                            $accColor   = [16, 185, 129];
+                        } elseif ($acc >= 60) {
+                            $badgeLabel = 'PROFICIENT';
+                            $badgeColor = [59, 130, 246];
+                            $accColor   = [59, 130, 246];
+                        } elseif ($acc >= 40) {
+                            $badgeLabel = 'DEVELOPING';
+                            $badgeColor = [245, 158, 11];
+                            $accColor   = [180, 83, 9];
+                        } else {
+                            $badgeLabel = 'NEEDS PRACTICE';
+                            $badgeColor = [239, 68, 68];
+                            $accColor   = [220, 38, 38];
+                        }
+
+                        $bg = $altFill ? [248, 252, 255] : [255, 255, 255];
+                        $pdf->SetFillColor(...$bg);
+
+                        // Sign name
+                        $pdf->SetFont('helvetica', 'B', 8);
+                        $pdf->SetTextColor(13, 50, 107);
+                        $pdf->SetX($lm);
+                        $pdf->Cell($sNameW, $gRowH, \Illuminate\Support\Str::limit($g['name'], 18), 'B', 0, 'L', true);
+
+                        // Mastery badge (text only, colored)
+                        $pdf->SetFont('helvetica', 'B', 6.5);
+                        $pdf->SetTextColor(...$badgeColor);
+                        $pdf->Cell($sBadgW, $gRowH, $badgeLabel, 'B', 0, 'L', true);
+
+                        // Attempts
+                        $pdf->SetFont('helvetica', '', 7.5);
+                        $pdf->SetTextColor(71, 85, 105);
+                        $pdf->Cell($sAttW, $gRowH, (string) $g['attempts'], 'B', 0, 'C', true);
+
+                        // Correct (green)
+                        $pdf->SetFont('helvetica', 'B', 7.5);
+                        $pdf->SetTextColor(16, 185, 129);
+                        $pdf->Cell($sCorW, $gRowH, (string) $g['correct'], 'B', 0, 'C', true);
+
+                        // Incorrect (red)
+                        $pdf->SetTextColor(239, 68, 68);
+                        $pdf->Cell($sIncW, $gRowH, (string) $g['wrong'], 'B', 0, 'C', true);
+
+                        // Accuracy (right-aligned, colored by level)
+                        $pdf->SetFont('helvetica', 'B', 8);
+                        $pdf->SetTextColor(...$accColor);
+                        $pdf->Cell($sAccW, $gRowH, number_format($acc, 1) . '%', 'B', 1, 'R', true);
+
+                        $altFill = !$altFill;
+                    }
+
+                    $pdf->SetFillColor(255, 255, 255);
+                    $pdf->SetTextColor(51, 65, 85);
+                }
+
+
+
                 $pdf->Ln(3);
             }
+
         }
 
         $filename = 'senas-report-' . now()->format('Y-m-d') . '.pdf';

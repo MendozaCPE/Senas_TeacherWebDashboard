@@ -451,45 +451,127 @@ class TcPdfService extends TCPDF
         $this->SetTextColor(...self::SLATE);
     }
 
-    public function studentBand(string $name, string $grade, int $completed, int $total, float $pct, int $quizzes, float $avgScore, float $gestureAccuracy = 0): void
+    public function studentBand(string $name, string $grade, int $completed, int $total, float $pct, int $quizzes, float $avgScore, float $gestureAccuracy = 0, int $gestureTotalSigns = 0): void
     {
         $lm     = $this->getOriginalMargins()['left'];
         $rm     = $this->getOriginalMargins()['right'];
         $usable = $this->getPageWidth() - $lm - $rm;
 
-        if ($this->GetY() + 14 > $this->getPageHeight() - 28) {
+        // Band height: always tall enough for name + KPIs + gesture bar
+        $bandH = $gestureAccuracy > 0 ? 32 : 20;
+
+        if ($this->GetY() + $bandH > $this->getPageHeight() - 28) {
             $this->AddPage();
         }
 
         $y = $this->GetY();
-        $this->SetFillColor(241, 246, 254);
-        $this->RoundedRect($lm, $y, $usable, 12, 1.5, '1111', 'F');
-        $this->SetDrawColor(...self::BORDER);
-        $this->SetLineWidth(0.3);
-        $this->RoundedRect($lm, $y, $usable, 12, 1.5, '1111', 'D');
 
-        $this->SetFont('helvetica', 'B', 9.5);
-        $this->SetTextColor(...self::NAVY);
-        $this->SetXY($lm + 3, $y + 1.5);
-        $this->Cell(65, 5, $name, 0, 0, 'L');
+        // Background
+        $this->SetFillColor(236, 244, 255);
+        $this->RoundedRect($lm, $y, $usable, $bandH, 2, '1111', 'F');
+        $this->SetDrawColor(193, 213, 240);
+        $this->SetLineWidth(0.4);
+        $this->RoundedRect($lm, $y, $usable, $bandH, 2, '1111', 'D');
+
+        // ── Row 1: Student name (left) + grade (below name) ──
+        $this->SetFont('helvetica', 'B', 11);
+        $this->SetTextColor(13, 50, 107);
+        $this->SetXY($lm + 4, $y + 3);
+        $this->Cell(80, 6, $name, 0, 0, 'L');
 
         $this->SetFont('helvetica', '', 7.5);
-        $this->SetTextColor(...self::SLATE_LIGHT);
-        $this->SetXY($lm + 3, $y + 6.8);
-        $this->Cell(65, 4, $grade, 0, 0, 'L');
+        $this->SetTextColor(100, 116, 139);
+        $this->SetXY($lm + 4, $y + 9.5);
+        $this->Cell(80, 4, $grade, 0, 0, 'L');
 
-        $this->SetFont('helvetica', 'B', 7.5);
-        $this->SetTextColor(30, 75, 143);
-        $statsStr = $completed . '/' . $total . ' Lessons    ' . $pct . '% Complete    ' . $quizzes . ' Quiz' . ($quizzes !== 1 ? 'zes' : '') . '    Avg ' . number_format($avgScore, 1) . ' pts';
-        if ($gestureAccuracy > 0) {
-            $statsStr .= '    ' . number_format($gestureAccuracy, 1) . '% Gesture Acc';
+        // ── Row 1 right side: 4 KPI chips ──
+        $kpiY   = $y + 3.5;
+        $kpiH   = 8;
+        $kpiGap = 3;
+        $kpis   = [
+            ['val' => $completed . '/' . $total, 'lbl' => 'Lessons'],
+            ['val' => $pct . '%',                  'lbl' => 'Complete'],
+            ['val' => (string) $quizzes,            'lbl' => 'Quizzes'],
+            ['val' => number_format($avgScore, 1),  'lbl' => 'Avg Score'],
+        ];
+        $kpiAreaW = $usable - 84;
+        $kpiW     = ($kpiAreaW - ($kpiGap * (count($kpis) - 1))) / count($kpis);
+        $kpiX     = $lm + 84;
+
+        foreach ($kpis as $kpi) {
+            // Chip background
+            $this->SetFillColor(255, 255, 255);
+            $this->SetDrawColor(193, 213, 240);
+            $this->SetLineWidth(0.25);
+            $this->RoundedRect($kpiX, $kpiY, $kpiW, $kpiH, 1.5, '1111', 'FD');
+
+            // Value
+            $this->SetFont('helvetica', 'B', 9);
+            $this->SetTextColor(13, 50, 107);
+            $this->SetXY($kpiX, $kpiY + 0.8);
+            $this->Cell($kpiW, 4.5, $kpi['val'], 0, 0, 'C');
+
+            // Label
+            $this->SetFont('helvetica', '', 6);
+            $this->SetTextColor(100, 116, 139);
+            $this->SetXY($kpiX, $kpiY + 5);
+            $this->Cell($kpiW, 3, $kpi['lbl'], 0, 0, 'C');
+
+            $kpiX += $kpiW + $kpiGap;
         }
-        $this->SetXY($lm + 65, $y + 3.5);
-        $this->Cell($usable - 68, 5, $statsStr, 0, 0, 'R');
 
-        $this->SetXY($lm, $y + 12);
-        $this->Ln(1);
+        // ── Row 2: Gesture accuracy bar (only when data exists) ──
+        if ($gestureAccuracy > 0) {
+            $barRowY = $y + 19;
+            $labelW  = 44;
+            $valW    = 18;
+            $barW    = $usable - 8 - $labelW - $valW;
+
+            // Divider line above gesture row
+            $this->SetDrawColor(193, 213, 240);
+            $this->SetLineWidth(0.2);
+            $this->Line($lm + 4, $barRowY - 1, $lm + $usable - 4, $barRowY - 1);
+
+            // Label
+            $this->SetFont('helvetica', 'B', 7.5);
+            $this->SetTextColor(13, 50, 107);
+            $this->SetXY($lm + 4, $barRowY + 1);
+            $signsTxt = $gestureTotalSigns > 0 ? 'Gesture Accuracy (' . $gestureTotalSigns . ' signs)' : 'Gesture Accuracy';
+            $this->Cell($labelW, 5, $signsTxt, 0, 0, 'L');
+
+            // Bar track
+            $barX = $lm + 4 + $labelW + 2;
+            $this->SetFillColor(214, 226, 241);
+            $this->RoundedRect($barX, $barRowY + 2.5, $barW, 4, 2, '1111', 'F');
+
+            // Bar fill
+            $barFill = max(3, ($gestureAccuracy / 100) * $barW);
+            if ($gestureAccuracy >= 75) {
+                $this->SetFillColor(16, 185, 129);
+                $accColor = [16, 185, 129];
+            } elseif ($gestureAccuracy >= 50) {
+                $this->SetFillColor(245, 158, 11);
+                $accColor = [180, 83, 9];
+            } else {
+                $this->SetFillColor(239, 68, 68);
+                $accColor = [220, 38, 38];
+            }
+            $this->RoundedRect($barX, $barRowY + 2.5, $barFill, 4, 2, '1111', 'F');
+
+            // Percentage value — right-aligned, enough gap from bar
+            $this->SetFont('helvetica', 'B', 8.5);
+            $this->SetTextColor(...$accColor);
+            $this->SetXY($barX + $barW + 2, $barRowY + 1);
+            $this->Cell($valW, 5, number_format($gestureAccuracy, 1) . '%', 0, 0, 'L');
+        }
+
+        $this->SetXY($lm, $y + $bandH + 1);
+        $this->SetFillColor(255, 255, 255);
+        $this->SetTextColor(...self::SLATE);
+        $this->SetLineWidth(0.2);
     }
+
+
 
     public function moduleBand(string $title): void
     {
