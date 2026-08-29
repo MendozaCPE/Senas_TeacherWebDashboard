@@ -29,16 +29,55 @@ class StudentsController extends Controller
         $newThisWeek   = 0;
         $students      = collect();
 
-        $availableSchoolYears = collect();
-        $sidebarStudents      = collect();
-        $teacherLessons       = collect();
-        $promotionReadyCounts = ['Beginner' => 0, 'Intermediate' => 0, 'Advanced' => 0];
+        $availableSchoolYears     = collect();
+        $sidebarStudents          = collect();
+        $teacherLessons           = collect();
+        $promotionReadyCounts     = ['Beginner' => 0, 'Intermediate' => 0, 'Advanced' => 0];
+        $promotionReadyStudentIds = ['Beginner' => [], 'Intermediate' => [], 'Advanced' => []];
+        $allReadyStudentIds       = [];
+        $activePromotableLevel    = '';
 
         if ($teacher) {
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
             $newThisWeek   = Student::where('teacher_id', $teacher->id)
                                     ->where('created_at', '>=', Carbon::now()->subWeek())
                                     ->count();
+
+            // ── Sidebar: all active students with lesson scores (not paginated) ──
+            $sidebarStudents = Student::where('teacher_id', $teacher->id)
+                                      ->where('status', 'active')
+                                      ->with(['assignments' => function ($q) {
+                                          $q->select('student_id', 'lesson_id', 'score', 'status');
+                                      }])
+                                      ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
+
+            // ── Sidebar: Promotion Thresholds — how many active students at
+            // each level have completed all lessons assigned to them at that
+            // level (same rule as the individual student "Promotion" card).
+            $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
+            foreach ($sidebarStudents as $sbStudent) {
+                $sbLevel = $sbStudent->fsl_mastery_level;
+                if (!array_key_exists($sbLevel, $promotionReadyCounts)) {
+                    continue;
+                }
+                $readiness = $this->computeLessonReadiness(
+                    $sbStudent->student_id,
+                    $sbLevel,
+                    $promotionMap[$sbLevel] ?? null
+                );
+                if ($readiness['ready']) {
+                    $promotionReadyCounts[$sbLevel]++;
+                    $promotionReadyStudentIds[$sbLevel][] = $sbStudent->student_id;
+                    $allReadyStudentIds[] = $sbStudent->student_id;
+                }
+            }
+
+            // ── Sidebar: published lessons belonging to this teacher ──
+            $teacherLessons = Lesson::where('teacher_id', $teacher->id)
+                                    ->where('status', 'published')
+                                    ->whereNull('deleted_at')
+                                    ->orderBy('module_order')
+                                    ->get(['lesson_id', 'title']);
 
             $query = Student::where('teacher_id', $teacher->id)->with('promotions');
 
@@ -51,6 +90,7 @@ class StudentsController extends Controller
                 $program = $filters['program'] ?? '';
                 $status  = $filters['status']  ?? 'active';
                 $schoolYear = $filters['school_year'] ?? '';
+                $activePromotableLevel = $filters['promotable_level'] ?? '';
             } else {
                 $filters = session('students_filters', []);
                 $search  = $filters['search']  ?? '';
@@ -58,6 +98,7 @@ class StudentsController extends Controller
                 $program = $filters['program'] ?? '';
                 $status  = $filters['status']  ?? 'active';
                 $schoolYear = $filters['school_year'] ?? '';
+                $activePromotableLevel = $filters['promotable_level'] ?? '';
             }
 
             if (!empty($search)) {
@@ -85,6 +126,16 @@ class StudentsController extends Controller
                 $query->where('school_year', $schoolYear);
             }
 
+            // Filter by promotable level if selected via sidebar boxes
+            if (!empty($activePromotableLevel)) {
+                if ($activePromotableLevel === 'all') {
+                    $query->whereIn('student_id', !empty($allReadyStudentIds) ? $allReadyStudentIds : [-1]);
+                } elseif (isset($promotionReadyStudentIds[$activePromotableLevel])) {
+                    $ids = $promotionReadyStudentIds[$activePromotableLevel];
+                    $query->whereIn('student_id', !empty($ids) ? $ids : [-1]);
+                }
+            }
+
             $students = $query->orderBy('created_at', 'desc')->paginate(10);
 
             $availableSchoolYears = Student::where('teacher_id', $teacher->id)
@@ -94,46 +145,12 @@ class StudentsController extends Controller
                                            ->distinct()
                                            ->orderBy('school_year', 'desc')
                                            ->pluck('school_year');
-
-            // ── Sidebar: all active students with lesson scores (not paginated) ──
-            $sidebarStudents = Student::where('teacher_id', $teacher->id)
-                                      ->where('status', 'active')
-                                      ->with(['assignments' => function ($q) {
-                                          $q->select('student_id', 'lesson_id', 'score', 'status');
-                                      }])
-                                      ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
-
-            // ── Sidebar: Promotion Thresholds — how many active students at
-            // each level have completed all lessons assigned to them at that
-            // level (same rule as the individual student "Promotion" card).
-            $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
-            $promotionReadyCounts = ['Beginner' => 0, 'Intermediate' => 0, 'Advanced' => 0];
-            foreach ($sidebarStudents as $sbStudent) {
-                $sbLevel = $sbStudent->fsl_mastery_level;
-                if (!array_key_exists($sbLevel, $promotionReadyCounts)) {
-                    continue;
-                }
-                $readiness = $this->computeLessonReadiness(
-                    $sbStudent->student_id,
-                    $sbLevel,
-                    $promotionMap[$sbLevel] ?? null
-                );
-                if ($readiness['ready']) {
-                    $promotionReadyCounts[$sbLevel]++;
-                }
-            }
-
-            // ── Sidebar: published lessons belonging to this teacher ──
-            $teacherLessons = Lesson::where('teacher_id', $teacher->id)
-                                    ->where('status', 'published')
-                                    ->whereNull('deleted_at')
-                                    ->orderBy('module_order')
-                                    ->get(['lesson_id', 'title']);
         }
 
         return view('students', compact(
             'totalStudents', 'newThisWeek', 'students', 'availableSchoolYears',
-            'sidebarStudents', 'teacherLessons', 'promotionReadyCounts'
+            'sidebarStudents', 'teacherLessons', 'promotionReadyCounts',
+            'promotionReadyStudentIds', 'allReadyStudentIds', 'activePromotableLevel'
         ));
     }
 
@@ -144,11 +161,12 @@ class StudentsController extends Controller
     public function applyFilter(Request $request)
     {
         $validated = $request->validate([
-            'search'  => ['nullable', 'string', 'max:100'],
-            'level'   => ['nullable', 'string', 'in:Beginner,Intermediate,Advanced,Completed,'],
-            'program' => ['nullable', 'string', 'in:Regular,Inclusion,SPED,Self-contained,Transition,'],
-            'status'  => ['nullable', 'string', 'in:active,inactive,all,'],
-            'school_year' => ['nullable', 'string', 'max:50'],
+            'search'           => ['nullable', 'string', 'max:100'],
+            'level'            => ['nullable', 'string', 'in:Beginner,Intermediate,Advanced,Completed,'],
+            'program'          => ['nullable', 'string', 'in:Regular,Inclusion,SPED,Self-contained,Transition,'],
+            'status'           => ['nullable', 'string', 'in:active,inactive,all,'],
+            'school_year'      => ['nullable', 'string', 'max:50'],
+            'promotable_level' => ['nullable', 'string', 'in:Beginner,Intermediate,Advanced,all,'],
         ]);
 
         // Clear filter if user submitted an empty/reset form
@@ -156,6 +174,7 @@ class StudentsController extends Controller
             && ($validated['level'] ?? '') === ''
             && ($validated['program'] ?? '') === ''
             && ($validated['school_year'] ?? '') === ''
+            && ($validated['promotable_level'] ?? '') === ''
             && (($validated['status'] ?? 'active') === 'active')
         ) {
             session()->forget('students_filters');

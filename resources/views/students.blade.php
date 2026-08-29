@@ -172,6 +172,7 @@
                             if (!empty($v)) $hasActiveFilters = true;
                         }
                     }
+                    if (!empty($activePromotableLevel)) $hasActiveFilters = true;
                 @endphp
                 <div class="relative shrink-0 order-1 lg:order-none">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
@@ -237,6 +238,30 @@
                  swapped in place by JS on filter/search/pagination changes,
                  so the page never reloads. ══════════ --}}
             <div id="students-results">
+                @php
+                    $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
+                @endphp
+                @if(!empty($activePromotableLevel))
+                    <div class="mb-3.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50/70 to-blue-50 border border-blue-200/80 flex items-center justify-between flex-wrap gap-2 shadow-xs">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-7 h-7 rounded-xl bg-[#0d326b] text-white flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[16px]">filter_alt</span>
+                            </div>
+                            <div>
+                                <p class="text-[12px] font-bold text-[#0d326b] leading-tight">
+                                    Filtering Students Ready for Promotion:
+                                    <span class="font-extrabold text-[#1a6fd4]">{{ $activePromotableLevel }} → {{ $promotionMap[$activePromotableLevel] ?? '' }}</span>
+                                </p>
+                                <p class="text-[10px] text-slate-500 font-medium">Showing students who have completed all required lessons at this level.</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="clearPromoFilter()" class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-[#0d326b] bg-white px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 transition-all shadow-2xs cursor-pointer">
+                            <span class="material-symbols-outlined text-[14px]">close</span>
+                            <span>Clear Filter</span>
+                        </button>
+                    </div>
+                @endif
+
                 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <table class="w-full text-left border-collapse" style="table-layout:fixed" id="students-table">
                         <colgroup>
@@ -327,7 +352,15 @@
                                             <span class="material-symbols-outlined text-[11px]">{{ $levelMeta['icon'] }}</span>
                                             <span>{{ $lvl }}</span>
                                         </span>
-                                        @if($enoughXp && $promoteTo)
+                                        @php
+                                            $isPromotableReady = in_array($student->student_id, $allReadyStudentIds ?? []);
+                                        @endphp
+                                        @if($isPromotableReady && $promoteTo)
+                                            <span class="inline-flex items-center gap-1 text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full shadow-2xs">
+                                                <span class="material-symbols-outlined text-[12px] text-emerald-600">verified</span>
+                                                Ready for {{ $promoteTo }}
+                                            </span>
+                                        @elseif($enoughXp && $promoteTo)
                                             <span class="xp-eligible-chip">
                                                 <span class="material-symbols-outlined text-[9px]">arrow_upward</span>
                                                 Eligible for {{ $promoteTo }}
@@ -377,12 +410,21 @@
 
                                 {{-- Actions --}}
                                 <td class="py-4 px-3 md:px-5 text-right overflow-hidden">
-                                    <button class="view-student-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-[#0d326b] hover:bg-[#154188] text-white shadow-sm"
-                                        data-student-id="{{ $student->student_id }}"
-                                        title="View student details">
-                                        <span class="material-symbols-outlined icon-outline text-[15px]">person</span>
-                                        <span>View</span>
-                                    </button>
+                                    @if($isPromotableReady && $promoteTo)
+                                        <button class="view-student-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-200 cursor-pointer"
+                                            data-student-id="{{ $student->student_id }}"
+                                            title="Ready for promotion! Click to view and promote">
+                                            <span class="material-symbols-outlined text-[15px]">upgrade</span>
+                                            <span>Promote</span>
+                                        </button>
+                                    @else
+                                        <button class="view-student-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-[#0d326b] hover:bg-[#154188] text-white shadow-sm cursor-pointer"
+                                            data-student-id="{{ $student->student_id }}"
+                                            title="View student details">
+                                            <span class="material-symbols-outlined icon-outline text-[15px]">person</span>
+                                            <span>View</span>
+                                        </button>
+                                    @endif
                                 </td>
                             </tr>
                             @empty
@@ -390,11 +432,29 @@
                                 <td colspan="5">
                                     <div class="flex flex-col items-center justify-center py-16 text-center">
                                         <div class="w-16 h-16 rounded-2xl bg-[#e8eef8] flex items-center justify-center mb-4">
-                                            <span class="material-symbols-outlined text-[#0d326b] text-[32px]">group_off</span>
+                                            <span class="material-symbols-outlined text-[#0d326b] text-[32px]">
+                                                @if(!empty($activePromotableLevel)) school @else group_off @endif
+                                            </span>
                                         </div>
-                                        <p class="text-[16px] font-bold text-[#0d326b] mb-1">No students yet</p>
-                                        <p class="text-[13px] text-slate-400 font-medium mb-5">Add your first student to get started.</p>
-                                        <button onclick="document.getElementById('open-modal-btn').click()" class="bg-[#0d326b] hover:bg-[#154188] text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors">Add Student</button>
+                                        <p class="text-[16px] font-bold text-[#0d326b] mb-1">
+                                            @if(!empty($activePromotableLevel))
+                                                No students ready for {{ $activePromotableLevel }} → {{ $promotionMap[$activePromotableLevel] ?? '' }}
+                                            @else
+                                                No students yet
+                                            @endif
+                                        </p>
+                                        <p class="text-[13px] text-slate-400 font-medium mb-5">
+                                            @if(!empty($activePromotableLevel))
+                                                Students will appear here once they complete all assigned lessons at the {{ $activePromotableLevel }} level.
+                                            @else
+                                                Add your first student to get started.
+                                            @endif
+                                        </p>
+                                        @if(!empty($activePromotableLevel))
+                                            <button type="button" onclick="clearPromoFilter()" class="bg-[#0d326b] hover:bg-[#154188] text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors">Clear Promotion Filter</button>
+                                        @else
+                                            <button onclick="document.getElementById('open-modal-btn').click()" class="bg-[#0d326b] hover:bg-[#154188] text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors">Add Student</button>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -481,7 +541,7 @@
                     </div>
                 </div>
 
-                {{-- Legend with gradient bars --}}
+                {{-- Legend --}}
                 <div class="space-y-2.5">
                     @foreach([
                         ['label'=>'Beginner', 'pct'=>$begPct, 'cnt'=>$beginnerCnt, 'grad'=>'masteryGradBeginner'],
@@ -509,12 +569,17 @@
                 </div>
             </div>
 
-            {{-- Promotion Thresholds — how many active students at each level
-                 have completed all lessons assigned to them at that level
-                 (same rule as the individual student "Promotion" card). --}}
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Promotion Thresholds</p>
-                <p class="text-[9px] text-slate-400 font-medium mb-3">Based on lessons completed at each level</p>
+            {{-- Promotion Thresholds --}}
+            <div id="promo-thresholds-widget" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                <div class="flex items-center justify-between mb-1">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Promotion Thresholds</p>
+                    @if(!empty($activePromotableLevel))
+                        <button type="button" onclick="clearPromoFilter()" class="text-[10px] font-bold text-[#0d326b] hover:underline flex items-center gap-0.5 cursor-pointer">
+                            <span class="material-symbols-outlined text-[12px]">close</span>Clear
+                        </button>
+                    @endif
+                </div>
+                <p class="text-[9px] text-slate-400 font-medium mb-3">Click any box to view students ready for promotion</p>
                 <div class="space-y-3">
                     @php
                         $promoDisplay = [
@@ -528,15 +593,38 @@
                         $promoReadyCounts = $promotionReadyCounts ?? ['Beginner'=>0,'Intermediate'=>0,'Advanced'=>0];
                     @endphp
                     @foreach($promoDisplay as $ms)
-                    <div class="flex items-center justify-between p-3 rounded-xl border" style="background:{{ $ms['bg'] }};border-color:{{ $ms['border'] }}">
+                    @php
+                        $isActive = ($activePromotableLevel ?? '') === $ms['from'];
+                        $cnt = $promoReadyCounts[$ms['from']] ?? 0;
+                    @endphp
+                    <div role="button"
+                         tabindex="0"
+                         onclick="togglePromoFilter('{{ $ms['from'] }}')"
+                         class="promo-filter-box flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] select-none {{ $isActive ? 'ring-2 ring-[#0d326b] shadow-md border-[#0d326b]' : '' }}"
+                         style="background:{{ $ms['bg'] }}; border-color:{{ $isActive ? '#0d326b' : $ms['border'] }};"
+                         title="Click to {{ $isActive ? 'clear filter' : 'filter ' . $cnt . ' student(s) ready for ' . $ms['to'] }}">
                         <div class="flex items-center space-x-2">
-                            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style="background:{{ $ms['iconBg'] }}">→</span>
+                            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[11px] font-black shrink-0" style="background:{{ $ms['iconBg'] }}">
+                                @if($isActive)
+                                    <span class="material-symbols-outlined text-[14px]">check</span>
+                                @else
+                                    →
+                                @endif
+                            </span>
                             <div>
-                                <p class="text-[10px] font-bold" style="color:{{ $ms['text'] }}">{{ $ms['from'] }} → {{ $ms['to'] }}</p>
+                                <div class="flex items-center gap-1.5">
+                                    <p class="text-[10px] font-bold" style="color:{{ $ms['text'] }}">{{ $ms['from'] }} → {{ $ms['to'] }}</p>
+                                    @if($isActive)
+                                        <span class="px-1.5 py-0.2 text-[8px] font-black uppercase bg-[#0d326b] text-white rounded-full">Filtering</span>
+                                    @endif
+                                </div>
                                 <p class="text-[9px]" style="color:{{ $ms['iconBg'] }}">All assigned lessons completed</p>
                             </div>
                         </div>
-                        <span class="text-[12px] font-black" style="color:{{ $ms['text'] }}">{{ $promoReadyCounts[$ms['from']] ?? 0 }} ready</span>
+                        <div class="text-right">
+                            <span class="text-[12px] font-black block" style="color:{{ $ms['text'] }}">{{ $cnt }} ready</span>
+                            <span class="text-[8px] font-semibold opacity-70 block" style="color:{{ $ms['text'] }}">{{ $isActive ? 'Click to clear' : 'Click to filter' }}</span>
+                        </div>
                     </div>
                     @endforeach
                 </div>
@@ -1652,6 +1740,21 @@ async function runImport() {
 // immediately without re-binding listeners.
 let searchDebounceTimer = null;
 let _resultsAbortController = null;
+let currentPromotableLevel = '{{ $activePromotableLevel ?? '' }}';
+
+function togglePromoFilter(level) {
+    if (currentPromotableLevel === level) {
+        currentPromotableLevel = '';
+    } else {
+        currentPromotableLevel = level;
+    }
+    applyServerFilters({ promotable_level: currentPromotableLevel });
+}
+
+function clearPromoFilter() {
+    currentPromotableLevel = '';
+    applyServerFilters({ promotable_level: '' });
+}
 
 function setResultsLoading(isLoading) {
     const el = document.getElementById('students-results');
@@ -1664,7 +1767,7 @@ function updateClearButtonVisibility() {
     const program = document.getElementById('filter-program').value;
     const schoolYear = document.getElementById('filter-school-year').value;
     const status  = document.getElementById('filter-status').value;
-    const hasFilters = !!(search || level || program || schoolYear || (status && status !== 'active'));
+    const hasFilters = !!(search || level || program || schoolYear || currentPromotableLevel || (status && status !== 'active'));
     const wrap = document.getElementById('clear-filters-wrap');
     if (wrap) wrap.classList.toggle('hidden', !hasFilters);
 }
@@ -1695,6 +1798,13 @@ function fetchStudentsResults(url, fetchOptions) {
             } else {
                 setResultsLoading(false);
             }
+
+            const newPromoWidget = doc.getElementById('promo-thresholds-widget');
+            const oldPromoWidget = document.getElementById('promo-thresholds-widget');
+            if (newPromoWidget && oldPromoWidget) {
+                oldPromoWidget.replaceWith(newPromoWidget);
+            }
+
             updateClearButtonVisibility();
         })
         .catch(function (err) {
@@ -1711,6 +1821,11 @@ function applyServerFilters(overrides) {
     const programVal = overrides.hasOwnProperty('program') ? overrides.program : document.getElementById('filter-program').value;
     const schoolYearVal = overrides.hasOwnProperty('school_year') ? overrides.school_year : document.getElementById('filter-school-year').value;
     const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : document.getElementById('filter-status').value;
+    const promoVal   = overrides.hasOwnProperty('promotable_level') ? overrides.promotable_level : currentPromotableLevel;
+
+    if (overrides.hasOwnProperty('promotable_level')) {
+        currentPromotableLevel = overrides.promotable_level;
+    }
 
     const tokenInput = document.querySelector('#studentFilterForm input[name="_token"]');
     const token = tokenInput ? tokenInput.value : '';
@@ -1722,6 +1837,7 @@ function applyServerFilters(overrides) {
     body.set('program', programVal);
     body.set('school_year', schoolYearVal);
     body.set('status', statusVal);
+    body.set('promotable_level', promoVal);
 
     fetchStudentsResults("{{ route('students.filter') }}", {
         method: 'POST',
@@ -1764,7 +1880,8 @@ document.addEventListener('click', function (e) {
         document.getElementById('filter-program').value = '';
         document.getElementById('filter-school-year').value = '';
         document.getElementById('filter-status').value = 'active';
-        applyServerFilters({ search: '', level: '', program: '', school_year: '', status: 'active' });
+        currentPromotableLevel = '';
+        applyServerFilters({ search: '', level: '', program: '', school_year: '', status: 'active', promotable_level: '' });
         return;
     }
 
