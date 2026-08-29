@@ -188,77 +188,94 @@
 
         if (!mediaUrl) {
             contentEl.innerHTML = '<div class="error-msg">⚠️ No media URL provided</div>';
-        } else if (isVideo) {
-            var controlsAttr = hideControls ? '' : 'controls';
-            
-            contentEl.innerHTML = `
-                <video 
-                    id="videoPlayer"
-                    src="${mediaUrl}" 
-                    ${controlsAttr}
-                    autoplay="${autoplay ? 'true' : 'false'}"
-                    loop="true"
-                    muted="true"
-                    playsinline="true"
-                    preload="metadata"
-                    style="width:100%; height:100%; background:transparent;"
-                >
-                    Your browser does not support video playback.
-                </video>
-            `;
-            
-            var video = document.getElementById('videoPlayer');
-            if (video && autoplay) {
-                video.play().catch(function() {
-                    if (!hideControls) {
-                        var overlay = document.createElement('div');
-                        overlay.style.cssText = `
-                            position: absolute; inset: 0; 
-                            display: flex; 
-                            justify-content: center; 
-                            align-items: center; 
-                            background: rgba(0,0,0,0.2);
-                            cursor: pointer;
-                            z-index: 10;
-                            pointer-events: none;
-                        `;
-                        overlay.innerHTML = `
-                            <button style="
-                                background: rgba(255,255,255,0.2);
-                                border: 2px solid rgba(255,255,255,0.3);
-                                border-radius: 50%;
-                                width: 44px;
-                                height: 44px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 20px;
-                                color: white;
-                                cursor: pointer;
-                                backdrop-filter: blur(4px);
-                                pointer-events: auto;
-                            ">▶</button>
-                        `;
-                        overlay.onclick = function(e) {
-                            e.stopPropagation();
-                            video.play();
-                            overlay.remove();
-                        };
-                        contentEl.appendChild(overlay);
-                    }
-                });
-            }
         } else {
-            contentEl.innerHTML = `
-                <img 
-                    src="${mediaUrl}" 
-                    alt=""
-                    loading="lazy"
-                    style="width:100%; height:100%; background:transparent;"
-                    onerror="this.parentElement.innerHTML='<div class=\\'error-msg\\'>⚠️ Image failed to load</div>'"
-                />
-            `;
+            // ✅ Detect YouTube URLs and embed them as an iframe
+            var youtubeMatch = mediaUrl.match(/(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([-\w]{11})/);
+
+            if (youtubeMatch && youtubeMatch[1]) {
+                var videoId = youtubeMatch[1];
+                contentEl.style.padding = '0';
+                contentEl.innerHTML = `
+                    <iframe
+                        src="https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0&modestbranding=1"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen
+                        style="width:100%; height:100%; border:0; display:block;"
+                    ></iframe>
+                `;
+            } else if (isVideo) {
+                var controlsAttr = hideControls ? '' : 'controls';
+                
+                contentEl.innerHTML = `
+                    <video 
+                        id="videoPlayer"
+                        src="${mediaUrl}" 
+                        ${controlsAttr}
+                        autoplay="${autoplay ? 'true' : 'false'}"
+                        loop="true"
+                        muted="true"
+                        playsinline="true"
+                        preload="metadata"
+                        style="width:100%; height:100%; background:transparent;"
+                    >
+                        Your browser does not support video playback.
+                    </video>
+                `;
+                
+                var video = document.getElementById('videoPlayer');
+                if (video && autoplay) {
+                    video.play().catch(function() {
+                        if (!hideControls) {
+                            var overlay = document.createElement('div');
+                            overlay.style.cssText = `
+                                position: absolute; inset: 0; 
+                                display: flex; 
+                                justify-content: center; 
+                                align-items: center; 
+                                background: rgba(0,0,0,0.2);
+                                cursor: pointer;
+                                z-index: 10;
+                                pointer-events: none;
+                            `;
+                            overlay.innerHTML = `
+                                <button style="
+                                    background: rgba(255,255,255,0.2);
+                                    border: 2px solid rgba(255,255,255,0.3);
+                                    border-radius: 50%;
+                                    width: 44px;
+                                    height: 44px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 20px;
+                                    color: white;
+                                    cursor: pointer;
+                                    backdrop-filter: blur(4px);
+                                    pointer-events: auto;
+                                ">▶</button>
+                            `;
+                            overlay.onclick = function(e) {
+                                e.stopPropagation();
+                                video.play();
+                                overlay.remove();
+                            };
+                            contentEl.appendChild(overlay);
+                        }
+                    });
+                }
+            } else {
+                contentEl.innerHTML = `
+                    <img 
+                        src="${mediaUrl}" 
+                        alt=""
+                        loading="lazy"
+                        style="width:100%; height:100%; background:transparent;"
+                        onerror="this.parentElement.innerHTML='<div class=\\'error-msg\\'>⚠️ Image failed to load</div>'"
+                    />
+                `;
+            }
         }
-    </script>
+        </script>
 </body>
 </html>
