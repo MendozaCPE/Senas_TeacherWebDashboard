@@ -2358,12 +2358,19 @@ document.getElementById('sdc-unenroll-btn').addEventListener('click', () => {
 document.getElementById('sdc-promote-btn').addEventListener('click', () => {
     if (!_sdCurrent || !_sdCurrent.promote_to) return;
     const tgt   = _sdCurrent.promote_to;
-    const force = !_sdCurrent.lessons_ready;
     const total = _sdCurrent.lessons_total || 0;
     const done  = _sdCurrent.lessons_completed || 0;
-    const bodyMsg = force
-        ? 'This student has only completed ' + done + '/' + total + ' lessons. Are you sure you want to force promote ' + _sdCurrent.full_name + ' to ' + tgt + '?'
-        : 'Are you sure you want to promote ' + _sdCurrent.full_name + ' to ' + tgt + '? They have completed all ' + total + ' lessons.';
+    const force = !_sdCurrent.lessons_ready || total === 0;
+
+    let bodyMsg;
+    if (total === 0) {
+        bodyMsg = 'This student has no lessons assigned for this level yet. Are you sure you want to force promote ' + _sdCurrent.full_name + ' to ' + tgt + '?';
+    } else if (force) {
+        bodyMsg = 'This student has only completed ' + done + '/' + total + ' lessons. Are you sure you want to force promote ' + _sdCurrent.full_name + ' to ' + tgt + '?';
+    } else {
+        bodyMsg = 'Are you sure you want to promote ' + _sdCurrent.full_name + ' to ' + tgt + '? They have completed all ' + total + ' assigned lesson' + (total > 1 ? 's' : '') + '.';
+    }
+
     sdcConfirm({
         title: force ? 'Force Promote?' : 'Promote Student',
         body: bodyMsg,

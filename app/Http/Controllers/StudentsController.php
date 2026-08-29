@@ -827,7 +827,7 @@ if (!empty($examIdsOnly)) {
                     $query->where('status', 'published')
                         ->whereNull('deleted_at')
                         ->whereHas('module', function($q) use ($currentLevel) {
-                            $q->where('mastery_level', $currentLevel);
+                            $q->whereRaw('LOWER(mastery_level) = ?', [strtolower($currentLevel)]);
                         });
                 })
                 ->pluck('lesson_id')
@@ -835,10 +835,8 @@ if (!empty($examIdsOnly)) {
 
             $lessonsTotal = count($assignedLessonIds);
 
-            // If no assigned lessons, the student is "lesson-ready" (no lessons to complete)
-            if ($lessonsTotal === 0) {
-                $lessonsReady = true;
-            } else {
+            // A student is only ready if they have at least 1 assigned lesson and have completed all of them
+            if ($lessonsTotal > 0) {
                 // Get completed lesson IDs from student_lesson_progress
                 $completedIds = \App\Models\StudentLessonProgress::where('student_id', $studentId)
                     ->where('lesson_completed', true)
