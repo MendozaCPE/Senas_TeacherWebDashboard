@@ -5,7 +5,7 @@
 @section('content')
 <div class="max-w-4xl mx-auto py-6">
 
-    {{-- ── Page Header (Clean & modern feed style) ──────────────────────── --}}
+    {{-- ── Page Header ──────────────────────────────────────────────────── --}}
     <div class="bg-white rounded-3xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-4">
@@ -34,26 +34,26 @@
             <div class="flex items-center gap-2 flex-wrap">
                 <button id="page-mark-all-btn"
                         onclick="markAllRead()"
-                        class="flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-bold text-[#0d326b] bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200/50 rounded-xl transition-all shadow-sm {{ $unreadCount > 0 ? '' : 'hidden' }}">
-                    <span class="material-symbols-outlined text-[17px]">done_all</span>
+                        class="flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-bold text-[#0d326b] bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200/50 rounded-xl transition-all shadow-sm {{ $unreadCount > 0 ? '' : 'hidden' }}">
+                    <span class="material-symbols-outlined text-[16px]">done_all</span>
                     Mark all as read
                 </button>
                 <button onclick="confirmClearRead()"
-                        class="flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl transition-all shadow-sm"
+                        class="flex items-center gap-1.5 px-3.5 py-2 text-[12.5px] font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl transition-all shadow-sm"
                         title="Delete all read notifications">
-                    <span class="material-symbols-outlined text-[17px] text-slate-500">delete_sweep</span>
+                    <span class="material-symbols-outlined text-[16px] text-slate-500">delete_sweep</span>
                     Clear read
                 </button>
                 <a href="{{ route('settings') }}#notifications"
-                   class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-[#0d326b] hover:bg-slate-100 rounded-xl border border-slate-200/80 transition-all shadow-sm"
+                   class="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-[#0d326b] hover:bg-slate-100 rounded-xl border border-slate-200/80 transition-all shadow-sm"
                    title="Notification Settings">
-                    <span class="material-symbols-outlined text-[20px]">settings</span>
+                    <span class="material-symbols-outlined text-[18px]">settings</span>
                 </a>
             </div>
         </div>
 
         {{-- ── Filter Tabs ──────────────────────────────────────────────── --}}
-        <div class="flex items-center gap-1.5 mt-6 pt-5 border-t border-slate-100">
+        <div class="flex items-center gap-1.5 mt-5 pt-4 border-t border-slate-100">
             @php
                 $tabs = [
                     'all'    => ['label' => 'All', 'count' => $allCount ?? $notifications->total()],
@@ -63,12 +63,12 @@
             @endphp
             @foreach($tabs as $key => $tab)
             <a href="{{ route('notifications.index', ['filter' => $key]) }}"
-               class="px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-150 flex items-center gap-2
+               class="px-4 py-1.5 rounded-xl text-[12.5px] font-bold transition-all duration-150 flex items-center gap-2
                       {{ $filter === $key
                          ? 'bg-[#0d326b] text-white shadow-sm'
                          : 'text-slate-500 hover:text-[#0d326b] hover:bg-slate-100/80' }}">
                 <span>{{ $tab['label'] }}</span>
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold
+                <span class="px-2 py-0.5 rounded-full text-[10.5px] font-bold
                              {{ $filter === $key ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' }}">
                     {{ $tab['count'] }}
                 </span>
@@ -77,13 +77,13 @@
         </div>
     </div>
 
-    {{-- ── Notification Cards Feed ─────────────────────────────────────── --}}
+    {{-- ── Notification Cards Feed (Uncluttered, clean list) ─────────────── --}}
     @if($notifications->isEmpty())
     <div class="bg-white rounded-3xl border border-slate-100 shadow-sm py-20 text-center px-6">
         <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
             <span class="material-symbols-outlined text-slate-300 text-[32px]">notifications_off</span>
         </div>
-        <p class="text-[16px] font-bold text-slate-700">No notifications found</p>
+        <p class="text-[15px] font-bold text-slate-700">No notifications found</p>
         <p class="text-[13px] text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
             @if($filter === 'unread')
                 You have no unread notifications. You're completely up to date!
@@ -101,151 +101,119 @@
         @php
             $cfg = \App\Models\TeacherNotification::typeConfig($notif->type);
             $colorMap = [
-                'quiz_answered'           => ['bg' => '#EFF6FF', 'ring' => '#BFDBFE', 'text' => '#1D4ED8', 'label_bg' => 'bg-blue-100',   'label_text' => 'text-blue-700'],
-                'module_passed'           => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'],
-                'checkpoint_passed'       => ['bg' => '#FFFBEB', 'ring' => '#FDE68A', 'text' => '#B45309', 'label_bg' => 'bg-amber-100',  'label_text' => 'text-amber-700'],
-                'level_up'                => ['bg' => '#ECFDF5', 'ring' => '#A7F3D0', 'text' => '#047857', 'label_bg' => 'bg-emerald-100','label_text' => 'text-emerald-700'],
-                'mastery_promoted'        => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'],
-                'help_request'            => ['bg' => '#FEF2F2', 'ring' => '#FECACA', 'text' => '#B91C1C', 'label_bg' => 'bg-red-100',    'label_text' => 'text-red-700'],
-                'streak_milestone'        => ['bg' => '#FFF7ED', 'ring' => '#FED7AA', 'text' => '#C2410C', 'label_bg' => 'bg-orange-100', 'label_text' => 'text-orange-700'],
-                'module_completed'        => ['bg' => '#F0FDF4', 'ring' => '#BBF7D0', 'text' => '#15803D', 'label_bg' => 'bg-emerald-100', 'label_text' => 'text-emerald-700'],
-                'challenge_completed'     => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9', 'label_bg' => 'bg-purple-100', 'label_text' => 'text-purple-700'],
-                'fingerspelling_completed'=> ['bg' => '#F0FDFA', 'ring' => '#99F6E4', 'text' => '#0D9488', 'label_bg' => 'bg-teal-100',   'label_text' => 'text-teal-700'],
+                'quiz_answered'           => ['bg' => '#EFF6FF', 'ring' => '#BFDBFE', 'text' => '#1D4ED8'],
+                'module_passed'           => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9'],
+                'checkpoint_passed'       => ['bg' => '#FFFBEB', 'ring' => '#FDE68A', 'text' => '#B45309'],
+                'level_up'                => ['bg' => '#ECFDF5', 'ring' => '#A7F3D0', 'text' => '#047857'],
+                'mastery_promoted'        => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9'],
+                'help_request'            => ['bg' => '#FEF2F2', 'ring' => '#FECACA', 'text' => '#B91C1C'],
+                'streak_milestone'        => ['bg' => '#FFF7ED', 'ring' => '#FED7AA', 'text' => '#C2410C'],
+                'module_completed'        => ['bg' => '#F0FDF4', 'ring' => '#BBF7D0', 'text' => '#15803D'],
+                'challenge_completed'     => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9'],
+                'fingerspelling_completed'=> ['bg' => '#F0FDFA', 'ring' => '#99F6E4', 'text' => '#0D9488'],
             ];
-            $c = $colorMap[$notif->type] ?? ['bg' => '#F8FAFC', 'ring' => '#E2E8F0', 'text' => '#475569', 'label_bg' => 'bg-slate-100', 'label_text' => 'text-slate-600'];
+            $c = $colorMap[$notif->type] ?? ['bg' => '#F8FAFC', 'ring' => '#E2E8F0', 'text' => '#475569'];
 
             $studentId = $notif->data['student_id'] ?? ($notif->student?->student_id ?? null);
             $studentName = $notif->student_name ?? ($notif->student ? trim($notif->student->first_name . ' ' . $notif->student->last_name) : null);
-            $avatarUrl = $notif->student_avatar ?? ($notif->student ? $notif->student->avatarUrl() : null);
-            $fallbackUrl = $notif->student_fallback ?? "https://ui-avatars.com/api/?name=" . urlencode($studentName ?: 'Student') . "&background=0d326b&color=fff&size=128&bold=true&rounded=true";
+            $initials = $notif->student ? $notif->student->initials : \App\Http\Controllers\NotificationsController::extractInitials($studentName);
+            $fallbackUrl = $notif->student_fallback ?? ("https://ui-avatars.com/api/?name=" . urlencode($initials) . "&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45");
+            $avatarUrl = $notif->student_avatar ?? ($notif->student ? $notif->student->avatarUrl() : $fallbackUrl);
             $hasStudent = !empty($studentId) || !empty($studentName);
             $actionUrl = $notif->action_url ?? ($studentId ? '/reports?open_student=' . $studentId : null);
+
+            // Clean title of leading emojis for sleek typography
+            $cleanTitle = preg_replace('/^[\x{1F600}-\x{1F64F}\x{1F300}-\x{1F5FF}\x{1F680}-\x{1F6FF}\x{1F1E0}-\x{1F1FF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}\x{1F900}-\x{1F9FF}\x{1F018}-\x{1F270}\x{2388}\x{2B06}\x{2197}\x{FE0F}\s]+/u', '', $notif->title);
+            if (empty($cleanTitle)) {
+                $cleanTitle = $notif->title;
+            }
         @endphp
 
-        <div class="group relative px-6 py-4.5 transition-all duration-200 flex items-start gap-4 notif-card hover:bg-slate-50/80 {{ !$notif->is_read ? 'bg-blue-50/25' : '' }}"
+        <div class="group relative px-6 py-4 transition-all duration-150 flex items-center gap-4 notif-card hover:bg-slate-50/70 {{ !$notif->is_read ? 'bg-blue-50/20' : '' }}"
              data-id="{{ $notif->id }}"
              data-read="{{ $notif->is_read ? '1' : '0' }}">
 
-            {{-- Left: Student Profile Picture with type badge --}}
+            {{-- Left: Student Profile Picture with mini type badge --}}
             <div class="flex-shrink-0 relative">
                 @if($hasStudent)
-                    <div class="relative w-12 h-12">
-                        <img src="{{ $avatarUrl ?: $fallbackUrl }}"
+                    <div class="relative w-11 h-11">
+                        <img src="{{ $avatarUrl }}"
                              alt="{{ $studentName ?: 'Student' }}"
-                             class="w-12 h-12 rounded-full object-cover shadow-sm ring-2 ring-slate-100 bg-slate-100"
+                             class="w-11 h-11 rounded-full object-cover shadow-sm ring-2 ring-slate-100 bg-[#0d326b]"
                              onerror="this.onerror=null;this.src='{{ $fallbackUrl }}';">
-                        <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white shadow-sm ring-2 ring-white"
+                        <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white shadow-sm ring-1.5 ring-white"
                              style="background: {{ $c['text'] }};"
                              title="{{ ucfirst(str_replace('_', ' ', $notif->type)) }}">
-                            <span class="material-symbols-outlined text-[12px] leading-none">{{ $cfg['icon'] }}</span>
+                            <span class="material-symbols-outlined text-[10px] leading-none">{{ $cfg['icon'] }}</span>
                         </div>
                     </div>
                 @else
-                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm"
+                    <div class="w-11 h-11 rounded-full flex items-center justify-center shadow-sm"
                          style="background: {{ $c['bg'] }}; outline: 1.5px solid {{ $c['ring'] }};">
-                        <span class="material-symbols-outlined text-[22px]" style="color: {{ $c['text'] }};">{{ $cfg['icon'] }}</span>
+                        <span class="material-symbols-outlined text-[18px]" style="color: {{ $c['text'] }};">{{ $cfg['icon'] }}</span>
                     </div>
                 @endif
             </div>
 
-            {{-- Center: Title, Message, Breakdown, Time --}}
-            <div class="flex-1 min-w-0 pr-2">
-                <div class="flex items-baseline gap-2 flex-wrap">
-                    <p class="text-[14px] text-slate-800 leading-snug notif-title {{ !$notif->is_read ? 'font-bold' : 'font-semibold' }}">
-                        {{ $notif->title }}
-                    </p>
-                </div>
+            {{-- Center: Clean Text & Timestamp --}}
+            <div class="flex-1 min-w-0">
+                <p class="text-[13.5px] text-slate-800 leading-snug notif-title {{ !$notif->is_read ? 'font-bold' : 'font-medium' }}">
+                    {{ $cleanTitle }}
+                </p>
 
                 @if($notif->type === 'module_completed' && !empty($notif->data))
-                    <div class="mt-2 space-y-1.5">
+                    <div class="mt-1 flex items-center gap-2 flex-wrap text-[11.5px] text-slate-500">
                         @if(!empty($notif->data['letters_mastered']))
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[13px] text-emerald-600">verified</span>
-                                Mastered:
+                            <span class="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                                <span class="material-symbols-outlined text-[12px]">verified</span>
+                                Mastered: {{ implode(', ', $notif->data['letters_mastered']) }}
                             </span>
-                            @foreach($notif->data['letters_mastered'] as $letter)
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200/70">
-                                    {{ $letter }}
-                                </span>
-                            @endforeach
-                        </div>
                         @endif
-
                         @if(!empty($notif->data['needs_practice']))
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[13px] text-orange-600">priority_high</span>
-                                Needs practice:
+                            <span class="inline-flex items-center gap-1 font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200/50">
+                                <span class="material-symbols-outlined text-[12px]">priority_high</span>
+                                Practice: {{ implode(', ', $notif->data['needs_practice']) }}
                             </span>
-                            @foreach($notif->data['needs_practice'] as $letter)
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200/70">
-                                    {{ $letter }}
-                                </span>
-                            @endforeach
-                        </div>
-                        @endif
-
-                        @if(!empty($notif->data['hint_usage']))
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[13px] text-amber-600">lightbulb</span>
-                                Hints:
-                            </span>
-                            @foreach($notif->data['hint_usage'] as $hint)
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200/70">
-                                    {{ $hint['letter'] }} ×{{ $hint['count'] }}
-                                </span>
-                            @endforeach
-                        </div>
                         @endif
                     </div>
-                @else
-                    <p class="text-[13px] text-slate-500 mt-1 leading-relaxed line-clamp-2">{{ $notif->message }}</p>
+                @elseif(!empty($notif->message))
+                    <p class="text-[12.5px] text-slate-500 mt-0.5 leading-snug line-clamp-1">{{ $notif->message }}</p>
                 @endif
 
-                <div class="flex items-center gap-3 mt-2">
-                    <span class="text-[11.5px] font-semibold text-slate-400 flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[13px]">schedule</span>
-                        {{ $notif->created_at->diffForHumans() }}
-                    </span>
-                    <span class="text-slate-300">•</span>
-                    <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md {{ $c['label_bg'] }} {{ $c['label_text'] }}">
-                        {{ ucwords(str_replace('_', ' ', $notif->type)) }}
-                    </span>
-                </div>
+                <p class="text-[11.5px] text-slate-400 font-medium mt-1">
+                    {{ $notif->created_at->diffForHumans() }}
+                </p>
             </div>
 
-            {{-- Right: Actions & Unread Indicator Dot --}}
-            <div class="flex-shrink-0 flex items-center gap-3 self-center">
-                {{-- Action button --}}
+            {{-- Right: Clean Action & Hover Controls --}}
+            <div class="flex-shrink-0 flex items-center gap-2.5">
+                {{-- Actions revealed on hover --}}
+                <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    <button onclick="toggleNotifRead({{ $notif->id }})"
+                            class="toggle-read-btn p-1.5 text-slate-400 hover:text-[#0d326b] hover:bg-slate-100 rounded-lg transition-colors"
+                            title="{{ $notif->is_read ? 'Mark as unread' : 'Mark as read' }}">
+                        <span class="material-symbols-outlined text-[18px]">
+                            {{ $notif->is_read ? 'mark_email_unread' : 'mark_email_read' }}
+                        </span>
+                    </button>
+                    <button onclick="deleteNotif({{ $notif->id }})"
+                            class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete">
+                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                </div>
+
+                {{-- Primary Action Button --}}
                 @if($actionUrl)
                 <a href="{{ $actionUrl }}"
                    onclick="markOneRead({{ $notif->id }})"
-                   class="px-3.5 py-1.5 rounded-xl text-[12px] font-bold text-[#0d326b] bg-slate-100 hover:bg-[#0d326b] hover:text-white border border-slate-200/70 transition-all duration-150 flex items-center gap-1 shadow-sm">
-                    <span>View Student</span>
-                    <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                   class="px-3.5 py-1.5 rounded-xl text-[12px] font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-[#0d326b] border border-slate-200/90 shadow-sm transition-all duration-150 whitespace-nowrap">
+                    View
                 </a>
                 @endif
 
-                {{-- Toggle Read/Unread button --}}
-                <button onclick="toggleNotifRead({{ $notif->id }})"
-                        class="toggle-read-btn p-2 text-slate-400 hover:text-[#0d326b] hover:bg-slate-100 rounded-xl transition-all"
-                        title="{{ $notif->is_read ? 'Mark as unread' : 'Mark as read' }}">
-                    <span class="material-symbols-outlined text-[18px]">
-                        {{ $notif->is_read ? 'mark_email_unread' : 'mark_email_read' }}
-                    </span>
-                </button>
-
-                {{-- Delete button --}}
-                <button onclick="deleteNotif({{ $notif->id }})"
-                        class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                        title="Delete notification">
-                    <span class="material-symbols-outlined text-[18px]">delete</span>
-                </button>
-
-                {{-- Unread Dot Indicator (Orange dot matching Image 1) --}}
-                <div class="w-3 h-3 flex items-center justify-center">
+                {{-- Unread Dot Indicator (Orange dot) --}}
+                <div class="w-2.5 h-2.5 flex items-center justify-center">
                     <span class="unread-dot w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm {{ $notif->is_read ? 'hidden' : '' }}"></span>
                 </div>
             </div>
@@ -336,11 +304,11 @@ async function markOneRead(id, stayOnPage = true) {
 
     if (card) {
         card.setAttribute('data-read', '1');
-        card.classList.remove('bg-blue-50/25');
+        card.classList.remove('bg-blue-50/20');
         const dot = card.querySelector('.unread-dot');
         if (dot) dot.classList.add('hidden');
         const title = card.querySelector('.notif-title');
-        if (title) { title.classList.remove('font-bold'); title.classList.add('font-semibold'); }
+        if (title) { title.classList.remove('font-bold'); title.classList.add('font-medium'); }
         const btn = card.querySelector('.toggle-read-btn');
         if (btn) {
             btn.title = 'Mark as unread';
@@ -362,11 +330,11 @@ async function markOneUnread(id) {
 
     if (card) {
         card.setAttribute('data-read', '0');
-        card.classList.add('bg-blue-50/25');
+        card.classList.add('bg-blue-50/20');
         const dot = card.querySelector('.unread-dot');
         if (dot) dot.classList.remove('hidden');
         const title = card.querySelector('.notif-title');
-        if (title) { title.classList.add('font-bold'); title.classList.remove('font-semibold'); }
+        if (title) { title.classList.add('font-bold'); title.classList.remove('font-medium'); }
         const btn = card.querySelector('.toggle-read-btn');
         if (btn) {
             btn.title = 'Mark as read';
@@ -398,11 +366,11 @@ async function markAllRead() {
 
     document.querySelectorAll('.notif-card').forEach(card => {
         card.setAttribute('data-read', '1');
-        card.classList.remove('bg-blue-50/25');
+        card.classList.remove('bg-blue-50/20');
         const dot = card.querySelector('.unread-dot');
         if (dot) dot.classList.add('hidden');
         const title = card.querySelector('.notif-title');
-        if (title) { title.classList.remove('font-bold'); title.classList.add('font-semibold'); }
+        if (title) { title.classList.remove('font-bold'); title.classList.add('font-medium'); }
         const btn = card.querySelector('.toggle-read-btn');
         if (btn) {
             btn.title = 'Mark as unread';
@@ -491,7 +459,6 @@ function updateCounts() {
         else markAllBtn.classList.add('hidden');
     }
 
-    // Also update header topbar bell badge if present
     const bellBadge = document.getElementById('notif-badge');
     if (bellBadge) {
         if (unreadCards > 0) {

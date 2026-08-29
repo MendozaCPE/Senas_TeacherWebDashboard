@@ -510,9 +510,10 @@
                                                 @endif
                                             </div>
 
-                                            <div class="w-9 h-9 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[12px] font-bold shrink-0">
-                                                {{ $st['initials'] ?? 'ST' }}
-                                            </div>
+                                            <img src="{{ $st['avatar_url'] ?? ('https://ui-avatars.com/api/?name=' . urlencode($st['initials'] ?? 'ST') . '&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45') }}"
+                                                 alt="{{ $st['name'] }}"
+                                                 class="w-9 h-9 rounded-full object-cover shadow-sm bg-[#0d326b] shrink-0"
+                                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($st['initials'] ?? 'ST') }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
 
                                             <div class="min-w-0">
                                                 <h4 class="text-[13.5px] font-bold text-[#0d326b] truncate">{{ $st['name'] }}</h4>
@@ -1175,6 +1176,9 @@ function renderSignDetail(sign) {
             badgeIcon = '<span class="text-[12px] font-black">' + st.rank + '</span>';
         }
 
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(st.initials || 'ST')}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45`;
+        const avatarSrc = st.avatar_url || fallbackUrl;
+
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 transition hover:border-slate-200';
         row.innerHTML = `
@@ -1182,9 +1186,7 @@ function renderSignDetail(sign) {
                 <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${badgeBg}">
                     ${badgeIcon}
                 </div>
-                <div class="w-8 h-8 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[11px] font-bold shrink-0">
-                    ${st.initials || 'ST'}
-                </div>
+                <img src="${avatarSrc}" alt="${st.name}" class="w-8 h-8 rounded-full object-cover shadow-sm bg-[#0d326b] shrink-0" onerror="this.onerror=null;this.src='${fallbackUrl}';" />
                 <div class="min-w-0">
                     <h5 class="text-[13px] font-bold text-[#0d326b] truncate">${st.name}</h5>
                     <p class="text-[11px] text-slate-400 font-medium">

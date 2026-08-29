@@ -474,9 +474,12 @@ class AnalyticsController extends Controller
             ->orderBy('qa.created_at', 'asc')
             ->get();
 
+        $studentsModelMap = Student::whereIn('student_id', $studentIds)->get()->keyBy('student_id');
+
         $overallStudents = [];
         foreach ($allQuizAttempts->groupBy('student_id') as $sId => $attempts) {
             $studentInfo = $attempts->first();
+            $stModel = $studentsModelMap[$sId] ?? null;
             $quizGroups = $attempts->groupBy('quiz_id');
             
             // Overall class ranking uses overall score average across completed attempts in period
@@ -489,7 +492,8 @@ class AnalyticsController extends Controller
                 'best_score'          => $overallScore,
                 'total_attempts'      => $attempts->count(),
                 'quizzes_count'       => $quizGroups->count(),
-                'initials'            => strtoupper(substr($studentInfo->first_name, 0, 1) . substr($studentInfo->last_name, 0, 1)),
+                'initials'            => $stModel ? $stModel->initials : strtoupper(substr($studentInfo->first_name, 0, 1) . substr($studentInfo->last_name, 0, 1)),
+                'avatar_url'          => $stModel ? $stModel->avatarUrl() : null,
             ];
         }
 
@@ -573,13 +577,15 @@ class AnalyticsController extends Controller
                     }
                 }
 
+                $stModel = $studentsModelMap[$item->student_id] ?? null;
                 return [
                     'student_id'          => $item->student_id,
                     'name'                => trim($item->first_name . ' ' . $item->last_name),
                     'best_score'          => (float) $item->best_score,
                     'attempts_to_achieve' => $attemptsToAchieve,
                     'total_attempts'      => (int) $item->total_attempts,
-                    'initials'            => strtoupper(substr($item->first_name, 0, 1) . substr($item->last_name, 0, 1)),
+                    'initials'            => $stModel ? $stModel->initials : strtoupper(substr($item->first_name, 0, 1) . substr($item->last_name, 0, 1)),
+                    'avatar_url'          => $stModel ? $stModel->avatarUrl() : null,
                 ];
             })->all();
 
@@ -681,12 +687,14 @@ class AnalyticsController extends Controller
             $masteredStudents = $records->where('is_mastered', 1)->count();
 
             // Full list of students who attempted this sign, ranked by accuracy DESC, then success DESC
-            $rankedStudentsForSign = $records->map(function ($r) {
+            $rankedStudentsForSign = $records->map(function ($r) use ($studentsModelMap) {
                 $studentAcc = $r->attempts > 0 ? round(($r->successful_attempts / $r->attempts) * 100, 1) : 0;
+                $stModel = $studentsModelMap[$r->student_id] ?? null;
                 return [
                     'student_id'          => $r->student_id,
                     'name'                => trim($r->first_name . ' ' . $r->last_name),
-                    'initials'            => strtoupper(substr($r->first_name, 0, 1) . substr($r->last_name, 0, 1)),
+                    'initials'            => $stModel ? $stModel->initials : strtoupper(substr($r->first_name, 0, 1) . substr($r->last_name, 0, 1)),
+                    'avatar_url'          => $stModel ? $stModel->avatarUrl() : null,
                     'attempts'            => (int) $r->attempts,
                     'successful_attempts' => (int) $r->successful_attempts,
                     'wrong_attempts'      => (int) $r->wrong_attempts,

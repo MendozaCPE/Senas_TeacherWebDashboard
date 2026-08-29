@@ -272,7 +272,7 @@ class DashboardController extends Controller
             $allStudents = Student::where('teacher_id', $teacherId)
                 ->where('status', 'active')
                 ->orderBy('first_name')
-                ->get(['student_id', 'first_name', 'last_name', 'level', 'grade_level', 'fsl_mastery_level', 'total_xp']);
+                ->get();
 
             // ── Enrollment Trend per School Year (5 consecutive school years: June 8 to April 8) ──
             $now = Carbon::now();

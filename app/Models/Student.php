@@ -41,31 +41,46 @@ class Student extends Model
     }
 
     /**
-     * Get student avatar URL with reliable fallbacks.
+     * Get initials of first name and last name (e.g., CPE Mendoza -> CM).
+     */
+    public function getInitialsAttribute(): string
+    {
+        $first = mb_substr(trim($this->first_name ?? ''), 0, 1);
+        $last  = mb_substr(trim($this->last_name ?? ''), 0, 1);
+        $initials = strtoupper($first . $last);
+        return !empty($initials) ? $initials : 'S';
+    }
+
+    /**
+     * Get student avatar URL with first name and last name initials fallback.
      */
     public function avatarUrl(): string
     {
-        $fullName = trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
-        $fallback = "https://ui-avatars.com/api/?name=" . urlencode($fullName ?: 'Student') . "&background=0d326b&color=fff&size=128&bold=true&rounded=true";
-
-        if (!empty($this->profile_picture)) {
+        // If student has an actual uploaded custom file or remote photo
+        if (!empty($this->profile_picture) && !in_array($this->profile_picture, ['senya', 'boy', 'girl', 'catto', 'default'])) {
             if (str_starts_with($this->profile_picture, 'http://') || str_starts_with($this->profile_picture, 'https://')) {
                 return $this->profile_picture;
             }
-            if ($this->profile_picture === 'senya' && file_exists(public_path('images/senya_face.png'))) {
-                return asset('images/senya_face.png');
-            }
-            if (file_exists(public_path('storage/' . $this->profile_picture))) {
+            if (file_exists(public_path('storage/' . $this->profile_picture)) || file_exists(storage_path('app/public/' . $this->profile_picture))) {
                 return asset('storage/' . $this->profile_picture);
             }
+            if (file_exists(public_path($this->profile_picture))) {
+                return asset($this->profile_picture);
+            }
+            if (file_exists(public_path('images/' . $this->profile_picture))) {
+                return asset('images/' . $this->profile_picture);
+            }
+            return asset('storage/' . $this->profile_picture);
         }
 
-        // If student is linked to a user with profile_photo
+        // If student is linked to a user with custom profile_photo
         if ($this->user && !empty($this->user->profile_photo)) {
             return $this->user->avatarUrl();
         }
 
-        return $fallback;
+        // Fallback: Initials of first name and last name with dark navy #0d326b background and bold white text
+        $initials = $this->initials;
+        return "https://ui-avatars.com/api/?name=" . urlencode($initials) . "&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45";
     }
 
     // ─── AUTO-ASSIGN LESSONS + CHECKPOINT EXAMS ON STUDENT CREATION ────

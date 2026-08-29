@@ -49,9 +49,10 @@ class NotificationsController extends Controller
             $student         = $studentId ? ($students[$studentId] ?? null) : null;
             $studentName     = $student ? trim($student->first_name . ' ' . $student->last_name) : ($n->data['student_name'] ?? null);
             $studentAvatar   = $student ? $student->avatarUrl() : null;
-            $studentFallback = $studentName
-                ? 'https://ui-avatars.com/api/?name=' . urlencode($studentName) . '&background=0d326b&color=fff&size=128&bold=true&rounded=true'
-                : 'https://ui-avatars.com/api/?name=Student&background=0d326b&color=fff&size=128&bold=true&rounded=true';
+            
+            // Calculate first & last name initials
+            $initials = $student ? $student->initials : self::extractInitials($studentName);
+            $studentFallback = 'https://ui-avatars.com/api/?name=' . urlencode($initials) . '&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';
 
             $n->student          = $student;
             $n->student_name     = $studentName;
@@ -68,6 +69,24 @@ class NotificationsController extends Controller
         $readCount = TeacherNotification::where('teacher_id', $teacher->id)->where('is_read', true)->count();
 
         return view('notifications', compact('notifications', 'unreadCount', 'allCount', 'readCount', 'filter'));
+    }
+
+    /**
+     * Helper to extract initials from first and last name.
+     */
+    public static function extractInitials(?string $name): string
+    {
+        $name = trim($name ?? '');
+        if (empty($name)) {
+            return 'S';
+        }
+        $parts = preg_split('/\s+/', $name);
+        if (count($parts) >= 2) {
+            $first = mb_substr($parts[0], 0, 1);
+            $last  = mb_substr($parts[count($parts) - 1], 0, 1);
+            return strtoupper($first . $last);
+        }
+        return strtoupper(mb_substr($name, 0, min(2, mb_strlen($name))));
     }
 
     /**
@@ -117,9 +136,8 @@ class NotificationsController extends Controller
             $student         = $studentId ? ($students[$studentId] ?? null) : null;
             $studentName     = $student ? trim($student->first_name . ' ' . $student->last_name) : ($n->data['student_name'] ?? null);
             $studentAvatar   = $student ? $student->avatarUrl() : null;
-            $studentFallback = $studentName
-                ? 'https://ui-avatars.com/api/?name=' . urlencode($studentName) . '&background=0d326b&color=fff&size=128&bold=true&rounded=true'
-                : 'https://ui-avatars.com/api/?name=Student&background=0d326b&color=fff&size=128&bold=true&rounded=true';
+            $initials        = $student ? $student->initials : self::extractInitials($studentName);
+            $studentFallback = 'https://ui-avatars.com/api/?name=' . urlencode($initials) . '&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';
 
             return [
                 'id'               => $n->id,

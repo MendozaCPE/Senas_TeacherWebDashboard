@@ -700,9 +700,9 @@
                             <tr onclick="openStudentModal({{ $index }})">
                                 <td>
                                     <div class="flex items-center space-x-3">
-                                        <div class="w-9 h-9 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[11px] font-bold flex-shrink-0">
-                                            {{ $row['initials'] }}
-                                        </div>
+                                        <img src="{{ $row['avatar_url'] ?? '' }}" alt="{{ $row['studentName'] }}"
+                                             class="w-9 h-9 rounded-full object-cover shadow-sm bg-[#0d326b] flex-shrink-0"
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($row['initials']) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                                         <div>
                                             <p class="text-[13px] font-bold text-[#0d326b] leading-tight">{{ $row['studentName'] }}</p>
                                             <p class="text-[10px] text-slate-400 font-medium">{{ $row['gradeLevel'] }}</p>
@@ -918,7 +918,8 @@ document.addEventListener('keydown', function(e) {
 
         <div class="flex items-start justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/60">
             <div class="flex items-center space-x-4">
-                <div id="modalInitials" class="w-12 h-12 rounded-full bg-[#0d326b] text-white flex items-center justify-center text-[14px] font-bold flex-shrink-0"></div>
+                <img id="modalAvatar" src="" alt="" class="w-12 h-12 rounded-full object-cover shadow-sm bg-[#0d326b] flex-shrink-0"
+                     onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent(window._modalInitials || 'S') + '&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                 <div>
                     <p id="modalStudentName" class="text-[18px] font-bold text-[#0d326b] leading-tight"></p>
                     <p id="modalGradeLevel" class="text-[12px] text-slate-400 font-medium"></p>
@@ -1017,7 +1018,11 @@ document.addEventListener('keydown', function(e) {
         const data = studentReportData[index];
         if (!data) return;
 
-        document.getElementById('modalInitials').textContent = data.initials;
+        window._modalInitials = data.initials || 'S';
+        const modalAvatar = document.getElementById('modalAvatar');
+        if (modalAvatar) {
+            modalAvatar.src = data.avatar_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(data.initials || 'S') + '&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45');
+        }
         document.getElementById('modalStudentName').textContent = data.studentName;
         document.getElementById('modalGradeLevel').textContent = data.gradeLevel;
 

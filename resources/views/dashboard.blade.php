@@ -265,9 +265,10 @@
                                  style="border-top: 1px solid {{ $p['tab_bg'] }}">
                                 <div class="flex -space-x-1.5">
                                     @forelse($module->topStudents->take(3) as $s)
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($s->first_name . '+' . $s->last_name) }}&background={{ ltrim($p['bar_fill'], '#') }}&color=fff&rounded=true&size=60"
-                                         class="w-8 h-8 rounded-full border-2 border-white shadow-sm"
-                                         title="{{ $s->first_name }} {{ $s->last_name }}"/>
+                                    <img src="{{ $s->avatarUrl() }}"
+                                         class="w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover bg-[#0d326b]"
+                                         title="{{ $s->first_name }} {{ $s->last_name }}"
+                                         onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($s->initials) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                                     @empty
                                         <div class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold"
                                              style="background: {{ $p['tab_bg'] }}; color: {{ $p['sub'] }}">—</div>
@@ -303,9 +304,10 @@
                             <div class="flex items-center justify-between mt-3 pt-3 flex-shrink-0" style="border-top: 1px solid {{ $p['tab_bg'] }}">
                                 <div class="flex -space-x-1.5">
                                     @forelse($module->topStudents->take(3) as $s)
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($s->first_name . '+' . $s->last_name) }}&background={{ ltrim($p['bar_fill'], '#') }}&color=fff&rounded=true&size=60"
-                                         class="w-8 h-8 rounded-full border-2 border-white shadow-sm"
-                                         title="{{ $s->first_name }} {{ $s->last_name }}"/>
+                                    <img src="{{ $s->avatarUrl() }}"
+                                         class="w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover bg-[#0d326b]"
+                                         title="{{ $s->first_name }} {{ $s->last_name }}"
+                                         onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($s->initials) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                                     @empty
                                         <div class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold"
                                              style="background: {{ $p['tab_bg'] }}; color: {{ $p['sub'] }}">—</div>
@@ -462,9 +464,10 @@
                 <div class="flex items-center gap-4 px-7 py-4 hover:bg-slate-50 transition-colors">
                     <!-- Avatar -->
                     <div class="relative flex-shrink-0">
-                        <img src="https://ui-avatars.com/api/?name={{ urlencode($s->first_name . '+' . $s->last_name) }}&background=0d326b&color=fff&rounded=true&size=80"
-                             class="w-11 h-11 rounded-full shadow-sm"
-                             alt="{{ $s->first_name }}"/>
+                        <img src="{{ $s->avatarUrl() }}"
+                             class="w-11 h-11 rounded-full shadow-sm object-cover bg-[#0d326b]"
+                             alt="{{ $s->first_name }}"
+                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($s->initials) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                         <!-- Level badge -->
                         <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#0d326b] border-2 border-white flex items-center justify-center">
                             <span class="text-[8px] font-black text-white leading-none">{{ $level }}</span>
@@ -771,8 +774,10 @@
                         else { $badge = ['label' => 'Needs Help', 'bg' => 'bg-[#eff6ff]', 'text' => 'text-[#1e4b8f]', 'bar' => 'linear-gradient(90deg,#dbeafe,#93c5fd)']; }
                     @endphp
                     <div class="flex items-center gap-3">
-                        <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name . ' ' . $student->last_name) }}&background=0d326b&color=fff&rounded=true"
-                             class="w-9 h-9 rounded-full flex-shrink-0 shadow-sm"/>
+                        <img src="{{ $student->avatarUrl() }}"
+                             class="w-9 h-9 rounded-full flex-shrink-0 shadow-sm object-cover bg-[#0d326b]"
+                             alt="{{ $student->first_name }}"
+                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($student->initials) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1.5 gap-2">
                                 <span class="text-[13px] font-bold text-slate-700 truncate">{{ $student->first_name }}</span>

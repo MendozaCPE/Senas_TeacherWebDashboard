@@ -199,14 +199,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const sid = n.student_id || data.student_id;
         const dest = n.action_url || (sid ? `/reports?open_student=${sid}` : '/notifications');
         const sName = n.student_name || 'Student';
-        const fallback = n.student_fallback || `https://ui-avatars.com/api/?name=${encodeURIComponent(sName)}&background=0d326b&color=fff&size=128&bold=true&rounded=true`;
+        const parts = sName.trim().split(/\s+/);
+        const initials = (parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]) : sName.substring(0, 2)).toUpperCase();
+        const fallback = n.student_fallback || `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45`;
         const avatarSrc = n.student_avatar || fallback;
 
         const avatarHtml = (sid || n.student_name) ? `
             <div class="relative flex-shrink-0 w-10 h-10 mt-0.5">
                 <img src="${avatarSrc}"
                      alt="${sName}"
-                     class="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-slate-100 bg-slate-100"
+                     class="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-slate-100 bg-[#0d326b]"
                      onerror="this.onerror=null;this.src='${fallback}';">
                 <div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white shadow-sm ring-1 ring-white"
                      style="background:${c.fg};">

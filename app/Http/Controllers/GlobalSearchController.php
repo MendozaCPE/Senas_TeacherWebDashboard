@@ -45,7 +45,7 @@ class GlobalSearchController extends Controller
 
         $formattedStudents = $students->map(function ($s) {
             $fullName = trim($s->first_name . ' ' . $s->last_name);
-            $avatar   = "https://ui-avatars.com/api/?name=" . urlencode($fullName) . "&background=0d326b&color=fff&rounded=true&size=64";
+            $avatar   = "https://ui-avatars.com/api/?name=" . urlencode($s->initials) . "&background=0d326b&color=fff&rounded=true&size=64&bold=true&font-size=0.45";
             $subtitle = "LRN: " . ($s->lrn ?? 'N/A');
             if ($s->grade_level) $subtitle .= " • " . $s->grade_level;
             if ($s->school_year) $subtitle .= " ({$s->school_year})";

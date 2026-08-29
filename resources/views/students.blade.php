@@ -331,9 +331,10 @@
                                 {{-- Student Profile --}}
                                 <td class="py-4 px-3 md:px-5 overflow-hidden">
                                     <div class="flex items-center gap-3 min-w-0">
-                                        <div class="w-10 h-10 rounded-full shadow-sm shrink-0 overflow-hidden ring-2 ring-slate-100">
-                                            <img src="https://ui-avatars.com/api/?name={{ urlencode($student->first_name.'+'.$student->last_name) }}&background=0d326b&color=fff&rounded=true&size=60" class="w-9 h-9 rounded-full ring-2 ring-slate-100" />
-                                        </div>
+                                        <img src="{{ $student->avatarUrl() }}"
+                                             alt="{{ $student->first_name }} {{ $student->last_name }}"
+                                             class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm ring-2 ring-slate-100 bg-[#0d326b]"
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($student->initials) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                                         <div class="min-w-0 flex-1">
                                             <p class="text-[13px] font-bold text-[#0d326b] truncate" title="{{ $student->first_name }} {{ $student->last_name }}">{{ $student->first_name }} {{ $student->last_name }}</p>
                                             <p class="text-[10px] text-slate-400 font-medium mt-0.5 truncate">LRN: {{ $student->lrn ?? 'N/A' }}@if($student->grade_level) &middot; {{ $student->grade_level }}@endif</p>
@@ -653,7 +654,10 @@
                     @endphp
                     <div class="flex items-center space-x-3 p-2.5 rounded-xl {{ $rc['bg'] }}">
                         <div class="relative shrink-0">
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($ts->first_name.'+'.$ts->last_name) }}&background=0d326b&color=fff&rounded=true&size=80" class="w-10 h-10 rounded-full" />
+                            <img src="{{ $ts->avatarUrl() }}"
+                                 alt="{{ $ts->first_name }} {{ $ts->last_name }}"
+                                 class="w-10 h-10 rounded-full object-cover shadow-sm bg-[#0d326b]"
+                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($ts->initials) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
                             <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full {{ $rc['badge'] }} text-[8px] font-black flex items-center justify-center">{{ $idx+1 }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
