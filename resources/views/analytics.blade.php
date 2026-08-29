@@ -471,12 +471,37 @@
                         </p>
                     </div>
 
-                    {{-- Lesson Selector Dropdown --}}
+                    {{-- Lesson / Checkpoint Exam Selector Dropdown --}}
                     <div class="filter-wrap shrink-0">
-                        <select id="leaderboardLessonSelector" class="filter-select max-w-[260px]">
-                            @foreach($availableLessonsList as $lItem)
-                                <option value="{{ $lItem['id'] }}">{{ $lItem['title'] }}</option>
-                            @endforeach
+                        <select id="leaderboardLessonSelector" class="filter-select max-w-[280px]">
+                            @php
+                                $hasGroups = collect($availableLessonsList)->contains(fn($item) => !empty($item['group']));
+                            @endphp
+                            @if($hasGroups)
+                                <option value="all">All Lessons (Overall Class)</option>
+                                @php
+                                    $lessonGroupItems = collect($availableLessonsList)->where('group', 'Lessons');
+                                    $examGroupItems = collect($availableLessonsList)->where('group', 'Checkpoint Exams');
+                                @endphp
+                                @if($lessonGroupItems->isNotEmpty())
+                                    <optgroup label="Lessons">
+                                        @foreach($lessonGroupItems as $lItem)
+                                            <option value="{{ $lItem['id'] }}">{{ $lItem['title'] }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                                @if($examGroupItems->isNotEmpty())
+                                    <optgroup label="Checkpoint Exams">
+                                        @foreach($examGroupItems as $eItem)
+                                            <option value="{{ $eItem['id'] }}">{{ $eItem['title'] }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                            @else
+                                @foreach($availableLessonsList as $lItem)
+                                    <option value="{{ $lItem['id'] }}">{{ $lItem['title'] }}</option>
+                                @endforeach
+                            @endif
                         </select>
                         <span class="material-symbols-outlined">expand_more</span>
                     </div>
@@ -489,7 +514,13 @@
                             @if(empty($lData['rankings']) || count($lData['rankings']) === 0)
                                 <div class="text-center py-12 text-slate-400">
                                     <span class="material-symbols-outlined text-[36px] text-slate-300 block mb-1">sentiment_dissatisfied</span>
-                                    <p class="text-[13px] font-semibold">No quiz attempts recorded for this lesson yet.</p>
+                                    <p class="text-[13px] font-semibold">
+                                        @if(!empty($lData['is_exam']))
+                                            No student attempts recorded for this checkpoint exam yet.
+                                        @else
+                                            No quiz attempts recorded for this lesson yet.
+                                        @endif
+                                    </p>
                                 </div>
                             @else
                                 @foreach($lData['rankings'] as $st)
@@ -1154,6 +1185,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (selectedLessonId === 'all') {
                 if (modeSubtitle) modeSubtitle.textContent = 'Overall class score average across completed quizzes';
+            } else if (selectedLessonId.startsWith('exam_')) {
+                if (modeSubtitle) modeSubtitle.textContent = 'Ranked by highest checkpoint exam score in fewest attempts';
             } else {
                 if (modeSubtitle) modeSubtitle.textContent = 'Ranked by highest score in fewest attempts';
             }

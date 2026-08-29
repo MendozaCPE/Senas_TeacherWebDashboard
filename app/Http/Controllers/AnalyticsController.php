@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lesson;
 use App\Models\Student;
 use App\Models\StudentLessonProgress;
+use App\Models\CheckpointExam;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -510,7 +511,7 @@ class AnalyticsController extends Controller
         }
         unset($st);
 
-        // ── 2. PER-LESSON LEADERBOARDS (Filtered by period) ──
+        // ── 2. PER-LESSON & CHECKPOINT EXAM LEADERBOARDS (Filtered by period) ──
         $publishedLessons = Lesson::where('teacher_id', $teacherId)
             ->where('status', 'published')
             ->whereNull('deleted_at')
@@ -530,7 +531,7 @@ class AnalyticsController extends Controller
         ];
 
         $availableLessonsList = [
-            ['id' => 'all', 'title' => 'All Lessons (Overall Class)'],
+            ['id' => 'all', 'title' => 'All Lessons (Overall Class)', 'group' => 'Overall', 'type' => 'overall'],
         ];
 
         foreach ($publishedLessons as $lesson) {
@@ -541,6 +542,8 @@ class AnalyticsController extends Controller
             $availableLessonsList[] = [
                 'id'    => (string) $lesson->lesson_id,
                 'title' => $lesson->title,
+                'group' => 'Lessons',
+                'type'  => 'lesson',
             ];
 
             $lessonAttempts = DB::table('quiz_attempts as qa')
@@ -559,7 +562,7 @@ class AnalyticsController extends Controller
                 ->groupBy('s.student_id', 's.first_name', 's.last_name')
                 ->get();
 
-            $lessonRankings = $lessonAttempts->map(function ($item) use ($lesson, $startDate, $endDate) {
+            $lessonRankings = $lessonAttempts->map(function ($item) use ($lesson, $startDate, $endDate, $studentsModelMap) {
                 // Find attempt number where they achieved their best score
                 $allStudentAttempts = DB::table('quiz_attempts')
                     ->where('student_id', $item->student_id)
@@ -609,8 +612,112 @@ class AnalyticsController extends Controller
                 'lesson_id'    => $lesson->lesson_id,
                 'title'        => $lesson->title,
                 'is_overall'   => false,
+                'is_exam'      => false,
                 'total_ranked' => count($lessonRankings),
                 'rankings'     => $lessonRankings,
+            ];
+        }
+
+        // Checkpoint Exams Leaderboards
+        $publishedCheckpointExams = CheckpointExam::where('teacher_id', $teacherId)
+            ->where('status', 'published')
+            ->with(['module'])
+            ->orderBy('module_id')
+            ->orderBy('title')
+            ->get();
+
+        foreach ($publishedCheckpointExams as $exam) {
+            $examKey = 'exam_' . $exam->exam_id;
+            $displayTitle = $exam->title;
+
+            $availableLessonsList[] = [
+                'id'    => $examKey,
+                'title' => $displayTitle,
+                'group' => 'Checkpoint Exams',
+                'type'  => 'checkpoint_exam',
+            ];
+
+            $examAttempts = DB::table('checkpoint_exam_attempts as cea')
+                ->join('students as s', 'cea.student_id', '=', 's.student_id')
+                ->where('cea.exam_id', $exam->exam_id)
+                ->whereIn('cea.student_id', $studentIds)
+                ->whereIn('cea.status', ['completed', 'failed'])
+                ->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('cea.completed_at', [$startDate, $endDate])
+                      ->orWhere(function ($q2) use ($startDate, $endDate) {
+                          $q2->whereNull('cea.completed_at')
+                             ->whereBetween('cea.created_at', [$startDate, $endDate]);
+                      });
+                })
+                ->select(
+                    's.student_id',
+                    's.first_name',
+                    's.last_name',
+                    DB::raw('MAX(cea.percentage) as best_score'),
+                    DB::raw('COUNT(cea.attempt_id) as total_attempts')
+                )
+                ->groupBy('s.student_id', 's.first_name', 's.last_name')
+                ->get();
+
+            $examRankings = $examAttempts->map(function ($item) use ($exam, $startDate, $endDate, $studentsModelMap) {
+                // Find attempt number where they achieved their best score
+                $allStudentAttempts = DB::table('checkpoint_exam_attempts')
+                    ->where('student_id', $item->student_id)
+                    ->where('exam_id', $exam->exam_id)
+                    ->whereIn('status', ['completed', 'failed'])
+                    ->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('completed_at', [$startDate, $endDate])
+                          ->orWhere(function ($q2) use ($startDate, $endDate) {
+                              $q2->whereNull('completed_at')
+                                 ->whereBetween('created_at', [$startDate, $endDate]);
+                          });
+                    })
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                $attemptsToAchieve = 1;
+                foreach ($allStudentAttempts as $idx => $att) {
+                    if ($att->percentage == $item->best_score) {
+                        $attemptsToAchieve = $idx + 1;
+                        break;
+                    }
+                }
+
+                $stModel = $studentsModelMap[$item->student_id] ?? null;
+                return [
+                    'student_id'          => $item->student_id,
+                    'name'                => trim($item->first_name . ' ' . $item->last_name),
+                    'best_score'          => (float) $item->best_score,
+                    'attempts_to_achieve' => $attemptsToAchieve,
+                    'total_attempts'      => (int) $item->total_attempts,
+                    'initials'            => $stModel ? $stModel->initials : strtoupper(substr($item->first_name, 0, 1) . substr($item->last_name, 0, 1)),
+                    'avatar_url'          => $stModel ? $stModel->avatarUrl() : null,
+                ];
+            })->all();
+
+            // Ranking order: best_score DESC, attempts_to_achieve ASC, total_attempts ASC
+            usort($examRankings, function ($a, $b) {
+                if ($a['best_score'] != $b['best_score']) {
+                    return $b['best_score'] <=> $a['best_score'];
+                }
+                if ($a['attempts_to_achieve'] != $b['attempts_to_achieve']) {
+                    return $a['attempts_to_achieve'] <=> $b['attempts_to_achieve'];
+                }
+                return $a['total_attempts'] <=> $b['total_attempts'];
+            });
+
+            foreach ($examRankings as $idx => &$er) {
+                $er['rank'] = $idx + 1;
+            }
+            unset($er);
+
+            $lessonLeaderboards[$examKey] = [
+                'lesson_id'    => $examKey,
+                'title'        => $displayTitle,
+                'is_overall'   => false,
+                'is_exam'      => true,
+                'total_ranked' => count($examRankings),
+                'rankings'     => $examRankings,
             ];
         }
 
