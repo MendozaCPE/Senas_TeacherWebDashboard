@@ -349,26 +349,8 @@
 
         @php
             /* ---------------------------------------------------------
-             | Data prep for the redesigned Mastery + Lesson Progress
-             | + Student Performance widgets below. Reuses existing
-             | controller variables; swap in real series data when
-             | available.
+             | Data prep for Lesson Progress donut + widgets.
              ---------------------------------------------------------- */
-
-            // 7-day trend line — reuse the accuracy sparkline series as the
-            // "mastery over time" trend, with date labels for the last 7 days.
-            $masterySeries = $sparklineAccuracy ?: array_fill(0, 7, 0);
-            if (count($masterySeries) < 7) {
-                $masterySeries = array_pad($masterySeries, 7, end($masterySeries) ?: 0);
-            }
-            $masterySeries = array_slice($masterySeries, -7);
-
-            $masteryDayLabels = [];
-            for ($i = 6; $i >= 0; $i--) {
-                $masteryDayLabels[] = $today->copy()->subDays($i)->format('M j');
-            }
-
-            $masteryCurrentValue = (int) round(end($masterySeries));
 
             // Lesson Progress donut — derive Completed / In Progress / Not Started
             // counts from the lesson mastery collection.
@@ -534,34 +516,68 @@
     <!-- Bottom Row: Mastery / Lesson Progress / Student Performance (full width, ignores sidebar column) -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-4">
 
-            <!-- Student Mastery Overview (line/area chart) -->
-            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden">
-                <div class="absolute -top-8 -right-8 w-32 h-32 bg-indigo-50 rounded-full opacity-60"></div>
+            <!-- Enrollment Trend per School Year (5 Years) -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden flex flex-col justify-between">
+                <div class="absolute -top-8 -right-8 w-32 h-32 bg-indigo-50/70 rounded-full pointer-events-none"></div>
 
-                <div class="flex items-center justify-between mb-6 relative z-10">
-                    <h3 class="text-base font-bold text-[#0d326b]">Student Mastery Overview</h3>
+                <div class="flex items-start justify-between mb-5 relative z-10">
+                    <div>
+                        <h3 class="text-base font-bold text-[#0d326b]">Enrollment Trend</h3>
+                        <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Per School Year (June 8 – April 8)</p>
+                    </div>
+                    @php
+                        $trendData = $enrollmentTrend ?? [];
+                        $currentSyData = end($trendData) ?: ['school_year' => '2026-2027', 'count' => 0];
+                        $totalEnrolledInTrend = array_sum(array_column($trendData, 'count'));
+                    @endphp
+                    <div class="bg-[#eff6ff] border border-blue-100 rounded-2xl px-3 py-1.5 flex items-center gap-2 shadow-xs">
+                        <span class="w-2 h-2 rounded-full bg-[#1a6fd4]"></span>
+                        <div class="text-right">
+                            <p class="text-[12px] font-black text-[#0d326b] leading-tight">{{ $currentSyData['count'] }} <span class="text-[10px] font-bold text-slate-500">Enrolled</span></p>
+                            <p class="text-[9px] font-bold text-slate-400 leading-none">S.Y. {{ $currentSyData['school_year'] }}</p>
+                        </div>
+                    </div>
                 </div>
 
-                @if(array_sum($masterySeries) === 0 && $lessonMastery->isEmpty())
-                    <div class="text-center text-sm text-slate-400 py-12 italic relative z-10">No record</div>
+                @if(empty($trendData) || $totalEnrolledInTrend === 0)
+                    <div class="text-center text-sm text-slate-400 py-12 italic relative z-10">No enrollment records found</div>
                 @else
                 @php
-                    $chartW = 320; $chartH = 180;
-                    $padL = 34; $padR = 12; $padT = 32; $padB = 26;
+                    $chartW = 340; $chartH = 185;
+                    $padL = 26; $padR = 24; $padT = 24; $padB = 30;
                     $plotW = $chartW - $padL - $padR;
                     $plotH = $chartH - $padT - $padB;
-                    $maxVal = 100; $minVal = 0;
-                    $n = count($masterySeries);
+                    
+                    $counts = array_column($trendData, 'count');
+                    $rawMax = max($counts);
+                    if ($rawMax <= 4) {
+                        $maxVal = 4;
+                        $ticks = [0, 1, 2, 3, 4];
+                    } elseif ($rawMax <= 8) {
+                        $maxVal = 8;
+                        $ticks = [0, 2, 4, 6, 8];
+                    } elseif ($rawMax <= 12) {
+                        $maxVal = 12;
+                        $ticks = [0, 3, 6, 9, 12];
+                    } elseif ($rawMax <= 20) {
+                        $maxVal = 20;
+                        $ticks = [0, 5, 10, 15, 20];
+                    } else {
+                        $step = (int) ceil($rawMax / 4);
+                        $maxVal = $step * 4;
+                        $ticks = range(0, $maxVal, $step);
+                    }
+
+                    $n = count($trendData);
                     $pts = [];
-                    foreach ($masterySeries as $i => $v) {
+                    foreach ($trendData as $i => $item) {
+                        $val = $item['count'];
                         $x = $padL + ($n > 1 ? ($i / ($n - 1)) * $plotW : $plotW / 2);
-                        $y = $padT + $plotH - (($v - $minVal) / max($maxVal - $minVal, 1)) * $plotH;
+                        $y = $padT + $plotH - ($maxVal > 0 ? ($val / $maxVal) * $plotH : 0);
                         $pts[] = [round($x, 1), round($y, 1)];
                     }
-                    $lastPt = end($pts);
 
-                    // Build a soft, curvy cubic-bezier path through the points
-                    // (horizontal-tangent smoothing) instead of a straight polyline.
+                    // Build smooth cubic-bezier curve
                     $curvePath = '';
                     $areaPath  = '';
                     if (count($pts) > 0) {
@@ -578,54 +594,70 @@
                     }
                 @endphp
                 <div class="relative z-10">
-                    <div id="masteryTooltip" class="pointer-events-none absolute z-20 opacity-0 transition-opacity duration-150 -translate-x-1/2 -translate-y-full bg-[#0d326b] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
-                        <span id="masteryTooltipLabel"></span>: <span id="masteryTooltipValue"></span>%
+                    <div id="enrollmentTooltip" class="pointer-events-none absolute z-30 opacity-0 transition-all duration-150 -translate-x-1/2 -translate-y-full bg-[#0d326b] text-white text-[11px] rounded-xl shadow-xl px-3 py-2 whitespace-nowrap border border-blue-400/20 mb-2">
+                        <div class="font-extrabold text-white text-[11px] tracking-wide" id="enrollmentTooltipSy">S.Y. 2026-2027</div>
+                        <div class="text-[9.5px] text-blue-200" id="enrollmentTooltipRange">June 8, 2026 – April 8, 2027</div>
+                        <div class="text-[12px] font-black text-amber-300 mt-1 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                            <span id="enrollmentTooltipCount">10</span> <span class="font-bold text-white text-[10px]">Students Enrolled</span>
+                        </div>
                         <div class="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45"></div>
                     </div>
-                    <svg id="masteryChartSvg" viewBox="0 0 {{ $chartW }} {{ $chartH }}" class="w-full h-[180px]" preserveAspectRatio="none">
+                    <svg id="enrollmentChartSvg" viewBox="0 0 {{ $chartW }} {{ $chartH }}" class="w-full h-[185px]" preserveAspectRatio="none">
                         <defs>
-                            <linearGradient id="masteryAreaFill" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#1a6fd4" stop-opacity="0.25"/>
+                            <linearGradient id="enrollmentAreaFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#1a6fd4" stop-opacity="0.28"/>
+                                <stop offset="85%" stop-color="#1a6fd4" stop-opacity="0.03"/>
                                 <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0"/>
                             </linearGradient>
-                            <linearGradient id="masteryLineStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stop-color="#1e4b8f"/>
+                            <linearGradient id="enrollmentLineStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#3b82f6"/>
+                                <stop offset="50%" stop-color="#1a6fd4"/>
                                 <stop offset="100%" stop-color="#0d326b"/>
                             </linearGradient>
                         </defs>
 
                         <!-- Gridlines + Y labels -->
-                        @foreach([0, 25, 50, 75, 100] as $gv)
-                        @php $gy = round($padT + $plotH - ($gv / 100) * $plotH, 1); @endphp
+                        @foreach($ticks as $gv)
+                        @php $gy = round($padT + $plotH - ($gv / $maxVal) * $plotH, 1); @endphp
                         <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $padL + $plotW }}" y2="{{ $gy }}" stroke="#f1f5f9" stroke-width="1"/>
-                        <text x="0" y="{{ $gy + 4 }}" font-size="10" fill="#94a3b8" font-weight="600">{{ $gv }}%</text>
+                        <text x="2" y="{{ $gy + 3.5 }}" font-size="9.5" fill="#94a3b8" font-weight="600">{{ $gv }}</text>
                         @endforeach
 
                         <!-- Area fill (smooth) -->
-                        <path d="{{ $areaPath }}" fill="url(#masteryAreaFill)"/>
+                        <path d="{{ $areaPath }}" fill="url(#enrollmentAreaFill)"/>
 
                         <!-- Line (smooth curve) -->
-                        <path d="{{ $curvePath }}" fill="none" stroke="url(#masteryLineStroke)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="{{ $curvePath }}" fill="none" stroke="url(#enrollmentLineStroke)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 
                         <!-- Points -->
                         @foreach($pts as $i => $p)
-                        <circle cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="{{ $i === count($pts) - 1 ? 5 : 3.5 }}" fill="{{ $i === count($pts) - 1 ? '#1a6fd4' : '#0d326b' }}" stroke="white" stroke-width="2"/>
+                        @php
+                            $isLast = ($i === count($pts) - 1);
+                            $val = $trendData[$i]['count'];
+                        @endphp
+                        <!-- Outer pulse ring for current year point -->
+                        @if($isLast)
+                        <circle cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="8" fill="#1a6fd4" fill-opacity="0.2"/>
+                        @endif
 
-                        <!-- Invisible larger hit-area for hover tooltip -->
-                        <circle class="mastery-point-hit" cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="12" fill="transparent" style="cursor:pointer"
-                                data-label="{{ $masteryDayLabels[$i] ?? '' }}" data-value="{{ (int) round($masterySeries[$i] ?? 0) }}"></circle>
+                        <circle cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="{{ $isLast ? 5.5 : 4 }}" fill="{{ $isLast ? '#1a6fd4' : ($val > 0 ? '#0d326b' : '#94a3b8') }}" stroke="white" stroke-width="2.5"/>
+
+                        <!-- Hit Area for hover -->
+                        <circle class="enrollment-point-hit" cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="16" fill="transparent" style="cursor:pointer"
+                                data-sy="S.Y. {{ $trendData[$i]['school_year'] }}"
+                                data-range="{{ $trendData[$i]['date_range'] }}"
+                                data-count="{{ $trendData[$i]['count'] }}"></circle>
                         @endforeach
 
-                        <!-- X labels -->
-                        @foreach($masteryDayLabels as $i => $label)
-                        <text x="{{ $pts[$i][0] }}" y="{{ $chartH - 4 }}" font-size="9" fill="#94a3b8" font-weight="600" text-anchor="middle">{{ $label }}</text>
+                        <!-- X labels (School Years) -->
+                        @foreach($trendData as $i => $item)
+                        @php
+                            $isLast = ($i === count($trendData) - 1);
+                        @endphp
+                        <text x="{{ $pts[$i][0] }}" y="{{ $chartH - 6 }}" font-size="8.5" fill="{{ $isLast ? '#0d326b' : '#64748b' }}" font-weight="{{ $isLast ? '800' : '700' }}" text-anchor="middle">{{ $item['school_year'] }}</text>
                         @endforeach
                     </svg>
-
-                    <!-- Callout bubble for current value -->
-                    <div class="absolute top-0 right-0 bg-white border border-slate-100 shadow-sm rounded-full px-3 py-1">
-                        <span class="text-[13px] font-black text-[#0d326b]">{{ $masteryCurrentValue }}%</span>
-                    </div>
                 </div>
                 @endif
             </div>
@@ -770,22 +802,24 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // ── Student Mastery Overview: hover tooltip on line points ──
+    // ── Enrollment Trend: hover tooltip on line points ──
     (function () {
-        const wrap = document.getElementById('masteryChartSvg')?.closest('.relative.z-10');
-        const tip = document.getElementById('masteryTooltip');
+        const wrap = document.getElementById('enrollmentChartSvg')?.closest('.relative.z-10');
+        const tip = document.getElementById('enrollmentTooltip');
         if (!wrap || !tip) return;
-        const tipLabel = document.getElementById('masteryTooltipLabel');
-        const tipValue = document.getElementById('masteryTooltipValue');
+        const tipSy = document.getElementById('enrollmentTooltipSy');
+        const tipRange = document.getElementById('enrollmentTooltipRange');
+        const tipCount = document.getElementById('enrollmentTooltipCount');
 
-        wrap.querySelectorAll('.mastery-point-hit').forEach(function (hit) {
+        wrap.querySelectorAll('.enrollment-point-hit').forEach(function (hit) {
             hit.addEventListener('mouseenter', function () {
                 const rect = hit.getBoundingClientRect();
                 const wrapRect = wrap.getBoundingClientRect();
                 tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
                 tip.style.top = (rect.top - wrapRect.top) + 'px';
-                tipLabel.textContent = hit.dataset.label;
-                tipValue.textContent = hit.dataset.value;
+                if (tipSy) tipSy.textContent = hit.dataset.sy;
+                if (tipRange) tipRange.textContent = hit.dataset.range;
+                if (tipCount) tipCount.textContent = hit.dataset.count;
                 tip.classList.remove('opacity-0');
                 tip.classList.add('opacity-100');
             });

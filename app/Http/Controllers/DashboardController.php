@@ -277,6 +277,41 @@ class DashboardController extends Controller
                 ->orderBy('first_name')
                 ->get(['student_id', 'first_name', 'last_name', 'level', 'grade_level', 'fsl_mastery_level', 'total_xp']);
 
+            // ── Enrollment Trend per School Year (5 consecutive school years: June 8 to April 8) ──
+            $now = Carbon::now();
+            $currentYear = (int) $now->year;
+            $syCutoff = Carbon::create($currentYear, 6, 8, 0, 0, 0);
+            $baseStartYear = $now->lt($syCutoff) ? ($currentYear - 1) : $currentYear;
+
+            $enrollmentTrend = [];
+            for ($i = 4; $i >= 0; $i--) {
+                $syStart = $baseStartYear - $i;
+                $syEnd   = $syStart + 1;
+                $syLabel = "{$syStart}-{$syEnd}";
+                $startDate = Carbon::create($syStart, 6, 8, 0, 0, 0);
+                $endDate   = Carbon::create($syEnd, 4, 8, 23, 59, 59);
+
+                $count = Student::where('teacher_id', $teacherId)
+                    ->where(function ($q) use ($syLabel, $startDate, $endDate) {
+                        $q->where('school_year', $syLabel)
+                          ->orWhere(function ($sq) use ($startDate, $endDate) {
+                              $sq->where(function ($q2) {
+                                  $q2->whereNull('school_year')->orWhere('school_year', '');
+                              })->whereBetween('created_at', [$startDate, $endDate]);
+                          });
+                    })
+                    ->count();
+
+                $enrollmentTrend[] = [
+                    'school_year' => $syLabel,
+                    'start_year'  => $syStart,
+                    'end_year'    => $syEnd,
+                    'count'       => $count,
+                    'date_range'  => "June 8, {$syStart} – April 8, {$syEnd}",
+                    'is_current'  => ($i === 0),
+                ];
+            }
+
             // ── Senya Insights (rich, data-driven) ──────────────────────────────
             $senyaInsights = (new SenyaInsightsService($teacherId))->generate();
 
@@ -298,6 +333,19 @@ class DashboardController extends Controller
 
         } else {
             // No teacher record — empty state
+            $enrollmentTrend = [];
+            for ($i = 4; $i >= 0; $i--) {
+                $syStart = 2026 - $i;
+                $syEnd   = $syStart + 1;
+                $enrollmentTrend[] = [
+                    'school_year' => "{$syStart}-{$syEnd}",
+                    'start_year'  => $syStart,
+                    'end_year'    => $syEnd,
+                    'count'       => 0,
+                    'date_range'  => "June 8, {$syStart} – April 8, {$syEnd}",
+                    'is_current'  => ($i === 0),
+                ];
+            }
             $senyaInsights = [];
             $senyaTips     = [];
         }
@@ -347,7 +395,8 @@ class DashboardController extends Controller
             'allStudents',
             'senyaTips',
             'selectedTip',
-            'senyaInsights'
+            'senyaInsights',
+            'enrollmentTrend'
         ));
     }
 }
