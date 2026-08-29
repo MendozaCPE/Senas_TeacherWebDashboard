@@ -244,7 +244,7 @@ class LessonsController extends Controller
         $validated = $request->validate([
             'topic'                => 'required|string|max:200',
             'difficulty'           => 'required|in:beginner,intermediate,advanced',
-            'lesson_type'          => 'required|in:gesture,text,interactive',
+            'lesson_type'          => 'required|in:gesture,text,interactive,video',
             'num_slides'           => 'required|integer|min:3|max:30',
             'num_mc'               => 'required|integer|min:0|max:15',
             'num_tf'               => 'required|integer|min:0|max:15',
@@ -269,6 +269,15 @@ class LessonsController extends Controller
 
             $resolver = new GestureMediaResolver();
             $lesson   = $resolver->resolve($lesson, $this->resolveTeacherId());
+
+            if (!empty($lesson['contents']) && is_array($lesson['contents'])) {
+                foreach ($lesson['contents'] as &$slide) {
+                    if (($slide['content_type'] ?? '') === 'youtube_video') {
+                        $slide['media_missing'] = false;
+                    }
+                }
+                unset($slide);
+            }
 
             return response()->json($lesson);
         } catch (\Throwable $e) {

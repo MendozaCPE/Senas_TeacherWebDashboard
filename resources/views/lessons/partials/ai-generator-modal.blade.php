@@ -89,6 +89,7 @@
                         <select id="ai_lesson_type"
                                 style="width:100%;padding:12px 16px;border:1.5px solid #E5EAF2;border-radius:14px;font-size:14px;outline:none;background:#FAFBFD;cursor:pointer;">
                             <option value="gesture">Gesture</option>
+                            <option value="video">Video / YouTube</option>
                             <option value="interactive">Interactive</option>
                             <option value="text">Text</option>
                         </select>
@@ -553,14 +554,24 @@ function getAiYoutubeId(url) {
 }
 
 function buildAiContentCard(slide, idx) {
-    const type = slide.content_type || 'text';
+    let type = slide.content_type || 'text';
+    if (type === 'youtube') type = 'youtube_video';
+
+    // YouTube URL support
+    const rawYtUrl = slide.youtube_url || (type === 'youtube_video' ? (slide.media_url || '') : '');
+    const ytId = getAiYoutubeId(rawYtUrl);
+    if (ytId || (rawYtUrl && (rawYtUrl.includes('youtube.com') || rawYtUrl.includes('youtu.be')))) {
+        type = 'youtube_video';
+    }
+
     const typeLabels = { text: 'Text', gesture_demo: 'Gesture', image: 'Image', video: 'Video', youtube_video: 'YouTube' };
     const typeLabel = typeLabels[type] || 'Text';
 
-    const mediaMissing  = slide.media_missing ? true : false;
+    const isYoutube     = type === 'youtube_video';
+    const mediaMissing  = isYoutube ? false : (slide.media_missing ? true : false);
     const gestureHidden = type === 'gesture_demo' ? '' : 'hidden';
-    const mediaHidden   = (type === 'image' || type === 'video' || type === 'gesture_demo' || mediaMissing) ? '' : 'hidden';
-    const youtubeHidden = type === 'youtube_video' ? '' : 'hidden';
+    const mediaHidden   = (!isYoutube && (type === 'image' || type === 'video' || type === 'gesture_demo' || mediaMissing)) ? '' : 'hidden';
+    const youtubeHidden = isYoutube ? '' : 'hidden';
     const gestureName   = slide.gesture_name || '';
 
     // Resolved media from the backend (gesture_media table)
@@ -572,11 +583,7 @@ function buildAiContentCard(slide, idx) {
         const m = raw.match(/\/storage\/(.+)$/i);
         mediaPath = m ? m[1] : raw;
     }
-    const hasResolvedMedia = !!(resolvedVideo || resolvedImage);
-
-    // YouTube URL support
-    const rawYtUrl = slide.youtube_url || (type === 'youtube_video' ? (slide.media_url || '') : '');
-    const ytId = getAiYoutubeId(rawYtUrl);
+    const hasResolvedMedia = !isYoutube && !!(resolvedVideo || resolvedImage);
     const ytEmbedUrl = ytId ? ('https://www.youtube.com/embed/' + ytId + '?rel=0&modestbranding=1') : '';
 
     // Build the media section: show resolved preview if available, otherwise upload widget

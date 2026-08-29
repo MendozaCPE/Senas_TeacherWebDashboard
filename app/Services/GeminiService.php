@@ -50,6 +50,55 @@ class GeminiService
         $lesson = $this->parseJson($rawContent, 'Gemini');
         $this->validateLessonStructure($lesson, $params['num_slides']);
 
+        $lesson = $this->normalizeLessonYoutube($lesson, $params);
+
+        return $lesson;
+    }
+
+    /**
+     * Extract a YouTube URL from a string if present.
+     */
+    public static function extractYoutubeUrl(?string $text): ?string
+    {
+        if (empty($text)) return null;
+        if (preg_match('/(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?[^\s&"\'<>]+|embed\/[^\s&"\'<>]+|shorts\/[^\s&"\'<>]+|v\/[^\s&"\'<>]+)|youtu\.be\/[^\s&"\'<>]+))/i', $text, $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    /**
+     * Normalize YouTube video slides in the generated lesson.
+     */
+    private function normalizeLessonYoutube(array $lesson, array $params): array
+    {
+        $promptText = ($params['topic'] ?? '') . ' ' . ($params['special_instructions'] ?? '');
+        $detectedUrl = self::extractYoutubeUrl($promptText);
+
+        if (!empty($lesson['contents']) && is_array($lesson['contents'])) {
+            $hasYoutubeSlide = false;
+
+            foreach ($lesson['contents'] as &$slide) {
+                $cType = strtolower($slide['content_type'] ?? '');
+                $slideUrl = $slide['youtube_url'] ?? self::extractYoutubeUrl($slide['content_text'] ?? '');
+
+                if ($cType === 'youtube_video' || $cType === 'youtube' || (!empty($detectedUrl) && $cType === 'video') || !empty($slideUrl)) {
+                    $slide['content_type'] = 'youtube_video';
+                    $slide['youtube_url']  = $slideUrl ?: $detectedUrl;
+                    $slide['gesture_name'] = null;
+                    $hasYoutubeSlide       = true;
+                }
+            }
+            unset($slide);
+
+            // If a YouTube link was provided in the prompt but no slide was assigned as youtube_video, make the first slide youtube_video
+            if (!empty($detectedUrl) && !$hasYoutubeSlide && isset($lesson['contents'][0])) {
+                $lesson['contents'][0]['content_type'] = 'youtube_video';
+                $lesson['contents'][0]['youtube_url']  = $detectedUrl;
+                $lesson['contents'][0]['gesture_name'] = null;
+            }
+        }
+
         return $lesson;
     }
 
@@ -164,9 +213,15 @@ CRITICAL TOPIC-AWARENESS RULES — read carefully:
    - If the teacher requested gesture questions but the topic is NOT FSL/Sign Language, convert those questions to "multiple_choice" instead. Never awkwardly attach a greeting gesture to a lesson about flowers, math, or science.
    - When gesture questions ARE appropriate, use gesture_names from the catalog above.
 
-3. CONTENT TYPES:
-   - For non-FSL topics, use "text" or "image" as content_type. Do NOT use "gesture_demo" for non-FSL topics.
+3. CONTENT TYPES & YOUTUBE VIDEOS:
+   - Supported content_type values: "text", "image", "youtube_video", "gesture_demo".
+   - If the teacher includes a YouTube link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...) in the topic, prompt, or special instructions:
+     * Use "content_type": "youtube_video" for the video slide.
+     * Put the exact YouTube URL in the "youtube_url" field.
+     * Write an educational, engaging title and summary of what the video teaches in "content_text".
+     * NEVER use "video" for YouTube links — ALWAYS use "youtube_video".
    - For FSL topics, gesture_demo is encouraged and gesture_name must come from the catalog.
+   - For non-FSL topics, use "text", "image", or "youtube_video" as content_type. Do NOT use "gesture_demo" for non-FSL topics.
 
 Respond with ONLY valid JSON — no markdown, no explanation, just raw JSON.
 
@@ -179,10 +234,11 @@ Schema:
   "contents": [
     {
       "step_number": number,
-      "content_type": "text"|"image"|"video"|"gesture_demo",
+      "content_type": "text"|"image"|"youtube_video"|"gesture_demo",
       "title": string,
       "content_text": string,
-      "gesture_name": string|null
+      "gesture_name": string|null,
+      "youtube_url": string|null
     }
   ],
   "quiz": [
@@ -200,7 +256,7 @@ Schema:
 Rules:
 - content_text must be educational, encouraging, and clear — use simple words, short sentences, positive tone
 - difficulty: beginner = foundational concepts, intermediate = applied knowledge, advanced = complex topics/synthesis
-- Generate EXACTLY the number of content steps requested.
+- Generate EXACTLY the number of content steps requested (do not generate excess empty slides).
 - Generate EXACTLY {$totalQuestions} quiz questions:
   - Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options, and correct_index must be the 0-based index of correct option)
   - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True", "False"], and correct_index must be 0 or 1)

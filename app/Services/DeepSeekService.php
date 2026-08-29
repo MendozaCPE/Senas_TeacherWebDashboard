@@ -30,37 +30,45 @@ class DeepSeekService
         $systemPrompt = $this->buildSystemPrompt($params);
         $userPrompt   = $this->buildUserPrompt($params);
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type'  => 'application/json',
-            'HTTP-Referer'  => config('app.url'),
-            'X-Title'       => 'SENAS Teacher Dashboard',
-        ])
-        ->timeout(90)
-        ->post("{$this->baseUrl}/chat/completions", [
-            'model'           => $this->model,
-            'messages'        => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user',   'content' => $userPrompt],
-            ],
-            'response_format' => ['type' => 'json_object'],
-            'temperature'     => 0.7,
-            'max_tokens'      => 8000,
-        ]);
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url'),
+                'X-Title'       => 'SENAS Teacher Dashboard',
+            ])
+            ->timeout(60)
+            ->post("{$this->baseUrl}/chat/completions", [
+                'model'           => $this->model,
+                'messages'        => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user',   'content' => $userPrompt],
+                ],
+                'response_format' => ['type' => 'json_object'],
+                'temperature'     => 0.7,
+                'max_tokens'      => 4000,
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::warning('DeepSeek timed out — falling back to Gemini', ['error' => $e->getMessage()]);
+            return (new GeminiService())->generate($params);
+        }
 
         if ($response->failed()) {
             Log::error('DeepSeek API error', [
                 'status' => $response->status(),
                 'body'   => $response->body(),
             ]);
-            $this->handleApiError($response);
+            // Fallback to Gemini if DeepSeek is unavailable
+            Log::warning('DeepSeek failed — falling back to Gemini');
+            return (new GeminiService())->generate($params);
         }
 
         $responseData = $response->json();
         $rawContent   = $responseData['choices'][0]['message']['content'] ?? null;
 
         if (empty($rawContent)) {
-            throw new \RuntimeException('DeepSeek returned an empty response. Please try again.');
+            Log::warning('DeepSeek returned empty response — falling back to Gemini');
+            return (new GeminiService())->generate($params);
         }
 
         // Strip markdown code fences if present
@@ -75,6 +83,55 @@ class DeepSeekService
         }
 
         $this->validateLessonStructure($lesson, $params['num_slides']);
+
+        $lesson = $this->normalizeLessonYoutube($lesson, $params);
+
+        return $lesson;
+    }
+
+    /**
+     * Extract a YouTube URL from a string if present.
+     */
+    public static function extractYoutubeUrl(?string $text): ?string
+    {
+        if (empty($text)) return null;
+        if (preg_match('/(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?[^\s&"\'<>]+|embed\/[^\s&"\'<>]+|shorts\/[^\s&"\'<>]+|v\/[^\s&"\'<>]+)|youtu\.be\/[^\s&"\'<>]+))/i', $text, $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    /**
+     * Normalize YouTube video slides in the generated lesson.
+     */
+    private function normalizeLessonYoutube(array $lesson, array $params): array
+    {
+        $promptText = ($params['topic'] ?? '') . ' ' . ($params['special_instructions'] ?? '');
+        $detectedUrl = self::extractYoutubeUrl($promptText);
+
+        if (!empty($lesson['contents']) && is_array($lesson['contents'])) {
+            $hasYoutubeSlide = false;
+
+            foreach ($lesson['contents'] as &$slide) {
+                $cType = strtolower($slide['content_type'] ?? '');
+                $slideUrl = $slide['youtube_url'] ?? self::extractYoutubeUrl($slide['content_text'] ?? '');
+
+                if ($cType === 'youtube_video' || $cType === 'youtube' || (!empty($detectedUrl) && $cType === 'video') || !empty($slideUrl)) {
+                    $slide['content_type'] = 'youtube_video';
+                    $slide['youtube_url']  = $slideUrl ?: $detectedUrl;
+                    $slide['gesture_name'] = null;
+                    $hasYoutubeSlide       = true;
+                }
+            }
+            unset($slide);
+
+            // If a YouTube link was provided in the prompt but no slide was assigned as youtube_video, make the first slide youtube_video
+            if (!empty($detectedUrl) && !$hasYoutubeSlide && isset($lesson['contents'][0])) {
+                $lesson['contents'][0]['content_type'] = 'youtube_video';
+                $lesson['contents'][0]['youtube_url']  = $detectedUrl;
+                $lesson['contents'][0]['gesture_name'] = null;
+            }
+        }
 
         return $lesson;
     }
@@ -115,9 +172,15 @@ CRITICAL TOPIC-AWARENESS RULES — read carefully:
    - If the teacher requested gesture questions but the topic is NOT FSL/Sign Language, convert those questions to "multiple_choice" instead. Never awkwardly attach a greeting gesture to a lesson about flowers, math, or science.
    - When gesture questions ARE appropriate, use gesture_names from the catalog above.
 
-3. CONTENT TYPES:
-   - For non-FSL topics, use "text" or "image" as content_type. Do NOT use "gesture_demo" for non-FSL topics.
+3. CONTENT TYPES & YOUTUBE VIDEOS:
+   - Supported content_type values: "text", "image", "youtube_video", "gesture_demo".
+   - If the teacher includes a YouTube link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...) in the topic, prompt, or special instructions:
+     * Use "content_type": "youtube_video" for the video slide.
+     * Put the exact YouTube URL in the "youtube_url" field.
+     * Write an educational, engaging title and summary of what the video teaches in "content_text".
+     * NEVER use "video" for YouTube links — ALWAYS use "youtube_video".
    - For FSL topics, gesture_demo is encouraged and gesture_name must come from the catalog.
+   - For non-FSL topics, use "text", "image", or "youtube_video" as content_type. Do NOT use "gesture_demo" for non-FSL topics.
 
 Respond with ONLY valid JSON — no markdown, no explanation, just raw JSON.
 
@@ -130,10 +193,11 @@ Schema:
   "contents": [
     {
       "step_number": number,
-      "content_type": "text"|"image"|"video"|"gesture_demo",
+      "content_type": "text"|"image"|"youtube_video"|"gesture_demo",
       "title": string,
       "content_text": string,
-      "gesture_name": string|null
+      "gesture_name": string|null,
+      "youtube_url": string|null
     }
   ],
   "quiz": [
@@ -151,7 +215,7 @@ Schema:
 Rules:
 - content_text must be educational, encouraging, and clear — use simple words, short sentences, and positive tone
 - difficulty: beginner = foundational concepts, intermediate = applied knowledge, advanced = complex topics/synthesis
-- Generate EXACTLY the number of content steps requested.
+- Generate EXACTLY the number of content steps requested (do not generate excess empty slides).
 - Generate EXACTLY {$totalQuestions} quiz questions total:
   - Generate EXACTLY {$numMc} of type "multiple_choice" (4 options each, correct_index is 0-based)
   - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True","False"], correct_index 0 or 1)
@@ -248,27 +312,32 @@ PROMPT;
 
         $userPrompt = "Generate {$total} quiz questions ({$numMc} multiple choice, {$numTf} true/false, {$numDd} drag/drop, {$numGt} gesture) based on the following lesson content:\n\n---\n{$contentText}\n---";
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type'  => 'application/json',
-            'HTTP-Referer'  => config('app.url'),
-            'X-Title'       => 'SENAS Teacher Dashboard',
-        ])
-        ->timeout(60)
-        ->post("{$this->baseUrl}/chat/completions", [
-            'model'           => $this->model,
-            'messages'        => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user',   'content' => $userPrompt],
-            ],
-            'response_format' => ['type' => 'json_object'],
-            'temperature'     => 0.6,
-            'max_tokens'      => 3000,
-        ]);
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url'),
+                'X-Title'       => 'SENAS Teacher Dashboard',
+            ])
+            ->timeout(60)
+            ->post("{$this->baseUrl}/chat/completions", [
+                'model'           => $this->model,
+                'messages'        => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user',   'content' => $userPrompt],
+                ],
+                'response_format' => ['type' => 'json_object'],
+                'temperature'     => 0.6,
+                'max_tokens'      => 3000,
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::warning('DeepSeek quiz-only timed out — falling back to Gemini', ['error' => $e->getMessage()]);
+            return (new GeminiService())->generateQuizOnly($contentText, $numMc, $numTf, $numDd, $numGt);
+        }
 
         if ($response->failed()) {
             Log::error('DeepSeek Quiz-Only API error', ['status' => $response->status(), 'body' => $response->body()]);
-            $this->handleApiError($response);
+            return (new GeminiService())->generateQuizOnly($contentText, $numMc, $numTf, $numDd, $numGt);
         }
 
         $rawContent = $response->json()['choices'][0]['message']['content'] ?? null;
@@ -329,27 +398,32 @@ Additional instructions: {$extra}
 Capture the key ideas from the document and turn them into engaging lesson slides and {$totalQuestions} quiz questions.
 TEXT;
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type'  => 'application/json',
-            'HTTP-Referer'  => config('app.url'),
-            'X-Title'       => 'SENAS Teacher Dashboard',
-        ])
-        ->timeout(90)
-        ->post("{$this->baseUrl}/chat/completions", [
-            'model'           => $this->model,
-            'messages'        => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user',   'content' => $userPrompt],
-            ],
-            'response_format' => ['type' => 'json_object'],
-            'temperature'     => 0.7,
-            'max_tokens'      => 4000,
-        ]);
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url'),
+                'X-Title'       => 'SENAS Teacher Dashboard',
+            ])
+            ->timeout(60)
+            ->post("{$this->baseUrl}/chat/completions", [
+                'model'           => $this->model,
+                'messages'        => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user',   'content' => $userPrompt],
+                ],
+                'response_format' => ['type' => 'json_object'],
+                'temperature'     => 0.7,
+                'max_tokens'      => 4000,
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::warning('DeepSeek PDF timed out — falling back to Gemini', ['error' => $e->getMessage()]);
+            return (new GeminiService())->generateFromPdfText($pdfText ?? '', $params);
+        }
 
         if ($response->failed()) {
             Log::error('DeepSeek PDF API error', ['status' => $response->status(), 'body' => $response->body()]);
-            $this->handleApiError($response);
+            return (new GeminiService())->generateFromPdfText($pdfText ?? '', $params);
         }
 
         $rawContent = $response->json()['choices'][0]['message']['content'] ?? null;
