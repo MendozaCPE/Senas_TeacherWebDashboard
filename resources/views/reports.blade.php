@@ -541,6 +541,8 @@
         $totalStudentsShown = $studentReports->count();
         $fullyCompleted     = $studentReports->where('overallPct', 100)->count();
         $totalQuizzesTaken  = $studentReports->sum('quizzesTaken');
+        $totalQuizzesPassed = $studentReports->sum('quizzesPassed');
+        $quizPassRate       = $totalQuizzesTaken > 0 ? round(($totalQuizzesPassed / $totalQuizzesTaken) * 100, 1) : 0;
         $scoredReports      = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
         $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
 
@@ -594,16 +596,23 @@
             <p class="text-[12px] text-slate-400 font-medium">student{{ $fullyCompleted !== 1 ? 's' : '' }} at 100%</p>
         </div>
 
-        {{-- Card 4: Quizzes Taken --}}
+        {{-- Card 4: Quizzes Passed / Taken --}}
         <div class="stat-kpi-card bg-white">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Quizzes Taken</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Quizzes Passed</span>
                 <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1a6fd4] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[20px]">quiz</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $totalQuizzesTaken }}</p>
-            <p class="text-[12px] text-slate-400 font-medium">total attempts</p>
+            <div class="flex items-baseline gap-1.5 mb-1">
+                <span class="text-[36px] font-black leading-none text-[#0d326b] tracking-tight">{{ $totalQuizzesPassed }}</span>
+                <span class="text-[20px] font-bold text-slate-400 leading-none">/ {{ $totalQuizzesTaken }}</span>
+            </div>
+            @if($totalQuizzesTaken > 0)
+                <p class="text-[12px] font-bold text-emerald-600 truncate">{{ number_format($quizPassRate, 1) }}% passing rate</p>
+            @else
+                <p class="text-[12px] text-slate-400 font-medium">0 attempts</p>
+            @endif
         </div>
 
         {{-- Card 5: Avg Quiz Score --}}
@@ -679,7 +688,7 @@
                             <th>Student</th>
                             <th>Overall Progress</th>
                             <th style="width:100px;">Lessons</th>
-                            <th style="width:90px;">Quizzes</th>
+                            <th style="width:110px;">Quizzes (Pass/Taken)</th>
                             <th style="width:95px;">Avg Score</th>
                             <th style="width:130px; text-align:center;">Gesture Accuracy</th>
                             <th style="width:130px;">Last Active</th>
@@ -714,7 +723,13 @@
                                     <span class="text-[12px] text-slate-400 font-medium">/ {{ $row['totalLessons'] }}</span>
                                 </td>
                                 <td>
-                                    <span class="text-[13px] font-bold text-[#1e293b]">{{ $row['quizzesTaken'] }}</span>
+                                    <span class="text-[13px] font-bold text-[#1e293b]">{{ $row['quizzesPassed'] ?? 0 }}</span>
+                                    <span class="text-[12px] text-slate-400 font-medium">/ {{ $row['quizzesTaken'] }}</span>
+                                    @if($row['quizzesTaken'] > 0)
+                                        <div class="text-[10px] font-semibold {{ ($row['quizPassRate'] ?? 0) >= 60 ? 'text-emerald-600' : 'text-amber-600' }}">
+                                            {{ $row['quizPassRate'] ?? 0 }}% pass
+                                        </div>
+                                    @endif
                                 </td>
                                 <td>
                                     @if($row['quizzesTaken'] > 0)
@@ -929,7 +944,7 @@ document.addEventListener('keydown', function(e) {
                         <p id="modalLessonsCount" class="text-[20px] font-black text-[#1e293b]"></p>
                     </div>
                     <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
-                        <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Quizzes</p>
+                        <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Quizzes Passed</p>
                         <p id="modalQuizzesCount" class="text-[20px] font-black text-[#1a6fd4]"></p>
                     </div>
                     <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
@@ -1008,7 +1023,7 @@ document.addEventListener('keydown', function(e) {
 
         document.getElementById('modalOverallPct').textContent = data.overallPct + '%';
         document.getElementById('modalLessonsCount').textContent = data.completedLessons + ' / ' + data.totalLessons;
-        document.getElementById('modalQuizzesCount').textContent = data.quizzesTaken;
+        document.getElementById('modalQuizzesCount').textContent = (data.quizzesPassed || 0) + ' / ' + data.quizzesTaken;
         document.getElementById('modalAvgScore').textContent = data.quizzesTaken > 0 ? data.avgScore + ' pts' : '—';
         document.getElementById('modalGestureAccuracy').textContent = (data.gestureAttempts && data.gestureAttempts > 0) ? data.gestureAccuracy + '%' : '—';
         document.getElementById('modalLastActive').textContent = 'Last active ' + data.lastAccessed;

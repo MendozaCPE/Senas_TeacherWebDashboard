@@ -319,7 +319,7 @@
                         <div class="student-divider-stats">
                             <span>{{ $student['completedLessons'] }}/{{ $student['totalLessons'] }} Lessons</span>
                             <span>{{ $student['overallPct'] }}% Complete</span>
-                            <span>{{ $student['quizzesTaken'] }} Quiz{{ $student['quizzesTaken'] === 1 ? '' : 'zes' }}</span>
+                            <span>{{ $student['quizzesPassed'] ?? 0 }}/{{ $student['quizzesTaken'] }} Quizzes Passed</span>
                             <span>Avg {{ $student['avgScore'] }} pts</span>
                         </div>
                     </div>

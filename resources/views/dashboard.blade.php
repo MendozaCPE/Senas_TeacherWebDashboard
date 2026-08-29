@@ -183,16 +183,16 @@
                 </div>
             </div>
 
-            {{-- Lessons Completed --}}
+            {{-- Total Lessons --}}
             <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-9 h-9 rounded-full bg-[#3b82f6] flex items-center justify-center flex-shrink-0">
                         <span class="material-symbols-outlined text-white text-[18px]">menu_book</span>
                     </div>
-                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Lessons Completed</h3>
+                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Lessons</h3>
                 </div>
-                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $lessonsCompleted }}</p>
-                <p class="text-[12px] font-medium text-[#3b82f6] mt-2 mb-4">↑ {{ $lessonsCompletedThisWeek }} this week</p>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalLessons }}</p>
+                <p class="text-[12px] font-medium text-[#3b82f6] mt-2 mb-4">↑ {{ $newLessonsThisWeek }} this week</p>
                 <div class="mt-auto -mx-1">
                     {!! $kpiSparkline($sparklineLessons ?: array_fill(0, 7, 0), '#3b82f6') !!}
                 </div>

@@ -46,7 +46,7 @@ class ReportsController extends Controller
                     $q->whereIn('module_id', $teacherModuleIds)
                       ->orWhereNull('module_id');
                 })
-                ->with('module')
+                ->with(['module', 'quiz'])
                 ->orderBy('module_order')
                 ->get();
 
@@ -135,7 +135,7 @@ class ReportsController extends Controller
 
             // Map over all selected active students to build the summary rows.
             $studentReports = $studentsToReport
-                ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps, $gestureByStudent) {
+                ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps, $gestureByStudent, $lessons) {
                     $rows        = $groupedRows->get($student->student_id) ?? collect();
                     $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
 
@@ -166,8 +166,30 @@ class ReportsController extends Controller
 
                     $totalLessons     = $lessonsToShow->count();
                     $completedLessons = $rows->where('lesson_completed', 1)->count();
-                    $quizzesTaken     = $rows->where('quiz_completed', 1)->count();
-                    $avgScore         = $rows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
+                    
+                    // Count quizzes taken and quizzes passed
+                    $completedQuizRows = $rows->where('quiz_completed', 1);
+                    $quizzesTaken      = $completedQuizRows->count();
+                    $quizzesPassed     = 0;
+                    foreach ($completedQuizRows as $r) {
+                        $l = $lessons->firstWhere('lesson_id', $r->lesson_id);
+                        $q = $l ? $l->quiz : null;
+                        $score = (float) $r->quiz_score;
+                        $passingScore = $q ? (float) $q->passing_score : 60;
+                        $totalPoints  = $q ? (float) $q->total_points : 5;
+                        
+                        $isPass = false;
+                        if ($passingScore > 10) {
+                            $isPass = ($score > 10) ? ($score >= $passingScore) : (($totalPoints > 0 ? ($score / $totalPoints) * 100 : 0) >= $passingScore);
+                        } else {
+                            $isPass = ($score <= 10) ? ($score >= $passingScore) : ($score >= ($totalPoints > 0 ? ($passingScore / $totalPoints) * 100 : 60));
+                        }
+                        if ($isPass) {
+                            $quizzesPassed++;
+                        }
+                    }
+                    $quizPassRate     = $quizzesTaken > 0 ? round(($quizzesPassed / $quizzesTaken) * 100, 1) : 0;
+                    $avgScore         = $completedQuizRows->avg('quiz_score') ?? 0;
                     $overallPct       = $totalLessons > 0
                         ? round(($completedLessons / $totalLessons) * 100)
                         : 0;
@@ -191,6 +213,8 @@ class ReportsController extends Controller
                         'totalLessons'     => $totalLessons,
                         'completedLessons' => $completedLessons,
                         'quizzesTaken'     => $quizzesTaken,
+                        'quizzesPassed'    => $quizzesPassed,
+                        'quizPassRate'     => $quizPassRate,
                         'avgScore'         => round($avgScore, 1),
                         'overallPct'       => $overallPct,
                         'gestureAccuracy'  => $gAccuracy,
@@ -275,7 +299,7 @@ class ReportsController extends Controller
                 $q->whereIn('module_id', $teacherModuleIds)
                   ->orWhereNull('module_id');
             })
-            ->with('module')
+            ->with(['module', 'quiz'])
             ->orderBy('module_order')
             ->get();
 
@@ -310,7 +334,7 @@ class ReportsController extends Controller
 
         // Map over all selected active students for the PDF layout.
         $studentReports = $studentsToReport
-            ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps) {
+            ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps, $lessons) {
                 $rows        = $groupedRows->get($student->student_id) ?? collect();
                 $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
 
@@ -342,8 +366,29 @@ class ReportsController extends Controller
 
                 $totalLessons     = $lessonsToShow->count();
                 $completedLessons = $rows->where('lesson_completed', 1)->count();
-                $quizzesTaken     = $rows->where('quiz_completed', 1)->count();
-                $avgScore         = $rows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
+                
+                $completedQuizRows = $rows->where('quiz_completed', 1);
+                $quizzesTaken      = $completedQuizRows->count();
+                $quizzesPassed     = 0;
+                foreach ($completedQuizRows as $r) {
+                    $l = $lessons->firstWhere('lesson_id', $r->lesson_id);
+                    $q = $l ? $l->quiz : null;
+                    $score = (float) $r->quiz_score;
+                    $passingScore = $q ? (float) $q->passing_score : 60;
+                    $totalPoints  = $q ? (float) $q->total_points : 5;
+                    
+                    $isPass = false;
+                    if ($passingScore > 10) {
+                        $isPass = ($score > 10) ? ($score >= $passingScore) : (($totalPoints > 0 ? ($score / $totalPoints) * 100 : 0) >= $passingScore);
+                    } else {
+                        $isPass = ($score <= 10) ? ($score >= $passingScore) : ($score >= ($totalPoints > 0 ? ($passingScore / $totalPoints) * 100 : 60));
+                    }
+                    if ($isPass) {
+                        $quizzesPassed++;
+                    }
+                }
+                $quizPassRate     = $quizzesTaken > 0 ? round(($quizzesPassed / $quizzesTaken) * 100, 1) : 0;
+                $avgScore         = $completedQuizRows->avg('quiz_score') ?? 0;
                 $overallPct       = $totalLessons > 0
                     ? round(($completedLessons / $totalLessons) * 100)
                     : 0;
@@ -365,6 +410,8 @@ class ReportsController extends Controller
                     'totalLessons'     => $totalLessons,
                     'completedLessons' => $completedLessons,
                     'quizzesTaken'     => $quizzesTaken,
+                    'quizzesPassed'    => $quizzesPassed,
+                    'quizPassRate'     => $quizPassRate,
                     'avgScore'         => round($avgScore, 1),
                     'overallPct'       => $overallPct,
                     'gestureAccuracy'  => $gestureAccuracy,

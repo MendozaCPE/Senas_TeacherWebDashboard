@@ -509,23 +509,6 @@
                 </div>
             </div>
 
-            {{-- ── Lesson Selector for Sidebar Stats ── --}}
-            @if(isset($teacherLessons) && $teacherLessons->count())
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Filter by Lesson</p>
-                <div class="relative">
-                    <select id="sidebar-lesson-select"
-                        class="w-full appearance-none bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-700 py-2 pl-3 pr-8 rounded-xl outline-none focus:border-[#0d326b] transition-all cursor-pointer">
-                        <option value="">— All Lessons (Global XP) —</option>
-                        @foreach($teacherLessons as $tl)
-                        <option value="{{ $tl->lesson_id }}">{{ Str::limit($tl->title, 36) }}</option>
-                        @endforeach
-                    </select>
-                    <span class="absolute right-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-[15px] text-slate-400 pointer-events-none">expand_more</span>
-                </div>
-            </div>
-            @endif
-
             {{-- Promotion Thresholds — how many active students at each level
                  have completed all lessons assigned to them at that level
                  (same rule as the individual student "Promotion" card). --}}
@@ -559,31 +542,10 @@
                 </div>
             </div>
 
-            {{-- Top Students (per-lesson or global) --}}
+            {{-- Top Students (by global XP) --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Top Students</p>
-                <p id="top-lesson-label" class="text-[9px] text-slate-400 font-medium mb-3 truncate">By global XP (students with XP)</p>
-                @php
-                    // ── Student lesson data for the "Filter by Lesson" → Top
-                    // Students client-side rebuild (Promotion Thresholds above
-                    // is now server-computed and no longer depends on this). ──
-                    $sbS = $sidebarStudents ?? collect();
-                    $sidebarJson = $sbS->map(function($s) {
-                        return [
-                            'student_id'         => $s->student_id,
-                            'first_name'         => $s->first_name,
-                            'last_name'          => $s->last_name,
-                            'fsl_mastery_level'  => $s->fsl_mastery_level,
-                            'total_xp'           => $s->total_xp ?? 0,
-                            'assignments'        => $s->assignments->map(fn($a)=>[
-                                'lesson_id' => $a->lesson_id,
-                                'score'     => $a->score ?? 0,
-                                'status'    => $a->status,
-                            ])->values()->all(),
-                        ];
-                    })->values()->toJson();
-                @endphp
-                <script>window._sidebarStudents = {!! $sidebarJson !!};</script>
+                <p class="text-[9px] text-slate-400 font-medium mb-3 truncate">By global XP</p>
                 @php
                     $topStudents = ($sidebarStudents ?? collect())
                         ->filter(fn($s) => ($s->total_xp ?? 0) > 0)
@@ -2988,91 +2950,5 @@ document.addEventListener('click', function(e) {
         }, 400);
     }
 });
-
-
-
-
-
-// ── Sidebar: "Filter by Lesson" → Top Students (per-lesson or global) ──────
-// Promotion Thresholds is no longer part of this: it's server-computed from
-// lesson completion per level and doesn't change when a lesson is selected.
-(function () {
-    const sel = document.getElementById('sidebar-lesson-select');
-    if (!sel) return;
-
-    const students = window._sidebarStudents || [];
-
-    const topLabel = document.getElementById('top-lesson-label');
-    const topList  = document.getElementById('top-students-list');
-
-    const badgeClasses = [
-        'bg-[#0d326b] text-white',
-        'bg-blue-100 text-[#1e4b8f]',
-        'bg-blue-50 text-[#1e4b8f]',
-    ];
-    const bgClasses = ['bg-[#eff6ff]', 'bg-slate-50', 'bg-blue-50/50'];
-
-    function avatarUrl(first, last) {
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(first + '+' + last)}&background=0d326b&color=fff&rounded=true&size=80`;
-    }
-
-    function rebuildTopStudents(lessonId) {
-        let ranked = [];
-
-        if (!lessonId) {
-            // Global: sort by total_xp, exclude 0
-            ranked = students
-                .filter(s => s.total_xp > 0)
-                .sort((a, b) => b.total_xp - a.total_xp)
-                .slice(0, 3)
-                .map(s => ({ ...s, display_score: s.total_xp + ' XP' }));
-        } else {
-            // Per-lesson: sort by score, exclude 0 and null
-            ranked = students
-                .map(s => {
-                    const assign = s.assignments.find(a => String(a.lesson_id) === String(lessonId));
-                    return { ...s, lesson_score: assign ? (assign.score ?? 0) : 0 };
-                })
-                .filter(s => s.lesson_score > 0)
-                .sort((a, b) => b.lesson_score - a.lesson_score)
-                .slice(0, 3)
-                .map(s => ({ ...s, display_score: s.lesson_score + ' pts' }));
-        }
-
-        if (ranked.length === 0) {
-            topList.innerHTML = '<p class="text-[12px] text-slate-400 text-center py-3">No performance data yet.</p>';
-            return;
-        }
-
-        topList.innerHTML = ranked.map((s, i) => `
-            <div class="flex items-center space-x-3 p-2.5 rounded-xl ${bgClasses[i] || 'bg-slate-50'}">
-                <div class="relative shrink-0">
-                    <img src="${avatarUrl(s.first_name, s.last_name)}" class="w-10 h-10 rounded-full" />
-                    <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full ${badgeClasses[i] || 'bg-slate-200 text-slate-600'} text-[8px] font-black flex items-center justify-center">${i + 1}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[12px] font-bold text-[#0d326b] truncate">${s.first_name} ${s.last_name}</p>
-                    <p class="text-[10px] text-slate-400 font-medium top-score-label">${s.display_score}</p>
-                </div>
-                ${i === 0 ? '<span class="material-symbols-outlined text-[#facc15] text-[18px] shrink-0">star</span>' : ''}
-            </div>
-        `).join('');
-    }
-
-    sel.addEventListener('change', function () {
-        const lessonId = this.value;
-        const selectedText = this.options[this.selectedIndex].text;
-
-        if (!lessonId) {
-            if (topLabel) topLabel.textContent = 'By global XP (students with XP)';
-        } else {
-            const short = selectedText.length > 32 ? selectedText.slice(0, 32) + '…' : selectedText;
-            if (topLabel) topLabel.textContent = 'Lesson: ' + short;
-        }
-
-        rebuildTopStudents(lessonId);
-    });
-})();
-
 </script>
 @endsection
