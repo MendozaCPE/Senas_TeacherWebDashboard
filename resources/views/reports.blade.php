@@ -511,12 +511,25 @@
 
                 <div class="filter-wrap">
                     <select name="lesson_id" class="filter-select">
-                        <option value="all" {{ ($rf['lesson_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Lessons</option>
-                        @foreach($lessons as $l)
-                            <option value="{{ $l->lesson_id }}" {{ ($rf['lesson_id'] ?? '') == $l->lesson_id ? 'selected' : '' }}>
-                                {{ $l->title }}
-                            </option>
-                        @endforeach
+                        <option value="all" {{ ($rf['lesson_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Content</option>
+                        @if($lessons->isNotEmpty())
+                            <optgroup label="Lessons">
+                                @foreach($lessons as $l)
+                                    <option value="lesson_{{ $l->lesson_id }}" {{ ($rf['lesson_id'] ?? '') == ('lesson_' . $l->lesson_id) || ($rf['lesson_id'] ?? '') == (string)$l->lesson_id ? 'selected' : '' }}>
+                                        {{ $l->title }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                        @if(!empty($checkpointExams) && $checkpointExams->isNotEmpty())
+                            <optgroup label="Checkpoint Exams">
+                                @foreach($checkpointExams as $e)
+                                    <option value="exam_{{ $e->exam_id }}" {{ ($rf['lesson_id'] ?? '') == ('exam_' . $e->exam_id) ? 'selected' : '' }}>
+                                        {{ $e->title }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
@@ -1137,42 +1150,79 @@ document.addEventListener('keydown', function(e) {
             modulesMap[modTitle].forEach(function (lesson) {
                 let statusBadge, quizBadge, barColor, rowBg, titleColor, metaColor;
 
-                if (!lesson.started) {
-                    statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">NOT STARTED</span>';
-                    quizBadge   = '<span style="font-size:11px;color:#cbd5e1;font-weight:500;">—</span>';
-                    barColor    = 'background:#e2e8f0';
-                    rowBg       = 'background:#f8fafc;opacity:.75';
-                    titleColor  = 'color:#94a3b8';
-                    metaColor   = 'color:#cbd5e1';
-                } else if (lesson.completed) {
-                    statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#0d326b;background:#dbeafe;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">✓ COMPLETED</span>';
-                    quizBadge   = lesson.quizCompleted
-                        ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
-                        : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
-                    barColor    = 'background:#0d326b';
-                    rowBg       = 'background:#f8fafc';
-                    titleColor  = 'color:#1e293b';
-                    metaColor   = 'color:#94a3b8';
+                if (lesson.is_exam) {
+                    if (!lesson.started) {
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">NOT STARTED</span>';
+                        quizBadge   = '<span style="font-size:11px;color:#cbd5e1;font-weight:500;">—</span>';
+                        barColor    = 'background:#e2e8f0';
+                        rowBg       = 'background:#f8fafc;opacity:.75';
+                        titleColor  = 'color:#94a3b8';
+                        metaColor   = 'color:#cbd5e1';
+                    } else if (lesson.completed) {
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#065f46;background:#d1fae5;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">✓ PASSED</span>';
+                        quizBadge   = '<span style="font-size:12px;font-weight:800;color:#065f46;">' + Number(lesson.quizScore).toFixed(1) + '%</span>';
+                        barColor    = 'background:#059669';
+                        rowBg       = 'background:#f0fdf4';
+                        titleColor  = 'color:#065f46';
+                        metaColor   = 'color:#64748b';
+                    } else if (lesson.failed) {
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">✕ FAILED</span>';
+                        quizBadge   = '<span style="font-size:12px;font-weight:800;color:#e11d48;">' + Number(lesson.quizScore).toFixed(1) + '%</span>';
+                        barColor    = 'background:#ef4444';
+                        rowBg       = 'background:#fef2f2';
+                        titleColor  = 'color:#991b1b';
+                        metaColor   = 'color:#64748b';
+                    } else {
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#1a6fd4;background:#eff6ff;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">IN PROGRESS</span>';
+                        quizBadge   = '<span style="font-size:11px;color:#94a3b8;font-weight:500;">In Progress</span>';
+                        barColor    = 'background:#1a6fd4';
+                        rowBg       = 'background:#f8fafc';
+                        titleColor  = 'color:#1e293b';
+                        metaColor   = 'color:#94a3b8';
+                    }
                 } else {
-                    statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#1a6fd4;background:#eff6ff;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">IN PROGRESS</span>';
-                    quizBadge   = lesson.quizCompleted
-                        ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
-                        : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
-                    barColor    = 'background:#1a6fd4';
-                    rowBg       = 'background:#f8fafc';
-                    titleColor  = 'color:#1e293b';
-                    metaColor   = 'color:#94a3b8';
+                    if (!lesson.started) {
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">NOT STARTED</span>';
+                        quizBadge   = '<span style="font-size:11px;color:#cbd5e1;font-weight:500;">—</span>';
+                        barColor    = 'background:#e2e8f0';
+                        rowBg       = 'background:#f8fafc;opacity:.75';
+                        titleColor  = 'color:#94a3b8';
+                        metaColor   = 'color:#cbd5e1';
+                    } else if (lesson.completed) {
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#0d326b;background:#dbeafe;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">✓ COMPLETED</span>';
+                        quizBadge   = lesson.quizCompleted
+                            ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
+                            : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
+                        barColor    = 'background:#0d326b';
+                        rowBg       = 'background:#f8fafc';
+                        titleColor  = 'color:#1e293b';
+                        metaColor   = 'color:#94a3b8';
+                    } else {
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#1a6fd4;background:#eff6ff;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">IN PROGRESS</span>';
+                        quizBadge   = lesson.quizCompleted
+                            ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
+                            : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
+                        barColor    = 'background:#1a6fd4';
+                        rowBg       = 'background:#f8fafc';
+                        titleColor  = 'color:#1e293b';
+                        metaColor   = 'color:#94a3b8';
+                    }
                 }
 
-                const creatorChip = lesson.ai_generated
-                    ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
-                           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-                           AI Generated
+                const creatorChip = lesson.is_exam
+                    ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#0369a1;background:#e0f2fe;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
+                           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                           Checkpoint Exam
                        </span>`
-                    : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#0d326b;background:#e0f2fe;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
-                           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-                           By Teacher
-                       </span>`;
+                    : (lesson.ai_generated
+                        ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
+                               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                               AI Generated
+                           </span>`
+                        : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#0d326b;background:#e0f2fe;border-radius:9999px;padding:2px 8px;letter-spacing:.04em;">
+                               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                               By Teacher
+                           </span>`);
 
                 const row = document.createElement('div');
                 row.style.cssText = rowBg + ';border-radius:16px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
@@ -1182,7 +1232,7 @@ document.addEventListener('keydown', function(e) {
                             <p style="font-size:13px;font-weight:700;${titleColor};line-height:1.3;margin:0;">${lesson.lessonTitle}</p>
                             ${creatorChip}
                         </div>
-                        <p style="font-size:11px;font-weight:500;${metaColor};margin:0 0 6px;">${lesson.lessonType ? lesson.lessonType + ' · ' : ''}${lesson.lastAccessed}</p>
+                        <p style="font-size:11px;font-weight:500;${metaColor};margin:0 0 6px;">${lesson.is_exam ? 'Checkpoint Exam · ' : (lesson.lessonType ? lesson.lessonType + ' · ' : '')}${lesson.lastAccessed}</p>
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div style="width:80px;height:5px;background:#e2e8f0;border-radius:9999px;overflow:hidden;">
                                 <div style="height:100%;border-radius:9999px;${barColor};width:${lesson.stepPct}%;"></div>

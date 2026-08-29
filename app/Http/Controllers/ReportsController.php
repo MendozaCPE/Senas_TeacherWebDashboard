@@ -6,6 +6,9 @@ use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Student;
 use App\Models\StudentLessonProgress;
+use App\Models\CheckpointExam;
+use App\Models\CheckpointExamAssignment;
+use App\Models\CheckpointExamAttempt;
 use App\Services\TcPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,9 +26,10 @@ class ReportsController extends Controller
         $user    = Auth::user();
         $teacher = $user->teacher;
 
-        $students       = collect();
-        $lessons        = collect();
-        $studentReports = collect();
+        $students        = collect();
+        $lessons         = collect();
+        $checkpointExams = collect();
+        $studentReports  = collect();
 
         if ($teacher) {
             $teacherId  = $teacher->id;
@@ -50,6 +54,17 @@ class ReportsController extends Controller
                 ->orderBy('module_order')
                 ->get();
 
+            $checkpointExams = CheckpointExam::where('teacher_id', $teacherId)
+                ->where('status', 'published')
+                ->where(function($q) use ($teacherModuleIds) {
+                    $q->whereIn('module_id', $teacherModuleIds)
+                      ->orWhereNull('module_id');
+                })
+                ->with(['module', 'questions'])
+                ->orderBy('module_id')
+                ->orderBy('title')
+                ->get();
+
             // Read filters from session (set via POST, never from URL)
             $filters       = session('reports_filters', []);
             $filterStudent = $filters['student_id'] ?? 'all';
@@ -65,7 +80,12 @@ class ReportsController extends Controller
                 $query->where('student_id', (int) $filterStudent);
             }
             if ($filterLesson !== 'all') {
-                $query->where('lesson_id', (int) $filterLesson);
+                if (str_starts_with((string)$filterLesson, 'exam_')) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $targetLessonId = (int) str_replace('lesson_', '', $filterLesson);
+                    $query->where('lesson_id', $targetLessonId);
+                }
             }
 
             $allRows = $query->orderBy('last_accessed_at', 'desc')->get();
@@ -124,18 +144,42 @@ class ReportsController extends Controller
                 $studentsToReport = $students->where('student_id', (int) $filterStudent);
             }
 
-            // Determine which lessons to show per student
-            $lessonsToShow = $filterLesson !== 'all'
-                ? $lessons->where('lesson_id', (int) $filterLesson)
-                : $lessons;
+            // Determine which lessons and checkpoint exams to show per student
+            if ($filterLesson !== 'all') {
+                if (str_starts_with((string)$filterLesson, 'exam_')) {
+                    $targetExamId = (int) str_replace('exam_', '', $filterLesson);
+                    $lessonsToShow = collect();
+                    $checkpointExamsToShow = $checkpointExams->where('exam_id', $targetExamId);
+                } else {
+                    $targetLessonId = (int) str_replace('lesson_', '', $filterLesson);
+                    $lessonsToShow = $lessons->where('lesson_id', $targetLessonId);
+                    $checkpointExamsToShow = collect();
+                }
+            } else {
+                $lessonsToShow = $lessons;
+                $checkpointExamsToShow = $checkpointExams;
+            }
 
             $groupedRows = $allRows->groupBy('student_id');
+
+            $checkpointAssignments = DB::table('checkpoint_exam_assignments')
+                ->whereIn('student_id', $studentIds)
+                ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
+                ->get()
+                ->groupBy('student_id');
+
+            $checkpointAttempts = DB::table('checkpoint_exam_attempts')
+                ->whereIn('student_id', $studentIds)
+                ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
+                ->whereIn('status', ['completed', 'failed'])
+                ->get()
+                ->groupBy('student_id');
 
             $totalSteps = 7; // avg lesson steps, used for step-progress %
 
             // Map over all selected active students to build the summary rows.
             $studentReports = $studentsToReport
-                ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps, $gestureByStudent, $lessons) {
+                ->map(function ($student) use ($groupedRows, $lessonsToShow, $checkpointExamsToShow, $totalSteps, $gestureByStudent, $lessons, $checkpointAssignments, $checkpointAttempts) {
                     $rows        = $groupedRows->get($student->student_id) ?? collect();
                     $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
 
@@ -149,7 +193,9 @@ class ReportsController extends Controller
 
                         return [
                             'lessonTitle'   => $lesson->title,
+                            'difficulty'    => $lesson->difficulty ?? '—',
                             'lessonType'    => $lesson->lesson_type ?? '',
+                            'is_exam'       => false,
                             'moduleTitle'   => $lesson->module ? $lesson->module->title : 'Unassigned Lessons',
                             'module_id'     => $lesson->module_id,
                             'ai_generated'  => (bool) $lesson->ai_generated,
@@ -164,12 +210,66 @@ class ReportsController extends Controller
                         ];
                     })->values();
 
-                    $totalLessons     = $lessonsToShow->count();
-                    $completedLessons = $rows->where('lesson_completed', 1)->count();
+                    // Build one entry per checkpoint exam (started OR not started)
+                    $stAssignments = $checkpointAssignments->get($student->student_id) ?? collect();
+                    $stAttempts    = $checkpointAttempts->get($student->student_id) ?? collect();
+
+                    $checkpointBreakdown = $checkpointExamsToShow->map(function ($exam) use ($stAssignments, $stAttempts) {
+                        $assign        = $stAssignments->firstWhere('exam_id', $exam->exam_id);
+                        $examAttempts  = $stAttempts->where('exam_id', $exam->exam_id);
+                        $bestAttempt   = $examAttempts->sortByDesc('percentage')->first();
+                        $latestAttempt = $examAttempts->sortByDesc('completed_at')->first();
+
+                        $started   = ($assign !== null && $assign->status !== 'pending') || $examAttempts->isNotEmpty();
+                        $completed = ($assign !== null && $assign->status === 'completed') || ($bestAttempt !== null && $bestAttempt->percentage >= ($exam->passing_score ?? 60));
+                        $failed    = ($assign !== null && $assign->status === 'failed') || ($bestAttempt !== null && !$completed);
+
+                        $score = null;
+                        if ($bestAttempt) {
+                            $score = round($bestAttempt->percentage, 1);
+                        } elseif ($assign && $assign->score !== null) {
+                            $score = round($assign->score, 1);
+                        }
+
+                        $lastAccessed = null;
+                        if ($latestAttempt && $latestAttempt->completed_at) {
+                            $lastAccessed = Carbon::parse($latestAttempt->completed_at)->diffForHumans();
+                        } elseif ($assign && $assign->completed_at) {
+                            $lastAccessed = Carbon::parse($assign->completed_at)->diffForHumans();
+                        } elseif ($assign && $assign->updated_at) {
+                            $lastAccessed = Carbon::parse($assign->updated_at)->diffForHumans();
+                        }
+
+                        return [
+                            'lessonTitle'    => $exam->title,
+                            'difficulty'     => 'Exam',
+                            'lessonType'     => 'checkpoint_exam',
+                            'is_exam'        => true,
+                            'exam_id'        => $exam->exam_id,
+                            'moduleTitle'    => $exam->module ? $exam->module->title : 'Unassigned Checkpoint Exams',
+                            'module_id'      => $exam->module_id,
+                            'ai_generated'   => false,
+                            'started'        => $started,
+                            'stepPct'        => $completed ? 100 : ($started ? 50 : 0),
+                            'completed'      => $completed,
+                            'failed'         => $failed,
+                            'quizCompleted'  => $bestAttempt !== null || ($assign !== null && $assign->score !== null),
+                            'quizScore'      => $score,
+                            'attemptCount'   => $examAttempts->count(),
+                            'passingScore'   => $exam->passing_score ?? 60,
+                            'totalPoints'    => $exam->total_points,
+                            'lastAccessed'   => $lastAccessed ?: '—',
+                        ];
+                    })->values();
+
+                    $allContentBreakdown = $lessonBreakdown->concat($checkpointBreakdown);
+
+                    $totalLessons     = $lessonsToShow->count() + $checkpointExamsToShow->count();
+                    $completedLessons = $rows->where('lesson_completed', 1)->count() + $checkpointBreakdown->where('completed', true)->count();
                     
                     // Count quizzes taken and quizzes passed
                     $completedQuizRows = $rows->where('quiz_completed', 1);
-                    $quizzesTaken      = $completedQuizRows->count();
+                    $quizzesTaken      = $completedQuizRows->count() + $checkpointBreakdown->where('quizCompleted', true)->count();
                     $quizzesPassed     = 0;
                     foreach ($completedQuizRows as $r) {
                         $l = $lessons->firstWhere('lesson_id', $r->lesson_id);
@@ -188,11 +288,19 @@ class ReportsController extends Controller
                             $quizzesPassed++;
                         }
                     }
+                    $quizzesPassed += $checkpointBreakdown->where('completed', true)->count();
+
                     $quizPassRate     = $quizzesTaken > 0 ? round(($quizzesPassed / $quizzesTaken) * 100, 1) : 0;
-                    $avgScore         = $completedQuizRows->avg('quiz_score') ?? 0;
+                    
+                    $quizScoresSum = $completedQuizRows->sum('quiz_score');
+                    $examScoresSum = $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore')->sum('quizScore');
+                    $totalScoredCount = $completedQuizRows->count() + $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore')->count();
+                    $avgScore = $totalScoredCount > 0 ? round(($quizScoresSum + $examScoresSum) / $totalScoredCount, 1) : 0;
+
                     $overallPct       = $totalLessons > 0
                         ? round(($completedLessons / $totalLessons) * 100)
                         : 0;
+
                     $lastActiveRaw    = $rows->isNotEmpty()
                         ? $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at
                         : null;
@@ -227,18 +335,20 @@ class ReportsController extends Controller
                         'lastAccessed'     => $lastActiveRaw
                             ? Carbon::parse($lastActiveRaw)->diffForHumans()
                             : '—',
-                        'lessons'          => $lessonBreakdown,
+                        'lessons'          => $allContentBreakdown,
                     ];
                 })
                 ->sortBy('studentName')
                 ->values();
         } else {
+            $checkpointExams = collect();
             $studentGesturePerformance = collect();
         }
 
         return view('reports', compact(
             'students',
             'lessons',
+            'checkpointExams',
             'studentReports',
             'studentGesturePerformance',
             'teacher'
@@ -247,7 +357,7 @@ class ReportsController extends Controller
 
     /**
      * Accept filter POST → validate → store in session → redirect to clean /reports URL.
-     * Using integer-only validation for IDs prevents any injection via those fields.
+     * Using string validation for IDs allows prefixes like 'lesson_1' or 'exam_1'.
      */
     public function applyFilter(Request $request)
     {
@@ -258,7 +368,7 @@ class ReportsController extends Controller
 
         // Normalise 'all' as empty
         $studentId = ($validated['student_id'] ?? 'all') === 'all' ? 'all' : (int) $validated['student_id'];
-        $lessonId  = ($validated['lesson_id']  ?? 'all') === 'all' ? 'all' : (int) $validated['lesson_id'];
+        $lessonId  = ($validated['lesson_id']  ?? 'all') === 'all' ? 'all' : $validated['lesson_id'];
 
         if ($studentId === 'all' && $lessonId === 'all') {
             session()->forget('reports_filters');
@@ -304,6 +414,17 @@ class ReportsController extends Controller
             ->orderBy('module_order')
             ->get();
 
+        $checkpointExams = CheckpointExam::where('teacher_id', $teacherId)
+            ->where('status', 'published')
+            ->where(function($q) use ($teacherModuleIds) {
+                $q->whereIn('module_id', $teacherModuleIds)
+                  ->orWhereNull('module_id');
+            })
+            ->with(['module', 'questions'])
+            ->orderBy('module_order', 'asc')
+            ->orderBy('title')
+            ->get();
+
         $filterStudent = $request->get('student_id', 'all');
         $filterLesson  = $request->get('lesson_id', 'all');
 
@@ -313,7 +434,14 @@ class ReportsController extends Controller
             ->whereIn('lesson_id', $lessonIds)  // ← Only THIS teacher's lessons
             ->with(['student', 'lesson']);
         if ($filterStudent !== 'all') $query->where('student_id', $filterStudent);
-        if ($filterLesson  !== 'all') $query->where('lesson_id', $filterLesson);
+        if ($filterLesson  !== 'all') {
+            if (str_starts_with((string)$filterLesson, 'exam_')) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $targetLessonId = (int) str_replace('lesson_', '', $filterLesson);
+                $query->where('lesson_id', $targetLessonId);
+            }
+        }
 
         $allRows = $query->orderBy('student_id')->orderBy('lesson_id')->get();
 
@@ -324,18 +452,42 @@ class ReportsController extends Controller
             $studentsToReport = $students->where('student_id', (int) $filterStudent);
         }
 
-        // Determine which lessons to show per student
-        $lessonsToShow = $filterLesson !== 'all'
-            ? $lessons->where('lesson_id', (int) $filterLesson)
-            : $lessons;
+        // Determine which lessons and checkpoint exams to show per student
+        if ($filterLesson !== 'all') {
+            if (str_starts_with((string)$filterLesson, 'exam_')) {
+                $targetExamId = (int) str_replace('exam_', '', $filterLesson);
+                $lessonsToShow = collect();
+                $checkpointExamsToShow = $checkpointExams->where('exam_id', $targetExamId);
+            } else {
+                $targetLessonId = (int) str_replace('lesson_', '', $filterLesson);
+                $lessonsToShow = $lessons->where('lesson_id', $targetLessonId);
+                $checkpointExamsToShow = collect();
+            }
+        } else {
+            $lessonsToShow = $lessons;
+            $checkpointExamsToShow = $checkpointExams;
+        }
 
         $groupedRows = $allRows->groupBy('student_id');
+
+        $checkpointAssignments = DB::table('checkpoint_exam_assignments')
+            ->whereIn('student_id', $studentIds)
+            ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
+            ->get()
+            ->groupBy('student_id');
+
+        $checkpointAttempts = DB::table('checkpoint_exam_attempts')
+            ->whereIn('student_id', $studentIds)
+            ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
+            ->whereIn('status', ['completed', 'failed'])
+            ->get()
+            ->groupBy('student_id');
 
         $totalSteps = 7;
 
         // Map over all selected active students for the PDF layout.
         $studentReports = $studentsToReport
-            ->map(function ($student) use ($groupedRows, $lessonsToShow, $totalSteps, $lessons) {
+            ->map(function ($student) use ($groupedRows, $lessonsToShow, $checkpointExamsToShow, $totalSteps, $lessons, $checkpointAssignments, $checkpointAttempts) {
                 $rows        = $groupedRows->get($student->student_id) ?? collect();
                 $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
 
@@ -365,11 +517,61 @@ class ReportsController extends Controller
                     ];
                 })->values();
 
-                $totalLessons     = $lessonsToShow->count();
-                $completedLessons = $rows->where('lesson_completed', 1)->count();
+                // Checkpoint exams breakdown for PDF
+                $stAssignments = $checkpointAssignments->get($student->student_id) ?? collect();
+                $stAttempts    = $checkpointAttempts->get($student->student_id) ?? collect();
+
+                $checkpointBreakdown = $checkpointExamsToShow->map(function ($exam) use ($stAssignments, $stAttempts) {
+                    $assign        = $stAssignments->firstWhere('exam_id', $exam->exam_id);
+                    $examAttempts  = $stAttempts->where('exam_id', $exam->exam_id);
+                    $bestAttempt   = $examAttempts->sortByDesc('percentage')->first();
+                    $latestAttempt = $examAttempts->sortByDesc('completed_at')->first();
+
+                    $started   = ($assign !== null && $assign->status !== 'pending') || $examAttempts->isNotEmpty();
+                    $completed = ($assign !== null && $assign->status === 'completed') || ($bestAttempt !== null && $bestAttempt->percentage >= ($exam->passing_score ?? 60));
+                    $failed    = ($assign !== null && $assign->status === 'failed') || ($bestAttempt !== null && !$completed);
+
+                    $score = null;
+                    if ($bestAttempt) {
+                        $score = round($bestAttempt->percentage, 1);
+                    } elseif ($assign && $assign->score !== null) {
+                        $score = round($assign->score, 1);
+                    }
+
+                    $lastAccessed = null;
+                    if ($latestAttempt && $latestAttempt->completed_at) {
+                        $lastAccessed = Carbon::parse($latestAttempt->completed_at)->format('M d, Y');
+                    } elseif ($assign && $assign->completed_at) {
+                        $lastAccessed = Carbon::parse($assign->completed_at)->format('M d, Y');
+                    } elseif ($assign && $assign->updated_at) {
+                        $lastAccessed = Carbon::parse($assign->updated_at)->format('M d, Y');
+                    }
+
+                    return [
+                        'lessonTitle'    => '[Exam] ' . $exam->title,
+                        'difficulty'     => 'Exam',
+                        'moduleTitle'    => $exam->module ? $exam->module->title : 'Unassigned Checkpoint Exams',
+                        'module_id'      => $exam->module_id,
+                        'ai_generated'   => false,
+                        'started'        => $started,
+                        'completed'      => $completed,
+                        'failed'         => $failed,
+                        'quizCompleted'  => $bestAttempt !== null || ($assign !== null && $assign->score !== null),
+                        'quizScore'      => $score,
+                        'currentStep'    => $completed ? 1 : ($started ? 1 : 0),
+                        'totalSteps'     => 1,
+                        'stepPct'        => $completed ? 100 : ($started ? 50 : 0),
+                        'lastAccessed'   => $lastAccessed ?: '—',
+                    ];
+                })->values();
+
+                $allContentBreakdown = $lessonBreakdown->concat($checkpointBreakdown);
+
+                $totalLessons     = $lessonsToShow->count() + $checkpointExamsToShow->count();
+                $completedLessons = $rows->where('lesson_completed', 1)->count() + $checkpointBreakdown->where('completed', true)->count();
                 
                 $completedQuizRows = $rows->where('quiz_completed', 1);
-                $quizzesTaken      = $completedQuizRows->count();
+                $quizzesTaken      = $completedQuizRows->count() + $checkpointBreakdown->where('quizCompleted', true)->count();
                 $quizzesPassed     = 0;
                 foreach ($completedQuizRows as $r) {
                     $l = $lessons->firstWhere('lesson_id', $r->lesson_id);
@@ -388,11 +590,19 @@ class ReportsController extends Controller
                         $quizzesPassed++;
                     }
                 }
+                $quizzesPassed += $checkpointBreakdown->where('completed', true)->count();
+
                 $quizPassRate     = $quizzesTaken > 0 ? round(($quizzesPassed / $quizzesTaken) * 100, 1) : 0;
-                $avgScore         = $completedQuizRows->avg('quiz_score') ?? 0;
+
+                $quizScoresSum = $completedQuizRows->sum('quiz_score');
+                $examScoresSum = $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore')->sum('quizScore');
+                $totalScoredCount = $completedQuizRows->count() + $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore')->count();
+                $avgScore = $totalScoredCount > 0 ? round(($quizScoresSum + $examScoresSum) / $totalScoredCount, 1) : 0;
+
                 $overallPct       = $totalLessons > 0
                     ? round(($completedLessons / $totalLessons) * 100)
                     : 0;
+
                 $lastActiveRaw    = $rows->isNotEmpty()
                     ? $rows->sortByDesc('last_accessed_at')->first()->last_accessed_at
                     : null;
@@ -430,8 +640,6 @@ class ReportsController extends Controller
                 // Full list sorted: mastered first, then by accuracy desc
                 $gestureSignList   = $gesturePerSign->sortByDesc('accuracy')->values()->all();
 
-
-
                 return [
                     'studentName'        => trim($student->first_name . ' ' . $student->last_name) ?: 'Unknown Student',
                     'gradeLevel'         => $student->grade_level ?? 'N/A',
@@ -450,20 +658,21 @@ class ReportsController extends Controller
                     'lastAccessed'       => $lastActiveRaw
                         ? Carbon::parse($lastActiveRaw)->format('M d, Y')
                         : '—',
-                    'lessons'            => $lessonBreakdown,
+                    'lessons'            => $allContentBreakdown,
                 ];
-
-
             })
             ->sortBy('studentName')
             ->values();
 
         // Overall summary stats (top strip) — computed across all filtered rows/students.
         $totalStudents  = $studentReports->count();
-        $totalProgress  = $allRows->count();
-        $totalCompleted = $allRows->where('lesson_completed', 1)->count();
-        $completionPct  = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
-        $avgScore       = $allRows->where('quiz_completed', 1)->avg('quiz_score') ?? 0;
+        $totalAssignedContent = $lessonsToShow->count() + $checkpointExamsToShow->count();
+        $totalCompleted = $studentReports->sum('completedLessons');
+        $completionPct  = ($totalStudents > 0 && $totalAssignedContent > 0)
+            ? round(($totalCompleted / ($totalStudents * $totalAssignedContent)) * 100)
+            : 0;
+        $scoredStudents = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
+        $avgScore       = $scoredStudents->isNotEmpty() ? $scoredStudents->avg('avgScore') : 0;
         $activeLearners = $studentReports->where('overallPct', '>', 0)->count();
 
         $generatedAt   = Carbon::now()->format('F d, Y · g:i A');
@@ -471,14 +680,21 @@ class ReportsController extends Controller
         $teacherName   = $teacher->first_name . ' ' . $teacher->last_name;
 
         $selectedStudentName = 'All Students';
-        $selectedLessonName  = 'All Lessons';
+        $selectedLessonName  = 'All Lessons & Checkpoint Exams';
         if ($filterStudent !== 'all') {
             $s = $students->firstWhere('student_id', $filterStudent);
             if ($s) $selectedStudentName = $s->first_name . ' ' . $s->last_name;
         }
         if ($filterLesson !== 'all') {
-            $l = $lessons->firstWhere('lesson_id', $filterLesson);
-            if ($l) $selectedLessonName = $l->title;
+            if (str_starts_with((string)$filterLesson, 'exam_')) {
+                $targetExamId = (int) str_replace('exam_', '', $filterLesson);
+                $e = $checkpointExams->firstWhere('exam_id', $targetExamId);
+                if ($e) $selectedLessonName = 'Exam: ' . $e->title;
+            } else {
+                $targetLessonId = (int) str_replace('lesson_', '', $filterLesson);
+                $l = $lessons->firstWhere('lesson_id', $targetLessonId);
+                if ($l) $selectedLessonName = $l->title;
+            }
         }
 
         /* ── Build PDF with TCPDF via TcPdfService ── */

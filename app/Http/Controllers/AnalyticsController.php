@@ -820,19 +820,17 @@ class AnalyticsController extends Controller
             }
             unset($sRankItem);
 
-            // Find best performing student on this gesture
-            $bestStudentRec = $records->sortByDesc(function ($r) {
-                $accVal = $r->attempts > 0 ? ($r->successful_attempts / $r->attempts) : 0;
-                return ($accVal * 1000) + $r->successful_attempts;
-            })->first();
+            // Find best performing student from the ranked list (Rank 1)
+            $bestStudentItem = !empty($rankedStudentsForSign) ? $rankedStudentsForSign[0] : null;
 
-            // Find struggling student on this gesture
-            $strugglingStudentRec = $records->filter(function ($r) {
-                return $r->attempts > 0;
-            })->sortBy(function ($r) {
-                $accVal = $r->attempts > 0 ? ($r->successful_attempts / $r->attempts) : 0;
-                return ($accVal * 1000) - $r->wrong_attempts;
-            })->first();
+            // Find struggling student from the bottom of the ranked list
+            $strugglingStudentItem = null;
+            for ($k = count($rankedStudentsForSign) - 1; $k >= 0; $k--) {
+                if ($rankedStudentsForSign[$k]['wrong_attempts'] > 0) {
+                    $strugglingStudentItem = $rankedStudentsForSign[$k];
+                    break;
+                }
+            }
 
             $isMasteredMajority = ($acc >= 75 || ($totalStudents > 0 && $masteredStudents >= ceil($totalStudents / 2)));
             if ($isMasteredMajority) {
@@ -851,15 +849,15 @@ class AnalyticsController extends Controller
                 'mastered_students'   => $masteredStudents,
                 'status'              => $isMasteredMajority ? 'mastered' : 'needs_practice',
                 'status_label'        => $isMasteredMajority ? 'Mastered by Majority' : 'Needs Class Practice',
-                'best_student'        => $bestStudentRec ? [
-                    'name'     => trim($bestStudentRec->first_name . ' ' . $bestStudentRec->last_name),
-                    'accuracy' => $bestStudentRec->attempts > 0 ? round(($bestStudentRec->successful_attempts / $bestStudentRec->attempts) * 100) : 0,
-                    'attempts' => $bestStudentRec->attempts,
+                'best_student'        => $bestStudentItem ? [
+                    'name'     => $bestStudentItem['name'],
+                    'accuracy' => (int) round($bestStudentItem['accuracy']),
+                    'attempts' => $bestStudentItem['attempts'],
                 ] : null,
-                'struggling_student'  => ($strugglingStudentRec && $strugglingStudentRec->wrong_attempts > 0) ? [
-                    'name'     => trim($strugglingStudentRec->first_name . ' ' . $strugglingStudentRec->last_name),
-                    'accuracy' => round(($strugglingStudentRec->successful_attempts / $strugglingStudentRec->attempts) * 100),
-                    'wrong'    => $strugglingStudentRec->wrong_attempts,
+                'struggling_student'  => $strugglingStudentItem ? [
+                    'name'     => $strugglingStudentItem['name'],
+                    'accuracy' => (int) round($strugglingStudentItem['accuracy']),
+                    'wrong'    => $strugglingStudentItem['wrong_attempts'],
                 ] : null,
                 'students_ranking'    => $rankedStudentsForSign,
             ];
