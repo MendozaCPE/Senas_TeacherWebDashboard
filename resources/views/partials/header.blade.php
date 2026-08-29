@@ -61,7 +61,7 @@
                 </div>
 
                 <!-- List -->
-                <div id="notif-list" class="overflow-y-auto" style="max-height:430px;">
+                <div id="notif-list" class="overflow-y-auto divide-y divide-slate-50" style="max-height:380px;">
                     <!-- Skeleton -->
                     <div id="notif-skeleton" class="p-2 space-y-1">
                         @for($i=0;$i<5;$i++)
@@ -85,6 +85,15 @@
                         <p class="text-[13px] font-bold text-slate-500">All caught up!</p>
                         <p class="text-[12px] text-slate-400 mt-1 leading-relaxed">Student quiz answers, level-ups, and help requests will appear here.</p>
                     </div>
+                </div>
+
+                <!-- Footer: See previous notifications -->
+                <div id="notif-footer" class="border-t border-slate-100 bg-slate-50/90 p-2.5 text-center">
+                    <a href="{{ route('notifications.index') }}"
+                       class="inline-flex items-center justify-center gap-1.5 w-full py-2 text-[12.5px] font-bold text-[#0d326b] hover:text-[#1e4b8f] hover:bg-white rounded-xl transition-all duration-150 shadow-sm border border-slate-200/60">
+                        <span>See previous notifications</span>
+                        <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                    </a>
                 </div>
 
             </div>
@@ -170,33 +179,53 @@ document.addEventListener('DOMContentLoaded', function () {
     let open=false, loaded=false;
 
     const COLORS = {
-        quiz_answered:     {bg:'#EFF6FF',ring:'#BFDBFE',fg:'#1D4ED8'},
-        module_passed:     {bg:'#F5F3FF',ring:'#DDD6FE',fg:'#6D28D9'},
-        checkpoint_passed: {bg:'#FFFBEB',ring:'#FDE68A',fg:'#B45309'},
-        level_up:          {bg:'#ECFDF5',ring:'#A7F3D0',fg:'#047857'},
-        mastery_promoted:  {bg:'#F5F3FF',ring:'#DDD6FE',fg:'#6D28D9'},
-        help_request:      {bg:'#FEF2F2',ring:'#FECACA',fg:'#B91C1C'},
-        streak_milestone:  {bg:'#FFF7ED',ring:'#FED7AA',fg:'#C2410C'},
+        quiz_answered:           {bg:'#EFF6FF',ring:'#BFDBFE',fg:'#1D4ED8'},
+        module_passed:           {bg:'#F5F3FF',ring:'#DDD6FE',fg:'#6D28D9'},
+        checkpoint_passed:       {bg:'#FFFBEB',ring:'#FDE68A',fg:'#B45309'},
+        level_up:                {bg:'#ECFDF5',ring:'#A7F3D0',fg:'#047857'},
+        mastery_promoted:        {bg:'#F5F3FF',ring:'#DDD6FE',fg:'#6D28D9'},
+        help_request:            {bg:'#FEF2F2',ring:'#FECACA',fg:'#B91C1C'},
+        streak_milestone:        {bg:'#FFF7ED',ring:'#FED7AA',fg:'#C2410C'},
+        module_completed:        {bg:'#F0FDF4',ring:'#BBF7D0',fg:'#15803D'},
+        challenge_completed:     {bg:'#F5F3FF',ring:'#DDD6FE',fg:'#6D28D9'},
+        fingerspelling_completed:{bg:'#F0FDFA',ring:'#99F6E4',fg:'#0D9488'},
     };
 
     function cfg(type){ return COLORS[type]||{bg:'#F8FAFC',ring:'#E2E8F0',fg:'#475569'}; }
 
     function renderItem(n){
         const c=cfg(n.type), unread=!n.is_read;
-        // Redirect to reports page with open_student param
         const data = n.data || {};
-        const sid = data.student_id;
-        const dest = sid ? `/reports?open_student=${sid}` : '/reports';
+        const sid = n.student_id || data.student_id;
+        const dest = n.action_url || (sid ? `/reports?open_student=${sid}` : '/notifications');
+        const sName = n.student_name || 'Student';
+        const fallback = n.student_fallback || `https://ui-avatars.com/api/?name=${encodeURIComponent(sName)}&background=0d326b&color=fff&size=128&bold=true&rounded=true`;
+        const avatarSrc = n.student_avatar || fallback;
+
+        const avatarHtml = (sid || n.student_name) ? `
+            <div class="relative flex-shrink-0 w-10 h-10 mt-0.5">
+                <img src="${avatarSrc}"
+                     alt="${sName}"
+                     class="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-slate-100 bg-slate-100"
+                     onerror="this.onerror=null;this.src='${fallback}';">
+                <div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white shadow-sm ring-1 ring-white"
+                     style="background:${c.fg};">
+                    <span class="material-symbols-outlined text-[11px]" style="font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 20;">${n.icon || 'notifications'}</span>
+                </div>
+            </div>
+        ` : `
+            <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-0.5 shadow-sm"
+                 style="background:${c.bg};outline:1.5px solid ${c.ring};">
+                <span class="material-symbols-outlined text-[18px]" style="color:${c.fg};">${n.icon || 'notifications'}</span>
+            </div>
+        `;
 
         return `<div class="notif-row flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors duration-150 ${unread?'bg-blue-50/50 hover:bg-blue-50/80':'hover:bg-slate-50/80'}"
                      data-id="${n.id}" data-dest="${dest}"
                      onclick="handleNotifClick(${n.id},'${dest}')"
                      onmouseenter="showNotifTooltip(this)"
                      onmouseleave="hideNotifTooltip()">
-            <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mt-0.5 shadow-sm"
-                 style="background:${c.bg};outline:1.5px solid ${c.ring};">
-                <span class="material-symbols-outlined text-[18px]" style="color:${c.fg};">${n.icon}</span>
-            </div>
+            ${avatarHtml}
             <div class="flex-1 min-w-0 pr-1">
                 <p class="text-[13px] font-${unread?'bold':'semibold'} text-slate-800 leading-snug">${n.title}</p>
                 <p class="notif-message-preview text-[12px] text-slate-500 mt-0.5 leading-snug line-clamp-2">${n.message}</p>

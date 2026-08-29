@@ -196,11 +196,14 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
     Route::post('/settings/rating', [SettingsController::class, 'submitRating'])->name('settings.rating');
 
 
-    // ── Teacher Notifications (API only — no separate page) ──────────────────
+    // ── Teacher Notifications ────────────────────────────────────────────────
+    Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/api/notifications/latest', [NotificationsController::class, 'latest'])->name('notifications.latest');
     Route::get('/api/notifications/unread-count', [NotificationsController::class, 'unreadCount'])->name('notifications.unread-count');
     Route::post('/notifications/{id}/read', [NotificationsController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/{id}/unread', [NotificationsController::class, 'markUnread'])->name('notifications.unread');
     Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('/notifications/clear-read', [NotificationsController::class, 'clearRead'])->name('notifications.clear-read');
     Route::delete('/notifications/{id}', [NotificationsController::class, 'destroy'])->name('notifications.destroy');
 
     // Global Search Auto-complete API

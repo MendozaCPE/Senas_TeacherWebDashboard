@@ -61,6 +61,20 @@ class TeacherNotification extends Model
         ]);
     }
 
+    public function markAsUnread(): void
+    {
+        $this->update([
+            'is_read' => false,
+            'read_at' => null,
+        ]);
+    }
+
+    public function getStudent(): ?Student
+    {
+        $studentId = $this->data['student_id'] ?? null;
+        return $studentId ? Student::find($studentId) : null;
+    }
+
     // ── Static factory ───────────────────────────────────────────────────────
 
     /**

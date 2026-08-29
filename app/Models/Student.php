@@ -27,12 +27,46 @@ class Student extends Model
         'school_year',
         'program_type',
         'fsl_mastery_level',
+        'profile_picture',
         'status',
         'total_xp',
         'level',
         'streak_days',
         'last_activity_date',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    /**
+     * Get student avatar URL with reliable fallbacks.
+     */
+    public function avatarUrl(): string
+    {
+        $fullName = trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+        $fallback = "https://ui-avatars.com/api/?name=" . urlencode($fullName ?: 'Student') . "&background=0d326b&color=fff&size=128&bold=true&rounded=true";
+
+        if (!empty($this->profile_picture)) {
+            if (str_starts_with($this->profile_picture, 'http://') || str_starts_with($this->profile_picture, 'https://')) {
+                return $this->profile_picture;
+            }
+            if ($this->profile_picture === 'senya' && file_exists(public_path('images/senya_face.png'))) {
+                return asset('images/senya_face.png');
+            }
+            if (file_exists(public_path('storage/' . $this->profile_picture))) {
+                return asset('storage/' . $this->profile_picture);
+            }
+        }
+
+        // If student is linked to a user with profile_photo
+        if ($this->user && !empty($this->user->profile_photo)) {
+            return $this->user->avatarUrl();
+        }
+
+        return $fallback;
+    }
 
     // ─── AUTO-ASSIGN LESSONS + CHECKPOINT EXAMS ON STUDENT CREATION ────
     protected static function booted()

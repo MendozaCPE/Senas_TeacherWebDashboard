@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Student;
 use App\Models\TeacherNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,11 +33,41 @@ class NotificationsController extends Controller
 
         $notifications = $query->paginate(20)->withQueryString();
 
+        // Batch-load students for notifications to avoid N+1 queries
+        $studentIds = collect($notifications->items())
+            ->map(fn ($n) => $n->data['student_id'] ?? null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $students = $studentIds->isNotEmpty()
+            ? Student::whereIn('student_id', $studentIds)->get()->keyBy('student_id')
+            : collect();
+
+        $notifications->getCollection()->transform(function ($n) use ($students) {
+            $studentId       = $n->data['student_id'] ?? null;
+            $student         = $studentId ? ($students[$studentId] ?? null) : null;
+            $studentName     = $student ? trim($student->first_name . ' ' . $student->last_name) : ($n->data['student_name'] ?? null);
+            $studentAvatar   = $student ? $student->avatarUrl() : null;
+            $studentFallback = $studentName
+                ? 'https://ui-avatars.com/api/?name=' . urlencode($studentName) . '&background=0d326b&color=fff&size=128&bold=true&rounded=true'
+                : 'https://ui-avatars.com/api/?name=Student&background=0d326b&color=fff&size=128&bold=true&rounded=true';
+
+            $n->student          = $student;
+            $n->student_name     = $studentName;
+            $n->student_avatar   = $studentAvatar;
+            $n->student_fallback = $studentFallback;
+            return $n;
+        });
+
         $unreadCount = TeacherNotification::where('teacher_id', $teacher->id)
             ->where('is_read', false)
             ->count();
 
-        return view('notifications', compact('notifications', 'unreadCount', 'filter'));
+        $allCount = TeacherNotification::where('teacher_id', $teacher->id)->count();
+        $readCount = TeacherNotification::where('teacher_id', $teacher->id)->where('is_read', true)->count();
+
+        return view('notifications', compact('notifications', 'unreadCount', 'allCount', 'readCount', 'filter'));
     }
 
     /**
@@ -66,23 +97,48 @@ class NotificationsController extends Controller
             return response()->json(['notifications' => [], 'unread_count' => 0]);
         }
 
-        $notifications = TeacherNotification::where('teacher_id', $teacher->id)
+        $rawNotifs = TeacherNotification::where('teacher_id', $teacher->id)
             ->orderBy('created_at', 'desc')
             ->take(8)
-            ->get()
-            ->map(fn ($n) => [
-                'id'         => $n->id,
-                'type'       => $n->type,
-                'title'      => $n->title,
-                'message'    => $n->message,
-                'icon'       => $n->icon,
-                'color'      => $n->color,
-                'data'       => $n->data,
-                'action_url' => $n->action_url,
-                'is_read'    => $n->is_read,
-                'time_ago'   => $n->created_at->diffForHumans(),
-                'created_at' => $n->created_at->toISOString(),
-            ]);
+            ->get();
+
+        $studentIds = $rawNotifs
+            ->map(fn ($n) => $n->data['student_id'] ?? null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $students = $studentIds->isNotEmpty()
+            ? Student::whereIn('student_id', $studentIds)->get()->keyBy('student_id')
+            : collect();
+
+        $notifications = $rawNotifs->map(function ($n) use ($students) {
+            $studentId       = $n->data['student_id'] ?? null;
+            $student         = $studentId ? ($students[$studentId] ?? null) : null;
+            $studentName     = $student ? trim($student->first_name . ' ' . $student->last_name) : ($n->data['student_name'] ?? null);
+            $studentAvatar   = $student ? $student->avatarUrl() : null;
+            $studentFallback = $studentName
+                ? 'https://ui-avatars.com/api/?name=' . urlencode($studentName) . '&background=0d326b&color=fff&size=128&bold=true&rounded=true'
+                : 'https://ui-avatars.com/api/?name=Student&background=0d326b&color=fff&size=128&bold=true&rounded=true';
+
+            return [
+                'id'               => $n->id,
+                'type'             => $n->type,
+                'title'            => $n->title,
+                'message'          => $n->message,
+                'icon'             => $n->icon,
+                'color'            => $n->color,
+                'data'             => $n->data,
+                'student_id'       => $studentId,
+                'student_name'     => $studentName,
+                'student_avatar'   => $studentAvatar,
+                'student_fallback' => $studentFallback,
+                'action_url'       => $n->action_url ?? ($studentId ? '/reports?open_student=' . $studentId : null),
+                'is_read'          => (bool) $n->is_read,
+                'time_ago'         => $n->created_at->diffForHumans(),
+                'created_at'       => $n->created_at->toISOString(),
+            ];
+        });
 
         $unreadCount = TeacherNotification::where('teacher_id', $teacher->id)
             ->where('is_read', false)
@@ -108,6 +164,24 @@ class NotificationsController extends Controller
             ->findOrFail($id);
 
         $notification->markAsRead();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Mark a single notification as unread.
+     */
+    public function markUnread(Request $request, $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['success' => false], 403);
+        }
+
+        $notification = TeacherNotification::where('teacher_id', $teacher->id)
+            ->findOrFail($id);
+
+        $notification->markAsUnread();
 
         return response()->json(['success' => true]);
     }
