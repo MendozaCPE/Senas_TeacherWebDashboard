@@ -665,7 +665,7 @@ class TcPdfService extends TCPDF
         $rm     = $this->getOriginalMargins()['right'];
         $usable = $this->getPageWidth() - $lm - $rm;
 
-        $panelH = 80; // reserved height for header + chart
+        $panelH = 62; // reserved height for header + chart
         if ($this->GetY() + $panelH > $this->getPageHeight() - 28) {
             $this->AddPage();
         }
@@ -829,15 +829,15 @@ class TcPdfService extends TCPDF
      *        ['title' => ..., 'avg_score' => float, 'attempts' => int]
      * @param int $maxRows  cap rows drawn on the PDF (web scrolls; PDF can't)
      */
-    public function moduleDifficultyList($lessons, int $maxRows = 8): void
+    public function moduleDifficultyList($lessons, int $maxRows = 12): void
     {
         $lm     = $this->getOriginalMargins()['left'];
         $rm     = $this->getOriginalMargins()['right'];
         $usable = $this->getPageWidth() - $lm - $rm;
 
         $lessons = collect($lessons)->take($maxRows);
-        $rowH    = 11;
-        $panelH  = 16 + ($lessons->count() > 0 ? $lessons->count() * $rowH : 14);
+        $rowH    = 9;
+        $panelH  = 14 + ($lessons->count() > 0 ? $lessons->count() * $rowH : 12);
 
         if ($this->GetY() + $panelH > $this->getPageHeight() - 28) {
             $this->AddPage();

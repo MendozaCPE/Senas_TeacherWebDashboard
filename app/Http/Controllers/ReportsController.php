@@ -627,11 +627,11 @@ class ReportsController extends Controller
             ['label' => 'Total Students',  'value' => (string) ($data['totalStudents'] ?? 0)],
             ['label' => 'Avg Quiz Score',  'value' => number_format($data['avgQuizScore'] ?? 0, 1) . '%'],
             ['label' => 'Gesture Mastery', 'value' => number_format($data['avgMastery'] ?? 0, 1) . '%'],
-            ['label' => 'Completion Rate','value' => number_format($data['completionRate'] ?? 0, 1) . '%'],
+            ['label' => 'Completion Rate', 'value' => number_format($data['completionRate'] ?? 0, 1) . '%'],
             ['label' => 'Avg Streak',      'value' => ($data['avgStreakDays'] ?? 0) . ' d'],
             ['label' => 'Active (Last 7d)','value' => number_format($data['activeLast7Pct'] ?? 0, 1) . '%'],
         ]);
-        $pdf->Ln(2);
+        $pdf->Ln(1);
 
         /* ── Insight box ── */
         $pdf->insightBox(
@@ -642,65 +642,56 @@ class ReportsController extends Controller
             number_format($data['completionRate'] ?? 0, 1) . '%.',
             'gold'
         );
-        $pdf->Ln(2);
+        $pdf->Ln(1);
 
         /* ── Class Progress Over Time ── */
-        $period       = $request->get('period', 'weekly');
-        $year         = (int) $request->get('year', date('Y'));
-        $progressPts  = array_values((array) ($data['progressOverTime'] ?? []));
-        $periodLabel  = ucfirst($period) . ' average quiz score ' . $year;
-        $countLabel   = count($progressPts) . ' ' . $period;
+        $period      = $request->get('period', 'weekly');
+        $year        = (int) $request->get('year', date('Y'));
+        $progressPts = array_values((array) ($data['progressOverTime'] ?? []));
+        $periodLabel = ucfirst($period) . ' average quiz score ' . $year;
+        $countLabel  = count($progressPts) . ' ' . $period;
         $pdf->sectionTitle('Class Progress Over Time');
         $pdf->progressLineChart($progressPts, $periodLabel, $countLabel);
-        $pdf->Ln(2);
+        $pdf->Ln(1);
 
         /* ── Module Difficulty Ranking ── */
         $pdf->sectionTitle('Module Difficulty Ranking');
         $pdf->moduleDifficultyList($data['lessonDifficulty'] ?? []);
-        $pdf->Ln(2);
+        $pdf->Ln(1);
 
-        /* ── Student Ranking (new page) ── */
-        $pdf->AddPage();
+        /* ── Student Ranking — flows naturally, no forced page break ── */
         $pdf->sectionTitle('Student Ranking');
         if (!empty($data['studentRanking']) && count($data['studentRanking']) > 0) {
             $isOverall = !isset($data['studentRanking'][0]['best_score']);
-
             $rankHeaders = [
-                ['label' => 'Rank',         'width' => 18,  'align' => 'C'],
-                ['label' => 'Student Name', 'width' => 80,  'align' => 'L'],
-                ['label' => $isOverall ? 'Quizzes' : 'Attempts', 'width' => 28,  'align' => 'C'],
-                ['label' => $isOverall ? 'Avg Score' : 'Best Score', 'width' => 0,   'align' => 'C'],
+                ['label' => 'Rank',         'width' => 18, 'align' => 'C'],
+                ['label' => 'Student Name', 'width' => 80, 'align' => 'L'],
+                ['label' => $isOverall ? 'Quizzes' : 'Attempts',   'width' => 28, 'align' => 'C'],
+                ['label' => $isOverall ? 'Avg Score' : 'Best Score','width' => 0,  'align' => 'C'],
             ];
             $rankRows = [];
             foreach ($data['studentRanking'] as $i => $s) {
-                $rankLabel = ($i === 0) ? '1st' : (($i === 1) ? '2nd' : (($i === 2) ? '3rd' : '#' . ($i + 1)));
-                
-                $scoreVal = $isOverall ? ($s['overall_score'] ?? $s['avg_score'] ?? 0) : ($s['best_score'] ?? 0);
+                $rankLabel  = ($i === 0) ? '1st' : (($i === 1) ? '2nd' : (($i === 2) ? '3rd' : '#' . ($i + 1)));
+                $scoreVal   = $isOverall ? ($s['overall_score'] ?? $s['avg_score'] ?? 0) : ($s['best_score'] ?? 0);
                 $attemptVal = $isOverall ? ($s['quizzes_count'] ?? $s['lesson_count'] ?? 0) : ($s['attempts_to_achieve'] ?? 0);
-                
-                $rankRows[] = [
-                    $rankLabel,
-                    $s['name'],
-                    $attemptVal,
-                    number_format($scoreVal, 1) . '%',
-                ];
+                $rankRows[] = [$rankLabel, $s['name'], $attemptVal, number_format($scoreVal, 1) . '%'];
             }
             $pdf->dataTable($rankHeaders, $rankRows);
         } else {
             $pdf->SetFont('helvetica', 'I', 8);
             $pdf->SetTextColor(148, 163, 184);
-            $pdf->Cell($usableW, 6, 'No quiz attempt data available yet.', 0, 1, 'C');
+            $pdf->Cell($usableW, 5, 'No quiz attempt data available yet.', 0, 1, 'C');
         }
-        $pdf->Ln(4);
+        $pdf->Ln(2);
 
-        /* ── Mastery Level Distribution ── */
+        /* ── Mastery Distribution ── */
         $pdf->sectionTitle('Mastery Level Distribution');
         if (!empty($data['masteryDistribution']) && ($data['masteryTotal'] ?? 0) > 0) {
             $mColors = [
-                [239, 68, 68],   // red  — needs practice
-                [245, 158, 11],  // amber — developing
-                [59, 130, 246],  // blue  — proficient
-                [16, 185, 129],  // green — mastered
+                [239, 68, 68],
+                [245, 158, 11],
+                [59, 130, 246],
+                [16, 185, 129],
             ];
             foreach ($data['masteryDistribution'] as $i => $seg) {
                 $pdf->barRow(
@@ -713,18 +704,18 @@ class ReportsController extends Controller
         } else {
             $pdf->SetFont('helvetica', 'I', 8);
             $pdf->SetTextColor(148, 163, 184);
-            $pdf->Cell($usableW, 6, 'No mastery data available yet.', 0, 1, 'C');
+            $pdf->Cell($usableW, 5, 'No mastery data available yet.', 0, 1, 'C');
         }
-        $pdf->Ln(4);
+        $pdf->Ln(2);
 
         /* ── Completion Funnel ── */
         $pdf->sectionTitle('Lesson Completion Funnel');
         if (!empty($data['completionFunnel']) && ($data['completionTotal'] ?? 0) > 0) {
             $fColors = [
-                [250, 204, 21],  // yellow — pending
-                [59, 130, 246],  // blue   — in progress
-                [16, 185, 129],  // green  — completed
-                [239, 68, 68],   // red    — failed
+                [250, 204, 21],
+                [59, 130, 246],
+                [16, 185, 129],
+                [239, 68, 68],
             ];
             $total = max(1, $data['completionTotal']);
             foreach ($data['completionFunnel'] as $i => $step) {
@@ -739,67 +730,300 @@ class ReportsController extends Controller
         } else {
             $pdf->SetFont('helvetica', 'I', 8);
             $pdf->SetTextColor(148, 163, 184);
-            $pdf->Cell($usableW, 6, 'No lesson assignment data available yet.', 0, 1, 'C');
+            $pdf->Cell($usableW, 5, 'No lesson assignment data available yet.', 0, 1, 'C');
         }
-        $pdf->Ln(4);
+        $pdf->Ln(2);
+
+        /* ── Score Distribution ── */
+        $pdf->sectionTitle('Quiz Score Distribution');
+        $scoreTotal = collect($data['scoreBuckets'] ?? [])->sum('count');
+        if ($scoreTotal > 0) {
+            $sColors = [
+                [239, 68, 68],
+                [245, 158, 11],
+                [59, 130, 246],
+                [30, 75, 143],
+                [13, 50, 107],
+            ];
+            foreach (($data['scoreBuckets'] ?? []) as $i => $bucket) {
+                $pct = round(($bucket['count'] / $scoreTotal) * 100, 1);
+                $pdf->barRow(
+                    $bucket['label'] . '% — ' . $bucket['count'] . ' attempts (' . $pct . '%)',
+                    $pct,
+                    100,
+                    $sColors[$i % count($sColors)]
+                );
+            }
+        } else {
+            $pdf->SetFont('helvetica', 'I', 8);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->Cell($usableW, 5, 'No quiz attempt data available yet.', 0, 1, 'C');
+        }
+        $pdf->Ln(2);
+
+
 
         /* ── Gesture Performance (new page) ── */
         $pdf->AddPage();
         $pdf->sectionTitle('Gesture Performance Analytics');
 
-        /* Overview row */
+        /* Overview strip */
         $gOverview = $data['gesturePerformanceOverview'] ?? [];
         if (!empty($gOverview) && ($gOverview['total_attempts'] ?? 0) > 0) {
             $pdf->summaryStrip([
-                ['label' => 'Total Gestures',  'value' => (string) ($gOverview['total_gestures'] ?? 0)],
-                ['label' => 'Total Attempts',  'value' => (string) ($gOverview['total_attempts'] ?? 0)],
-                ['label' => 'Successful',       'value' => (string) ($gOverview['total_successful'] ?? 0)],
-                ['label' => 'Overall Accuracy', 'value' => number_format($gOverview['overall_accuracy'] ?? 0, 1) . '%'],
-                ['label' => 'Mastered',         'value' => (string) ($gOverview['total_mastered'] ?? 0)],
+                ['label' => 'Total Signs',      'value' => (string) ($gOverview['total_gestures'] ?? 0)],
+                ['label' => 'Total Attempts',   'value' => (string) ($gOverview['total_attempts'] ?? 0)],
+                ['label' => 'Correct',          'value' => (string) ($gOverview['total_successful'] ?? 0)],
+                ['label' => 'Class Accuracy',   'value' => number_format($gOverview['overall_accuracy'] ?? 0, 1) . '%'],
+                ['label' => 'Signs Mastered',   'value' => (string) ($data['masteredSignsCount'] ?? 0)],
+                ['label' => 'Needs Practice',   'value' => (string) ($data['lowMasterySignsCount'] ?? 0)],
             ]);
-            $pdf->Ln(4);
+            $pdf->Ln(3);
         }
 
-        /* Best-performing gestures */
-        $pdf->SetFont('helvetica', 'B', 9);
-        $pdf->SetTextColor(13, 50, 107);
-        $pdf->Cell($usableW, 6, 'Best-Performing Gestures', 0, 1, 'L');
-        $pdf->SetTextColor(51, 65, 85);
-        if (!empty($data['topPerformingGestures']) && count($data['topPerformingGestures']) > 0) {
-            foreach ($data['topPerformingGestures'] as $g) {
-                $pdf->barRow(
-                    $g['gesture_name'] . ' (' . $g['successful_attempts'] . '/' . $g['attempts'] . ')',
-                    (float) $g['accuracy'],
-                    100,
-                    [16, 185, 129]  // green
-                );
-            }
-        } else {
-            $pdf->SetFont('helvetica', 'I', 8);
-            $pdf->SetTextColor(148, 163, 184);
-            $pdf->Cell($usableW, 6, 'No gesture performance records available.', 0, 1, 'C');
-        }
-        $pdf->Ln(4);
+        $signsBreakdownPdf = $data['signsBreakdown'] ?? [];
 
-        /* Lowest-performing gestures */
-        $pdf->SetFont('helvetica', 'B', 9);
-        $pdf->SetTextColor(13, 50, 107);
-        $pdf->Cell($usableW, 6, 'Struggling Gestures (Lowest Accuracy)', 0, 1, 'L');
-        $pdf->SetTextColor(51, 65, 85);
-        if (!empty($data['lowestPerformingGestures']) && count($data['lowestPerformingGestures']) > 0) {
-            foreach ($data['lowestPerformingGestures'] as $g) {
-                $pdf->barRow(
-                    $g['gesture_name'] . ' (' . $g['successful_attempts'] . '/' . $g['attempts'] . ')',
-                    (float) $g['accuracy'],
-                    100,
-                    [239, 68, 68]  // red
-                );
-            }
-        } else {
-            $pdf->SetFont('helvetica', 'I', 8);
+        if (empty($signsBreakdownPdf)) {
+            $pdf->SetFont('helvetica', 'I', 9);
             $pdf->SetTextColor(148, 163, 184);
-            $pdf->Cell($usableW, 6, 'No gesture performance records available.', 0, 1, 'C');
+            $pdf->Cell($usableW, 8, 'No student gesture practices recorded in this period.', 0, 1, 'C');
+        } else {
+
+            /* ── Overview: Best 5 vs. Worst 5 side-by-side ── */
+            $topGestures  = collect($signsBreakdownPdf)->sortByDesc('accuracy')->take(5)->values()->all();
+            $worstGestures = collect($signsBreakdownPdf)->sortBy('accuracy')->take(5)->values()->all();
+
+            $halfW = $usableW / 2 - 3;
+
+            // Left column header
+            $pdf->SetFont('helvetica', 'B', 8.5);
+            $pdf->SetTextColor(22, 101, 52);   // green-800
+            $leftX = $lm;
+            $rightX = $lm + $halfW + 6;
+            $pdf->SetXY($leftX, $pdf->GetY());
+            $pdf->Cell($halfW, 6, 'Best-Performing Signs (Top 5)', 'B', 0, 'L');
+            $pdf->SetTextColor(153, 27, 27);    // red-800
+            $pdf->SetX($rightX);
+            $pdf->Cell($halfW, 6, 'Signs Needing Most Practice (Bottom 5)', 'B', 1, 'L');
+            $pdf->Ln(1);
+
+            $maxRows = max(count($topGestures), count($worstGestures));
+            for ($ri = 0; $ri < $maxRows; $ri++) {
+                $rowY = $pdf->GetY();
+
+                // Left: top gesture
+                if (isset($topGestures[$ri])) {
+                    $g = $topGestures[$ri];
+                    $pdf->SetXY($leftX, $rowY);
+                    $pdf->SetFont('helvetica', 'B', 8);
+                    $pdf->SetTextColor(13, 50, 107);
+                    $pdf->Cell($halfW - 26, 5, \Illuminate\Support\Str::limit($g['gesture_name'], 22), 0, 0, 'L');
+                    $pdf->SetFont('helvetica', 'B', 8);
+                    $pdf->SetTextColor(22, 101, 52);
+                    $pdf->Cell(26, 5, number_format($g['accuracy'], 1) . '%', 0, 0, 'R');
+                    $pdf->SetXY($leftX, $rowY + 5);
+                    $pdf->SetDrawColor(220, 252, 231);
+                    $pdf->SetFillColor(220, 252, 231);
+                    $barW = round(($halfW) * min(100, max(2, $g['accuracy'])) / 100);
+                    $pdf->Rect($leftX, $rowY + 5, $halfW, 3, 'DF', [], [220, 252, 231]);
+                    $pdf->SetFillColor(16, 185, 129);
+                    $pdf->Rect($leftX, $rowY + 5, $barW, 3, 'F');
+                    // Best student note
+                    $pdf->SetXY($leftX, $rowY + 9);
+                    $pdf->SetFont('helvetica', '', 7);
+                    $pdf->SetTextColor(100, 116, 139);
+                    $bestName = !empty($g['best_student']['name']) ? 'Best: ' . $g['best_student']['name'] . ' (' . ($g['best_student']['accuracy'] ?? 0) . '%)' : '';
+                    $pdf->Cell($halfW, 4, $bestName, 0, 0, 'L');
+                }
+
+                // Right: worst gesture
+                if (isset($worstGestures[$ri])) {
+                    $g = $worstGestures[$ri];
+                    $pdf->SetXY($rightX, $rowY);
+                    $pdf->SetFont('helvetica', 'B', 8);
+                    $pdf->SetTextColor(13, 50, 107);
+                    $pdf->Cell($halfW - 26, 5, \Illuminate\Support\Str::limit($g['gesture_name'], 22), 0, 0, 'L');
+                    $pdf->SetFont('helvetica', 'B', 8);
+                    $pdf->SetTextColor(153, 27, 27);
+                    $pdf->Cell(26, 5, number_format($g['accuracy'], 1) . '%', 0, 0, 'R');
+                    $pdf->SetXY($rightX, $rowY + 5);
+                    $barW = round(($halfW) * min(100, max(2, $g['accuracy'])) / 100);
+                    $pdf->SetFillColor(254, 226, 226);
+                    $pdf->Rect($rightX, $rowY + 5, $halfW, 3, 'DF', [], [254, 226, 226]);
+                    $pdf->SetFillColor(239, 68, 68);
+                    $pdf->Rect($rightX, $rowY + 5, $barW, 3, 'F');
+                    // Struggling student note
+                    $pdf->SetXY($rightX, $rowY + 9);
+                    $pdf->SetFont('helvetica', '', 7);
+                    $pdf->SetTextColor(100, 116, 139);
+                    $strName = !empty($g['struggling_student']['name']) ? 'Struggling: ' . $g['struggling_student']['name'] . ' (' . ($g['struggling_student']['accuracy'] ?? 0) . '%)' : '';
+                    $pdf->Cell($halfW, 4, $strName, 0, 0, 'L');
+                }
+
+                $pdf->SetY($rowY + 14);
+            }
+            $pdf->Ln(6);
+
+            /* ── Per-Sign Student Ranking Tables — flows directly after overview ── */
+            $pdf->Ln(3);
+            $pdf->sectionTitle('Per-Sign Student Breakdown & Rankings');
+            $pdf->Ln(1);
+
+            // Column widths that exactly fill $usableW (A4 usable ≈ 170mm)
+            // Rank(14) + Student(auto) + Att(20) + Correct(20) + Wrong(18) + Acc(24) + Status(24) = 120 fixed
+            $fixedW  = 14 + 20 + 20 + 18 + 24 + 24; // = 120
+            $nameW   = $usableW - $fixedW;             // remaining for name column
+            $rankW   = 14;
+            $attW    = 20;
+            $corW    = 20;
+            $wrnW    = 18;
+            $accW    = 24;
+            $statW   = 24;
+            $tblRowH = 6.5;
+
+            foreach ($signsBreakdownPdf as $sign) {
+                $isMastered    = $sign['status'] === 'mastered';
+                $headerBgR     = $isMastered ? [240, 253, 244] : [255, 251, 235];
+                $headerBorderR = $isMastered ? [86, 200, 129]  : [251, 191, 36];
+                $accentColor   = $isMastered ? [22, 101, 52]   : [146, 64, 14];
+                $barColor      = $isMastered ? [16, 185, 129]  : [245, 158, 11];
+
+                // Estimate block height: header(11) + best/struggling row(7) + thead(7) + rows
+                $students  = $sign['students_ranking'] ?? [];
+                $blockH    = 11 + 7 + $tblRowH + (count($students) * $tblRowH) + 4;
+                $pageH     = $pdf->getPageHeight() - $pdf->getBreakMargin();
+                if ($pdf->GetY() + min($blockH, 35) > $pageH) {
+                    $pdf->AddPage();
+                }
+
+                // ── Sign header bar ──
+                $hdrY = $pdf->GetY();
+                $pdf->SetFillColor(...$headerBgR);
+                $pdf->SetDrawColor(...$headerBorderR);
+                $pdf->Rect($lm, $hdrY, $usableW, 11, 'DF');
+
+                $pdf->SetXY($lm + 3, $hdrY + 1.5);
+                $pdf->SetFont('helvetica', 'B', 9.5);
+                $pdf->SetTextColor(13, 50, 107);
+                $pdf->Cell($nameW + $rankW, 5, 'Sign: ' . $sign['gesture_name'], 0, 0, 'L');
+
+                $statusLabel = $isMastered ? 'Mastered by Majority' : 'Needs Class Practice';
+                $pdf->SetFont('helvetica', 'B', 7);
+                $pdf->SetTextColor(...$accentColor);
+                $pdf->Cell(45, 5, $statusLabel, 0, 0, 'C');
+
+                $pdf->SetFont('helvetica', 'B', 9.5);
+                $pdf->SetTextColor(...$accentColor);
+                $pdf->Cell(0, 5, number_format($sign['accuracy'], 1) . '% accuracy', 0, 0, 'R');
+
+                $pdf->SetXY($lm + 3, $hdrY + 7);
+                $pdf->SetFont('helvetica', '', 7);
+                $pdf->SetTextColor(71, 85, 105);
+                $pdf->Cell($usableW - 6, 3.5, $sign['total_attempts'] . ' attempts · ' . $sign['successful_attempts'] . ' correct · ' . $sign['wrong_attempts'] . ' wrong', 0, 1, 'L');
+
+                // ── Accuracy bar ──
+                $pdf->SetXY($lm, $hdrY + 11);
+                $barFillW = round($usableW * min(100, max(1, $sign['accuracy'])) / 100);
+                $pdf->SetFillColor(226, 232, 240);
+                $pdf->Rect($lm, $hdrY + 11, $usableW, 2.5, 'F');
+                $pdf->SetFillColor(...$barColor);
+                $pdf->Rect($lm, $hdrY + 11, $barFillW, 2.5, 'F');
+                $pdf->SetY($hdrY + 14);
+
+                // ── Best / Struggling row ──
+                if (!empty($sign['best_student']) || !empty($sign['struggling_student'])) {
+                    $bsY = $pdf->GetY();
+                    $pdf->SetFillColor(248, 250, 252);
+                    $pdf->Rect($lm, $bsY, $usableW, 7, 'F');
+
+                    $pdf->SetXY($lm + 3, $bsY + 1.5);
+                    $pdf->SetFont('helvetica', 'B', 7.5);
+                    $pdf->SetTextColor(22, 101, 52);
+                    $bestTxt = !empty($sign['best_student'])
+                        ? 'Best: ' . $sign['best_student']['name'] . ' — ' . ($sign['best_student']['accuracy'] ?? 0) . '% (' . ($sign['best_student']['attempts'] ?? 0) . ' attempts)'
+                        : 'Best: —';
+                    $pdf->Cell($usableW / 2 - 3, 4.5, $bestTxt, 0, 0, 'L');
+
+                    $pdf->SetFont('helvetica', 'B', 7.5);
+                    $pdf->SetTextColor(153, 27, 27);
+                    $strTxt = !empty($sign['struggling_student'])
+                        ? 'Struggling: ' . $sign['struggling_student']['name'] . ' — ' . ($sign['struggling_student']['accuracy'] ?? 0) . '% (' . ($sign['struggling_student']['wrong'] ?? 0) . ' mistakes)'
+                        : 'Struggling: —';
+                    $pdf->Cell(0, 4.5, $strTxt, 0, 1, 'L');
+                    $pdf->SetY($bsY + 7);
+                }
+
+                // ── Student ranking table with computed column widths ──
+                if (!empty($students)) {
+                    // Table header
+                    $pdf->SetFillColor(13, 50, 107);
+                    $pdf->SetTextColor(255, 255, 255);
+                    $pdf->SetFont('helvetica', 'B', 6.5);
+                    $pdf->SetDrawColor(13, 50, 107);
+                    $pdf->SetX($lm);
+                    $pdf->Cell($rankW, $tblRowH, 'RANK',    1, 0, 'C', true);
+                    $pdf->Cell($nameW, $tblRowH, 'STUDENT', 1, 0, 'L', true);
+                    $pdf->Cell($attW,  $tblRowH, 'ATT',     1, 0, 'C', true);
+                    $pdf->Cell($corW,  $tblRowH, 'CORRECT', 1, 0, 'C', true);
+                    $pdf->Cell($wrnW,  $tblRowH, 'WRONG',   1, 0, 'C', true);
+                    $pdf->Cell($accW,  $tblRowH, 'ACCURACY',1, 0, 'C', true);
+                    $pdf->Cell($statW, $tblRowH, 'STATUS',  1, 1, 'C', true);
+
+                    // Table rows
+                    $pdf->SetFont('helvetica', '', 7.5);
+                    $pdf->SetDrawColor(226, 232, 240);
+                    $fillRow = false;
+                    foreach ($students as $sr) {
+                        if ($pdf->GetY() + $tblRowH > $pdf->getPageHeight() - $pdf->getBreakMargin()) {
+                            $pdf->AddPage();
+                            // Reprint header on continuation
+                            $pdf->SetFillColor(13, 50, 107);
+                            $pdf->SetTextColor(255, 255, 255);
+                            $pdf->SetFont('helvetica', 'B', 6.5);
+                            $pdf->SetDrawColor(13, 50, 107);
+                            $pdf->SetX($lm);
+                            $pdf->Cell($rankW, $tblRowH, 'RANK',    1, 0, 'C', true);
+                            $pdf->Cell($nameW, $tblRowH, 'STUDENT', 1, 0, 'L', true);
+                            $pdf->Cell($attW,  $tblRowH, 'ATT',     1, 0, 'C', true);
+                            $pdf->Cell($corW,  $tblRowH, 'CORRECT', 1, 0, 'C', true);
+                            $pdf->Cell($wrnW,  $tblRowH, 'WRONG',   1, 0, 'C', true);
+                            $pdf->Cell($accW,  $tblRowH, 'ACCURACY',1, 0, 'C', true);
+                            $pdf->Cell($statW, $tblRowH, 'STATUS',  1, 1, 'C', true);
+                            $pdf->SetFont('helvetica', '', 7.5);
+                            $pdf->SetDrawColor(226, 232, 240);
+                            $fillRow = false;
+                        }
+
+                        $rankLabel = match((int)$sr['rank']) {
+                            1 => '1st', 2 => '2nd', 3 => '3rd',
+                            default => '#' . $sr['rank']
+                        };
+                        $statusTxt = $sr['is_mastered'] ? 'Mastered' : 'Practicing';
+                        $bg = $fillRow ? [248, 252, 255] : [255, 255, 255];
+                        $pdf->SetFillColor(...$bg);
+                        $pdf->SetTextColor(51, 65, 85);
+                        $pdf->SetX($lm);
+                        $pdf->Cell($rankW, $tblRowH, $rankLabel,                          'B', 0, 'C', true);
+                        $pdf->Cell($nameW, $tblRowH, (string) $sr['name'],                'B', 0, 'L', true);
+                        $pdf->Cell($attW,  $tblRowH, (string) $sr['attempts'],            'B', 0, 'C', true);
+                        $pdf->Cell($corW,  $tblRowH, (string) $sr['successful_attempts'], 'B', 0, 'C', true);
+                        $pdf->Cell($wrnW,  $tblRowH, (string) $sr['wrong_attempts'],      'B', 0, 'C', true);
+                        $pdf->Cell($accW,  $tblRowH, number_format($sr['accuracy'], 1) . '%', 'B', 0, 'C', true);
+                        $pdf->Cell($statW, $tblRowH, $statusTxt,                          'B', 1, 'C', true);
+                        $fillRow = !$fillRow;
+                    }
+                    $pdf->SetFillColor(255, 255, 255);
+                    $pdf->SetTextColor(51, 65, 85);
+                } else {
+                    $pdf->SetFont('helvetica', 'I', 7.5);
+                    $pdf->SetTextColor(148, 163, 184);
+                    $pdf->Cell($usableW, 5, 'No individual student data for this sign.', 0, 1, 'C');
+                }
+
+                $pdf->Ln(2);
+            }
         }
+
 
         return $pdf->download('senas-analytics-' . now()->format('Y-m-d') . '.pdf');
     }
