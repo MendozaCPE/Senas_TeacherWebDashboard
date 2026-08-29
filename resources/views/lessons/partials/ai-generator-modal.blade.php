@@ -502,6 +502,9 @@ function populateLessonForm(lesson) {
             if (typeSelect) toggleFields(typeSelect);
             contentIndex = idx + 1;
         });
+        if (typeof reindexContentCards === 'function') {
+            reindexContentCards();
+        }
     }
 
     // Quiz questions
@@ -515,6 +518,10 @@ function populateLessonForm(lesson) {
             quizContainer.insertAdjacentHTML('beforeend', qCard);
             quizIndex = idx + 1;
         });
+
+        if (typeof reindexQuizQuestions === 'function') {
+            reindexQuizQuestions();
+        }
 
         // Auto-load gestures for AI generated gesture questions
         quizContainer.querySelectorAll('.gesture-module-select').forEach((select) => {
@@ -532,20 +539,39 @@ function populateLessonForm(lesson) {
     showAiSuccessToast();
 }
 
+function getAiYoutubeId(url) {
+    if (!url || typeof url !== 'string') return null;
+    url = url.trim();
+    let m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    if (m) return m[1];
+    m = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    m = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+    return null;
+}
+
 function buildAiContentCard(slide, idx) {
     const type = slide.content_type || 'text';
-    const typeLabels = { text: 'Text', gesture_demo: 'Gesture', image: 'Image', video: 'Video' };
+    const typeLabels = { text: 'Text', gesture_demo: 'Gesture', image: 'Image', video: 'Video', youtube_video: 'YouTube' };
     const typeLabel = typeLabels[type] || 'Text';
 
     const mediaMissing  = slide.media_missing ? true : false;
     const gestureHidden = type === 'gesture_demo' ? '' : 'hidden';
-    const mediaHidden   = '';
+    const mediaHidden   = (type === 'image' || type === 'video' || type === 'gesture_demo' || mediaMissing) ? '' : 'hidden';
+    const youtubeHidden = type === 'youtube_video' ? '' : 'hidden';
     const gestureName   = slide.gesture_name || '';
 
     // Resolved media from the backend (gesture_media table)
     const resolvedVideo = slide.video_url || null;
     const resolvedImage = slide.image_url || null;
     const hasResolvedMedia = !!(resolvedVideo || resolvedImage);
+
+    // YouTube URL support
+    const rawYtUrl = slide.youtube_url || (type === 'youtube_video' ? (slide.media_url || '') : '');
+    const ytId = getAiYoutubeId(rawYtUrl);
+    const ytEmbedUrl = ytId ? ('https://www.youtube.com/embed/' + ytId + '?rel=0&modestbranding=1') : '';
 
     // Build the media section: show resolved preview if available, otherwise upload widget
     let mediaSection = '';
@@ -608,10 +634,21 @@ function buildAiContentCard(slide, idx) {
             ${missingBadge}`;
     }
 
+    const youtubeSection = `
+        <div class="youtube-field ${youtubeHidden}">
+            <label class="field-label">YouTube Video URL</label>
+            <input type="text" name="contents[${idx}][youtube_url]" value="${escapeHtml(rawYtUrl)}" class="field-input youtube-url-input" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID" autocomplete="off">
+            <div class="youtube-url-error" style="display:none; color:#EF4444; font-size:12px; font-weight:600; margin-top:4px;"></div>
+            <div class="youtube-preview-wrap" style="${ytEmbedUrl ? '' : 'display:none;'} margin-top:12px; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(15,49,114,0.12);">
+                <iframe class="youtube-preview-iframe" src="${ytEmbedUrl}" width="100%" height="250" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display:block; border-radius:14px;"></iframe>
+            </div>
+        </div>`;
+
     return `
     <div class="content-card">
         <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined drag-handle" title="Drag to reorder" style="cursor:grab; color:#94a3b8; font-size:22px; user-select:none;">drag_indicator</span>
                 <div class="step-circle step-number">${idx + 1}</div>
                 <span class="badge-pill" style="background: rgba(24,72,200,0.1); color:#1848c8;">${typeLabel}</span>
                 ${hasResolvedMedia ? '<span style="background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">✓ Media Ready</span>' : ''}
@@ -629,6 +666,7 @@ function buildAiContentCard(slide, idx) {
                     <option value="gesture_demo" ${type === 'gesture_demo' ? 'selected' : ''}>Gesture Demo</option>
                     <option value="image" ${type === 'image' ? 'selected' : ''}>Image</option>
                     <option value="video" ${type === 'video' ? 'selected' : ''}>Video</option>
+                    <option value="youtube_video" ${type === 'youtube_video' ? 'selected' : ''}>YouTube Video</option>
                 </select>
             </div>
             <div>
@@ -644,6 +682,7 @@ function buildAiContentCard(slide, idx) {
                 <input type="text" name="contents[${idx}][gesture_name]" value="${escapeHtml(gestureName)}" class="field-input" placeholder="e.g., letter_a">
             </div>
             ${mediaSection}
+            ${youtubeSection}
             <input type="hidden" name="contents[${idx}][media_missing]" value="${mediaMissing ? '1' : '0'}">
         </div>
     </div>`;
@@ -763,6 +802,7 @@ function buildAiQuizCard(q, idx) {
     <div class="quiz-question bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined drag-handle" title="Drag to reorder" style="cursor:grab; color:#94a3b8; font-size:22px; user-select:none;">drag_indicator</span>
                 <div class="step-circle" style="background:#D97706;width:24px;height:24px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${idx + 1}</div>
                 <span class="text-sm font-bold text-slate-500 question-label">Question ${idx + 1}</span>
                 ${isTrueFalse ? '<span style="background:#FEF3C7;color:#D97706;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;">True/False</span>' : ''}

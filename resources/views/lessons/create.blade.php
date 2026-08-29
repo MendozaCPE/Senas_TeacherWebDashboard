@@ -9,8 +9,43 @@
 @section('content')
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style>
     body, .max-w-4xl * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+    .drag-handle {
+        cursor: grab;
+        color: #94a3b8;
+        font-size: 22px;
+        user-select: none;
+        transition: color 0.15s, transform 0.15s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .drag-handle:hover {
+        color: #0d326b !important;
+        transform: scale(1.1);
+    }
+    .drag-handle:active {
+        cursor: grabbing !important;
+    }
+    .sortable-ghost {
+        opacity: 0.35 !important;
+        background: #f0f7ff !important;
+        border: 2px dashed #1a6fd4 !important;
+        border-radius: 16px !important;
+    }
+    .sortable-chosen {
+        background: #fafcff !important;
+        box-shadow: 0 8px 24px rgba(13,50,107,0.12) !important;
+    }
+    .sortable-drag {
+        opacity: 0.98 !important;
+        background: #ffffff !important;
+        box-shadow: 0 16px 36px rgba(13,50,107,0.22) !important;
+        cursor: grabbing !important;
+    }
 
     .material-symbols-outlined {
         font-family: 'Material Symbols Outlined';
@@ -983,6 +1018,7 @@
                 <div class="content-card">
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined drag-handle" title="Drag to reorder">drag_indicator</span>
                             <div class="step-circle step-number">1</div>
                             <span class="badge-pill" style="background: rgba(13,50,107,0.08); color:#0d326b;">Text</span>
                         </div>
@@ -1079,6 +1115,7 @@
                 <div class="quiz-question">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined drag-handle" title="Drag to reorder">drag_indicator</span>
                             <div class="step-circle" style="background:#0d326b;">1</div>
                             <span class="text-sm font-bold text-slate-500 question-label">Question 1</span>
                         </div>
@@ -2272,6 +2309,7 @@ function addContentCard() {
     card.innerHTML = `
         <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined drag-handle" title="Drag to reorder">drag_indicator</span>
                 <div class="step-circle step-number">${contentIndex + 1}</div>
                 <span class="badge-pill" style="background: rgba(13,50,107,0.08); color:#0d326b;">Text</span>
             </div>
@@ -2329,20 +2367,54 @@ function addContentCard() {
     container.appendChild(card);
     contentIndex++;
     toggleFields(card.querySelector('.content-type'));
+    reindexContentCards();
 }
 
 function removeContentCard(btn) {
     const card = btn.closest('.content-card');
     if (document.querySelectorAll('.content-card').length > 1) {
         card.remove();
-        updateStepNumbers();
+        reindexContentCards();
     }
 }
 
 function updateStepNumbers() {
-    document.querySelectorAll('.content-card .step-number').forEach((el, i) => {
-        el.textContent = i + 1;
+    reindexContentCards();
+}
+
+function reindexContentCards() {
+    document.querySelectorAll('.content-card').forEach((card, i) => {
+        const stepNum = card.querySelector('.step-number');
+        if (stepNum) stepNum.textContent = i + 1;
+
+        const typeSelect = card.querySelector('select[name*="[content_type]"]');
+        if (typeSelect) typeSelect.name = `contents[${i}][content_type]`;
+
+        const titleInput = card.querySelector('input[name*="[title]"]');
+        if (titleInput) titleInput.name = `contents[${i}][title]`;
+
+        const textInput = card.querySelector('textarea[name*="[content_text]"]');
+        if (textInput) textInput.name = `contents[${i}][content_text]`;
+
+        const gestureInput = card.querySelector('input[name*="[gesture_name]"]');
+        if (gestureInput) gestureInput.name = `contents[${i}][gesture_name]`;
+
+        const mediaInput = card.querySelector('input[name*="[existing_media]"]');
+        if (mediaInput) mediaInput.name = `contents[${i}][existing_media]`;
+
+        const ytInput = card.querySelector('input[name*="[youtube_url]"]');
+        if (ytInput) ytInput.name = `contents[${i}][youtube_url]`;
+
+        const missingInput = card.querySelector('input[name*="[media_missing]"]');
+        if (missingInput) missingInput.name = `contents[${i}][media_missing]`;
+
+        const fileInput = card.querySelector('input[type="file"][name*="contents["]');
+        if (fileInput) fileInput.name = `contents[${i}][media]`;
     });
+    contentIndex = document.querySelectorAll('.content-card').length;
+    if (typeof updateAiQuizBtnState === 'function') {
+        updateAiQuizBtnState();
+    }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2908,6 +2980,7 @@ function addQuizQuestion() {
     question.innerHTML = `
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined drag-handle" title="Drag to reorder">drag_indicator</span>
                 <div class="step-circle" style="background:#0d326b;">${qIndex + 1}</div>
                 <span class="text-sm font-bold text-slate-500 question-label">Question ${qIndex + 1}</span>
             </div>
@@ -3645,7 +3718,39 @@ document.addEventListener('DOMContentLoaded', function() {
     if (contentCards) {
         contentCards.addEventListener('input', updateAiQuizBtnState);
         new MutationObserver(updateAiQuizBtnState).observe(contentCards, { childList: true, subtree: true });
+
+        // Initialize SortableJS drag & drop reordering for content slides
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(contentCards, {
+                handle: '.drag-handle',
+                animation: 200,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                onEnd: function() {
+                    reindexContentCards();
+                }
+            });
+        }
     }
+
+    const quizQuestions = document.getElementById('quizQuestions');
+    if (quizQuestions) {
+        // Initialize SortableJS drag & drop reordering for quiz questions
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(quizQuestions, {
+                handle: '.drag-handle',
+                animation: 200,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                onEnd: function() {
+                    reindexQuizQuestions();
+                }
+            });
+        }
+    }
+
     updateAiQuizBtnState();
 
     // Set initial state for module fields
