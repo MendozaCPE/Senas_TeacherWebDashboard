@@ -885,7 +885,9 @@ if (!empty($examIdsOnly)) {
         'last_name'         => $student->last_name,
         'full_name'         => $student->first_name . ' ' . $student->last_name,
         'lrn'               => $student->lrn,
-        'pin'               => '****', // Never expose raw or hashed PIN to the UI
+        'pin'               => (!empty($student->pin) && !str_starts_with((string)$student->pin, '$2y$'))
+                                ? (string) $student->pin
+                                : substr((string)$student->lrn, -4),
         'age'               => $student->age,
         'grade_level'       => $student->grade_level,
         'section'           => $student->section,

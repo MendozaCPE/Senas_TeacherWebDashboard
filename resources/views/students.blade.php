@@ -675,9 +675,9 @@
 
 {{-- ══════════ STUDENT DETAILS MODAL ══════════ --}}
 <div id="student-details-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div id="student-details-card" class="bg-white rounded-[32px] w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col overflow-hidden" style="max-width:1100px;height:min(94vh,820px)">
+    <div id="student-details-card" class="bg-white rounded-[28px] w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col overflow-hidden" style="max-width:1100px;max-height:92vh">
 
-        {{-- Top accent bar — overflow-hidden on parent clips it to the card's rounded corners --}}
+        {{-- Top accent bar --}}
         <div id="sdc-accent" class="h-1.5 w-full bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] shrink-0"></div>
 
         {{-- Header --}}
@@ -688,21 +688,21 @@
             </div>
             <div class="flex items-center gap-2">
                 <button id="sdc-edit-btn" title="Edit student details"
-                    class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-slate-100 hover:bg-slate-200 text-slate-600">
+                    class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer">
                     <span class="material-symbols-outlined text-[15px]">edit</span>
                     <span>Edit</span>
                 </button>
                 <button id="sdc-save-btn" title="Save changes"
-                    class="hidden flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-[#0d326b] hover:bg-[#154188] text-white">
+                    class="hidden flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-[#0d326b] hover:bg-[#154188] text-white cursor-pointer">
                     <span class="material-symbols-outlined text-[15px]">save</span>
                     <span>Save Changes</span>
                 </button>
                 <button id="sdc-cancel-edit-btn" title="Cancel editing"
-                    class="hidden flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500">
+                    class="hidden flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 cursor-pointer">
                     <span class="material-symbols-outlined text-[15px]">close</span>
                     <span>Cancel</span>
                 </button>
-                <button id="sdc-close" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                <button id="sdc-close" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer">
                     <span class="material-symbols-outlined text-slate-500 text-[18px]">close</span>
                 </button>
             </div>
@@ -717,264 +717,260 @@
         </div>
 
         {{-- Content (hidden until loaded) --}}
-        <div id="sdc-content" class="hidden flex-1 overflow-hidden">
-            <div class="flex flex-col lg:flex-row gap-0 h-full">
+        <div id="sdc-content" class="hidden flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
 
-                {{-- LEFT PANEL --}}
-                <div class="lg:w-[230px] shrink-0 bg-gradient-to-b from-[#f8fafc] to-white border-r border-slate-100 p-5 flex flex-col items-center gap-3 overflow-y-auto">
-                    <div class="relative">
-                        <img id="sdc-avatar" src="" alt="" class="w-16 h-16 rounded-2xl shadow-md object-cover ring-4 ring-white" />
-                        <span id="sdc-status-dot" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white bg-emerald-400"></span>
-                    </div>
-                    <div class="text-center">
-                        <p id="sdc-name" class="text-[14px] font-black text-[#0d326b] leading-tight"></p>
-                        <p id="sdc-lrn-display" class="text-[11px] text-slate-500 font-bold mt-0.5 font-mono tracking-wide"></p>
-                    </div>
-                    <span id="sdc-level-badge" class="lvl-badge beginner text-[10px] px-3 py-1"></span>
-                    <span id="sdc-status-badge" class="text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider"></span>
+            {{-- LEFT SIDEBAR --}}
+            <div class="lg:w-[240px] shrink-0 bg-gradient-to-b from-[#f8fafc] to-white border-r border-slate-100 p-5 flex flex-col items-center gap-3 overflow-y-auto">
+                <div class="relative">
+                    <img id="sdc-avatar" src="" alt="" class="w-16 h-16 rounded-2xl shadow-md object-cover ring-4 ring-white" />
+                    <span id="sdc-status-dot" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white bg-emerald-400"></span>
+                </div>
+                <div class="text-center">
+                    <p id="sdc-name" class="text-[14px] font-black text-[#0d326b] leading-tight"></p>
+                    <p id="sdc-lrn-display" class="text-[11px] text-slate-500 font-bold mt-0.5 font-mono tracking-wide"></p>
+                </div>
+                <span id="sdc-level-badge" class="lvl-badge beginner text-[10px] px-3 py-1"></span>
+                <span id="sdc-status-badge" class="text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider"></span>
 
-                    {{-- XP bar --}}
-                    <div class="w-full">
-                        <div class="flex justify-between mb-1">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">EXP</span>
-                            <span id="sdc-xp-fraction" class="text-[10px] font-bold text-[#0d326b]"></span>
-                        </div>
-                        <div class="xp-bar-wrap">
-                            <div id="sdc-xp-bar" class="xp-bar-fill" style="width:0%"></div>
-                        </div>
-                        <p id="sdc-xp-hint" class="text-[9px] text-slate-400 text-right mt-1"></p>
+                {{-- XP bar --}}
+                <div class="w-full mt-1">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">EXP</span>
+                        <span id="sdc-xp-fraction" class="text-[10px] font-bold text-[#0d326b]"></span>
                     </div>
-
-                    {{-- Quick stats --}}
-                    <div class="w-full space-y-1.5">
-                        <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
-                            <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">bolt</span>Streak</span>
-                            <span id="sdc-streak" class="text-[11px] font-black text-[#0d326b]">0 days</span>
-                        </div>
-                        <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
-                            <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">military_tech</span>Level</span>
-                            <span id="sdc-level-num" class="text-[11px] font-black text-[#0d326b]">1</span>
-                        </div>
-                        <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
-                            <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>Active</span>
-                            <span id="sdc-last-active" class="text-[10px] font-bold text-[#0d326b]">—</span>
-                        </div>
+                    <div class="xp-bar-wrap">
+                        <div id="sdc-xp-bar" class="xp-bar-fill" style="width:0%"></div>
                     </div>
+                    <p id="sdc-xp-hint" class="text-[9px] text-slate-400 text-right mt-1"></p>
                 </div>
 
-                {{-- RIGHT PANEL --}}
-                <div class="flex-1 flex flex-col overflow-hidden">
-
-                    {{-- Row 1: Personal + Academic side by side --}}
-                    <div class="flex gap-3 p-5 pb-2.5 flex-1 min-h-0">
-
-                        {{-- Personal Info --}}
-                        <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col overflow-hidden">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">badge</span>Personal Information</p>
-                            <div class="grid grid-cols-2 gap-x-4 gap-y-0 flex-1 content-between">
-                                <div class="flex flex-col justify-center py-2 border-b border-slate-100 last:border-0">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Full Name <span class="text-red-400 edit-only hidden">*</span></p>
-                                    <p id="sdc-fullname" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
-                                    <input id="sdc-edit-fullname" type="text" placeholder="Last Name, First Name"
-                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
-                                </div>
-                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Age</p>
-                                    <p id="sdc-age" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
-                                    <input id="sdc-edit-age" type="number" min="1" max="120" placeholder="Age"
-                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
-                                </div>
-                                <div class="flex flex-col justify-center py-2">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Username</p>
-                                    <p id="sdc-username" class="text-[15px] font-bold text-slate-700 truncate leading-tight"></p>
-                                </div>
-                                <div class="flex flex-col justify-center py-2">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Email / LRN</p>
-                                    <p id="sdc-email" class="text-[14px] font-bold text-slate-700 break-all leading-tight"></p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Academic Info --}}
-                        <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col overflow-hidden">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">school</span>Academic Information</p>
-                            <div class="grid grid-cols-2 gap-x-4 gap-y-0 flex-1 content-between">
-                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Program <span class="text-red-400 edit-only hidden">*</span></p>
-                                    <p id="sdc-program" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
-                                    <select id="sdc-edit-program"
-                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
-                                        <option value="Regular">Regular</option>
-                                        <option value="Inclusion">Inclusion</option>
-                                        <option value="Self-contained">Self-contained</option>
-                                        <option value="Transition">Transition</option>
-                                    </select>
-                                </div>
-                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Grade Level</p>
-                                    <p id="sdc-grade" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
-                                    <select id="sdc-edit-grade"
-                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
-                                        <option value="">— None —</option>
-                                        <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
-                                        <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
-                                        <option>SPED A</option><option>SPED B</option>
-                                    </select>
-                                </div>
-                                <div class="flex flex-col justify-center py-2">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Section</p>
-                                    <p id="sdc-section" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
-                                    <input id="sdc-edit-section" type="text" placeholder="e.g. SPED-A"
-                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
-                                </div>
-                                <div class="flex flex-col justify-center py-2">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">School Year</p>
-                                    <p id="sdc-school-year" class="text-[15px] font-bold text-slate-700 view-only leading-tight"></p>
-                                    <div class="edit-only hidden">
-                                        <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2024-2025" maxlength="9"
-                                            class="w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
-                                        <p id="sdc-sy-error" class="hidden text-[10px] text-red-500 font-semibold mt-1"></p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
+                {{-- Quick stats --}}
+                <div class="w-full space-y-2 mt-1">
+                    <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between shadow-xs">
+                        <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">bolt</span>Streak</span>
+                        <span id="sdc-streak" class="text-[11px] font-black text-[#0d326b]">0 days</span>
                     </div>
-
-                    {{-- Row 2: Account Info + Promotion History side by side --}}
-                    <div class="flex gap-3 px-5 py-2.5 flex-1 min-h-0">
-
-                        {{-- Account Info --}}
-                        <div class="flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col overflow-hidden">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">info</span>Account Information</p>
-                            <div class="grid grid-cols-2 gap-x-4 gap-y-0 flex-1 content-between">
-                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">LRN <span class="text-red-400 edit-only hidden">*</span></p>
-                                    <p id="sdc-lrn" class="text-[15px] font-black text-[#0d326b] font-mono tracking-wide view-only leading-tight"></p>
-                                    <input id="sdc-edit-lrn" type="text" placeholder="e.g. 123456789001" maxlength="12"
-                                        class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[13px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all font-mono" />
-                                </div>
-                                <div class="flex flex-col justify-center py-2 border-b border-slate-100">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">PIN</p>
-                                    <div class="flex items-center gap-1.5">
-                                        <p id="sdc-pin" class="text-[15px] font-black text-[#0d326b] font-mono tracking-[0.2em] view-only leading-tight">••••</p>
-                                        <button id="sdc-pin-toggle" type="button" title="Show/hide PIN"
-                                            class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-200 transition-colors text-slate-400 hover:text-slate-600 view-only">
-                                            <span id="sdc-pin-eye" class="material-symbols-outlined text-[14px]">visibility_off</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col justify-center py-2">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Date Added</p>
-                                    <p id="sdc-created" class="text-[15px] font-bold text-slate-700 leading-tight"></p>
-                                </div>
-                                <div class="flex flex-col justify-center py-2">
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Last Updated</p>
-                                    <p id="sdc-updated" class="text-[15px] font-bold text-slate-700 leading-tight"></p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Promotion History --}}
-                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col overflow-hidden">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">history</span>Promotion History</p>
-                            <div id="sdc-history-list" class="space-y-1.5 flex-1 overflow-y-auto pr-1"></div>
-                            <div id="sdc-history-empty" class="hidden flex-1 flex flex-col items-center justify-center py-4">
-                                <span class="material-symbols-outlined text-slate-200 text-[28px] block mb-1.5">history</span>
-                                <p class="text-[10px] text-slate-400 font-medium">No promotions yet</p>
-                            </div>
-                        </div>
-
+                    <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between shadow-xs">
+                        <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">military_tech</span>Level</span>
+                        <span id="sdc-level-num" class="text-[11px] font-black text-[#0d326b]">1</span>
                     </div>
-
-                    {{-- Row 3: Student Management (always visible, no scroll needed) --}}
-                    <div class="px-5 pt-2.5 pb-5 shrink-0">
-                        <div class="bg-gradient-to-r from-[#0d326b]/5 to-[#1a6fd4]/5 rounded-[20px] border border-[#0d326b]/10 p-4">
-                            <p class="text-[9px] font-bold text-[#0d326b] uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-[12px]">settings</span>Student Management
-                            </p>
-                            <div class="grid grid-cols-3 gap-3">
-
-                                {{-- Enrollment --}}
-                                <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                                            <span class="material-symbols-outlined text-emerald-500 text-[16px]">how_to_reg</span>
-                                        </div>
-                                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Enrollment</p>
-                                    </div>
-                                    <p id="sdc-enroll-status-text" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1"></p>
-                                    <div class="flex gap-2">
-                                        <button id="sdc-enroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white">
-                                            <span class="material-symbols-outlined text-[13px]">person_add</span>Enroll
-                                        </button>
-                                        <button id="sdc-unenroll-btn" class="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
-                                            <span class="material-symbols-outlined text-[13px]">person_remove</span>Remove
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {{-- Promotion --}}
-                                <div id="sdc-promote-card" class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col transition-all duration-300">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <div id="sdc-promote-icon-wrap" class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                                            <span class="material-symbols-outlined text-[#0d326b] text-[16px]">trending_up</span>
-                                        </div>
-                                        <div class="flex-1 flex items-center gap-1.5 flex-wrap">
-                                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Promotion</p>
-                                            <span id="sdc-ready-badge" class="hidden text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-300">
-                                                ★ Ready
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <p id="sdc-promote-hint" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1"></p>
-                                    <button id="sdc-promote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-[#0d326b] hover:bg-[#154188] text-white">
-                                        <span class="material-symbols-outlined text-[13px]">arrow_upward</span>
-                                        <span id="sdc-promote-label">Promote</span>
-                                    </button>
-                                </div>
-
-                                {{-- Demotion --}}
-                                <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <div class="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-                                            <span class="material-symbols-outlined text-red-400 text-[16px]">trending_down</span>
-                                        </div>
-                                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Demotion</p>
-                                    </div>
-                                    <p id="sdc-demote-hint" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1">Move student down one level.</p>
-                                    <button id="sdc-demote-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100">
-                                        <span class="material-symbols-outlined text-[13px]">arrow_downward</span>
-                                        <span id="sdc-demote-label">Demote</span>
-                                    </button>
-                                </div>
-
-                                {{-- Manage Lessons Card --}}
-<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
-    <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <span class="material-symbols-outlined text-blue-500 text-[16px]">edit_document</span>
-        </div>
-        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lesson Assignments</p>
-    </div>
-    <p id="sdc-assignment-hint" class="text-[11px] text-slate-400 mb-3 leading-relaxed flex-1">Manage which lessons this student has access to.</p>
-    <button id="sdc-assign-btn" class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100">
-        <span class="material-symbols-outlined text-[13px]">edit_note</span>
-        Manage Lessons
-    </button>
-</div>
-
-                            </div>
-                        </div>
+                    <div class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between shadow-xs">
+                        <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>Active</span>
+                        <span id="sdc-last-active" class="text-[10px] font-bold text-[#0d326b]">—</span>
                     </div>
-
                 </div>
             </div>
 
+            {{-- RIGHT SCROLLABLE PANEL --}}
+            <div class="flex-1 flex flex-col overflow-y-auto p-5 space-y-4">
+
+                {{-- Top 2x2 Grid: Personal, Academic, Account Info, Promotion History --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+
+                    {{-- 1. Personal Information --}}
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">badge</span>Personal Information
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Full Name <span class="text-red-400 edit-only hidden">*</span></p>
+                                <p id="sdc-fullname" class="text-[14px] font-bold text-slate-700 view-only leading-snug"></p>
+                                <input id="sdc-edit-fullname" type="text" placeholder="Last Name, First Name"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Age</p>
+                                <p id="sdc-age" class="text-[14px] font-bold text-slate-700 view-only leading-snug"></p>
+                                <input id="sdc-edit-age" type="number" min="1" max="120" placeholder="Age"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Username</p>
+                                <p id="sdc-username" class="text-[14px] font-bold text-slate-700 truncate leading-snug"></p>
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Email / LRN</p>
+                                <p id="sdc-email" class="text-[13px] font-bold text-slate-700 break-all leading-snug"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- 2. Academic Information --}}
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">school</span>Academic Information
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Program <span class="text-red-400 edit-only hidden">*</span></p>
+                                <p id="sdc-program" class="text-[14px] font-bold text-slate-700 view-only leading-snug"></p>
+                                <select id="sdc-edit-program"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
+                                    <option value="Regular">Regular</option>
+                                    <option value="Inclusion">Inclusion</option>
+                                    <option value="Self-contained">Self-contained</option>
+                                    <option value="Transition">Transition</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Grade Level</p>
+                                <p id="sdc-grade" class="text-[14px] font-bold text-slate-700 view-only leading-snug"></p>
+                                <select id="sdc-edit-grade"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none appearance-none transition-all cursor-pointer">
+                                    <option value="">— None —</option>
+                                    <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
+                                    <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
+                                    <option>SPED A</option><option>SPED B</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Section</p>
+                                <p id="sdc-section" class="text-[14px] font-bold text-slate-700 view-only leading-snug"></p>
+                                <input id="sdc-edit-section" type="text" placeholder="e.g. SPED-A"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">School Year</p>
+                                <p id="sdc-school-year" class="text-[14px] font-bold text-slate-700 view-only leading-snug"></p>
+                                <div class="edit-only hidden">
+                                    <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2024-2025" maxlength="9"
+                                        class="w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                                    <p id="sdc-sy-error" class="hidden text-[10px] text-red-500 font-semibold mt-1"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- 3. Account Information --}}
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">info</span>Account Information
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">LRN <span class="text-red-400 edit-only hidden">*</span></p>
+                                <p id="sdc-lrn" class="text-[14px] font-black text-[#0d326b] font-mono tracking-wide view-only leading-snug"></p>
+                                <input id="sdc-edit-lrn" type="text" placeholder="e.g. 123456789001" maxlength="12"
+                                    class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all font-mono" />
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">PIN</p>
+                                <div class="flex items-center gap-2">
+                                    <p id="sdc-pin" class="text-[14px] font-black text-[#0d326b] font-mono tracking-[0.2em] view-only leading-snug select-all">••••</p>
+                                    <button id="sdc-pin-toggle" type="button" title="Show PIN"
+                                        class="w-6 h-6 flex items-center justify-center rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-[#0d326b] transition-colors view-only cursor-pointer shadow-2xs">
+                                        <span id="sdc-pin-eye" class="material-symbols-outlined text-[14px]">visibility</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Date Added</p>
+                                <p id="sdc-created" class="text-[13px] font-bold text-slate-700 leading-snug"></p>
+                            </div>
+                            <div class="flex flex-col justify-center">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Last Updated</p>
+                                <p id="sdc-updated" class="text-[13px] font-bold text-slate-700 leading-snug"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- 4. Promotion History --}}
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">history</span>Promotion History
+                        </p>
+                        <div id="sdc-history-list" class="space-y-1.5 overflow-y-auto max-h-[110px] pr-1 flex-1"></div>
+                        <div id="sdc-history-empty" class="hidden flex-1 flex flex-col items-center justify-center py-4">
+                            <span class="material-symbols-outlined text-slate-200 text-[26px] block mb-1">history</span>
+                            <p class="text-[10px] text-slate-400 font-medium">No promotions yet</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                {{-- Bottom Section: Student Management (4 clean cards in responsive grid) --}}
+                <div class="bg-gradient-to-r from-[#0d326b]/5 to-[#1a6fd4]/5 rounded-[20px] border border-[#0d326b]/10 p-4">
+                    <p class="text-[9px] font-bold text-[#0d326b] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[13px]">settings</span>Student Management
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+
+                        {{-- Enrollment --}}
+                        <div class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <div class="w-7 h-7 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-emerald-500 text-[15px]">how_to_reg</span>
+                                </div>
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Enrollment</p>
+                            </div>
+                            <p id="sdc-enroll-status-text" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]"></p>
+                            <div class="flex gap-1.5">
+                                <button id="sdc-enroll-btn" class="flex-1 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer">
+                                    <span class="material-symbols-outlined text-[13px]">person_add</span>Enroll
+                                </button>
+                                <button id="sdc-unenroll-btn" class="flex-1 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer">
+                                    <span class="material-symbols-outlined text-[13px]">person_remove</span>Remove
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Promotion --}}
+                        <div id="sdc-promote-card" class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col transition-all duration-300">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <div id="sdc-promote-icon-wrap" class="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-[#0d326b] text-[15px]">trending_up</span>
+                                </div>
+                                <div class="flex-1 flex items-center gap-1 flex-wrap">
+                                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Promotion</p>
+                                    <span id="sdc-ready-badge" class="hidden text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-300">
+                                        ★ Ready
+                                    </span>
+                                </div>
+                            </div>
+                            <p id="sdc-promote-hint" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]"></p>
+                            <button id="sdc-promote-btn" class="w-full py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-[#0d326b] hover:bg-[#154188] text-white cursor-pointer">
+                                <span class="material-symbols-outlined text-[13px]">arrow_upward</span>
+                                <span id="sdc-promote-label">Promote</span>
+                            </button>
+                        </div>
+
+                        {{-- Demotion --}}
+                        <div class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <div class="w-7 h-7 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-red-400 text-[15px]">trending_down</span>
+                                </div>
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Demotion</p>
+                            </div>
+                            <p id="sdc-demote-hint" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]">Move student down one level.</p>
+                            <button id="sdc-demote-btn" class="w-full py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer">
+                                <span class="material-symbols-outlined text-[13px]">arrow_downward</span>
+                                <span id="sdc-demote-label">Demote</span>
+                            </button>
+                        </div>
+
+                        {{-- Manage Lessons --}}
+                        <div class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <div class="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-blue-500 text-[15px]">edit_document</span>
+                                </div>
+                                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lessons</p>
+                            </div>
+                            <p id="sdc-assignment-hint" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]">Manage assigned student lessons.</p>
+                            <button id="sdc-assign-btn" class="w-full py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 cursor-pointer">
+                                <span class="material-symbols-outlined text-[13px]">edit_note</span>
+                                <span>Manage Lessons</span>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
         </div>
-
-     `
-
 
         {{-- Notification bar (inside modal) --}}
         <div id="sdc-notif" class="hidden shrink-0 mx-6 mb-4 px-4 py-3 rounded-xl text-[12px] font-semibold flex items-center gap-2 border"></div>
@@ -2150,23 +2146,32 @@ function populateStudentDetails(s) {
     document.getElementById('sdc-created').textContent = s.created_at || '—';
     document.getElementById('sdc-updated').textContent = s.updated_at || '—';
 
-    // PIN – hidden by default, show/hide via eye button
-    const pinEl  = document.getElementById('sdc-pin');
-    const pinEye = document.getElementById('sdc-pin-eye');
-    pinEl._realPin = s.pin || '—';
+    // PIN – hidden by default (••••), show/hide via eye button
+    const pinEl     = document.getElementById('sdc-pin');
+    const pinToggle = document.getElementById('sdc-pin-toggle');
+    const realPin   = (s.pin && s.pin !== '****') ? s.pin : (s.lrn ? String(s.lrn).slice(-4) : '—');
+    pinEl._realPin  = realPin;
     pinEl.textContent = '••••';
-    pinEye.textContent = 'visibility_off';
-    // Re-wire toggle each time (replace to avoid stacked listeners)
-    const newToggle = document.getElementById('sdc-pin-toggle').cloneNode(true);
-    document.getElementById('sdc-pin-toggle').replaceWith(newToggle);
-    newToggle.addEventListener('click', () => {
-        const eye = newToggle.querySelector('#sdc-pin-eye');
+
+    // Re-wire toggle each time (replace with clone to avoid stacked listeners)
+    const newToggle = pinToggle.cloneNode(true);
+    pinToggle.replaceWith(newToggle);
+    const eye = newToggle.querySelector('#sdc-pin-eye');
+    if (eye) eye.textContent = 'visibility';
+    newToggle.title = 'Show PIN';
+
+    newToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const currentEye = newToggle.querySelector('#sdc-pin-eye');
         if (pinEl.textContent === '••••') {
             pinEl.textContent = pinEl._realPin;
-            eye.textContent = 'visibility';
+            if (currentEye) currentEye.textContent = 'visibility_off';
+            newToggle.title = 'Hide PIN';
         } else {
             pinEl.textContent = '••••';
-            eye.textContent = 'visibility_off';
+            if (currentEye) currentEye.textContent = 'visibility';
+            newToggle.title = 'Show PIN';
         }
     });
 
