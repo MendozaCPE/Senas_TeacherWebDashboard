@@ -385,60 +385,25 @@ public function updateSettings(Request $request)
 
             $accessibleModuleIds = [];
             $lockedModuleNames = [];
-            $previousModuleCompleted = true;
-            $lastModuleLevel = null;
-
-            $allAssignments = LessonAssignment::where('student_id', $student->student_id)
-                ->whereHas('lesson', function ($query) {
-                    $query->where('status', 'published')->whereNull('deleted_at');
-                })
-                ->with(['lesson'])
-                ->get();
 
             foreach ($allModules as $mod) {
                 $modId = $mod->module_id;
                 $modLevel = strtolower($mod->mastery_level ?? 'beginner');
 
-                $isLevelAccessible = in_array($modLevel, $accessibleLevels);
-
-                if ($lastModuleLevel !== null && $modLevel !== $lastModuleLevel) {
-                    if ($isLevelAccessible && $studentLevel === $modLevel) {
-                        $previousModuleCompleted = true;
-                    }
-                }
-                $lastModuleLevel = $modLevel;
-
-                $isAccessible = $isLevelAccessible && $previousModuleCompleted;
+                // 🔥 Same fix as getLessons(): access is based only on the
+                // student's mastery level, not on prior-module completion.
+                // The Learning Path already personalizes to the student's
+                // tier, so gating it further on a completion chain caused
+                // Intermediate/Advanced modules to lock for students who'd
+                // already progressed past them, whenever an earlier module
+                // gained a new lesson.
+                $isAccessible = in_array($modLevel, $accessibleLevels);
 
                 if ($isAccessible) {
                     $accessibleModuleIds[] = $modId;
                 } else {
                     $lockedModuleNames[] = $mod->title;
                 }
-
-                // Check 100% completion of this module
-                $modLessonsAssignments = $allAssignments->filter(fn($a) => $a->lesson && $a->lesson->module_id === $modId);
-                $totalInMod = $modLessonsAssignments->count();
-                $completedInMod = 0;
-
-                foreach ($modLessonsAssignments as $a) {
-                    $scoreVal = DB::table('quiz_attempts as qa')
-                        ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
-                        ->where('qa.student_id', $student->student_id)
-                        ->where('q.lesson_id', $a->lesson->lesson_id)
-                        ->where('qa.status', 'completed')
-                        ->max('qa.percentage');
-
-                    if ($scoreVal === null && $a->status === 'completed' && $a->score >= 60) {
-                        $scoreVal = $a->score;
-                    }
-
-                    if ($scoreVal !== null && $scoreVal >= 60) {
-                        $completedInMod++;
-                    }
-                }
-
-                $previousModuleCompleted = ($totalInMod > 0) && ($completedInMod === $totalInMod);
             }
 
             // 🔥 ONLY FETCH LESSONS FROM ACCESSIBLE / UNLOCKED MODULES
@@ -1264,27 +1229,25 @@ public function getLessons(Request $request)
 
         // Group lessons by module
         $modulesMap = [];
-        $previousModuleCompleted = true;
-        $lastModuleLevel = null;
-        
+
         // First, add ALL modules with their lessons
         foreach ($allModules as $module) {
             $moduleId = $module->module_id;
             $moduleLevel = strtolower($module->mastery_level ?? 'beginner');
-            
-            // Check if this module level is accessible based on student's mastery level
-            $isLevelAccessible = in_array($moduleLevel, $accessibleLevels);
-            
-            // If starting a new accessible level that matches student's assessment starting level, unlock its first module
-            if ($lastModuleLevel !== null && $moduleLevel !== $lastModuleLevel) {
-                if ($isLevelAccessible && strtolower($studentLevel) === $moduleLevel) {
-                    $previousModuleCompleted = true;
-                }
-            }
-            $lastModuleLevel = $moduleLevel;
-            
-            $isAccessible = $isLevelAccessible && $previousModuleCompleted;
-            
+
+            // 🔥 Module access is based ONLY on the student's mastery level —
+            // NOT on whether every earlier module has been 100% completed.
+            // Previously this was `$isLevelAccessible && $previousModuleCompleted`,
+            // which meant a single new lesson added to an already-passed
+            // Beginner module (making it "incomplete" again) would cascade
+            // and lock Intermediate/Advanced modules for students who had
+            // already progressed well past that level. Since the Learning
+            // Path already personalizes recommendations to the student's
+            // current mastery tier, the module lock should match that same
+            // rule: every module at or below the student's mastery level is
+            // unlocked, and everything above it stays locked.
+            $isAccessible = in_array($moduleLevel, $accessibleLevels);
+
             // Get lessons for this module from assignments
             $moduleLessons = $assignments->filter(function($assignment) use ($moduleId) {
                 return $assignment->lesson && $assignment->lesson->module_id === $moduleId;
@@ -1320,9 +1283,10 @@ public function getLessons(Request $request)
                 }
             }
 
+            // Still tracked for completion reporting/analytics — no longer
+            // used to gate module access (see note above).
             $isCurrentModuleComplete = ($totalLessonsInModule > 0) && ($completedLessonsInModule === $totalLessonsInModule);
-            $previousModuleCompleted = $isCurrentModuleComplete;
-            
+
             // Get quiz result for this module
             $quizResult = null;
             if ($moduleId) {
@@ -2307,7 +2271,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
                     'attempt_number' => $attemptNumber,
                     'xp_earned'      => $xpEarned,
                 ],
-                actionUrl: '/reports?open_student=' . $student->student_id,
+                actionUrl: '/students/' . $student->student_id,
             );
         } catch (\Exception $e) {
             // never break the student flow
@@ -2975,7 +2939,7 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
                 'session_id' => null,
                 'completed_at' => now()->toISOString(),
             ],
-            actionUrl: '/reports?open_student=' . $student->student_id,
+            actionUrl: '/students/' . $student->student_id,
         );
         
         \Log::info("✅ Teacher notification sent for module completion", [
@@ -3762,7 +3726,7 @@ private function isModuleLocked($student, $module)
                             'attempt_number' => $attemptNumber,
                             'xp_earned'      => $xpEarned,
                         ],
-                        actionUrl: '/reports?open_student=' . $student->student_id,
+                        actionUrl: '/students/' . $student->student_id,
                     );
                 } catch (\Exception $e) { /* never break the flow */ }
             }
@@ -5577,7 +5541,7 @@ public function submitCheckpointExam(Request $request, $examId)
                     'attempt_number' => $attemptNumber,
                     'xp_earned'      => $xpEarned,
                 ],
-                actionUrl: '/reports?open_student=' . $student->student_id,
+                actionUrl: '/students/' . $student->student_id,
             );
         } catch (\Exception $e) { /* never break the flow */ }
 
@@ -6068,7 +6032,7 @@ public function submitHelpRequest(Request $request)
                 'student_id'      => $student->student_id,
                 'help_request_id' => $helpRequest->help_request_id,
             ],
-            actionUrl: '/reports?open_student=' . $student->student_id,
+            actionUrl: '/students/' . $student->student_id,
         );
 
         return response()->json([
@@ -6421,7 +6385,7 @@ private function notifyTeacherAboutHintUsage($student, $moduleName, $hintUsageDa
                 'hint_usage' => $aggregatedHintData, // ✅ USE AGGREGATED DATA
                 'completed_at' => now()->toISOString(),
             ],
-            actionUrl: '/reports?open_student=' . $student->student_id,
+            actionUrl: '/students/' . $student->student_id,
         );
         
     } catch (\Exception $e) {
@@ -6555,7 +6519,7 @@ public function completeChallenge(Request $request)
                 'time_spent_seconds' => $timeSpent,
                 'completed_at' => now()->toISOString(),
             ],
-            actionUrl: '/reports?open_student=' . $student->student_id,
+            actionUrl: '/students/' . $student->student_id,
         );
 
         \Log::info("✅ Challenge notification sent for teacher", [
