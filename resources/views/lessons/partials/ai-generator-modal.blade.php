@@ -566,6 +566,12 @@ function buildAiContentCard(slide, idx) {
     // Resolved media from the backend (gesture_media table)
     const resolvedVideo = slide.video_url || null;
     const resolvedImage = slide.image_url || null;
+    let mediaPath = slide.media_path || '';
+    if (!mediaPath && (resolvedVideo || resolvedImage)) {
+        const raw = (resolvedVideo || resolvedImage).trim();
+        const m = raw.match(/\/storage\/(.+)$/i);
+        mediaPath = m ? m[1] : raw;
+    }
     const hasResolvedMedia = !!(resolvedVideo || resolvedImage);
 
     // YouTube URL support
@@ -586,7 +592,7 @@ function buildAiContentCard(slide, idx) {
         mediaSection = `
             <div class="media-field ${mediaHidden}">
                 <label class="field-label">Upload Media</label>
-                <input type="hidden" name="contents[${idx}][existing_media]" value="${escapeHtml(mediaUrl)}" class="media-path-input">
+                <input type="hidden" name="contents[${idx}][existing_media]" value="${escapeHtml(mediaPath)}" class="media-path-input">
                 <div class="media-upload-widget has-file" data-context="lesson_media" data-accept="image/*,video/*">
                     <div class="upload-trigger">
                         <input type="file" accept="image/*,video/*" class="ajax-file-input" onchange="handleAjaxUpload(this, 'content')">

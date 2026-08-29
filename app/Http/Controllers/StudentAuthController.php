@@ -1878,15 +1878,30 @@ public function getLessonById(Request $request, $lessonId)
             ->where('lesson_id', $lessonId)
             ->first();
 
+        $formatStudentMediaUrl = function (?string $path): ?string {
+            if (empty($path)) return null;
+            $path = trim($path);
+            if (\App\Models\LessonContent::extractYoutubeId($path) || preg_match('/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)/i', $path)) {
+                return $path;
+            }
+            if (preg_match('#/storage/(.+)$#i', $path, $m)) {
+                return asset('storage/' . ltrim($m[1], '/'));
+            }
+            if (preg_match('#^https?://#i', $path)) {
+                return $path;
+            }
+            return asset('storage/' . ltrim($path, '/'));
+        };
+
         // Format contents
-        $contents = $lesson->contents->map(function ($content) {
+        $contents = $lesson->contents->map(function ($content) use ($formatStudentMediaUrl) {
             return [
                 'content_id' => $content->content_id,
                 'step_number' => $content->step_number,
                 'content_type' => $content->content_type,
                 'title' => $content->title,
                 'content_text' => $content->content_text,
-                'media_url' => $content->media_url ? asset('storage/'.$content->media_url) : null,
+                'media_url' => $formatStudentMediaUrl($content->media_url),
                 'gesture_name' => $content->gesture_name,
             ];
         });
@@ -1894,19 +1909,19 @@ public function getLessonById(Request $request, $lessonId)
         // Format quiz - FIX: Include gesture_data and drag_drop_pairs
         $quiz = null;
         if ($lesson->quiz) {
-            $questions = $lesson->quiz->questions->map(function ($question) {
+            $questions = $lesson->quiz->questions->map(function ($question) use ($formatStudentMediaUrl) {
                 $questionData = [
                     'question_id' => $question->question_id,
                     'question_number' => $question->question_number,
                     'question_type' => $question->question_type,
                     'question_text' => $question->question_text,
-                    'media_url' => $question->media_url ? asset('storage/'.$question->media_url) : null,
+                    'media_url' => $formatStudentMediaUrl($question->media_url),
                     'points' => $question->points,
-                    'options' => $question->options->map(function ($option) {
+                    'options' => $question->options->map(function ($option) use ($formatStudentMediaUrl) {
                         return [
                             'option_id' => $option->option_id,
                             'option_text' => $option->option_text,
-                            'option_media_url' => $option->option_media_url ? asset('storage/'.$option->option_media_url) : null,
+                            'option_media_url' => $formatStudentMediaUrl($option->option_media_url),
                             'is_correct' => $option->is_correct,
                         ];
                     }),
@@ -1924,11 +1939,22 @@ public function getLessonById(Request $request, $lessonId)
 
                 // ✅ ADD THIS: Include drag_drop_pairs if it exists
                 if ($question->question_type === 'drag_drop' && !empty($question->drag_drop_pairs)) {
-                    if (is_string($question->drag_drop_pairs)) {
-                        $questionData['drag_drop_pairs'] = json_decode($question->drag_drop_pairs, true);
-                    } else {
-                        $questionData['drag_drop_pairs'] = $question->drag_drop_pairs;
+                    $pairs = $question->drag_drop_pairs;
+                    if (is_string($pairs)) {
+                        $pairs = json_decode($pairs, true);
                     }
+                    if (is_array($pairs)) {
+                        foreach ($pairs as &$pair) {
+                            if (!empty($pair['left_image'])) {
+                                $pair['left_image'] = $formatStudentMediaUrl($pair['left_image']);
+                            }
+                            if (!empty($pair['right_image'])) {
+                                $pair['right_image'] = $formatStudentMediaUrl($pair['right_image']);
+                            }
+                        }
+                        unset($pair);
+                    }
+                    $questionData['drag_drop_pairs'] = $pairs;
                 }
 
                 return $questionData;

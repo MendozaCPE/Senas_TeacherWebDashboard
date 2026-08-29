@@ -1,6 +1,12 @@
 @php
     $isAdmin = request()->routeIs('admin.*');
     $layout = $isAdmin ? 'layouts.admin' : 'layouts.app';
+    $resolveMediaSrc = function(?string $path): string {
+        if (empty($path)) return '';
+        $path = trim($path);
+        if (preg_match('#^https?://#i', $path)) return $path;
+        return asset('storage/' . ltrim($path, '/'));
+    };
 @endphp
 
 @extends($layout)
@@ -800,12 +806,12 @@
                                         @if($existingPath)
                                             @if(!$isVideo)
                                                 <img class="media-thumb"
-                                                     src="{{ asset('storage/' . $existingPath) }}"
+                                                     src="{{ $resolveMediaSrc($existingPath) }}"
                                                      alt="Current media"
                                                      onerror="this.style.display='none'">
                                             @else
                                                 <video class="media-thumb media-thumb-video"
-                                                       src="{{ asset('storage/' . $existingPath) }}"
+                                                       src="{{ $resolveMediaSrc($existingPath) }}"
                                                        controls muted playsinline preload="metadata"></video>
                                             @endif
                                             <div class="media-thumb-info">
@@ -975,7 +981,7 @@
                                     <div class="media-thumb-wrap">
                                         @if($qMedia)
                                             <img class="media-thumb"
-                                                 src="{{ asset('storage/' . $qMedia) }}"
+                                                 src="{{ $resolveMediaSrc($qMedia) }}"
                                                  alt="Question image"
                                                  onerror="this.style.display='none'">
                                             <div class="media-thumb-info">
@@ -1009,7 +1015,7 @@
                                             <div class="option-image-row flex items-center gap-2">
                                                 <input type="hidden" name="quiz[{{ $index }}][options][{{ $optIndex }}][existing_image]" value="{{ $optImage }}" class="media-path-input">
                                                 <img class="option-image-preview w-16 h-16 rounded-lg object-cover border border-slate-200 flex-shrink-0"
-                                                     src="{{ $optImage ? asset('storage/' . $optImage) : '' }}"
+                                                     src="{{ $optImage ? $resolveMediaSrc($optImage) : '' }}"
                                                      alt=""
                                                      style="{{ $optImage ? 'display:block;' : 'display:none;' }}"
                                                      onerror="this.style.display='none'">
@@ -1076,7 +1082,7 @@
                                                         </div>
                                                         <div class="media-thumb-wrap" style="margin-top:4px;">
                                                             @if($leftImage)
-                                                            <img class="media-thumb" src="{{ asset('storage/' . $leftImage) }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;" />
+                                                            <img class="media-thumb" src="{{ $resolveMediaSrc($leftImage) }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;" />
                                                             @endif
                                                         </div>
                                                     </div>
@@ -1099,7 +1105,7 @@
                                                         </div>
                                                         <div class="media-thumb-wrap" style="margin-top:4px;">
                                                             @if($rightImage)
-                                                            <img class="media-thumb" src="{{ asset('storage/' . $rightImage) }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;" />
+                                                            <img class="media-thumb" src="{{ $resolveMediaSrc($rightImage) }}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid #e2e8f0;" />
                                                             @endif
                                                         </div>
                                                     </div>

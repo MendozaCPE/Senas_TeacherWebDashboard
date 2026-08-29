@@ -59,11 +59,11 @@ class GestureMediaResolver
                         ->first();
 
                     if ($gesture) {
-                        $imageUrl = $gesture->image_url ?? null;
-                        $videoUrl = $gesture->video_url ?? null;
+                        $rawImagePath = $gesture->image_url ?? null;
+                        $rawVideoPath = $gesture->video_url ?? null;
 
                         // Fallback: check gesture_media table if legacy columns are empty
-                        if (empty($imageUrl) && empty($videoUrl)) {
+                        if (empty($rawImagePath) && empty($rawVideoPath)) {
                             $primaryImage = DB::table('gesture_media')
                                 ->where('gesture_id', $gesture->gesture_id)
                                 ->where('media_type', 'image')
@@ -79,7 +79,7 @@ class GestureMediaResolver
                             }
 
                             if ($primaryImage) {
-                                $imageUrl = asset('storage/' . $primaryImage->file_path);
+                                $rawImagePath = $primaryImage->file_path;
                             }
 
                             $primaryVideo = DB::table('gesture_media')
@@ -89,12 +89,22 @@ class GestureMediaResolver
                                 ->first();
 
                             if ($primaryVideo) {
-                                $videoUrl = asset('storage/' . $primaryVideo->file_path);
+                                $rawVideoPath = $primaryVideo->file_path;
                             }
                         }
 
-                        $slide['image_url'] = $imageUrl;
-                        $slide['video_url'] = $videoUrl;
+                        $mediaPath = $rawVideoPath ?: $rawImagePath;
+                        if ($mediaPath) {
+                            $cleanPath = preg_replace('#^(?:https?://[^/]+)?(?:/storage/|storage/)?#i', '', $mediaPath);
+                            $cleanPath = ltrim($cleanPath, '/');
+                            $slide['media_path'] = $cleanPath;
+                            if ($rawVideoPath) {
+                                $slide['video_url'] = asset('storage/' . $cleanPath);
+                            }
+                            if ($rawImagePath) {
+                                $slide['image_url'] = asset('storage/' . $cleanPath);
+                            }
+                        }
                     }
                 } catch (\Throwable $e) {
                     Log::warning('GestureMediaResolver query failed for gesture: ' . $gestureName, [
@@ -115,8 +125,11 @@ class GestureMediaResolver
                 if ($matched) {
                     $ext = strtolower(pathinfo($matched->file_name, PATHINFO_EXTENSION));
                     $videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
-                    $url = asset('storage/' . $matched->file_path);
+                    $cleanPath = preg_replace('#^(?:https?://[^/]+)?(?:/storage/|storage/)?#i', '', $matched->file_path);
+                    $cleanPath = ltrim($cleanPath, '/');
+                    $url = asset('storage/' . $cleanPath);
 
+                    $slide['media_path'] = $cleanPath;
                     if (in_array($ext, $videoExts)) {
                         $slide['video_url'] = $url;
                     } else {

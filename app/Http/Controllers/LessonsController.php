@@ -606,7 +606,7 @@ public function store(Request $request)
                 $mediaUrl = $this->uploadPublicFile($contentFile, 'temp_preview');
                 $isTemp = true;
             } elseif (! empty($c['existing_media'])) {
-                $mediaUrl = $c['existing_media'];
+                $mediaUrl = $this->normalizeStoredMediaPath($c['existing_media']);
             } elseif (($c['content_type'] ?? '') === 'youtube_video' && !empty($c['youtube_url'])) {
                 // For youtube_video, normalise the URL into a canonical watch URL
                 $ytId = \App\Models\LessonContent::extractYoutubeId($c['youtube_url']);
@@ -641,7 +641,7 @@ public function store(Request $request)
                 $qMedia = $this->uploadPublicFile($questionFile, 'temp_preview');
                 $isTemp = true;
             } elseif (! empty($q['existing_media'])) {
-                $qMedia = $q['existing_media'];
+                $qMedia = $this->normalizeStoredMediaPath($q['existing_media']);
             }
 
             $rawOptions = is_array($q['options'] ?? null) ? $q['options'] : [];
@@ -1560,7 +1560,7 @@ public function manageStudents($id)
                 $uploadedFile = $this->getContentUploadedFile($request, $i);
                 $mediaUrl = $this->uploadPublicFile($uploadedFile, 'lesson_media');
                 if (!$mediaUrl && !empty($c['existing_media'])) {
-                    $mediaUrl = $c['existing_media'];
+                    $mediaUrl = $this->normalizeStoredMediaPath($c['existing_media']);
                 }
             }
 
@@ -1581,6 +1581,32 @@ public function manageStudents($id)
                 'media_missing'=> $mediaMissing,
             ]);
         }
+    }
+
+    private function normalizeStoredMediaPath(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+
+        $path = trim($path);
+
+        // If it's a YouTube URL or external URL, keep as is
+        if (\App\Models\LessonContent::extractYoutubeId($path) || preg_match('/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)/i', $path)) {
+            return $path;
+        }
+
+        // If it contains /storage/, extract everything after /storage/
+        if (preg_match('#/storage/(.+)$#i', $path, $matches)) {
+            return ltrim($matches[1], '/');
+        }
+
+        // If it starts with storage/, strip "storage/"
+        if (preg_match('#^storage/(.+)$#i', $path, $matches)) {
+            return ltrim($matches[1], '/');
+        }
+
+        return ltrim($path, '/');
     }
 
     private function uploadPublicFile(?UploadedFile $file, string $directory): ?string
@@ -1744,7 +1770,7 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
         $questionFile = $this->getQuizUploadedFile($request, $qi, 'media');
         $qMedia = $this->uploadPublicFile($questionFile, 'quiz_media');
         if (! $qMedia && ! empty($q['existing_media'])) {
-            $qMedia = $q['existing_media'];
+            $qMedia = $this->normalizeStoredMediaPath($q['existing_media']);
         }
 
         $questionData = [
@@ -1766,8 +1792,8 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
                 foreach ($q['drag_drop_pairs'] as $pairIndex => $pair) {
                     $leftText = $pair['left'] ?? $pair['left_text'] ?? '';
                     $rightText = $pair['right'] ?? $pair['right_text'] ?? '';
-                    $leftImage = $pair['left_image'] ?? '';
-                    $rightImage = $pair['right_image'] ?? '';
+                    $leftImage = !empty($pair['left_image']) ? $this->normalizeStoredMediaPath($pair['left_image']) : '';
+                    $rightImage = !empty($pair['right_image']) ? $this->normalizeStoredMediaPath($pair['right_image']) : '';
                     
                     if (!empty($leftText) || !empty($rightText) || !empty($leftImage) || !empty($rightImage)) {
                         $processedPairs[] = [
@@ -1911,7 +1937,7 @@ private function persistQuizForLesson(Request $request, Lesson $lesson, array $q
 
             $optImagePath = $this->uploadPublicFile($optionFile, 'quiz_option_media');
             if (! $optImagePath && is_array($optData) && ! empty($optData['existing_image'])) {
-                $optImagePath = $optData['existing_image'];
+                $optImagePath = $this->normalizeStoredMediaPath($optData['existing_image']);
             }
 
             if (trim((string) $optText) === '' && empty($optImagePath)) {
