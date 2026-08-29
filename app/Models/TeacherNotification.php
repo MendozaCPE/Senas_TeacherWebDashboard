@@ -107,6 +107,13 @@ class TeacherNotification extends Model
     ): self {
         $cfg = self::typeConfig($type);
 
+        // Normalize /students/{id} into /reports?open_student={id}
+        if ($actionUrl && preg_match('#^/students/(\d+)$#', $actionUrl, $m)) {
+            $actionUrl = '/reports?open_student=' . $m[1];
+        } elseif (!$actionUrl && !empty($data['student_id'])) {
+            $actionUrl = '/reports?open_student=' . $data['student_id'];
+        }
+
         $notification = self::create([
             'teacher_id' => $teacherId,
             'type'       => $type,

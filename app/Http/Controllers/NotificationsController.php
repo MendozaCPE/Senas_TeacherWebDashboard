@@ -151,7 +151,13 @@ class NotificationsController extends Controller
                 'student_name'     => $studentName,
                 'student_avatar'   => $studentAvatar,
                 'student_fallback' => $studentFallback,
-                'action_url'       => $n->action_url ?? ($studentId ? '/reports?open_student=' . $studentId : null),
+                'action_url'       => (function() use ($n, $studentId) {
+                    $url = $n->action_url;
+                    if ($url && preg_match('#^/students/(\d+)$#', $url, $m)) {
+                        return '/reports?open_student=' . $m[1];
+                    }
+                    return $url ?? ($studentId ? '/reports?open_student=' . $studentId : null);
+                })(),
                 'is_read'          => (bool) $n->is_read,
                 'time_ago'         => $n->created_at->diffForHumans(),
                 'created_at'       => $n->created_at->toISOString(),

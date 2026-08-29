@@ -480,90 +480,129 @@
         {{-- ── RIGHT SIDEBAR ── --}}
         <div class="w-full lg:w-[260px] shrink-0 space-y-4">
 
-            {{-- FSL Mastery Donut (updated with gradients & tooltips like dashboard) --}}
+            {{-- FSL Mastery Donut (variable-radius rose doughnut — matches analytics chart) --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">FSL Mastery Distribution</p>
                 @php
-                    $total   = $sbStudents->count() ?: 1;
-                    $begPct  = round($beginnerCnt  / $total * 100);
-                    $intPct  = round($intermCnt    / $total * 100);
-                    $advPct  = round($advancedCnt  / $total * 100);
-                    $comPct  = round($completedCnt / $total * 100);
-                    $circ    = 251.3;
-                    $begDash = round($begPct / 100 * $circ, 1);
-                    $intDash = round($intPct / 100 * $circ, 1);
-                    $advDash = round($advPct / 100 * $circ, 1);
-                    $comDash = round($comPct / 100 * $circ, 1);
-                    $begOff  = 0; $intOff = -$begDash;
-                    $advOff  = -($begDash + $intDash);
-                    $comOff  = -($begDash + $intDash + $advDash);
+                    $fslTotal = $sbStudents->count() ?: 0;
 
-                    $donutSegments = [
-                        ['count' => $beginnerCnt, 'pct' => $begPct, 'dash' => $begDash, 'offset' => $begOff, 'label' => 'Beginner', 'grad_id' => 'masteryGradBeginner', 'grad_from' => '#93c5fd', 'grad_to' => '#3b82f6'],
-                        ['count' => $intermCnt, 'pct' => $intPct, 'dash' => $intDash, 'offset' => $intOff, 'label' => 'Intermediate', 'grad_id' => 'masteryGradIntermediate', 'grad_from' => '#3b82f6', 'grad_to' => '#1e4b8f'],
-                        ['count' => $advancedCnt, 'pct' => $advPct, 'dash' => $advDash, 'offset' => $advOff, 'label' => 'Advanced', 'grad_id' => 'masteryGradAdvanced', 'grad_from' => '#1e4b8f', 'grad_to' => '#0d326b'],
-                        ['count' => $completedCnt, 'pct' => $comPct, 'dash' => $comDash, 'offset' => $comOff, 'label' => 'Completed', 'grad_id' => 'masteryGradCompleted', 'grad_from' => '#0d326b', 'grad_to' => '#071c3f'],
+                    $fslSegmentsRaw = [
+                        ['label' => 'Beginner',     'count' => $beginnerCnt,  'grad_from' => '#bfdbfe', 'grad_to' => '#93c5fd', 'dot' => '#93c5fd'],
+                        ['label' => 'Intermediate', 'count' => $intermCnt,    'grad_from' => '#93c5fd', 'grad_to' => '#60a5fa', 'dot' => '#3b82f6'],
+                        ['label' => 'Advanced',     'count' => $advancedCnt,  'grad_from' => '#3b82f6', 'grad_to' => '#1e4b8f', 'dot' => '#1e4b8f'],
+                        ['label' => 'Completed',    'count' => $completedCnt, 'grad_from' => '#1e4b8f', 'grad_to' => '#0d326b', 'dot' => '#0d326b'],
                     ];
+
+                    // Build only segments with data
+                    $fslActive = [];
+                    if ($fslTotal > 0) {
+                        foreach ($fslSegmentsRaw as $i => $seg) {
+                            if ($seg['count'] > 0) {
+                                $fslActive[] = array_merge($seg, [
+                                    'pct'     => round($seg['count'] / $fslTotal * 100),
+                                    'grad_id' => 'fslMasteryGrad' . $i,
+                                ]);
+                            }
+                        }
+                    }
+
+                    // Variable-radius arc paths
+                    $fslPaths = [];
+                    $fslCx = 80; $fslCy = 80; $fslInnerR = 40;
+                    $fslActiveCount = count($fslActive);
+                    $fslGap = ($fslActiveCount > 1) ? 0.08 : 0;
+                    $fslMaxCount = $fslActiveCount > 0 ? max(1, ...array_map(fn($s) => $s['count'], $fslActive)) : 1;
+                    $fslAngle = -M_PI / 2;
+
+                    foreach ($fslActive as $seg) {
+                        $fraction  = $seg['count'] / $fslTotal;
+                        $span      = $fraction * (2 * M_PI);
+                        $outerR    = round(56 + (18 * ($seg['count'] / $fslMaxCount)), 1);
+
+                        if ($fslActiveCount === 1) {
+                            $sStart = $fslAngle;
+                            $sEnd   = $fslAngle + (2 * M_PI) - 0.001;
+                        } else {
+                            $sStart = $fslAngle + ($fslGap / 2);
+                            $sEnd   = $fslAngle + $span - ($fslGap / 2);
+                            if ($sEnd <= $sStart) { $sStart = $fslAngle; $sEnd = $fslAngle + $span; }
+                        }
+
+                        $x1 = round($fslCx + $outerR * cos($sStart), 2);
+                        $y1 = round($fslCy + $outerR * sin($sStart), 2);
+                        $x2 = round($fslCx + $outerR * cos($sEnd), 2);
+                        $y2 = round($fslCy + $outerR * sin($sEnd), 2);
+                        $x3 = round($fslCx + $fslInnerR * cos($sEnd), 2);
+                        $y3 = round($fslCy + $fslInnerR * sin($sEnd), 2);
+                        $x4 = round($fslCx + $fslInnerR * cos($sStart), 2);
+                        $y4 = round($fslCy + $fslInnerR * sin($sStart), 2);
+                        $lg = ($sEnd - $sStart > M_PI) ? 1 : 0;
+                        $d  = "M {$x1} {$y1} A {$outerR} {$outerR} 0 {$lg} 1 {$x2} {$y2} L {$x3} {$y3} A {$fslInnerR} {$fslInnerR} 0 {$lg} 0 {$x4} {$y4} Z";
+
+                        $fslPaths[] = array_merge($seg, ['d' => $d]);
+                        $fslAngle += $span;
+                    }
                 @endphp
+
+                {{-- Chart --}}
                 <div class="flex items-center justify-center mb-4">
-                    <div class="relative w-[120px] h-[120px]">
-                        <div id="masteryDonutTooltip" class="pointer-events-none absolute z-20 opacity-0 transition-opacity duration-150 left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%] bg-[#0d326b] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
-                            <span id="masteryDonutTooltipLabel"></span>: <span id="masteryDonutTooltipValue"></span>
+                    <div class="relative w-[140px] h-[140px]">
+                        <div id="fslMasteryTooltip" class="pointer-events-none absolute z-20 opacity-0 transition-opacity duration-150 left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%] bg-[#0d326b] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                            <span id="fslMasteryTooltipLabel"></span>: <span id="fslMasteryTooltipValue"></span>
                             <div class="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45"></div>
                         </div>
-                        <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+
+                        <svg viewBox="0 0 160 160" class="w-full h-full overflow-visible">
                             <defs>
-                                @foreach($donutSegments as $seg)
+                                <filter id="fslSliceShadow" x="-10%" y="-10%" width="120%" height="120%">
+                                    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/>
+                                </filter>
+                                @foreach($fslPaths as $seg)
                                 <linearGradient id="{{ $seg['grad_id'] }}" x1="0%" y1="0%" x2="100%" y2="100%">
                                     <stop offset="0%" stop-color="{{ $seg['grad_from'] }}"/>
                                     <stop offset="100%" stop-color="{{ $seg['grad_to'] }}"/>
                                 </linearGradient>
                                 @endforeach
                             </defs>
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                            @foreach($donutSegments as $seg)
-                                @if($seg['dash'] > 0)
-                                <circle class="mastery-donut-hit" cx="50" cy="50" r="40" fill="transparent"
-                                        stroke="url(#{{ $seg['grad_id'] }})"
-                                        stroke-width="14"
-                                        stroke-dasharray="{{ $seg['dash'] }} {{ $circ - $seg['dash'] }}"
-                                        stroke-dashoffset="{{ $seg['offset'] }}"
-                                        stroke-linecap="round"
-                                        style="cursor:pointer"
-                                        data-label="{{ $seg['label'] }}"
-                                        data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"></circle>
-                                @endif
-                            @endforeach
+
+                            {{-- Background track --}}
+                            <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity="0.6"></circle>
+
+                            @if($fslTotal > 0)
+                                @foreach($fslPaths as $seg)
+                                <path class="fsl-donut-hit cursor-pointer transition-all duration-200 hover:opacity-90 hover:brightness-110"
+                                      d="{{ $seg['d'] }}"
+                                      fill="url(#{{ $seg['grad_id'] }})"
+                                      stroke="#ffffff"
+                                      stroke-width="2"
+                                      stroke-linejoin="round"
+                                      filter="url(#fslSliceShadow)"
+                                      data-label="{{ $seg['label'] }}"
+                                      data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"></path>
+                                @endforeach
+                                {{-- Center cutout --}}
+                                <circle cx="80" cy="80" r="39" fill="#ffffff" filter="url(#fslSliceShadow)"></circle>
+                            @endif
                         </svg>
+
                         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span class="text-[22px] font-black text-[#0d326b]">{{ $sbStudents->count() }}</span>
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Students</span>
+                            <span class="text-[22px] font-black text-[#0d326b] leading-none">{{ $sbStudents->count() }}</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Students</span>
                         </div>
                     </div>
                 </div>
 
                 {{-- Legend --}}
                 <div class="space-y-2.5">
-                    @foreach([
-                        ['label'=>'Beginner', 'pct'=>$begPct, 'cnt'=>$beginnerCnt, 'grad'=>'masteryGradBeginner'],
-                        ['label'=>'Intermediate', 'pct'=>$intPct, 'cnt'=>$intermCnt, 'grad'=>'masteryGradIntermediate'],
-                        ['label'=>'Advanced', 'pct'=>$advPct, 'cnt'=>$advancedCnt, 'grad'=>'masteryGradAdvanced'],
-                        ['label'=>'Completed', 'pct'=>$comPct, 'cnt'=>$completedCnt, 'grad'=>'masteryGradCompleted'],
-                    ] as $e)
+                    @foreach($fslSegmentsRaw as $e)
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ match($e['label']) {
-                                'Beginner' => '#93c5fd',
-                                'Intermediate' => '#3b82f6',
-                                'Advanced' => '#1e4b8f',
-                                'Completed' => '#0d326b',
-                                default => '#cbd5e1'
-                            } }}"></span>
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ $e['dot'] }}"></span>
                             <span class="text-[11px] font-medium text-slate-600">{{ $e['label'] }}</span>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="text-[11px] text-slate-400">{{ $e['cnt'] }}</span>
-                            <span class="text-[11px] font-bold text-slate-500 w-8 text-right">{{ $e['pct'] }}%</span>
+                            <span class="text-[11px] text-slate-400">{{ $e['count'] }}</span>
+                            <span class="text-[11px] font-bold text-slate-500 w-8 text-right">{{ $fslTotal > 0 ? round($e['count'] / $fslTotal * 100) : 0 }}%</span>
                         </div>
                     </div>
                     @endforeach
@@ -2502,20 +2541,19 @@ document.addEventListener('click', function(e) {
     if (viewBtn) { openStudentDetails(viewBtn.dataset.studentId); return; }
 });
 
-// ─── Mastery Donut Tooltip ──────────────────────────────────────────────────
-document.querySelectorAll('.mastery-donut-hit').forEach(function(seg){
-    const donutWrap=seg.closest('.relative.w-\\[120px\\]');
-    const tip=donutWrap?.querySelector('#masteryDonutTooltip');
-    if(!tip)return;
-    const tipLabel=tip.querySelector('#masteryDonutTooltipLabel');
-    const tipValue=tip.querySelector('#masteryDonutTooltipValue');
-    seg.addEventListener('mouseenter',function(){
-        tipLabel.textContent=seg.dataset.label;
-        tipValue.textContent=seg.dataset.value;
+// ─── FSL Mastery Donut Tooltip ──────────────────────────────────────────────
+document.querySelectorAll('.fsl-donut-hit').forEach(function(seg){
+    const tip = document.getElementById('fslMasteryTooltip');
+    if (!tip) return;
+    const tipLabel = tip.querySelector('#fslMasteryTooltipLabel');
+    const tipValue  = tip.querySelector('#fslMasteryTooltipValue');
+    seg.addEventListener('mouseenter', function(){
+        tipLabel.textContent = seg.dataset.label;
+        tipValue.textContent  = seg.dataset.value;
         tip.classList.remove('opacity-0');
         tip.classList.add('opacity-100');
     });
-    seg.addEventListener('mouseleave',function(){
+    seg.addEventListener('mouseleave', function(){
         tip.classList.remove('opacity-100');
         tip.classList.add('opacity-0');
     });

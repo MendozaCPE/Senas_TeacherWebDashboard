@@ -309,6 +309,35 @@ class DashboardController extends Controller
                 ];
             }
 
+            // ── Student Activity & Activeness Percentage ────────────────────────
+            $activeFromProgress = StudentLessonProgress::whereIn('student_id', $studentIds)
+                ->where(function ($q) {
+                    $q->whereNotNull('last_accessed_at')
+                      ->orWhere('lesson_completed', 1)
+                      ->orWhereNotNull('quiz_score');
+                })
+                ->pluck('student_id');
+
+            $activeFromGestures = GesturePerformance::whereIn('student_id', $studentIds)
+                ->where('attempts', '>', 0)
+                ->pluck('student_id');
+
+            $activeStudentIds = $activeFromProgress->merge($activeFromGestures)->unique()->values();
+            $activeStudentsCount = $activeStudentIds->count();
+
+            $activenessPercent = $totalStudents > 0
+                ? (int) round(($activeStudentsCount / $totalStudents) * 100)
+                : 0;
+
+            $practiceSessions = [
+                'active_students' => $activeStudentsCount,
+                'total_students'  => $totalStudents,
+                'activity_pct'    => $activenessPercent,
+                'subtitle'        => $totalStudents > 0
+                    ? "{$activeStudentsCount} of {$totalStudents} Active Students"
+                    : "No enrolled students",
+            ];
+
             // ── Senya Insights (rich, data-driven) ──────────────────────────────
             $senyaInsights = (new SenyaInsightsService($teacherId))->generate();
 
@@ -343,8 +372,15 @@ class DashboardController extends Controller
                     'is_current'  => ($i === 0),
                 ];
             }
-            $senyaInsights = [];
-            $senyaTips     = [];
+            $senyaInsights    = [];
+            $senyaTips        = [];
+            $practiceSessions = [
+                'active_students' => 0,
+                'total_students'  => 0,
+                'total_attempts'  => 0,
+                'activity_pct'    => 0,
+                'subtitle'        => 'Active Monitoring',
+            ];
         }
 
         // Session-based tip rotation for the legacy single-tip rotator
@@ -393,7 +429,8 @@ class DashboardController extends Controller
             'senyaTips',
             'selectedTip',
             'senyaInsights',
-            'enrollmentTrend'
+            'enrollmentTrend',
+            'practiceSessions'
         ));
     }
 }

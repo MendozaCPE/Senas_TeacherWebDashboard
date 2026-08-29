@@ -2307,7 +2307,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
                     'attempt_number' => $attemptNumber,
                     'xp_earned'      => $xpEarned,
                 ],
-                actionUrl: '/students/' . $student->student_id,
+                actionUrl: '/reports?open_student=' . $student->student_id,
             );
         } catch (\Exception $e) {
             // never break the student flow
@@ -2975,7 +2975,7 @@ private function notifyTeacherAboutModuleCompletion($student, $moduleName, $save
                 'session_id' => null,
                 'completed_at' => now()->toISOString(),
             ],
-            actionUrl: '/students/' . $student->student_id,
+            actionUrl: '/reports?open_student=' . $student->student_id,
         );
         
         \Log::info("✅ Teacher notification sent for module completion", [
@@ -3762,7 +3762,7 @@ private function isModuleLocked($student, $module)
                             'attempt_number' => $attemptNumber,
                             'xp_earned'      => $xpEarned,
                         ],
-                        actionUrl: '/students/' . $student->student_id,
+                        actionUrl: '/reports?open_student=' . $student->student_id,
                     );
                 } catch (\Exception $e) { /* never break the flow */ }
             }
@@ -5577,7 +5577,7 @@ public function submitCheckpointExam(Request $request, $examId)
                     'attempt_number' => $attemptNumber,
                     'xp_earned'      => $xpEarned,
                 ],
-                actionUrl: '/students/' . $student->student_id,
+                actionUrl: '/reports?open_student=' . $student->student_id,
             );
         } catch (\Exception $e) { /* never break the flow */ }
 
@@ -6068,7 +6068,7 @@ public function submitHelpRequest(Request $request)
                 'student_id'      => $student->student_id,
                 'help_request_id' => $helpRequest->help_request_id,
             ],
-            actionUrl: '/students/' . $student->student_id,
+            actionUrl: '/reports?open_student=' . $student->student_id,
         );
 
         return response()->json([
@@ -6421,7 +6421,7 @@ private function notifyTeacherAboutHintUsage($student, $moduleName, $hintUsageDa
                 'hint_usage' => $aggregatedHintData, // ✅ USE AGGREGATED DATA
                 'completed_at' => now()->toISOString(),
             ],
-            actionUrl: '/students/' . $student->student_id,
+            actionUrl: '/reports?open_student=' . $student->student_id,
         );
         
     } catch (\Exception $e) {
@@ -6555,7 +6555,7 @@ public function completeChallenge(Request $request)
                 'time_spent_seconds' => $timeSpent,
                 'completed_at' => now()->toISOString(),
             ],
-            actionUrl: '/students/' . $student->student_id,
+            actionUrl: '/reports?open_student=' . $student->student_id,
         );
 
         \Log::info("✅ Challenge notification sent for teacher", [

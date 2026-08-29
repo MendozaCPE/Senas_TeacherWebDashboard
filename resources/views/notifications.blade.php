@@ -120,7 +120,12 @@
             $fallbackUrl = $notif->student_fallback ?? ("https://ui-avatars.com/api/?name=" . urlencode($initials) . "&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45");
             $avatarUrl = $notif->student_avatar ?? ($notif->student ? $notif->student->avatarUrl() : $fallbackUrl);
             $hasStudent = !empty($studentId) || !empty($studentName);
-            $actionUrl = $notif->action_url ?? ($studentId ? '/reports?open_student=' . $studentId : null);
+            $actionUrl = $notif->action_url;
+            if ($actionUrl && preg_match('#^/students/(\d+)$#', $actionUrl, $m)) {
+                $actionUrl = '/reports?open_student=' . $m[1];
+            } elseif (!$actionUrl && $studentId) {
+                $actionUrl = '/reports?open_student=' . $studentId;
+            }
 
             // Clean title of leading emojis for sleek typography
             $cleanTitle = preg_replace('/^[\x{1F600}-\x{1F64F}\x{1F300}-\x{1F5FF}\x{1F680}-\x{1F6FF}\x{1F1E0}-\x{1F1FF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}\x{1F900}-\x{1F9FF}\x{1F018}-\x{1F270}\x{2388}\x{2B06}\x{2197}\x{FE0F}\s]+/u', '', $notif->title);

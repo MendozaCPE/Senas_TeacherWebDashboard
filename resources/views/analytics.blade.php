@@ -573,43 +573,126 @@
 
                 @php
                     $mColors = ['#93c5fd', '#60a5fa', '#1e4b8f', '#0d326b'];
-                    $cx = 100; $cy = 100; $r = 74; $strokeW = 20;
-                    $circumference = 2 * M_PI * $r;
-                    $accumPct = 0;
+                    $mGradients = [
+                        ['from' => '#bfdbfe', 'to' => '#93c5fd'],
+                        ['from' => '#93c5fd', 'to' => '#60a5fa'],
+                        ['from' => '#3b82f6', 'to' => '#1e4b8f'],
+                        ['from' => '#1e4b8f', 'to' => '#0d326b'],
+                    ];
+
+                    $masteryActive = [];
+                    if ($masteryTotal > 0) {
+                        foreach ($masteryDistribution as $i => $seg) {
+                            if (($seg['count'] ?? 0) > 0) {
+                                $masteryActive[] = [
+                                    'index' => $i,
+                                    'label' => $seg['label'],
+                                    'key' => $seg['key'] ?? '',
+                                    'count' => $seg['count'],
+                                    'pct' => $seg['pct'],
+                                    'color' => $mColors[$i % count($mColors)],
+                                    'grad_id' => 'masteryGrad' . $i,
+                                    'grad_from' => $mGradients[$i % count($mGradients)]['from'],
+                                    'grad_to' => $mGradients[$i % count($mGradients)]['to'],
+                                ];
+                            }
+                        }
+                    }
+
+                    $activeCount = count($masteryActive);
+                    $maxSegCount = $activeCount > 0 ? max(1, ...array_map(fn($s) => $s['count'], $masteryActive)) : 1;
+
+                    $masteryPaths = [];
+                    $cx = 80;
+                    $cy = 80;
+                    $innerR = 40;
+                    $gapAngle = ($activeCount > 1) ? 0.08 : 0; // ~4.5 deg gap between slices
+                    $currentAngle = -M_PI / 2; // Start from 12 o'clock
+
+                    foreach ($masteryActive as $seg) {
+                        $fraction = $seg['count'] / $masteryTotal;
+                        $angleSpan = $fraction * (2 * M_PI);
+
+                        // Variable radius: Outer radius scales from 56px to 74px based on count
+                        $outerR = round(56 + (18 * ($seg['count'] / $maxSegCount)), 1);
+
+                        if ($activeCount === 1) {
+                            $segStart = $currentAngle;
+                            $segEnd = $currentAngle + (2 * M_PI) - 0.001;
+                        } else {
+                            $segStart = $currentAngle + ($gapAngle / 2);
+                            $segEnd = $currentAngle + $angleSpan - ($gapAngle / 2);
+                            if ($segEnd <= $segStart) {
+                                $segStart = $currentAngle;
+                                $segEnd = $currentAngle + $angleSpan;
+                            }
+                        }
+
+                        $x1 = round($cx + $outerR * cos($segStart), 2);
+                        $y1 = round($cy + $outerR * sin($segStart), 2);
+                        $x2 = round($cx + $outerR * cos($segEnd), 2);
+                        $y2 = round($cy + $outerR * sin($segEnd), 2);
+                        $x3 = round($cx + $innerR * cos($segEnd), 2);
+                        $y3 = round($cy + $innerR * sin($segEnd), 2);
+                        $x4 = round($cx + $innerR * cos($segStart), 2);
+                        $y4 = round($cy + $innerR * sin($segStart), 2);
+
+                        $largeArc = ($segEnd - $segStart > M_PI) ? 1 : 0;
+                        $pathD = "M {$x1} {$y1} A {$outerR} {$outerR} 0 {$largeArc} 1 {$x2} {$y2} L {$x3} {$y3} A {$innerR} {$innerR} 0 {$largeArc} 0 {$x4} {$y4} Z";
+
+                        $masteryPaths[] = array_merge($seg, [
+                            'd' => $pathD,
+                            'outerR' => $outerR,
+                        ]);
+
+                        $currentAngle += $angleSpan;
+                    }
                 @endphp
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center pt-1">
-                    {{-- Donut SVG (Shades of Blue only) --}}
+                    {{-- Variable-Radius Donut SVG (Shades of Blue only) --}}
                     <div class="relative flex items-center justify-center">
                         <div id="masteryDonutTooltip" class="chart-tooltip">
                             <span id="masteryDonutLabel"></span>: <span id="masteryDonutValue"></span>
                         </div>
 
-                        <svg viewBox="0 0 200 200" class="w-36 h-36 transform -rotate-90">
-                            <circle cx="{{ $cx }}" cy="{{ $cy }}" r="{{ $r }}" fill="none" stroke="#f1f5f9" stroke-width="{{ $strokeW }}"></circle>
-                            @if($masteryTotal > 0)
-                                @foreach($masteryDistribution as $i => $seg)
-                                    @php
-                                        $dashArray = ($seg['pct'] / 100) * $circumference;
-                                        $dashOffset = -($accumPct / 100) * $circumference;
-                                        $accumPct += $seg['pct'];
-                                    @endphp
-                                    @if($seg['pct'] > 0)
-                                    <circle cx="{{ $cx }}" cy="{{ $cy }}" r="{{ $r }}" fill="none"
-                                            stroke="{{ $mColors[$i % count($mColors)] }}" stroke-width="{{ $strokeW }}"
-                                            stroke-dasharray="{{ $dashArray }} {{ $circumference - $dashArray }}"
-                                            stroke-dashoffset="{{ $dashOffset }}"
-                                            class="mastery-donut-hit cursor-pointer transition-all hover:opacity-85"
-                                            data-label="{{ $seg['label'] }}"
-                                            data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"></circle>
-                                    @endif
+                        <svg viewBox="0 0 160 160" class="w-36 h-36 overflow-visible">
+                            <defs>
+                                <filter id="masterySliceShadow" x="-10%" y="-10%" width="120%" height="120%">
+                                    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/>
+                                </filter>
+                                @foreach($masteryPaths as $seg)
+                                <linearGradient id="{{ $seg['grad_id'] }}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="{{ $seg['grad_from'] }}"/>
+                                    <stop offset="100%" stop-color="{{ $seg['grad_to'] }}"/>
+                                </linearGradient>
                                 @endforeach
+                            </defs>
+
+                            <!-- Background subtle track ring -->
+                            <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity="0.6"></circle>
+
+                            @if($masteryTotal > 0)
+                                @foreach($masteryPaths as $seg)
+                                <path class="mastery-donut-hit cursor-pointer transition-all duration-200 hover:opacity-90 hover:brightness-110"
+                                      d="{{ $seg['d'] }}"
+                                      fill="url(#{{ $seg['grad_id'] }})"
+                                      stroke="#ffffff"
+                                      stroke-width="2"
+                                      stroke-linejoin="round"
+                                      filter="url(#masterySliceShadow)"
+                                      data-label="{{ $seg['label'] }}"
+                                      data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"></path>
+                                @endforeach
+
+                                <!-- Center cutout circle with elevation -->
+                                <circle cx="80" cy="80" r="39" fill="#ffffff" filter="url(#masterySliceShadow)"></circle>
                             @endif
                         </svg>
 
                         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                            <span class="text-[19px] font-black text-[#0d326b] leading-tight">{{ $masteryTotal }}</span>
-                            <span class="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Attempts</span>
+                            <span class="text-2xl font-black text-[#0d326b] leading-none">{{ $masteryTotal }}</span>
+                            <span class="text-[8.5px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">Attempts</span>
                         </div>
                     </div>
 

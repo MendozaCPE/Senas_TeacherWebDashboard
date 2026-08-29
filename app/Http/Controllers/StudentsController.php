@@ -783,19 +783,28 @@ if (!empty($examIdsOnly)) {
     }
 
     /**
-     * Return full student details as JSON for the Student Details modal.
+     * Return full student details as JSON for the Student Details modal,
+     * or redirect browser page navigations to the Reports page.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $teacher = Auth::user()->teacher;
         if (!$teacher) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+            }
+            return redirect()->route('login');
         }
 
         $student = Student::where('student_id', $id)
                           ->where('teacher_id', $teacher->id)
                           ->with(['promotions'])
                           ->firstOrFail();
+
+        // If accessed directly via browser address bar or link (non-AJAX), redirect to UI report modal
+        if (!$request->wantsJson() && !$request->ajax() && !$request->is('api/*')) {
+            return redirect('/reports?open_student=' . $id);
+        }
 
         return response()->json([
             'success' => true,

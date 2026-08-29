@@ -197,7 +197,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const c=cfg(n.type), unread=!n.is_read;
         const data = n.data || {};
         const sid = n.student_id || data.student_id;
-        const dest = n.action_url || (sid ? `/reports?open_student=${sid}` : '/notifications');
+        let dest = n.action_url || (sid ? `/reports?open_student=${sid}` : '/notifications');
+        if (/^\/students\/\d+$/.test(dest)) {
+            const m = dest.match(/^\/students\/(\d+)$/);
+            dest = `/reports?open_student=${m[1]}`;
+        }
         const sName = n.student_name || 'Student';
         const parts = sName.trim().split(/\s+/);
         const initials = (parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]) : sName.substring(0, 2)).toUpperCase();

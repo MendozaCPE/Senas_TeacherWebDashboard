@@ -324,24 +324,24 @@
                 </div>
                 @endforeach
 
-                <!-- Practice Sessions Card (navy gradient) -->
+                <!-- Student Activity Card (navy gradient) -->
                 <div class="rounded-[20px] p-6 w-[280px] flex-shrink-0 flex flex-col justify-between shadow-sm relative overflow-hidden text-white"
                      style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 50%, #1a6fd4 100%); min-height: 200px;">
                     <div class="absolute top-0 right-0 w-24 h-24 opacity-10 rounded-bl-full bg-white"></div>
                     <div class="flex justify-between items-start relative z-10">
                         <span class="material-symbols-outlined text-white text-[28px]">assignment_ind</span>
-                        <button class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors text-white">
+                        <a href="{{ route('students') }}" class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors text-white" title="View Students">
                             <span class="material-symbols-outlined text-[20px]">more_vert</span>
-                        </button>
+                        </a>
                     </div>
                     <div class="relative z-10">
-                        <h4 class="font-bold text-white text-[17px] mb-0.5">Practice Sessions</h4>
-                        <p class="text-white/60 text-[12px] mb-3">Active Monitoring</p>
-                        <div class="w-full h-2 rounded-full bg-white/15 mb-1.5">
-                            <div class="h-full rounded-full bg-white/80" style="width: 75%;"></div>
+                        <h4 class="font-bold text-white text-[17px] mb-0.5">Student Activity</h4>
+                        <p class="text-white/70 text-[12px] mb-3">{{ $practiceSessions['subtitle'] ?? 'Active Monitoring' }}</p>
+                        <div class="w-full h-2 rounded-full bg-white/15 mb-1.5 overflow-hidden">
+                            <div class="h-full rounded-full bg-white/80 transition-all duration-700" style="width: {{ $practiceSessions['activity_pct'] ?? 0 }}%;"></div>
                         </div>
                         <div class="text-right">
-                            <span class="text-[10px] font-bold text-white uppercase tracking-wider">75% Activity</span>
+                            <span class="text-[10px] font-bold text-white uppercase tracking-wider">{{ $practiceSessions['activity_pct'] ?? 0 }}% Activeness</span>
                         </div>
                     </div>
                 </div>
@@ -361,16 +361,63 @@
             $lpInProgress = $lessonMastery->filter(fn ($lm) => $lm->masteryPct > 0 && $lm->masteryPct < 100)->count();
             $lpNotStarted = max(0, $lpTotal - $lpCompleted - $lpInProgress);
 
-            $donutCircumference = round(2 * pi() * 60, 4);
-
-            // Segment order: Completed, In Progress, Not Started
-            $donutSegments = $lpTotal > 0 ? [
-                ['count' => $lpCompleted, 'color' => '#0d326b', 'grad_id' => 'donutGradCompleted', 'grad_from' => '#1e4b8f', 'grad_to' => '#071c3f', 'label' => 'Completed'],
-                ['count' => $lpInProgress, 'color' => '#1a6fd4', 'grad_id' => 'donutGradProgress', 'grad_from' => '#3b82f6', 'grad_to' => '#0d326b', 'label' => 'In Progress'],
-                ['count' => $lpNotStarted, 'color' => '#dbeafe', 'grad_id' => 'donutGradNotStarted', 'grad_from' => '#eff6ff', 'grad_to' => '#93c5fd', 'label' => 'Not Started'],
+            // Variable-radius doughnut (rose/polar chart style with distinct outer radii)
+            $rawSegments = $lpTotal > 0 ? [
+                ['key' => 'completed', 'count' => $lpCompleted, 'color' => '#0d326b', 'grad_id' => 'donutGradCompleted', 'grad_from' => '#1e4b8f', 'grad_to' => '#071c3f', 'label' => 'Completed'],
+                ['key' => 'in_progress', 'count' => $lpInProgress, 'color' => '#1a6fd4', 'grad_id' => 'donutGradProgress', 'grad_from' => '#3b82f6', 'grad_to' => '#1a6fd4', 'label' => 'In Progress'],
+                ['key' => 'not_started', 'count' => $lpNotStarted, 'color' => '#93c5fd', 'grad_id' => 'donutGradNotStarted', 'grad_from' => '#bfdbfe', 'grad_to' => '#93c5fd', 'label' => 'Not Started'],
             ] : [];
 
-            $donutOffset = 0;
+            $activeSegments = array_values(array_filter($rawSegments, fn($s) => $s['count'] > 0));
+            $activeCount = count($activeSegments);
+            $maxSegCount = $activeCount > 0 ? max(1, ...array_map(fn($s) => $s['count'], $activeSegments)) : 1;
+
+            $donutPaths = [];
+            $cx = 80;
+            $cy = 80;
+            $innerR = 40;
+            $gapAngle = ($activeCount > 1) ? 0.08 : 0; // Clean ~4.5 deg spacing between slices
+            $currentAngle = -M_PI / 2; // Start at 12 o'clock
+
+            foreach ($activeSegments as $seg) {
+                $fraction = $seg['count'] / $lpTotal;
+                $angleSpan = $fraction * (2 * M_PI);
+
+                // Variable radius: Outer radius scales from 56px to 74px based on share/count
+                $outerR = round(56 + (18 * ($seg['count'] / $maxSegCount)), 1);
+
+                if ($activeCount === 1) {
+                    $segStart = $currentAngle;
+                    $segEnd = $currentAngle + (2 * M_PI) - 0.001;
+                } else {
+                    $segStart = $currentAngle + ($gapAngle / 2);
+                    $segEnd = $currentAngle + $angleSpan - ($gapAngle / 2);
+                    if ($segEnd <= $segStart) {
+                        $segStart = $currentAngle;
+                        $segEnd = $currentAngle + $angleSpan;
+                    }
+                }
+
+                $x1 = round($cx + $outerR * cos($segStart), 2);
+                $y1 = round($cy + $outerR * sin($segStart), 2);
+                $x2 = round($cx + $outerR * cos($segEnd), 2);
+                $y2 = round($cy + $outerR * sin($segEnd), 2);
+                $x3 = round($cx + $innerR * cos($segEnd), 2);
+                $y3 = round($cy + $innerR * sin($segEnd), 2);
+                $x4 = round($cx + $innerR * cos($segStart), 2);
+                $y4 = round($cy + $innerR * sin($segStart), 2);
+
+                $largeArc = ($segEnd - $segStart > M_PI) ? 1 : 0;
+                $pathD = "M {$x1} {$y1} A {$outerR} {$outerR} 0 {$largeArc} 1 {$x2} {$y2} L {$x3} {$y3} A {$innerR} {$innerR} 0 {$largeArc} 0 {$x4} {$y4} Z";
+
+                $donutPaths[] = array_merge($seg, [
+                    'd' => $pathD,
+                    'outerR' => $outerR,
+                    'pct' => round($fraction * 100),
+                ]);
+
+                $currentAngle += $angleSpan;
+            }
         @endphp
 
     </div>
@@ -667,7 +714,7 @@
 
             <!-- Lesson Progress (donut chart) -->
             <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden flex flex-col">
-                <div class="absolute -top-10 -right-10 w-36 h-36 bg-yellow-50 rounded-full opacity-60"></div>
+                <div class="absolute -top-10 -right-10 w-36 h-36 bg-blue-50/50 rounded-full opacity-60 pointer-events-none"></div>
 
                 <h3 class="text-base font-bold text-[#0d326b] mb-6 relative z-10">Lesson Progress</h3>
 
@@ -675,47 +722,50 @@
                     <div class="flex-1 flex items-center justify-center text-sm text-slate-400 italic relative z-10">No record</div>
                 @else
                 <div class="flex items-center gap-5 relative z-10">
-                    <!-- Donut -->
-                    <div class="relative w-28 h-28 flex-shrink-0">
-                        <div id="donutTooltip" class="pointer-events-none absolute z-20 opacity-0 transition-opacity duration-150 left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%] bg-[#0d326b] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                    <!-- Variable-Radius Donut -->
+                    <div class="relative w-32 h-32 flex-shrink-0 flex items-center justify-center donut-wrapper">
+                        <div id="donutTooltip" class="pointer-events-none absolute z-30 opacity-0 transition-opacity duration-150 left-1/2 top-0 -translate-x-1/2 -translate-y-[110%] bg-[#0d326b] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
                             <span id="donutTooltipLabel"></span>: <span id="donutTooltipValue"></span>
                             <div class="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45"></div>
                         </div>
-                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 144 144">
+
+                        <svg class="w-full h-full overflow-visible" viewBox="0 0 160 160">
                             <defs>
-                                @foreach($donutSegments as $seg)
+                                <filter id="donutSliceShadow" x="-10%" y="-10%" width="120%" height="120%">
+                                    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/>
+                                </filter>
+                                @foreach($donutPaths as $seg)
                                 <linearGradient id="{{ $seg['grad_id'] }}" x1="0%" y1="0%" x2="100%" y2="100%">
                                     <stop offset="0%" stop-color="{{ $seg['grad_from'] }}"/>
                                     <stop offset="100%" stop-color="{{ $seg['grad_to'] }}"/>
                                 </linearGradient>
                                 @endforeach
                             </defs>
-                            <circle cx="72" cy="72" r="60" fill="transparent" stroke="#f1f5f9" stroke-width="14"></circle>
-                            @php $cumulative = 0; @endphp
-                            @foreach($donutSegments as $seg)
-                                @if($seg['count'] > 0)
-                                @php
-                                    $segLen = round(($seg['count'] / $lpTotal) * $donutCircumference, 2);
-                                    $gap = round($donutCircumference - $segLen, 2);
-                                    $offset = round(-1 * ($cumulative / $lpTotal) * $donutCircumference, 2);
-                                    $segPct = round(($seg['count'] / $lpTotal) * 100);
-                                @endphp
-                                <circle class="donut-segment-hit" cx="72" cy="72" r="60" fill="transparent"
-                                        stroke="url(#{{ $seg['grad_id'] }})"
-                                        stroke-width="14"
-                                        stroke-dasharray="{{ $segLen }} {{ $gap }}"
-                                        stroke-dashoffset="{{ $offset }}"
-                                        stroke-linecap="round"
-                                        style="cursor:pointer"
-                                        data-label="{{ $seg['label'] }}"
-                                        data-value="{{ $seg['count'] }} ({{ $segPct }}%)"></circle>
-                                @php $cumulative += $seg['count']; @endphp
-                                @endif
+
+                            <!-- Background track ring -->
+                            <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity="0.6"></circle>
+
+                            <!-- Segments with dynamic outer radius and angular gaps -->
+                            @foreach($donutPaths as $seg)
+                            <path class="donut-segment-hit cursor-pointer transition-all duration-200 hover:opacity-90 hover:brightness-110"
+                                  d="{{ $seg['d'] }}"
+                                  fill="url(#{{ $seg['grad_id'] }})"
+                                  stroke="#ffffff"
+                                  stroke-width="2"
+                                  stroke-linejoin="round"
+                                  filter="url(#donutSliceShadow)"
+                                  data-label="{{ $seg['label'] }}"
+                                  data-value="{{ $seg['count'] }} ({{ $seg['pct'] }}%)"></path>
                             @endforeach
+
+                            <!-- Inner cutout circle with subtle elevation -->
+                            <circle cx="80" cy="80" r="39" fill="#ffffff" filter="url(#donutSliceShadow)"></circle>
                         </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+
+                        <!-- Center text overlay -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                             <span class="text-2xl font-black text-[#0d326b] leading-none">{{ $lpTotal }}</span>
-                            <span class="text-[8px] font-bold uppercase tracking-widest text-slate-400 mt-1">Total</span>
+                            <span class="text-[8.5px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">Total</span>
                         </div>
                     </div>
 
@@ -726,21 +776,21 @@
                                 <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:#0d326b"></div>
                                 <span class="text-[12px] font-semibold text-slate-600 truncate">Completed</span>
                             </div>
-                            <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $lpCompleted }} ({{ round(($lpCompleted / $lpTotal) * 100) }}%)</span>
+                            <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $lpCompleted }} ({{ $lpTotal > 0 ? round(($lpCompleted / $lpTotal) * 100) : 0 }}%)</span>
                         </div>
                         <div class="flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 min-w-0">
                                 <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:#1a6fd4"></div>
                                 <span class="text-[12px] font-semibold text-slate-600 truncate">In Progress</span>
                             </div>
-                            <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $lpInProgress }} ({{ round(($lpInProgress / $lpTotal) * 100) }}%)</span>
+                            <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $lpInProgress }} ({{ $lpTotal > 0 ? round(($lpInProgress / $lpTotal) * 100) : 0 }}%)</span>
                         </div>
                         <div class="flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 min-w-0">
-                                <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:#dbeafe"></div>
+                                <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:#93c5fd"></div>
                                 <span class="text-[12px] font-semibold text-slate-600 truncate">Not Started</span>
                             </div>
-                            <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $lpNotStarted }} ({{ round(($lpNotStarted / $lpTotal) * 100) }}%)</span>
+                            <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $lpNotStarted }} ({{ $lpTotal > 0 ? round(($lpNotStarted / $lpTotal) * 100) : 0 }}%)</span>
                         </div>
                     </div>
                 </div>
@@ -838,7 +888,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Lesson Progress: hover tooltip on donut segments ──
     (function () {
         document.querySelectorAll('.donut-segment-hit').forEach(function (seg) {
-            const donutWrap = seg.closest('.relative.w-28');
+            const donutWrap = seg.closest('.donut-wrapper') || seg.closest('.relative');
             const tip = donutWrap?.querySelector('#donutTooltip');
             if (!tip) return;
             const tipLabel = tip.querySelector('#donutTooltipLabel');
