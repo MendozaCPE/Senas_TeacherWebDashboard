@@ -2881,11 +2881,11 @@ footer {
 <section id="reviews">
   <div class="wrap">
     <div class="section-head center reveal" style="max-width:680px;margin:0 auto;text-align:center;">
-      <span class="kicker">Teacher Feedback</span>
-      <h2>What Our Teachers
+      <span class="kicker">Community Feedback</span>
+      <h2>What Our Teachers &amp; Students
         <span style="background:linear-gradient(135deg,var(--amber),var(--amber-deep));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Say About Senas</span>
       </h2>
-      <p>Real ratings and feedback from the teachers using SEÑAS every day in their classrooms.</p>
+      <p>Real ratings and feedback from the teachers and students using SEÑAS every day.</p>
     </div>
 
     @if($totalRatings > 0)
@@ -2923,7 +2923,7 @@ footer {
 
       {{-- CTA side --}}
       <div class="reviews-cta-side">
-        <p>Using SEÑAS in your classroom? Share your experience.</p>
+        <p>Using SEÑAS? Share your experience.</p>
         <a href="{{ route('login') }}" class="btn-review">
           <i class="fa-solid fa-star"></i> Rate Senas
         </a>
@@ -2956,7 +2956,7 @@ footer {
                onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($review['name']) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true';">
           <div class="review-card-meta">
             <div class="review-name">{{ $review['name'] }}</div>
-            <div class="review-role">SENAS Teacher</div>
+            <div class="review-role">{{ $review['role'] }}</div>
           </div>
           <div class="review-card-stars">
             @for($s = 1; $s <= 5; $s++)
@@ -2976,7 +2976,7 @@ footer {
     {{-- Has ratings but no feedback text --}}
     <div class="reviews-empty reveal">
       <img src="{{ asset('images/senya_face.png') }}" alt="Senya">
-      <p>Teachers have rated Senas — feedback coming soon!</p>
+      <p>People have rated Senas — feedback coming soon!</p>
       <small>Be the first to leave a written review.</small>
     </div>
     @endif
@@ -2986,7 +2986,7 @@ footer {
     <div class="reviews-empty reveal">
       <img src="{{ asset('images/senya_face.png') }}" alt="Senya">
       <p>No ratings yet — be the first!</p>
-      <small>Log in as a teacher, go to Settings → Rate Us, and share your experience.</small>
+      <small>Teachers: Settings → Rate Us. Students: Profile → Rate Us.</small>
     </div>
     @endif
 

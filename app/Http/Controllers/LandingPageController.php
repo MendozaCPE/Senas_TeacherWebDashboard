@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lesson;
 use App\Models\Student;
+use App\Models\StudentRating;
 use App\Models\Teacher;
 use App\Models\TeacherRating;
 use App\Models\StudentLessonProgress;
@@ -92,7 +93,9 @@ class LandingPageController extends Controller
 
     private function getRatingsData(): array
     {
-        $totalRatings = TeacherRating::where('is_approved', true)->count();
+        $totalTeacherRatings = TeacherRating::where('is_approved', true)->count();
+        $totalStudentRatings = StudentRating::where('is_approved', true)->count();
+        $totalRatings = $totalTeacherRatings + $totalStudentRatings;
 
         if ($totalRatings === 0) {
             return [
@@ -103,10 +106,18 @@ class LandingPageController extends Controller
             ];
         }
 
-        $avgRating = round(TeacherRating::where('is_approved', true)->avg('rating'), 1);
+        // Combined average across both sources (sum of ratings / total count)
+        $teacherRatingSum = (float) TeacherRating::where('is_approved', true)->sum('rating');
+        $studentRatingSum = (float) StudentRating::where('is_approved', true)->sum('rating');
+        $avgRating = round(($teacherRatingSum + $studentRatingSum) / $totalRatings, 1);
 
-        // Distribution: count per star (5 → 1, descending for display), approved only
-        $distRaw = TeacherRating::where('is_approved', true)
+        // Distribution: count per star (5 → 1, descending for display), approved only, both sources combined
+        $teacherDistRaw = TeacherRating::where('is_approved', true)
+            ->select('rating', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('rating')
+            ->pluck('cnt', 'rating')
+            ->toArray();
+        $studentDistRaw = StudentRating::where('is_approved', true)
             ->select('rating', DB::raw('COUNT(*) as cnt'))
             ->groupBy('rating')
             ->pluck('cnt', 'rating')
@@ -114,19 +125,19 @@ class LandingPageController extends Controller
 
         $ratingDist = [];
         for ($s = 5; $s >= 1; $s--) {
-            $cnt = $distRaw[$s] ?? 0;
+            $cnt = ($teacherDistRaw[$s] ?? 0) + ($studentDistRaw[$s] ?? 0);
             $ratingDist[$s] = [
                 'count' => $cnt,
                 'pct'   => $totalRatings > 0 ? round(($cnt / $totalRatings) * 100) : 0,
             ];
         }
 
-        // Featured reviews: approved ratings with non-empty feedback, most recent first, max 6
-        $featuredReviews = TeacherRating::with(['teacher.user'])
+        // Featured reviews: approved ratings with non-empty feedback from both sources, most recent first, max 6
+        $teacherReviews = TeacherRating::with(['teacher.user'])
             ->where('is_approved', true)
             ->whereNotNull('feedback')
             ->where('feedback', '!=', '')
-            ->orderByDesc('updated_at')
+            ->latest('updated_at')
             ->limit(6)
             ->get()
             ->map(function ($r) {
@@ -143,11 +154,42 @@ class LandingPageController extends Controller
                     'rating'     => $r->rating,
                     'feedback'   => $r->feedback,
                     'name'       => $displayName,
+                    'role'       => 'SENAS Teacher',
                     'avatar'     => $avatarUrl,
                     'updated_at' => $r->updated_at,
                 ];
             });
 
+        $studentReviews = StudentRating::with(['student'])
+            ->where('is_approved', true)
+            ->whereNotNull('feedback')
+            ->where('feedback', '!=', '')
+            ->latest('updated_at')
+            ->limit(6)
+            ->get()
+            ->map(function ($r) {
+                $student     = $r->student;
+                $firstName   = $student?->first_name ?? 'Student';
+                $lastName    = $student?->last_name  ?? '';
+                // Show first name + last initial for privacy
+                $displayName = $firstName . ($lastName ? ' ' . strtoupper(substr($lastName, 0, 1)) . '.' : '');
+                $avatarUrl   = "https://ui-avatars.com/api/?name=" . urlencode($firstName . '+' . $lastName)
+                       . "&background=1a6fd4&color=fff&size=128&font-size=0.45&bold=true&rounded=true";
+                return [
+                    'rating'     => $r->rating,
+                    'feedback'   => $r->feedback,
+                    'name'       => $displayName,
+                    'role'       => 'SENAS Student',
+                    'avatar'     => $avatarUrl,
+                    'updated_at' => $r->updated_at,
+                ];
+            });
+
+        // Merge both sources, most recent first, cap at 6 for the landing page
+        $featuredReviews = $teacherReviews->concat($studentReviews)
+            ->sortByDesc('updated_at')
+            ->take(6)
+            ->values();
 
         return [
             'avgRating'       => $avgRating,
