@@ -5,12 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class TeacherRating extends Model
+class StudentRating extends Model
 {
-    protected $table = 'teacher_ratings';
+    protected $table = 'student_ratings';
 
     protected $fillable = [
-        'teacher_id',
+        'student_id',
         'rating',
         'feedback',
         'is_approved',
@@ -21,8 +21,8 @@ class TeacherRating extends Model
         'is_approved' => 'boolean',
     ];
 
-    public function teacher(): BelongsTo
+    public function student(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class, 'teacher_id', 'id');
+        return $this->belongsTo(Student::class, 'student_id', 'student_id');
     }
 }

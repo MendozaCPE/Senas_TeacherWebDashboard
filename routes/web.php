@@ -284,6 +284,10 @@ Route::middleware(['auth', 'no.cache', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/reports/{id}', [AdminController::class, 'getReport'])->name('reports.show');
     Route::post('/reports/{id}/respond', [AdminController::class, 'respondToReport'])->name('reports.respond');
 
+    // Ratings (Teacher & Student — approval queue for the landing page)
+    Route::get('/ratings', [AdminController::class, 'ratings'])->name('ratings');
+    Route::patch('/ratings/{type}/{id}/approval', [AdminController::class, 'updateRatingApproval'])->name('ratings.approval');
+
 // ── DEFAULT LESSONS (Admin) ────────────────────────────────────────────
 Route::prefix('lessons')->name('lesson-templates.')->group(function () {
     // Listing + push/promote actions

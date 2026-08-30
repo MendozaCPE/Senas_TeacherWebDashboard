@@ -50,6 +50,21 @@
             @endif
         </a>
 
+        <a href="{{ route('admin.ratings') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/ratings') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('admin/ratings') ? '' : 'icon-outline' }} text-[22px]">star</span>
+            <span>Ratings</span>
+            @php
+                $pendingRatingsCount = \App\Models\TeacherRating::where('is_approved', false)->count()
+                    + \App\Models\StudentRating::where('is_approved', false)->count();
+            @endphp
+            @if($pendingRatingsCount > 0)
+            <span class="ml-auto mr-2 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {{ $pendingRatingsCount > 99 ? '99+' : $pendingRatingsCount }}
+            </span>
+            @endif
+        </a>
+
         {{-- ✅ NEW: Default Lessons Link --}}
    <a href="{{ route('admin.lesson-templates.index') }}"
    class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('admin.lesson-templates*') ? $activeClass : $inactiveClass }}">

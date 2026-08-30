@@ -37,6 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/help-requests', [StudentAuthController::class, 'getHelpRequests']);
     Route::get('/student/help-request/{id}', [StudentAuthController::class, 'getHelpRequestById']);
 
+    // ─── RATE US ──────────────────────────────────────────────────
+    Route::post('/student/rating', [StudentAuthController::class, 'submitRating']);
+    Route::get('/student/rating', [StudentAuthController::class, 'getRating']);
+
     // ─── ADMIN HELP REQUEST ROUTES ──────────────────────────────────
     // These routes check roles inside the controller methods
     Route::get('/admin/help-requests', [StudentAuthController::class, 'adminGetHelpRequests']);

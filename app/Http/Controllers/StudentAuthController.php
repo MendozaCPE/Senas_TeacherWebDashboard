@@ -27,6 +27,7 @@ use App\Models\CheckpointExamAssignment;
 use App\Models\CheckpointExamQuestion;
 use App\Models\CheckpointExamAttempt;
 use App\Models\HelpRequest;
+use App\Models\StudentRating;
 use App\Models\TeacherNotification;
 use App\Models\GestureHintUsage;
 use Illuminate\Http\Request;
@@ -5987,6 +5988,96 @@ private function mapModuleNameToType(string $moduleName): string
     
     return $map[$moduleName] ?? $moduleName;
 }
+/**
+ * Submit or update the student's rating of the app.
+ * Every submit/update resets is_approved to false — an admin must
+ * re-approve it before it can show on the public landing page.
+ * POST /api/student/rating
+ */
+public function submitRating(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'rating'   => 'required|integer|between:1,5',
+            'feedback' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid data',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $rating = StudentRating::updateOrCreate(
+            ['student_id' => $student->student_id],
+            [
+                'rating'      => $request->rating,
+                'feedback'    => $request->feedback,
+                'is_approved' => false,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Thank you for your rating! It will be reviewed before it appears publicly.',
+            'rating' => [
+                'rating'      => $rating->rating,
+                'feedback'    => $rating->feedback,
+                'is_approved' => $rating->is_approved,
+                'updated_at'  => $rating->updated_at,
+            ],
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get the student's existing rating (if any), to prefill the Rate Us screen.
+ * GET /api/student/rating
+ */
+public function getRating(Request $request)
+{
+    try {
+        $user = Auth::user();
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found'], 404);
+        }
+
+        $rating = StudentRating::where('student_id', $student->student_id)->first();
+
+        return response()->json([
+            'success' => true,
+            'rating' => $rating ? [
+                'rating'      => $rating->rating,
+                'feedback'    => $rating->feedback,
+                'is_approved' => $rating->is_approved,
+                'updated_at'  => $rating->updated_at,
+            ] : null,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 /**
  * Submit a help request
  * POST /api/student/help-request

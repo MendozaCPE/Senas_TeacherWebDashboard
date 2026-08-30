@@ -72,8 +72,8 @@ class LandingPageController extends Controller
         // ─── TOTAL LESSONS COMPLETED ────────────────────────────────────
         $totalLessonsCompleted = StudentLessonProgress::where('lesson_completed', 1)->count();
 
-        // ─── TEACHER RATING (real average from database) ─────────────────
-        $avgRating = TeacherRating::avg('rating');
+        // ─── TEACHER RATING (real average from database, approved only) ──
+        $avgRating = TeacherRating::where('is_approved', true)->avg('rating');
         $teacherRating = $avgRating ? number_format($avgRating, 1) . '★' : '—';
 
         return [
@@ -92,7 +92,7 @@ class LandingPageController extends Controller
 
     private function getRatingsData(): array
     {
-        $totalRatings = TeacherRating::count();
+        $totalRatings = TeacherRating::where('is_approved', true)->count();
 
         if ($totalRatings === 0) {
             return [
@@ -103,10 +103,11 @@ class LandingPageController extends Controller
             ];
         }
 
-        $avgRating = round(TeacherRating::avg('rating'), 1);
+        $avgRating = round(TeacherRating::where('is_approved', true)->avg('rating'), 1);
 
-        // Distribution: count per star (5 → 1, descending for display)
-        $distRaw = TeacherRating::select('rating', DB::raw('COUNT(*) as cnt'))
+        // Distribution: count per star (5 → 1, descending for display), approved only
+        $distRaw = TeacherRating::where('is_approved', true)
+            ->select('rating', DB::raw('COUNT(*) as cnt'))
             ->groupBy('rating')
             ->pluck('cnt', 'rating')
             ->toArray();
@@ -120,8 +121,9 @@ class LandingPageController extends Controller
             ];
         }
 
-        // Featured reviews: ratings with non-empty feedback, most recent first, max 6
+        // Featured reviews: approved ratings with non-empty feedback, most recent first, max 6
         $featuredReviews = TeacherRating::with(['teacher.user'])
+            ->where('is_approved', true)
             ->whereNotNull('feedback')
             ->where('feedback', '!=', '')
             ->orderByDesc('updated_at')

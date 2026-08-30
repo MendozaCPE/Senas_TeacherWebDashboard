@@ -191,12 +191,15 @@ class SettingsController extends Controller
         TeacherRating::updateOrCreate(
             ['teacher_id' => $teacher->id],
             [
-                'rating'   => $validated['rating'],
-                'feedback' => $validated['feedback'] ?? null,
+                'rating'      => $validated['rating'],
+                'feedback'    => $validated['feedback'] ?? null,
+                // Every new or edited rating must go through admin
+                // approval again before it can appear on the landing page.
+                'is_approved' => false,
             ]
         );
 
-        return back()->with('success', 'Thank you for your rating! Your feedback means a lot to us.')
+        return back()->with('success', 'Thank you for your rating! It will be reviewed before it appears publicly.')
                      ->with('active_tab', 'rateus');
     }
 }

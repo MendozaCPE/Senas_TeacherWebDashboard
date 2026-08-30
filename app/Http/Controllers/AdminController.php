@@ -8,7 +8,9 @@ use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\School;
 use App\Models\Student;
+use App\Models\StudentRating;
 use App\Models\Teacher;
+use App\Models\TeacherRating;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -629,5 +631,139 @@ class AdminController extends Controller
             ] : null,
             'resolver'        => $report->resolver?->name,
         ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // RATINGS (Teacher & Student — approval queue for the landing page)
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function ratings(Request $request)
+    {
+        $statusFilter = $request->get('status', 'all'); // all | pending | approved
+        $teacherSearch = $request->get('teacher_search', '');
+        $studentSearch = $request->get('student_search', '');
+
+        // ── Teacher ratings list ────────────────────────────────────────
+        $teacherQuery = TeacherRating::with('teacher');
+
+        if ($statusFilter === 'pending') {
+            $teacherQuery->where('is_approved', false);
+        } elseif ($statusFilter === 'approved') {
+            $teacherQuery->where('is_approved', true);
+        }
+
+        if ($teacherSearch) {
+            $teacherQuery->whereHas('teacher', function ($q) use ($teacherSearch) {
+                $q->where('first_name', 'like', "%{$teacherSearch}%")
+                  ->orWhere('last_name', 'like', "%{$teacherSearch}%");
+            });
+        }
+
+        $teacherRatings = $teacherQuery->latest('updated_at')
+            ->paginate(8, ['*'], 'teacher_page')
+            ->withQueryString();
+
+        // ── Student ratings list ────────────────────────────────────────
+        $studentQuery = StudentRating::with('student');
+
+        if ($statusFilter === 'pending') {
+            $studentQuery->where('is_approved', false);
+        } elseif ($statusFilter === 'approved') {
+            $studentQuery->where('is_approved', true);
+        }
+
+        if ($studentSearch) {
+            $studentQuery->whereHas('student', function ($q) use ($studentSearch) {
+                $q->where('first_name', 'like', "%{$studentSearch}%")
+                  ->orWhere('last_name', 'like', "%{$studentSearch}%");
+            });
+        }
+
+        $studentRatings = $studentQuery->latest('updated_at')
+            ->paginate(8, ['*'], 'student_page')
+            ->withQueryString();
+
+        // ── KPIs ─────────────────────────────────────────────────────────
+        $totalTeacherRatings   = TeacherRating::count();
+        $totalStudentRatings   = StudentRating::count();
+        $pendingTeacherRatings = TeacherRating::where('is_approved', false)->count();
+        $pendingStudentRatings = StudentRating::where('is_approved', false)->count();
+        $approvedTeacherRatings = TeacherRating::where('is_approved', true)->count();
+        $approvedStudentRatings = StudentRating::where('is_approved', true)->count();
+        $pendingTotal          = $pendingTeacherRatings + $pendingStudentRatings;
+
+        $avgTeacherRating = round((float) TeacherRating::avg('rating'), 2);
+        $avgStudentRating = round((float) StudentRating::avg('rating'), 2);
+
+        // ── Star distribution (5 → 1), each source separately ───────────
+        $teacherDistRaw = TeacherRating::select('rating', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('rating')->pluck('cnt', 'rating')->toArray();
+        $studentDistRaw = StudentRating::select('rating', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('rating')->pluck('cnt', 'rating')->toArray();
+
+        $teacherDist = [];
+        $studentDist = [];
+        for ($s = 5; $s >= 1; $s--) {
+            $tCnt = $teacherDistRaw[$s] ?? 0;
+            $sCnt = $studentDistRaw[$s] ?? 0;
+            $teacherDist[$s] = ['count' => $tCnt, 'pct' => $totalTeacherRatings > 0 ? round(($tCnt / $totalTeacherRatings) * 100) : 0];
+            $studentDist[$s] = ['count' => $sCnt, 'pct' => $totalStudentRatings > 0 ? round(($sCnt / $totalStudentRatings) * 100) : 0];
+        }
+
+        // ── Submissions trend, last 14 days ─────────────────────────────
+        $ratingTrend = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i)->toDateString();
+            $ratingTrend[] = [
+                'label'   => Carbon::now()->subDays($i)->format('M j'),
+                'teacher' => TeacherRating::whereDate('created_at', $date)->count(),
+                'student' => StudentRating::whereDate('created_at', $date)->count(),
+            ];
+        }
+
+        return view('admin.ratings', compact(
+            'teacherRatings', 'studentRatings',
+            'statusFilter', 'teacherSearch', 'studentSearch',
+            'totalTeacherRatings', 'totalStudentRatings',
+            'pendingTeacherRatings', 'pendingStudentRatings',
+            'approvedTeacherRatings', 'approvedStudentRatings', 'pendingTotal',
+            'avgTeacherRating', 'avgStudentRating',
+            'teacherDist', 'studentDist', 'ratingTrend'
+        ));
+    }
+
+    public function updateRatingApproval(Request $request, string $type, int $id)
+    {
+        abort_unless(in_array($type, ['teacher', 'student'], true), 404);
+
+        $validated = $request->validate([
+            'is_approved' => 'required|boolean',
+        ]);
+
+        if ($type === 'teacher') {
+            $rating = TeacherRating::with('teacher')->findOrFail($id);
+            $subjectName = trim(($rating->teacher->first_name ?? '') . ' ' . ($rating->teacher->last_name ?? '')) ?: 'Unknown teacher';
+        } else {
+            $rating = StudentRating::with('student')->findOrFail($id);
+            $subjectName = trim(($rating->student->first_name ?? '') . ' ' . ($rating->student->last_name ?? '')) ?: 'Unknown student';
+        }
+
+        $oldApproved = $rating->is_approved;
+        $rating->update(['is_approved' => $validated['is_approved']]);
+
+        AuditLog::record(
+            action: $validated['is_approved'] ? 'approve_rating' : 'unapprove_rating',
+            module: 'ratings',
+            description: ($validated['is_approved'] ? 'Approved' : 'Unapproved') . " {$type} rating from {$subjectName} for landing page display",
+            userId: Auth::id(),
+            userName: Auth::user()->name,
+            userRole: Auth::user()->role,
+            subjectType: get_class($rating),
+            subjectId: $rating->id,
+            oldValues: ['is_approved' => $oldApproved],
+            newValues: ['is_approved' => $rating->is_approved],
+        );
+
+        return response()->json(['success' => true, 'is_approved' => $rating->is_approved]);
     }
 }
