@@ -66,7 +66,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // ── APK Download (public, Android app) ───────────────────────────────────────
 Route::get('/download/app', function () {
-    $path = storage_path('app/public/downloads/senas.apk');
+    $path = storage_path('app/public/downloads/senas_v2.apk');
 
     if (!file_exists($path)) {
         abort(404, 'APK file not found.');
