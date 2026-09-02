@@ -23,7 +23,8 @@ Route::get('/gesture', function () {
 });
 
 // Protected Routes (requires authentication)
-Route::middleware('auth:sanctum')->middleware('throttle:300,1')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
+
     Route::get('/student/profile', [StudentAuthController::class, 'profile']);
     Route::post('/student/logout', [StudentAuthController::class, 'logout']);
     Route::post('/student/update-level', [StudentAuthController::class, 'updateLevel']);
