@@ -260,9 +260,9 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
 
-        #test-row { display: flex; gap: 20px; flex-wrap: wrap; }
+        #test-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch; }
 
-        #reference-panel, #camera-panel { flex: 1; min-width: 320px; }
+        #reference-panel, #camera-panel { flex: 1; min-width: 320px; display: flex; flex-direction: column; }
 
         .panel-label-row {
             display: flex;
@@ -298,6 +298,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-grow: 1;
         }
 
         #reference-media-wrap img, #reference-media-wrap video {
@@ -676,7 +677,7 @@
                             <div class="panel-label">Live Camera & Detection Engine</div>
                             <div id="camera-status-tag" style="font-size:11px;font-weight:700;color:#10B981;">Engine Active ({{ $initialEngineName }})</div>
                         </div>
-                        <div id="camera-wrap" style="position:relative;width:100%;aspect-ratio:4/3;background:#0a1628;border-radius:14px;overflow:hidden;border:1px solid var(--border);">
+                        <div id="camera-wrap" style="position:relative;width:100%;aspect-ratio:4/3;background:#0a1628;border-radius:14px;overflow:hidden;border:1px solid var(--border);flex-grow:1;">
                             <iframe id="gesture-frame" src="{{ $initialEngine }}" allow="camera; microphone" style="width:100%;height:100%;border:none;display:block;"></iframe>
                             <div id="countdown-overlay">3</div>
                         </div>

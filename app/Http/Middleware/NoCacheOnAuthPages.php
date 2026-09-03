@@ -19,10 +19,22 @@ class NoCacheOnAuthPages
     {
         $response = $next($request);
 
-        return $response->withHeaders([
+        $headers = [
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0',
             'Pragma'        => 'no-cache',
             'Expires'       => 'Sat, 01 Jan 2000 00:00:00 GMT',
-        ]);
+        ];
+
+        // StreamedResponse (e.g. CSV downloads) does not have Laravel's withHeaders() macro,
+        // so we fall back to the underlying Symfony setters.
+        if (method_exists($response, 'withHeaders')) {
+            return $response->withHeaders($headers);
+        }
+
+        foreach ($headers as $key => $value) {
+            $response->headers->set($key, $value);
+        }
+
+        return $response;
     }
 }
