@@ -340,14 +340,21 @@
         }
 
         /* ── Compact / Embedded Mode (iframe testing environment) ── */
-        body.compact-mode #progress-tracker { display: none !important; }
-        body.compact-mode #match-indicator { display: none !important; }
+        body.compact-mode #progress-tracker {
+            display: none !important;
+        }
+
+        body.compact-mode #match-indicator {
+            display: none !important;
+        }
+
         body.compact-mode #overlay {
             bottom: 8px;
             left: 8px;
             right: auto;
             text-align: left;
         }
+
         body.compact-mode #greeting-display {
             padding: 6px 12px;
             min-width: 0;
@@ -356,19 +363,54 @@
             border: 1px solid rgba(255, 215, 0, 0.3);
             box-shadow: none;
         }
+
         body.compact-mode #greeting {
             font-size: 18px;
             min-height: 0;
             line-height: 1.2;
         }
-        body.compact-mode #confidence { font-size: 10px; margin-top: 1px; }
-        body.compact-mode #hand-count { font-size: 10px; margin-top: 1px; }
-        body.compact-mode #greeting-sub { display: none; }
-        body.compact-mode #status-bar { top: 8px; left: 8px; right: 8px; }
-        body.compact-mode #status-bar-left { padding: 4px 10px; font-size: 10px; }
-        body.compact-mode #fps-display { font-size: 10px; padding: 3px 8px; }
-        body.compact-mode #camera-switch-btn { top: 8px; right: 8px; width: 30px; height: 30px; }
-        body.compact-mode #camera-switch-btn svg { width: 15px; height: 15px; }
+
+        body.compact-mode #confidence {
+            font-size: 10px;
+            margin-top: 1px;
+        }
+
+        body.compact-mode #hand-count {
+            font-size: 10px;
+            margin-top: 1px;
+        }
+
+        body.compact-mode #greeting-sub {
+            display: none;
+        }
+
+        body.compact-mode #status-bar {
+            top: 8px;
+            left: 8px;
+            right: 8px;
+        }
+
+        body.compact-mode #status-bar-left {
+            padding: 4px 10px;
+            font-size: 10px;
+        }
+
+        body.compact-mode #fps-display {
+            font-size: 10px;
+            padding: 3px 8px;
+        }
+
+        body.compact-mode #camera-switch-btn {
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+        }
+
+        body.compact-mode #camera-switch-btn svg {
+            width: 15px;
+            height: 15px;
+        }
     </style>
 </head>
 
@@ -653,13 +695,60 @@
             return normalized;
         }
 
+        // ============================================================
+        // GEOMETRIC HEURISTICS FOR "SEE YOU TOMORROW"
+        // ============================================================
+        function isFingerExtended(landmarks, tipIdx, pipIdx) {
+            return landmarks[tipIdx].y < landmarks[pipIdx].y;
+        }
+
+        function isVShape(landmarks) {
+            const indexExtended = isFingerExtended(landmarks, 8, 6);
+            const middleExtended = isFingerExtended(landmarks, 12, 10);
+            const ringFolded = !isFingerExtended(landmarks, 16, 14);
+            const pinkyFolded = !isFingerExtended(landmarks, 20, 18);
+            return indexExtended && middleExtended && ringFolded && pinkyFolded;
+        }
+
+        function isThumbsUp(landmarks) {
+            const thumbUp = landmarks[4].y < landmarks[3].y;
+            const indexFolded = !isFingerExtended(landmarks, 8, 6);
+            const middleFolded = !isFingerExtended(landmarks, 12, 10);
+            const ringFolded = !isFingerExtended(landmarks, 16, 14);
+            const pinkyFolded = !isFingerExtended(landmarks, 20, 18);
+            return thumbUp && indexFolded && middleFolded && ringFolded && pinkyFolded;
+        }
+
+        let seenVShapeFrames = 0;
+
         function detectGreeting(sortedHands) {
             if (!greetingsModel) return { greeting: '...', confidence: 0 };
 
             try {
-                let features = new Float32Array(126);
                 let currentHandCount = sortedHands.length;
 
+                // --- HEURISTIC OVERRIDE FOR "SEE YOU TOMORROW" ---
+                if (currentHandCount > 0) {
+                    const lms = sortedHands[0].landmarks;
+                    const vShape = isVShape(lms);
+                    const tUp = isThumbsUp(lms);
+
+                    if (vShape) {
+                        seenVShapeFrames = 45; // remembers V-shape for ~1.5 seconds
+                    } else if (seenVShapeFrames > 0) {
+                        seenVShapeFrames--;
+                    }
+
+                    const targetGreeting = GREETINGS_LABELS[currentGreetingIndex] || '';
+                    if (targetGreeting === "SEE YOU TOMORROW") {
+                        // Trigger if user shows V-shape, Thumbs-up, or the sequence of both
+                        if (vShape || tUp || (seenVShapeFrames > 0 && tUp)) {
+                            return { greeting: "SEE YOU TOMORROW", confidence: 0.92 };
+                        }
+                    }
+                }
+
+                let features = new Float32Array(126);
                 if (currentHandCount > 0) {
                     features.set(normalizeFeatures(extractHandFeatures(sortedHands[0].landmarks)), 0);
                 }
