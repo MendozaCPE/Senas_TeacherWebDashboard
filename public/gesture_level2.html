@@ -931,11 +931,25 @@
 
             // --- SHAKING HEAD RULES ---
             if (headState === "SHAKING") {
+
+                // ⭐ PRIORITY OVERRIDE: When target IS "WRONG", be very aggressive
+                // The WRONG sign = Y-hand or fist near chin while shaking head
+                // On web webcam, the hand appears higher/closer to face than on mobile
+                // So we use: hand anywhere near the face (not open palm) = WRONG
+                if (clean_target === "WRONG") {
+                    const hand_near_face = dist3d(hlm[WRIST], chin_anchor) < 0.55 ||
+                                           dist3d(hlm[9], chin_anchor) < 0.50 ||   // middle MCP
+                                           dist3d(hlm[INDEX_PIP], chin_anchor) < 0.45;
+                    if (hand_near_face && !is_open_palm && is_hand_mid_or_lower) {
+                        return { prediction: "WRONG", conf: 0.98 };
+                    }
+                }
+
                 if (clean_target !== "DONT KNOW" && clean_target !== "DONT UNDERSTAND") {
                     // 🎯 WRONG: Y-hand (loose) OR fist near chin area while shaking head
                     // Use generous distance thresholds — web webcam FOV makes landmarks appear farther
-                    const near_chin_by_pip = dist3d(hlm[INDEX_PIP], chin_anchor) < 0.30;
-                    const near_chin_by_wrist = dist3d(hlm[WRIST], chin_anchor) < 0.35;
+                    const near_chin_by_pip = dist3d(hlm[INDEX_PIP], chin_anchor) < 0.35;
+                    const near_chin_by_wrist = dist3d(hlm[WRIST], chin_anchor) < 0.40;
                     const hand_at_chin_zone = is_hand_mid_or_lower && (near_chin_by_pip || near_chin_by_wrist);
 
                     if (hand_at_chin_zone && (is_y_hand_loose || is_fist || is_y_hand)) {
@@ -943,10 +957,13 @@
                     }
                 }
 
-                // 🛠️ FIX: Added '!is_y_hand' so DON'T UNDERSTAND won't steal Y-hands meant for WRONG on web webcams
-                if (index_curled_x && !middle_extended && !is_y_hand) {
-                    if (dist3d(hlm[INDEX_TIP], forehead_anchor) < 0.28 || is_hand_upper_zone) {
-                        return { prediction: "DON'T UNDERSTAND", conf: 0.97 };
+                // 🛠️ DON'T UNDERSTAND: completely blocked when target is WRONG
+                // (prevents it from stealing WRONG attempts on web webcams)
+                if (clean_target !== "WRONG") {
+                    if (index_curled_x && !middle_extended && !is_y_hand) {
+                        if (dist3d(hlm[INDEX_TIP], forehead_anchor) < 0.28 || is_hand_upper_zone) {
+                            return { prediction: "DON'T UNDERSTAND", conf: 0.97 };
+                        }
                     }
                 }
 
