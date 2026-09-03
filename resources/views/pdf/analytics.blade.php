@@ -602,8 +602,14 @@
             </table>
             @endif
 
-            {{-- Full Student Ranking for this sign --}}
+            {{-- Full Student Ranking for this sign (Top 1 & Last only) --}}
             @if(!empty($sign['students_ranking']) && count($sign['students_ranking']) > 0)
+            @php
+                $allRanked   = collect($sign['students_ranking']);
+                $topStudent  = $allRanked->first();
+                $lastStudent = $allRanked->count() > 1 ? $allRanked->last() : null;
+                $hiddenCount = $allRanked->count() - ($lastStudent ? 2 : 1);
+            @endphp
             <table class="sign-table">
                 <thead>
                     <tr>
@@ -617,9 +623,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($sign['students_ranking'] as $sr)
+                    {{-- Top 1 --}}
                     @php
-                        $srRankClass = $sr['rank'] === 1 ? 'gold' : ($sr['rank'] === 2 ? 'silver' : ($sr['rank'] === 3 ? 'bronze' : ''));
+                        $sr = $topStudent;
+                        $srRankClass = 'gold';
                         $srBarColor = $sr['is_mastered'] ? '#10b981' : ($sr['accuracy'] >= 50 ? '#f59e0b' : '#ef4444');
                     @endphp
                     <tr>
@@ -648,7 +655,50 @@
                             @endif
                         </td>
                     </tr>
-                    @endforeach
+
+                    {{-- Collapsed middle rows indicator --}}
+                    @if($hiddenCount > 0)
+                    <tr>
+                        <td colspan="7" style="text-align:center; padding:4px 8px; font-size:7.5px; color:#94a3b8; background:#f8fafc; border-bottom:1px dashed #e2e8f0;">
+                            · · · {{ $hiddenCount }} student(s) not shown · · ·
+                        </td>
+                    </tr>
+                    @endif
+
+                    {{-- Last (lowest ranked) --}}
+                    @if($lastStudent)
+                    @php
+                        $sr = $lastStudent;
+                        $srRankClass = '';
+                        $srBarColor = $sr['is_mastered'] ? '#10b981' : ($sr['accuracy'] >= 50 ? '#f59e0b' : '#ef4444');
+                    @endphp
+                    <tr>
+                        <td style="text-align:center;"><span class="rank-badge {{ $srRankClass }}" style="width:16px; height:16px; font-size:8px; line-height:16px;">{{ $sr['rank'] }}</span></td>
+                        <td style="font-weight:700; color:#0d326b;">{{ $sr['name'] }}</td>
+                        <td style="text-align:center; color:#475569;">{{ $sr['attempts'] }}</td>
+                        <td style="text-align:center; color:#166534; font-weight:700;">{{ $sr['successful_attempts'] }}</td>
+                        <td style="text-align:center; color:#991b1b; font-weight:700;">{{ $sr['wrong_attempts'] }}</td>
+                        <td>
+                            <table style="border-collapse:collapse; width:100%;">
+                                <tr>
+                                    <td>
+                                        <div style="background:#eef2f7; border-radius:4px; height:5px; overflow:hidden; width:48px; display:inline-block; vertical-align:middle;">
+                                            <div style="width:{{ min(100, max(2, $sr['accuracy'])) }}%; height:5px; background:{{ $srBarColor }}; border-radius:4px;"></div>
+                                        </div>
+                                    </td>
+                                    <td style="padding-left:5px; font-weight:700; color:#0d326b; font-size:8.5px; white-space:nowrap;">{{ $sr['accuracy'] }}%</td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td style="text-align:center;">
+                            @if($sr['is_mastered'])
+                                <span class="status-mastered">Mastered</span>
+                            @else
+                                <span class="status-practice">Practicing</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @endif
                 </tbody>
             </table>
             @else
