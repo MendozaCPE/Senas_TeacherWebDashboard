@@ -894,19 +894,24 @@
             const dist3d = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + (p1.z && p2.z ? Math.pow(p1.z - p2.z, 2) : 0));
 
             // Hand joints
-            const WRIST = 0, INDEX_PIP = 6, INDEX_DIP = 7, INDEX_TIP = 8;
+            const WRIST = 0, THUMB_TIP = 4, INDEX_PIP = 6, INDEX_DIP = 7, INDEX_TIP = 8;
             const MIDDLE_PIP = 10, MIDDLE_TIP = 12, RING_TIP = 16, PINKY_TIP = 20;
 
             const index_extended = hlm[INDEX_TIP].y < hlm[INDEX_PIP].y;
             const middle_extended = hlm[MIDDLE_TIP].y < hlm[MIDDLE_PIP].y;
             const ring_extended = hlm[RING_TIP].y < hlm[14].y; // 14 is RING_PIP
             const pinky_extended = hlm[PINKY_TIP].y < hlm[18].y; // 18 is PINKY_PIP
+            // Thumb extended: tip is far from index MCP (landmark 5) in X axis
+            const thumb_extended = Math.abs(hlm[THUMB_TIP].x - hlm[5].x) > 0.06;
 
             const is_fist = !index_extended && !middle_extended && !ring_extended && !pinky_extended;
             const is_open_palm = index_extended && middle_extended && ring_extended && pinky_extended;
             const index_curled_x = (hlm[INDEX_TIP].y > hlm[INDEX_DIP].y) && (hlm[INDEX_DIP].y < hlm[INDEX_PIP].y);
 
+            // Y-hand: pinky up, others curled. Also accept thumb extended (true Y shape) or without (fist near chin = WRONG variant)
             const is_y_hand = !index_extended && !middle_extended && !ring_extended && pinky_extended;
+            // Loose Y: pinky OR thumb extended with index/middle/ring curled (catches real Y-hand with thumb out)
+            const is_y_hand_loose = !index_extended && !middle_extended && !ring_extended && (pinky_extended || thumb_extended);
 
             // Face Anchors (MediaPipe Face Mesh Indices)
             const nose_landmark = flm[2] || flm[1];
@@ -915,16 +920,25 @@
             const right_temple = flm[54];
             const left_temple = flm[284];
 
+            // Zone checks — use WRIST or MCP (landmark 9 = middle MCP) as anchor
+            // Web webcams are wider, so wrist may appear above nose even when hand is at chin
+            const hand_center_y = (hlm[WRIST].y + hlm[9].y) / 2; // average wrist + middle MCP
             const is_hand_upper_zone = hlm[WRIST].y <= nose_landmark.y;
-            const is_hand_lower_zone = hlm[WRIST].y > nose_landmark.y;
+            const is_hand_lower_zone = hand_center_y > nose_landmark.y; // broader: hand center below nose
+            const is_hand_mid_or_lower = hlm[WRIST].y > forehead_anchor.y; // anything below forehead
 
             const clean_target = (targetGreeting || "").replace(/'/g, "").trim().toUpperCase();
 
             // --- SHAKING HEAD RULES ---
             if (headState === "SHAKING") {
                 if (clean_target !== "DONT KNOW" && clean_target !== "DONT UNDERSTAND") {
-                    // Accepts your Y-hand or a fist near the chin
-                    if (is_hand_lower_zone && (is_y_hand || is_fist) && dist3d(hlm[INDEX_PIP], chin_anchor) < 0.18) {
+                    // 🎯 WRONG: Y-hand (loose) OR fist near chin area while shaking head
+                    // Use generous distance thresholds — web webcam FOV makes landmarks appear farther
+                    const near_chin_by_pip = dist3d(hlm[INDEX_PIP], chin_anchor) < 0.30;
+                    const near_chin_by_wrist = dist3d(hlm[WRIST], chin_anchor) < 0.35;
+                    const hand_at_chin_zone = is_hand_mid_or_lower && (near_chin_by_pip || near_chin_by_wrist);
+
+                    if (hand_at_chin_zone && (is_y_hand_loose || is_fist || is_y_hand)) {
                         return { prediction: "WRONG", conf: 0.98 };
                     }
                 }
