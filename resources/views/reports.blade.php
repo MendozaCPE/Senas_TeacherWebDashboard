@@ -999,6 +999,12 @@ document.addEventListener('keydown', function(e) {
                         <span id="modal-reports-badge" class="hidden bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">!</span>
                     </span>
                 </button>
+                <button id="tab-btn-achievements" onclick="switchModalTab('achievements')"
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    <span class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px]">workspace_premium</span>Achievements
+                    </span>
+                </button>
             </div>
 
             <!-- TAB: GESTURE BREAKDOWN -->
@@ -1117,6 +1123,23 @@ document.addEventListener('keydown', function(e) {
                         <div id="detail-feedback" class="hidden px-3 py-2.5 rounded-xl text-[12px] font-semibold mt-2"></div>
                     </div>
                 </div>
+            </div>
+
+            <!-- TAB: STUDENT ACHIEVEMENTS -->
+            <div id="tab-achievements" class="modal-tab-panel hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student Achievements</h4>
+                    <span id="modal-achievements-count" class="text-[11px] font-semibold text-slate-400"></span>
+                </div>
+
+                <!-- Loading spinner -->
+                <div id="modal-achievements-loading" class="py-8 text-center hidden">
+                    <span class="material-symbols-outlined text-slate-300 text-[30px] animate-spin">refresh</span>
+                    <p class="text-[12px] text-slate-400 mt-2">Loading achievements...</p>
+                </div>
+
+                <!-- Achievement grid -->
+                <div id="modal-achievements-list" class="grid grid-cols-2 gap-2.5 max-h-[360px] overflow-y-auto pr-1"></div>
             </div>
 
         </div>
@@ -1383,7 +1406,7 @@ document.addEventListener('keydown', function(e) {
     let _currentModalStudentId = null;
 
     function switchModalTab(tab) {
-        ['gestures', 'lessons', 'reports'].forEach(t => {
+        ['gestures', 'lessons', 'reports', 'achievements'].forEach(t => {
             document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
             const btn = document.getElementById('tab-btn-' + t);
             if (t === tab) {
@@ -1397,6 +1420,9 @@ document.addEventListener('keydown', function(e) {
 
         if (tab === 'reports' && _currentModalStudentId) {
             loadStudentReports(_currentModalStudentId);
+        }
+        if (tab === 'achievements' && _currentModalStudentId) {
+            loadStudentAchievements(_currentModalStudentId);
         }
     }
 
@@ -1415,6 +1441,11 @@ document.addEventListener('keydown', function(e) {
         document.getElementById('modal-reports-loading').classList.add('hidden');
         document.getElementById('modal-reports-badge').classList.add('hidden');
         document.getElementById('modal-reports-count').textContent = '';
+        // Reset achievements panel
+        document.getElementById('modal-achievements-list').innerHTML = '';
+        document.getElementById('modal-achievements-loading').classList.add('hidden');
+        document.getElementById('modal-achievements-count').textContent = '';
+        _achievementsLoaded = {};
     };
 
     // ──────────────────────────────────────────────────────────────────────
@@ -1423,6 +1454,121 @@ document.addEventListener('keydown', function(e) {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     let currentReportDetailId = null;
     let _reportsLoaded = {};
+    let _achievementsLoaded = {};
+
+    // ──────────────────────────────────────────────────────────────────────
+    // STUDENT ACHIEVEMENTS TAB — LOAD & RENDER
+    // ──────────────────────────────────────────────────────────────────────
+    const categoryConfig = {
+        xp:           { label: 'XP',           bg: 'bg-violet-50',   border: 'border-violet-200', text: 'text-violet-700' },
+        beginner:     { label: 'Beginner',      bg: 'bg-sky-50',      border: 'border-sky-200',    text: 'text-sky-700'    },
+        intermediate: { label: 'Intermediate',  bg: 'bg-blue-50',     border: 'border-blue-200',   text: 'text-blue-700'   },
+        advanced:     { label: 'Advanced',      bg: 'bg-indigo-50',   border: 'border-indigo-200', text: 'text-indigo-700' },
+        graduation:   { label: 'Graduation',    bg: 'bg-emerald-50',  border: 'border-emerald-200','text': 'text-emerald-700' },
+        special:      { label: 'Special',       bg: 'bg-amber-50',    border: 'border-amber-200',  text: 'text-amber-700'  },
+    };
+
+    // Maps achievement code → image filename in /storage/img/
+    const ACHIEVEMENT_IMAGES = {
+        'xp_50':              'first_step.png',
+        'xp_100':             'alphabet_star.png',
+        'xp_250':             'streak1.png',
+        'xp_500':             'greetings.png',
+        'xp_1000':            'numbers.png',
+        'beginner_welcome':   'first_step.png',
+        'alphabet_master':    'alphabet_star.png',
+        'streak_3':           'streak1.png',
+        'streak_7':           'greetings.png',
+        'numbers_master':     'numbers.png',
+        'intermediate_reached': 'greetings.png',
+        'advanced_reached':   'greetings.png',
+        'graduated':          'greetings.png',
+        'quiz_whiz':          'greetings.png',
+        'leaderboard_top':    'greetings.png',
+        'greetings_master':   'greetings.png',
+    };
+
+    function getAchievementImageUrl(code) {
+        const file = ACHIEVEMENT_IMAGES[code];
+        return file ? `/storage/img/${file}` : null;
+    }
+
+    function loadStudentAchievements(studentId) {
+        if (_achievementsLoaded[studentId]) return;
+
+        const listEl    = document.getElementById('modal-achievements-list');
+        const loadingEl = document.getElementById('modal-achievements-loading');
+        const countEl   = document.getElementById('modal-achievements-count');
+
+        listEl.innerHTML = '';
+        loadingEl.classList.remove('hidden');
+
+        fetch(`/reports/student/${studentId}/achievements`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(function(data) {
+            loadingEl.classList.add('hidden');
+            _achievementsLoaded[studentId] = true;
+
+            const achievements = data.achievements || [];
+            const unlocked = achievements.filter(a => a.is_unlocked).length;
+            countEl.textContent = unlocked + ' / ' + achievements.length + ' unlocked';
+
+            if (achievements.length === 0) {
+                listEl.innerHTML = '<div class="col-span-2 text-center py-10 text-slate-400"><span class="material-symbols-outlined text-[36px] text-slate-300 block mb-1">workspace_premium</span><p class="text-[12px] font-semibold">No achievements recorded yet.</p></div>';
+                return;
+            }
+
+            achievements.forEach(function(a) {
+                const cfg        = categoryConfig[a.category] || { label: a.category, bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600' };
+                const opacity    = a.is_unlocked ? '' : 'opacity-40 grayscale';
+                const imgUrl     = getAchievementImageUrl(a.code);
+                const pct        = a.progress_target > 0 ? Math.min(100, Math.round((a.progress_current / a.progress_target) * 100)) : 0;
+                const unlockedDate = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+
+                // Image slot: real image if mapped, fallback to material icon
+                const imgSlot = imgUrl
+                    ? `<img src="${imgUrl}" alt="${a.name}" class="w-full h-full object-contain p-0.5" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                       <span class="material-symbols-outlined text-[22px] ${cfg.text} hidden" style="display:none">${a.icon || 'workspace_premium'}</span>`
+                    : `<span class="material-symbols-outlined text-[22px] ${cfg.text}" style="${a.color ? 'color:' + a.color : ''}">${a.icon || 'workspace_premium'}</span>`;
+
+                const card = document.createElement('div');
+                card.className = `relative flex items-start gap-3 p-3 rounded-2xl border ${cfg.border} ${cfg.bg} ${opacity} transition-all`;
+                card.innerHTML = `
+                    <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white border ${cfg.border} shadow-sm">
+                        ${imgSlot}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <p class="text-[12px] font-bold text-slate-700 leading-tight">${a.name}</p>
+                            ${a.is_unlocked
+                                ? '<span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Unlocked</span>'
+                                : '<span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Locked</span>'}
+                            <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.text} border ${cfg.border}">${cfg.label}</span>
+                        </div>
+                        <p class="text-[10.5px] text-slate-500 mt-0.5 leading-snug">${a.description || ''}</p>
+                        ${unlockedDate ? `<p class="text-[10px] text-emerald-600 font-semibold mt-1">🗓 ${unlockedDate}</p>` : ''}
+                        ${!a.is_unlocked && a.progress_target > 0 ? `
+                        <div class="mt-1.5">
+                            <div class="flex items-center justify-between mb-0.5">
+                                <span class="text-[9.5px] text-slate-400">Progress</span>
+                                <span class="text-[9.5px] font-bold text-slate-500">${a.progress_current} / ${a.progress_target}</span>
+                            </div>
+                            <div class="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                                <div class="h-full rounded-full bg-[#1a6fd4]" style="width:${pct}%"></div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        })
+        .catch(function() {
+            loadingEl.classList.add('hidden');
+            listEl.innerHTML = '<div class="col-span-2 text-center py-8 text-slate-400"><p class="text-[12px] font-semibold">Failed to load achievements.</p></div>';
+        });
+    }
 
     const reportStatusConfig = {
         pending:      { label: 'Pending',      bg: 'bg-slate-100',   text: 'text-slate-600' },

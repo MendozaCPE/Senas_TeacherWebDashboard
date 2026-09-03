@@ -6,6 +6,7 @@ use App\Models\HelpRequest;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Student;
+use App\Models\StudentAchievement;
 use App\Models\StudentLessonProgress;
 use App\Models\CheckpointExam;
 use App\Models\CheckpointExamAssignment;
@@ -1553,5 +1554,49 @@ class ReportsController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * GET /reports/student/{studentId}/achievements
+     * Returns all achievements (unlocked + in-progress) for a student
+     * who belongs to the authenticated teacher.
+     */
+    public function studentAchievements(int $studentId)
+    {
+        $teacher = Auth::user()->teacher;
+
+        // Ensure the student belongs to this teacher
+        $student = Student::where('student_id', $studentId)
+            ->where('teacher_id', $teacher->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        $rows = StudentAchievement::with('achievement')
+            ->where('student_id', $studentId)
+            ->get()
+            ->sortByDesc('is_unlocked')
+            ->sortBy(fn($r) => $r->achievement?->order ?? 999)
+            ->values()
+            ->map(function ($row) {
+                $a = $row->achievement;
+                if (!$a) return null;
+                return [
+                    'achievement_id'   => $a->id,
+                    'code'             => $a->code,
+                    'name'             => $a->name,
+                    'description'      => $a->description,
+                    'category'         => $a->category,
+                    'icon'             => $a->icon,
+                    'color'            => $a->color,
+                    'is_unlocked'      => (bool) $row->is_unlocked,
+                    'unlocked_at'      => $row->unlocked_at?->toIso8601String(),
+                    'progress_current' => (int) $row->progress_current,
+                    'progress_target'  => (int) $row->progress_target,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return response()->json(['achievements' => $rows]);
     }
 }
