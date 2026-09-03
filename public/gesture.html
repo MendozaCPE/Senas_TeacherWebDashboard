@@ -250,6 +250,7 @@
             right: auto;
             text-align: left;
         }
+
         body.compact-mode #letter-display {
             padding: 6px 12px;
             min-width: 0;
@@ -258,40 +259,49 @@
             border: 1px solid rgba(255, 215, 0, 0.3);
             box-shadow: none;
         }
+
         body.compact-mode #letter {
             font-size: 22px;
             line-height: 1.1;
         }
+
         body.compact-mode #confidence {
             font-size: 10px;
             margin-top: 1px;
         }
+
         body.compact-mode #status {
             display: none;
         }
+
         body.compact-mode #status-bar {
             top: 8px;
             left: 8px;
             right: 8px;
         }
+
         body.compact-mode #status-bar-left {
             padding: 4px 10px;
             font-size: 10px;
         }
+
         body.compact-mode #fps-display {
             font-size: 10px;
             padding: 3px 8px;
         }
+
         body.compact-mode #camera-switch-btn {
             top: 8px;
             right: 8px;
             width: 30px;
             height: 30px;
         }
+
         body.compact-mode #camera-switch-btn svg {
             width: 15px;
             height: 15px;
         }
+
         /* Detection box: keep but lighter */
         body.compact-mode #detection-box {
             border-width: 1px;
@@ -520,6 +530,67 @@
             }
 
             // -------------------------------------------------------------------------
+            // MASTER FIST MATRIX: T, M, N, S (moved ahead of H/K so a rotated or
+            // side-profile fist gets claimed here first, before K can steal T, and
+            // so N/S use the same relaxed thumb-radius approach that already makes
+            // M easy to trigger. Only returns on a specific match below; otherwise
+            // falls through untouched so H, K, P, Q, etc. behave exactly as before.)
+            // -------------------------------------------------------------------------
+            {
+                // Robust to hand rotation: catches the thumb tucked near the index or
+                // middle knuckle area even when MediaPipe's flattened depth makes the
+                // other fingers look like they're "up" (this is what rescues side-profile T).
+                const isThumbTrapped = getDistance2D(thumbTip, indexPip) < (handScale * 0.35) ||
+                    getDistance2D(thumbTip, middlePip) < (handScale * 0.35);
+
+                if (isFistState || isThumbTrapped || predicted === 'T' || predicted === 'M' || predicted === 'N' || predicted === 'S') {
+                    const distThumbRingMcp = getDistance2D(thumbTip, ringMcp);
+                    const distThumbMiddleMcp = getDistance2D(thumbTip, middleMcp);
+                    const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp);
+                    const distThumbMiddlePip = getDistance2D(thumbTip, middlePip);
+                    const distThumbIndexPip = getDistance2D(thumbTip, indexPip);
+                    const ringTipY = ringTip.y;
+                    const middleTipY = middleTip.y;
+
+                    // M: thumb tucked under the ring knuckle (unchanged - already working perfectly)
+                    if (distThumbRingMcp < (handScale * 0.28) &&
+                        ringTipY > ringMcp.y &&
+                        middleTipY > middleMcp.y &&
+                        distThumbRingMcp < distThumbMiddleMcp &&
+                        distThumbRingMcp < distThumbIndexMcp) {
+                        return { letter: 'M', confidence: 0.99 };
+                    }
+
+                    // N: thumb tucked under the middle knuckle. Radius widened from 0.24
+                    // to 0.40 (matching M's ease) so it no longer needs wrist rotation.
+                    if (distThumbMiddleMcp < (handScale * 0.40) &&
+                        middleTipY > middleMcp.y &&
+                        distThumbMiddleMcp < distThumbIndexMcp) {
+                        return { letter: 'N', confidence: 0.99 };
+                    }
+
+                    // S: thumb wraps across the front, reaching the middle PIP joint.
+                    if (distThumbMiddlePip < (handScale * 0.42) ||
+                        (predicted === 'S' && distThumbMiddleMcp < (handScale * 0.50))) {
+                        return { letter: 'S', confidence: 0.99 };
+                    }
+
+                    // T: thumb trapped tightly under the index PIP. Checked here, ahead of
+                    // the H/K detector below, so a hand turned sideways for T gets claimed
+                    // before it can be misread as K.
+                    if (distThumbIndexPip < (handScale * 0.40) ||
+                        (thumbTip.x > indexMcp.x && thumbTip.x < middleMcp.x && thumbTip.y > indexMcp.y) ||
+                        (predicted === 'T' && distThumbMiddleMcp < (handScale * 0.55))) {
+                        return { letter: 'T', confidence: 0.99 };
+                    }
+
+                    if (predicted === 'M' || predicted === 'N') {
+                        return { letter: predicted, confidence: 0.95 };
+                    }
+                }
+            }
+
+            // -------------------------------------------------------------------------
             // HORIZONTAL H & K DETECTOR (FIXED)
             // -------------------------------------------------------------------------
             if (!ringUp && !pinkyUp && predicted !== 'C' && predicted !== 'O' && predicted !== 'T' && predicted !== 'X') {
@@ -544,17 +615,6 @@
             }
 
             // -------------------------------------------------------------------------
-            // T DETECTOR
-            // -------------------------------------------------------------------------
-            if (isFistState || predicted === 'T' || (!middleUp && !ringUp && !pinkyUp && !isIndexHooked)) {
-                const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
-                if (distThumbToIndexPip < (handScale * 0.28) ||
-                    (thumbTip.x > indexMcp.x && thumbTip.x < middleMcp.x && thumbTip.y > indexMcp.y)) {
-                    return { letter: 'T', confidence: 0.99 };
-                }
-            }
-
-            // -------------------------------------------------------------------------
             // INVERTED HANDS (P & Q)
             // -------------------------------------------------------------------------
             if (indexIsDownwards && middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2)) {
@@ -563,42 +623,6 @@
 
             if (indexIsDownwards && !middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2) && (predicted === 'Q' || predicted === 'G' || predicted === 'P')) {
                 return { letter: 'Q', confidence: 0.99 };
-            }
-
-            // -------------------------------------------------------------------------
-            // SAFE ZONE: M, N, S STABILITY MATRIX
-            // -------------------------------------------------------------------------
-            if (isFistState) {
-                const distThumbRingMcp = getDistance2D(thumbTip, ringMcp);
-                const distThumbMiddleMcp = getDistance2D(thumbTip, middleMcp);
-                const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp);
-                const ringTipY = ringTip.y;
-                const middleTipY = middleTip.y;
-
-                if (distThumbRingMcp < (handScale * 0.28) &&
-                    ringTipY > ringMcp.y &&
-                    middleTipY > middleMcp.y &&
-                    distThumbRingMcp < distThumbMiddleMcp &&
-                    distThumbRingMcp < distThumbIndexMcp) {
-                    return { letter: 'M', confidence: 0.99 };
-                }
-
-                if (distThumbMiddleMcp < (handScale * 0.24) &&
-                    middleTipY > middleMcp.y &&
-                    ringTipY > ringMcp.y &&
-                    distThumbMiddleMcp < distThumbIndexMcp) {
-                    return { letter: 'N', confidence: 0.99 };
-                }
-
-                const distThumbToMiddleKnuckle = getDistance2D(thumbTip, middleMcp);
-                const distThumbToIndexKnuckle = getDistance2D(thumbTip, indexMcp);
-                if (distThumbToMiddleKnuckle < (handScale * 0.26) || distThumbToIndexKnuckle < (handScale * 0.26) || predicted === 'S') {
-                    return { letter: 'S', confidence: 0.99 };
-                }
-
-                if (predicted === 'M' || predicted === 'N') {
-                    return { letter: predicted, confidence: 0.95 };
-                }
             }
 
             // FLAT PALM CHECK FOR B
