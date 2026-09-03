@@ -923,16 +923,19 @@
             // --- SHAKING HEAD RULES ---
             if (headState === "SHAKING") {
                 if (clean_target !== "DONT KNOW" && clean_target !== "DONT UNDERSTAND") {
-                    // Now accepts your Y-hand or a fist, with a more generous distance to the chin
+                    // Accepts your Y-hand or a fist near the chin
                     if (is_hand_lower_zone && (is_y_hand || is_fist) && dist3d(hlm[INDEX_PIP], chin_anchor) < 0.18) {
                         return { prediction: "WRONG", conf: 0.98 };
                     }
                 }
-                if (index_curled_x && !middle_extended) {
+
+                // 🛠️ FIX: Added '!is_y_hand' so DON'T UNDERSTAND won't steal Y-hands meant for WRONG on web webcams
+                if (index_curled_x && !middle_extended && !is_y_hand) {
                     if (dist3d(hlm[INDEX_TIP], forehead_anchor) < 0.28 || is_hand_upper_zone) {
                         return { prediction: "DON'T UNDERSTAND", conf: 0.97 };
                     }
                 }
+
                 if ((is_open_palm || index_extended) && dist3d(hlm[WRIST], forehead_anchor) < 0.28) {
                     return { prediction: "DON'T KNOW", conf: 0.96 };
                 }
