@@ -338,6 +338,37 @@
             margin-top: 2px;
             letter-spacing: 0.5px;
         }
+
+        /* ── Compact / Embedded Mode (iframe testing environment) ── */
+        body.compact-mode #progress-tracker { display: none !important; }
+        body.compact-mode #match-indicator { display: none !important; }
+        body.compact-mode #overlay {
+            bottom: 8px;
+            left: 8px;
+            right: auto;
+            text-align: left;
+        }
+        body.compact-mode #greeting-display {
+            padding: 6px 12px;
+            min-width: 0;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: none;
+        }
+        body.compact-mode #greeting {
+            font-size: 18px;
+            min-height: 0;
+            line-height: 1.2;
+        }
+        body.compact-mode #confidence { font-size: 10px; margin-top: 1px; }
+        body.compact-mode #hand-count { font-size: 10px; margin-top: 1px; }
+        body.compact-mode #greeting-sub { display: none; }
+        body.compact-mode #status-bar { top: 8px; left: 8px; right: 8px; }
+        body.compact-mode #status-bar-left { padding: 4px 10px; font-size: 10px; }
+        body.compact-mode #fps-display { font-size: 10px; padding: 3px 8px; }
+        body.compact-mode #camera-switch-btn { top: 8px; right: 8px; width: 30px; height: 30px; }
+        body.compact-mode #camera-switch-btn svg { width: 15px; height: 15px; }
     </style>
 </head>
 
@@ -403,6 +434,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
 
     <script>
+        // Compact mode: minimize UI when loaded inside an iframe (testing dashboard)
+        if (window.parent && window.parent !== window) {
+            document.body.classList.add('compact-mode');
+        }
+
         // ============================================================
         // TFJS MODEL - Using your converted model files
         // ============================================================
