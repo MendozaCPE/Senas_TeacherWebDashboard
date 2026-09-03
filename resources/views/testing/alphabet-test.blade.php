@@ -186,19 +186,21 @@
 
         #sign-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, 1fr); /* default; overridden by JS per module */
             gap: 8px;
             max-height: calc(100vh - 220px);
             overflow-y: auto;
+            overflow-x: hidden;
             padding-right: 4px;
         }
+
 
         .sign-btn {
             aspect-ratio: 1;
             border-radius: 12px;
             border: 2px solid var(--border);
             background: var(--card);
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 800;
             color: var(--text);
             cursor: pointer;
@@ -207,8 +209,12 @@
             align-items: center;
             justify-content: center;
             gap: 4px;
-            padding: 6px;
+            padding: 8px 6px;
             text-align: center;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            overflow: hidden;
+            line-height: 1.25;
             transition: all 0.15s ease;
             position: relative;
         }
@@ -931,6 +937,11 @@
 
         function renderSignGrid() {
             signGrid.innerHTML = '';
+
+            // Use 2 columns for modules with long sign names, 3 for short ones (alphabets/numbers)
+            const useWideGrid = ['greetings', 'survival'].includes(CURRENT_MODULE);
+            signGrid.style.gridTemplateColumns = useWideGrid ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)';
+
             signs.forEach((s, i) => {
                 const label = getSignLabel(s);
                 const isDynamic = s.sign_type === 'dynamic';
