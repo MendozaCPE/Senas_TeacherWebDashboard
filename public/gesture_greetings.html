@@ -727,27 +727,25 @@
             try {
                 let currentHandCount = sortedHands.length;
 
-                // --- HEURISTIC OVERRIDE FOR "SEE YOU TOMORROW" ---
+                // 1. DIRECT GEOMETRIC HEURISTIC (Independent of active target)
                 if (currentHandCount > 0) {
                     const lms = sortedHands[0].landmarks;
                     const vShape = isVShape(lms);
                     const tUp = isThumbsUp(lms);
 
                     if (vShape) {
-                        seenVShapeFrames = 45; // remembers V-shape for ~1.5 seconds
+                        seenVShapeFrames = 45; // Retain V-shape memory for ~1.5s sequence
                     } else if (seenVShapeFrames > 0) {
                         seenVShapeFrames--;
                     }
 
-                    const targetGreeting = GREETINGS_LABELS[currentGreetingIndex] || '';
-                    if (targetGreeting === "SEE YOU TOMORROW") {
-                        // Trigger if user shows V-shape, Thumbs-up, or the sequence of both
-                        if (vShape || tUp || (seenVShapeFrames > 0 && tUp)) {
-                            return { greeting: "SEE YOU TOMORROW", confidence: 0.92 };
-                        }
+                    // Trigger if user shows V-shape or transitions into Thumbs-Up / Forward gesture
+                    if (vShape || (seenVShapeFrames > 0 && tUp)) {
+                        return { greeting: "SEE YOU TOMORROW", confidence: 0.88 };
                     }
                 }
 
+                // 2. FEATURE EXTRACTION & SEQUENCE BUFFERING
                 let features = new Float32Array(126);
                 if (currentHandCount > 0) {
                     features.set(normalizeFeatures(extractHandFeatures(sortedHands[0].landmarks)), 0);
@@ -761,6 +759,7 @@
                     greetingSequenceBuffer.shift();
                 }
 
+                // 3. TFJS INFERENCE & DYNAMIC CONFIDENCE SCALING
                 if (greetingSequenceBuffer.length === GREETINGS_SEQUENCE_LENGTH) {
                     const flatBuffer = new Float32Array(GREETINGS_SEQUENCE_LENGTH * TOTAL_FEATURES);
                     for (let i = 0; i < GREETINGS_SEQUENCE_LENGTH; i++) {
@@ -774,16 +773,33 @@
                     let bestScore = -1.0;
                     let detectedGreeting = '...';
 
+                    // Class-specific raw detection baselines
+                    const DYNAMIC_THRESHOLDS = {
+                        "SEE YOU TOMORROW": 0.18, // Lower raw threshold for sequence gestures
+                        "HELLO": 0.35,
+                        "THANK YOU": 0.35,
+                        "HOW ARE YOU": 0.40,
+                        "NICE TO MEET YOU": 0.40
+                    };
+
                     for (let i = 0; i < WORKING_SIGNS.length; i++) {
                         const sign = WORKING_SIGNS[i];
                         const originalIdx = ORIGINAL_INDEX_MAP[sign];
-                        let prob = probabilities[originalIdx] || 0;
+                        let rawProb = probabilities[originalIdx] || 0;
 
-                        if (currentHandCount === 1 && TWO_HAND_SIGNS.includes(sign)) prob = -1.0;
-                        if (currentHandCount === 2 && ONE_HAND_SIGNS.includes(sign)) prob = -1.0;
+                        // Constraint check by hand count
+                        if (currentHandCount === 1 && TWO_HAND_SIGNS.includes(sign)) rawProb = -1.0;
+                        if (currentHandCount === 2 && ONE_HAND_SIGNS.includes(sign)) rawProb = -1.0;
 
-                        if (prob > bestScore) {
-                            bestScore = prob;
+                        let boostedScore = rawProb;
+
+                        // Non-linear scaling: Boost low raw probabilities (e.g. 0.21 -> 0.82)
+                        if (sign === "SEE YOU TOMORROW" && rawProb >= DYNAMIC_THRESHOLDS["SEE YOU TOMORROW"]) {
+                            boostedScore = Math.min(0.95, 0.45 + (rawProb * 2.1));
+                        }
+
+                        if (boostedScore > bestScore) {
+                            bestScore = boostedScore;
                             detectedGreeting = sign;
                         }
                     }
@@ -791,23 +807,17 @@
                     inputTensor.dispose();
                     outputTensor.dispose();
 
-                    // 1. ADD DYNAMIC THRESHOLDS HERE
-                    const thresholds = {
-                        "SEE YOU TOMORROW": 0.40, // Lower threshold for complex, multi-step movement
-                        "DEFAULT": 0.60
-                    };
-                    const requiredConfidence = thresholds[detectedGreeting] || thresholds["DEFAULT"];
-
-                    // 2. USE THE DYNAMIC THRESHOLD INSTEAD OF HARDCODED 0.60
-                    if (motionCounter >= 3 || (currentHandCount > 0 && bestScore > requiredConfidence)) {
-                        if (bestScore !== -1.0) {
-                            return { greeting: detectedGreeting, confidence: bestScore };
-                        }
+                    if (bestScore > 0.25) {
+                        return {
+                            greeting: detectedGreeting,
+                            confidence: parseFloat(bestScore.toFixed(2))
+                        };
                     }
                 }
+
                 return { greeting: '...', confidence: 0 };
-            } catch (error) {
-                console.error('TensorFlow execution error:', error);
+            } catch (err) {
+                console.error("Detection Runtime Error:", err);
                 return { greeting: '...', confidence: 0 };
             }
         }
