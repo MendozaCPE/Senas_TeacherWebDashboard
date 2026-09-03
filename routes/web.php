@@ -185,6 +185,12 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
     Route::get('/reports/export-pdf', [ReportsController::class, 'exportPdf'])->name('reports.export-pdf');
     Route::post('/reports/export-pdf', [ReportsController::class, 'exportPdf'])->name('reports.export-pdf.post');
 
+    // Teacher Help-Request (Student Reports) API
+    Route::get('/reports/help-requests/{studentId}', [ReportsController::class, 'studentHelpRequests'])->name('reports.help-requests.student');
+    Route::get('/reports/help-requests/{id}/detail', [ReportsController::class, 'getTeacherHelpRequest'])->name('reports.help-requests.show');
+    Route::post('/reports/help-requests/{id}/review', [ReportsController::class, 'teacherReviewReport'])->name('reports.help-requests.review');
+    Route::post('/reports/help-requests/{id}/escalate', [ReportsController::class, 'escalateReport'])->name('reports.help-requests.escalate');
+
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
@@ -279,7 +285,7 @@ Route::middleware(['auth', 'no.cache', 'admin'])->prefix('admin')->name('admin.'
     // Audit Logs
     Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit-logs');
 
-    // Reports (Help Requests)
+    // Reports (Escalated concerns from teachers only)
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::get('/reports/{id}', [AdminController::class, 'getReport'])->name('reports.show');
     Route::post('/reports/{id}/respond', [AdminController::class, 'respondToReport'])->name('reports.respond');

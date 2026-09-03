@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\HelpRequest;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Student;
@@ -1394,5 +1395,163 @@ class ReportsController extends Controller
 
 
         return $pdf->download('senas-analytics-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TEACHER HELP-REQUEST (STUDENT REPORT) METHODS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /reports/help-requests/{studentId}
+     * Returns all help-requests for a specific student (teacher's own students only).
+     */
+    public function studentHelpRequests(int $studentId)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Ensure the student belongs to this teacher
+        $student = Student::where('student_id', $studentId)
+            ->where('teacher_id', $teacher->id)
+            ->firstOrFail();
+
+        $reports = HelpRequest::where('student_id', $studentId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn($r) => $this->formatHelpRequest($r));
+
+        return response()->json(['reports' => $reports]);
+    }
+
+    /**
+     * POST /reports/help-requests/{id}/review
+     * Teacher updates status and/or adds a response to a help request.
+     */
+    public function teacherReviewReport(Request $request, int $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $report = HelpRequest::findOrFail($id);
+
+        // Verify the student belongs to this teacher
+        $student = Student::where('student_id', $report->student_id)
+            ->where('teacher_id', $teacher->id)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'status'           => 'required|in:under_review,resolved',
+            'teacher_response' => 'nullable|string|max:2000',
+        ]);
+
+        // Prevent re-opening an already escalated or closed report
+        if (in_array($report->status, ['escalated', 'closed'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This report has already been escalated to admin and cannot be modified.',
+            ], 422);
+        }
+
+        $report->update([
+            'status'                => $validated['status'],
+            'teacher_response'      => $validated['teacher_response'] ?? $report->teacher_response,
+            'teacher_responded_at'  => now(),
+            'teacher_responded_by'  => Auth::id(),
+        ]);
+
+        return response()->json([
+            'success'              => true,
+            'status'               => $report->status,
+            'statusLabel'          => $report->statusLabel,
+            'teacher_response'     => $report->teacher_response,
+            'teacher_responded_at' => $report->teacher_responded_at?->format('M d, Y g:i A'),
+        ]);
+    }
+
+    /**
+     * POST /reports/help-requests/{id}/escalate
+     * Teacher escalates a report to admin.
+     */
+    public function escalateReport(Request $request, int $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $report = HelpRequest::findOrFail($id);
+
+        // Verify the student belongs to this teacher
+        $student = Student::where('student_id', $report->student_id)
+            ->where('teacher_id', $teacher->id)
+            ->firstOrFail();
+
+        if ($report->status === 'escalated' || $report->status === 'closed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This report has already been escalated.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'escalation_reason' => 'required|string|max:2000',
+        ]);
+
+        $report->escalateToAdmin(Auth::id(), $validated['escalation_reason']);
+
+        return response()->json([
+            'success'      => true,
+            'status'       => $report->status,
+            'statusLabel'  => $report->statusLabel,
+            'escalated_at' => $report->escalated_at?->format('M d, Y g:i A'),
+        ]);
+    }
+
+    /**
+     * GET /reports/help-requests/{id}
+     * Returns a single help request detail (teacher must own the student).
+     */
+    public function getTeacherHelpRequest(int $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $report = HelpRequest::findOrFail($id);
+
+        // Verify the student belongs to this teacher
+        Student::where('student_id', $report->student_id)
+            ->where('teacher_id', $teacher->id)
+            ->firstOrFail();
+
+        return response()->json($this->formatHelpRequest($report, true));
+    }
+
+    /** Format a HelpRequest for JSON responses */
+    private function formatHelpRequest(HelpRequest $r, bool $full = false): array
+    {
+        $data = [
+            'help_request_id'      => $r->help_request_id,
+            'message'              => $r->message,
+            'status'               => $r->status,
+            'statusLabel'          => $r->statusLabel,
+            'teacher_response'     => $r->teacher_response,
+            'teacher_responded_at' => $r->teacher_responded_at?->format('M d, Y g:i A'),
+            'escalated_at'         => $r->escalated_at?->format('M d, Y g:i A'),
+            'escalation_reason'    => $r->escalation_reason,
+            'admin_response'       => $r->admin_response,
+            'created_at'           => $r->created_at->format('M d, Y g:i A'),
+        ];
+
+        if ($full && $r->escalator) {
+            $data['escalated_by_name'] = $r->escalator->name;
+        }
+
+        return $data;
     }
 }

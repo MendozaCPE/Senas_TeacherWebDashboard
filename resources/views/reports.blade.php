@@ -978,8 +978,31 @@ document.addEventListener('keydown', function(e) {
                 </div>
             </div>
 
-            <!-- STUDENT PERFORMANCE PER GESTURE BREAKDOWN -->
-            <div>
+            <!-- TAB NAV -->
+            <div class="flex items-center gap-1 border-b border-slate-100 pb-0">
+                <button id="tab-btn-gestures" onclick="switchModalTab('gestures')"
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    <span class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px]">front_hand</span>Gestures
+                    </span>
+                </button>
+                <button id="tab-btn-lessons" onclick="switchModalTab('lessons')"
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    <span class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px]">menu_book</span>Lessons
+                    </span>
+                </button>
+                <button id="tab-btn-reports" onclick="switchModalTab('reports')"
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    <span class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px]">flag</span>Reports
+                        <span id="modal-reports-badge" class="hidden bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">!</span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- TAB: GESTURE BREAKDOWN -->
+            <div id="tab-gestures" class="modal-tab-panel">
                 <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student Performance per Gesture</h4>
                     <div class="flex items-center gap-2">
@@ -998,10 +1021,102 @@ document.addEventListener('keydown', function(e) {
                 </div>
             </div>
 
-            <!-- LESSON BREAKDOWN -->
-            <div>
+            <!-- TAB: LESSON BREAKDOWN -->
+            <div id="tab-lessons" class="modal-tab-panel hidden">
                 <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Lesson Breakdown</h4>
                 <div id="modalLessonList" class="space-y-2"></div>
+            </div>
+
+            <!-- TAB: STUDENT REPORTS -->
+            <div id="tab-reports" class="modal-tab-panel hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student Reports</h4>
+                    <span id="modal-reports-count" class="text-[11px] font-semibold text-slate-400"></span>
+                </div>
+
+                <!-- Reports loading spinner -->
+                <div id="modal-reports-loading" class="py-8 text-center hidden">
+                    <span class="material-symbols-outlined text-slate-300 text-[30px] animate-spin">refresh</span>
+                    <p class="text-[12px] text-slate-400 mt-2">Loading reports...</p>
+                </div>
+
+                <!-- Reports list -->
+                <div id="modal-reports-list" class="space-y-3 max-h-[340px] overflow-y-auto pr-1"></div>
+
+                <!-- Report detail panel (inline) -->
+                <div id="modal-report-detail" class="hidden mt-4 border border-slate-100 rounded-2xl overflow-hidden">
+                    <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-100">
+                        <button onclick="closeReportDetail()" class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-500 hover:text-[#0d326b] transition-colors">
+                            <span class="material-symbols-outlined text-[16px]">arrow_back</span>Back to list
+                        </button>
+                        <span id="detail-status-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold"></span>
+                    </div>
+                    <div class="p-4 space-y-3 max-h-[300px] overflow-y-auto">
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Student's Message</p>
+                            <div class="bg-slate-50 rounded-xl p-3">
+                                <p id="detail-message" class="text-[13px] text-slate-700 leading-relaxed"></p>
+                            </div>
+                            <p id="detail-date" class="text-[11px] text-slate-400 font-medium mt-1.5"></p>
+                        </div>
+                        <div id="detail-teacher-response-wrap" class="hidden">
+                            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Teacher's Response</p>
+                            <div class="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                                <p id="detail-teacher-response" class="text-[13px] text-blue-800 leading-relaxed"></p>
+                                <p id="detail-teacher-date" class="text-[11px] text-blue-400 font-medium mt-1"></p>
+                            </div>
+                        </div>
+                        <div id="detail-escalation-wrap" class="hidden">
+                            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Escalation Reason</p>
+                            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                <p id="detail-escalation-reason" class="text-[13px] text-amber-800 leading-relaxed font-medium"></p>
+                                <p id="detail-escalation-date" class="text-[11px] text-amber-500 font-medium mt-1"></p>
+                            </div>
+                        </div>
+                        <div id="detail-admin-response-wrap" class="hidden">
+                            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Admin Response</p>
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                                <p id="detail-admin-response" class="text-[13px] text-emerald-800 leading-relaxed"></p>
+                            </div>
+                        </div>
+                        <!-- Teacher action area -->
+                        <div id="detail-action-area">
+                            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Your Response</p>
+                            <textarea id="detail-teacher-note" rows="3" placeholder="Write a response to the student..."
+                                class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] text-slate-700 focus:ring-2 focus:ring-[#0d326b]/20 focus:border-[#0d326b]/30 outline-none resize-none leading-relaxed"></textarea>
+                            <div class="flex items-center gap-2 mt-2">
+                                <button onclick="submitTeacherReview('under_review')"
+                                    class="px-3 py-2 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">hourglass_top</span>Mark Under Review
+                                </button>
+                                <button onclick="submitTeacherReview('resolved')"
+                                    class="px-3 py-2 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">check_circle</span>Resolve
+                                </button>
+                                <button onclick="openEscalatePanel()"
+                                    class="ml-auto px-3 py-2 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">flag</span>Raise to Admin
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Escalate panel -->
+                        <div id="detail-escalate-panel" class="hidden border border-amber-200 bg-amber-50 rounded-xl p-3 mt-2">
+                            <p class="text-[11px] font-bold text-amber-700 mb-2">Reason for escalating to Admin:</p>
+                            <textarea id="detail-escalation-input" rows="3" placeholder="Describe why this needs admin attention..."
+                                class="w-full px-3 py-2 rounded-xl border border-amber-200 bg-white text-[13px] text-slate-700 focus:ring-2 focus:ring-amber-400/30 outline-none resize-none leading-relaxed"></textarea>
+                            <div class="flex items-center gap-2 mt-2">
+                                <button onclick="submitEscalation()"
+                                    class="flex-1 px-4 py-2 rounded-full text-[12px] font-bold text-white flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
+                                    style="background: linear-gradient(135deg,#b45309 0%,#d97706 100%)">
+                                    <span class="material-symbols-outlined text-[14px]">flag</span>Confirm Escalation
+                                </button>
+                                <button onclick="document.getElementById('detail-escalate-panel').classList.add('hidden')"
+                                    class="px-4 py-2 rounded-full text-[12px] font-semibold text-slate-500 border border-slate-200 hover:bg-slate-50 transition-colors">Cancel</button>
+                            </div>
+                        </div>
+                        <div id="detail-feedback" class="hidden px-3 py-2.5 rounded-xl text-[12px] font-semibold mt-2"></div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -1255,11 +1370,299 @@ document.addEventListener('keydown', function(e) {
         overlay.classList.add('hidden');
         overlay.classList.remove('flex');
         document.body.style.overflow = '';
+        currentReportDetailId = null;
     }
 
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeStudentModal();
     });
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MODAL TAB SWITCHING
+    // ──────────────────────────────────────────────────────────────────────
+    let _currentModalStudentId = null;
+
+    function switchModalTab(tab) {
+        ['gestures', 'lessons', 'reports'].forEach(t => {
+            document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+            const btn = document.getElementById('tab-btn-' + t);
+            if (t === tab) {
+                btn.classList.add('border-b-2', 'border-[#0d326b]', 'text-[#0d326b]');
+                btn.classList.remove('text-slate-400');
+            } else {
+                btn.classList.remove('border-b-2', 'border-[#0d326b]', 'text-[#0d326b]');
+                btn.classList.add('text-slate-400');
+            }
+        });
+
+        if (tab === 'reports' && _currentModalStudentId) {
+            loadStudentReports(_currentModalStudentId);
+        }
+    }
+
+    // Override openStudentModal to wire up tabs + student ID
+    const _origOpenStudentModal = openStudentModal;
+    openStudentModal = function(index) {
+        _origOpenStudentModal(index);
+        const data = studentReportData[index];
+        if (!data) return;
+        _currentModalStudentId = data.student_id;
+        // Reset to gestures tab
+        switchModalTab('gestures');
+        // Reset reports panel
+        document.getElementById('modal-reports-list').innerHTML = '';
+        document.getElementById('modal-report-detail').classList.add('hidden');
+        document.getElementById('modal-reports-loading').classList.add('hidden');
+        document.getElementById('modal-reports-badge').classList.add('hidden');
+        document.getElementById('modal-reports-count').textContent = '';
+    };
+
+    // ──────────────────────────────────────────────────────────────────────
+    // STUDENT REPORTS TAB — LOAD & RENDER
+    // ──────────────────────────────────────────────────────────────────────
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    let currentReportDetailId = null;
+    let _reportsLoaded = {};
+
+    const reportStatusConfig = {
+        pending:      { label: 'Pending',      bg: 'bg-slate-100',   text: 'text-slate-600' },
+        under_review: { label: 'Under Review',  bg: 'bg-blue-100',    text: 'text-blue-700'  },
+        resolved:     { label: 'Resolved',      bg: 'bg-emerald-100', text: 'text-emerald-700'},
+        escalated:    { label: 'Escalated',     bg: 'bg-amber-100',   text: 'text-amber-700' },
+        closed:       { label: 'Closed',        bg: 'bg-slate-200',   text: 'text-slate-500' },
+    };
+
+    async function loadStudentReports(studentId) {
+        const listEl    = document.getElementById('modal-reports-list');
+        const loadingEl = document.getElementById('modal-reports-loading');
+
+        listEl.innerHTML = '';
+        loadingEl.classList.remove('hidden');
+
+        try {
+            const res  = await fetch(`/reports/help-requests/${studentId}`, {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+            });
+            const data = await res.json();
+            loadingEl.classList.add('hidden');
+
+            const reports = data.reports || [];
+            document.getElementById('modal-reports-count').textContent =
+                reports.length + ' report' + (reports.length !== 1 ? 's' : '');
+
+            const hasPending = reports.some(r => r.status === 'pending');
+            const badge = document.getElementById('modal-reports-badge');
+            if (hasPending) badge.classList.remove('hidden');
+            else            badge.classList.add('hidden');
+
+            if (reports.length === 0) {
+                listEl.innerHTML = `
+                    <div class="py-10 text-center">
+                        <span class="material-symbols-outlined text-slate-200 text-[40px]">mark_email_read</span>
+                        <p class="text-[13px] text-slate-400 font-semibold mt-3">No reports submitted</p>
+                        <p class="text-[11px] text-slate-300 mt-1">This student hasn't submitted any concerns</p>
+                    </div>`;
+                return;
+            }
+
+            reports.forEach(report => {
+                const sc = reportStatusConfig[report.status] || reportStatusConfig.pending;
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-slate-100 rounded-2xl p-4 cursor-pointer hover:bg-slate-50 transition-colors';
+                card.onclick = () => openReportDetail(report.help_request_id);
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3 mb-2">
+                        <p class="text-[13px] font-semibold text-slate-700 leading-snug line-clamp-2 flex-1">${report.message}</p>
+                        <span class="flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold ${sc.bg} ${sc.text}">${sc.label}</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] text-slate-400 font-medium flex-wrap">
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">schedule</span>${report.created_at}</span>
+                        ${report.escalated_at ? '<span class="flex items-center gap-1 text-amber-600 font-semibold"><span class="material-symbols-outlined text-[13px]">flag</span>Escalated</span>' : ''}
+                        ${report.teacher_response ? '<span class="flex items-center gap-1 text-emerald-600"><span class="material-symbols-outlined text-[13px]">mark_chat_read</span>You responded</span>' : ''}
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        } catch (e) {
+            loadingEl.classList.add('hidden');
+            listEl.innerHTML = '<p class="text-[12px] text-red-500 font-medium py-4 text-center">Failed to load reports.</p>';
+        }
+    }
+
+    async function openReportDetail(reportId) {
+        currentReportDetailId = reportId;
+        const detailEl  = document.getElementById('modal-report-detail');
+        const listEl    = document.getElementById('modal-reports-list');
+
+        listEl.classList.add('hidden');
+        detailEl.classList.remove('hidden');
+
+        // Reset
+        ['detail-teacher-response-wrap','detail-escalation-wrap','detail-admin-response-wrap']
+            .forEach(id => document.getElementById(id).classList.add('hidden'));
+        document.getElementById('detail-teacher-note').value = '';
+        document.getElementById('detail-feedback').classList.add('hidden');
+        document.getElementById('detail-escalate-panel').classList.add('hidden');
+        document.getElementById('detail-message').textContent = 'Loading…';
+
+        try {
+            const res  = await fetch(`/reports/help-requests/${reportId}/detail`, {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+            });
+            const d = await res.json();
+            renderReportDetail(d);
+        } catch {
+            document.getElementById('detail-message').textContent = 'Failed to load report.';
+        }
+    }
+
+    function renderReportDetail(d) {
+        const sc = reportStatusConfig[d.status] || reportStatusConfig.pending;
+        const badge = document.getElementById('detail-status-badge');
+        badge.textContent = sc.label;
+        badge.className   = `px-2.5 py-1 rounded-full text-[10px] font-bold ${sc.bg} ${sc.text}`;
+
+        document.getElementById('detail-message').textContent = d.message;
+        document.getElementById('detail-date').textContent    = 'Submitted ' + d.created_at;
+
+        if (d.teacher_response) {
+            document.getElementById('detail-teacher-response').textContent = d.teacher_response;
+            document.getElementById('detail-teacher-date').textContent = d.teacher_responded_at ? 'Responded ' + d.teacher_responded_at : '';
+            document.getElementById('detail-teacher-response-wrap').classList.remove('hidden');
+        }
+
+        if (d.escalation_reason) {
+            document.getElementById('detail-escalation-reason').textContent = d.escalation_reason;
+            document.getElementById('detail-escalation-date').textContent   = d.escalated_at ? 'Escalated ' + d.escalated_at : '';
+            document.getElementById('detail-escalation-wrap').classList.remove('hidden');
+        }
+
+        if (d.admin_response) {
+            document.getElementById('detail-admin-response').textContent = d.admin_response;
+            document.getElementById('detail-admin-response-wrap').classList.remove('hidden');
+        }
+
+        // Hide action area if report is already escalated or closed
+        const actionArea = document.getElementById('detail-action-area');
+        if (d.status === 'escalated' || d.status === 'closed') {
+            actionArea.style.display = 'none';
+        } else {
+            actionArea.style.display = 'block';
+        }
+    }
+
+    function closeReportDetail() {
+        document.getElementById('modal-report-detail').classList.add('hidden');
+        document.getElementById('modal-reports-list').classList.remove('hidden');
+        currentReportDetailId = null;
+        // Reload list to reflect any updates
+        if (_currentModalStudentId) loadStudentReports(_currentModalStudentId);
+    }
+
+    async function submitTeacherReview(status) {
+        if (!currentReportDetailId) return;
+        const note     = document.getElementById('detail-teacher-note').value.trim();
+        const feedback = document.getElementById('detail-feedback');
+
+        try {
+            const res  = await fetch(`/reports/help-requests/${currentReportDetailId}/review`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body: JSON.stringify({ status, teacher_response: note }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                feedback.textContent = status === 'resolved' ? 'Report marked as resolved.' : 'Status updated to Under Review.';
+                feedback.className   = 'px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-emerald-50 text-emerald-700 mt-2';
+                feedback.classList.remove('hidden');
+                const badge = document.getElementById('detail-status-badge');
+                const sc = reportStatusConfig[data.status] || reportStatusConfig.pending;
+                badge.textContent = sc.label;
+                badge.className   = `px-2.5 py-1 rounded-full text-[10px] font-bold ${sc.bg} ${sc.text}`;
+                if (note) {
+                    document.getElementById('detail-teacher-response').textContent = note;
+                    document.getElementById('detail-teacher-response-wrap').classList.remove('hidden');
+                }
+                if (status === 'resolved') {
+                    document.getElementById('detail-action-area').style.display = 'none';
+                }
+                setTimeout(closeReportDetail, 1200);
+            } else {
+                feedback.textContent = data.message || 'Failed to update.';
+                feedback.className   = 'px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-red-50 text-red-600 mt-2';
+                feedback.classList.remove('hidden');
+            }
+        } catch {
+            const feedback = document.getElementById('detail-feedback');
+            feedback.textContent = 'An error occurred.';
+            feedback.className   = 'px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-red-50 text-red-600 mt-2';
+            feedback.classList.remove('hidden');
+        }
+    }
+
+    function openEscalatePanel() {
+        document.getElementById('detail-escalate-panel').classList.remove('hidden');
+        document.getElementById('detail-escalation-input').focus();
+    }
+
+    async function submitEscalation() {
+        if (!currentReportDetailId) return;
+        const reason   = document.getElementById('detail-escalation-input').value.trim();
+        const feedback = document.getElementById('detail-feedback');
+
+        if (!reason) {
+            feedback.textContent = 'Please provide a reason for escalating.';
+            feedback.className   = 'px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-red-50 text-red-600 mt-2';
+            feedback.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const res  = await fetch(`/reports/help-requests/${currentReportDetailId}/escalate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body: JSON.stringify({ escalation_reason: reason }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                feedback.textContent = 'Concern escalated to Admin successfully.';
+                feedback.className   = 'px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-amber-50 text-amber-700 mt-2';
+                feedback.classList.remove('hidden');
+                document.getElementById('detail-escalate-panel').classList.add('hidden');
+                document.getElementById('detail-action-area').style.display = 'none';
+
+                const badge = document.getElementById('detail-status-badge');
+                badge.textContent = 'Escalated';
+                badge.className   = 'px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700';
+
+                document.getElementById('detail-escalation-reason').textContent = reason;
+                document.getElementById('detail-escalation-date').textContent   = 'Just now';
+                document.getElementById('detail-escalation-wrap').classList.remove('hidden');
+
+                setTimeout(closeReportDetail, 1500);
+            } else {
+                feedback.textContent = data.message || 'Failed to escalate.';
+                feedback.className   = 'px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-red-50 text-red-600 mt-2';
+                feedback.classList.remove('hidden');
+            }
+        } catch {
+            const feedback = document.getElementById('detail-feedback');
+            feedback.textContent = 'An error occurred.';
+            feedback.className   = 'px-3 py-2.5 rounded-xl text-[12px] font-semibold bg-red-50 text-red-600 mt-2';
+            feedback.classList.remove('hidden');
+        }
+    }
 </script>
+
+<style>
+.modal-tab-btn {
+    color: #94a3b8;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+}
+.modal-tab-btn:hover { color: #0d326b; }
+</style>
 
 @endsection

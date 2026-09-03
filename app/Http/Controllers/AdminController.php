@@ -526,16 +526,23 @@ class AdminController extends Controller
         $dateFrom     = $request->get('date_from', '');
         $dateTo       = $request->get('date_to', '');
 
-        $query = HelpRequest::with(['student', 'resolver'])
+        // Admin only sees escalated (and closed) reports — student → teacher → admin workflow
+        $query = HelpRequest::with(['student', 'resolver', 'teacher.user', 'escalator'])
+            ->whereIn('status', ['escalated', 'closed'])
             ->latest();
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('message', 'like', "%{$search}%")
+                  ->orWhere('escalation_reason', 'like', "%{$search}%")
                   ->orWhereHas('student', function ($sq) use ($search) {
                       $sq->where('first_name', 'like', "%{$search}%")
                          ->orWhere('last_name', 'like', "%{$search}%")
                          ->orWhere('lrn', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('teacher', function ($tq) use ($search) {
+                      $tq->where('first_name', 'like', "%{$search}%")
+                         ->orWhere('last_name', 'like', "%{$search}%");
                   });
             });
         }
@@ -554,12 +561,12 @@ class AdminController extends Controller
 
         $reports = $query->paginate(15)->withQueryString();
 
-        // Stats
-        $totalReports    = HelpRequest::count();
-        $pendingReports  = HelpRequest::where('status', 'pending')->count();
-        $inProgressCount = HelpRequest::where('status', 'in_progress')->count();
-        $resolvedCount   = HelpRequest::where('status', 'resolved')->count();
-        $respondedCount  = HelpRequest::where('status', 'responded')->count();
+        // Stats — only escalated/closed scope
+        $totalReports    = HelpRequest::whereIn('status', ['escalated', 'closed'])->count();
+        $pendingReports  = HelpRequest::where('status', 'escalated')->count();   // "pending admin review"
+        $inProgressCount = 0; // not used in new workflow, kept for view compat
+        $resolvedCount   = HelpRequest::where('status', 'closed')->count();
+        $respondedCount  = 0; // not used in new workflow, kept for view compat
 
         return view('admin.reports', compact(
             'reports', 'search', 'statusFilter', 'dateFrom', 'dateTo',
@@ -571,32 +578,37 @@ class AdminController extends Controller
     {
         $report = HelpRequest::findOrFail($id);
 
+        // Only allow admin to respond to escalated reports
+        if (!in_array($report->status, ['escalated', 'closed'])) {
+            return response()->json(['success' => false, 'message' => 'Only escalated reports can be handled by admin.'], 422);
+        }
+
         $validated = $request->validate([
             'admin_response' => 'required|string|max:2000',
-            'status'         => 'required|in:in_progress,responded,resolved',
+            'status'         => 'required|in:closed',
         ]);
 
         $oldStatus = $report->status;
 
         $report->update([
             'admin_response' => $validated['admin_response'],
-            'status'         => $validated['status'],
+            'status'         => 'closed',
             'resolved_by'    => Auth::id(),
             'responded_at'   => now(),
-            'resolved_at'    => $validated['status'] === 'resolved' ? now() : $report->resolved_at,
+            'resolved_at'    => now(),
         ]);
 
         AuditLog::record(
-            action: 'respond_to_report',
+            action: 'respond_to_escalated_report',
             module: 'reports',
-            description: "Admin responded to help request #{$report->help_request_id} from student. Status: '{$oldStatus}' → '{$validated['status']}'",
+            description: "Admin responded to escalated report #{$report->help_request_id}. Status: '{$oldStatus}' → 'closed'",
             userId: Auth::id(),
             userName: Auth::user()->name,
             userRole: Auth::user()->role,
             subjectType: HelpRequest::class,
             subjectId: $report->help_request_id,
             oldValues: ['status' => $oldStatus],
-            newValues: ['status' => $validated['status'], 'has_response' => true],
+            newValues: ['status' => 'closed', 'has_response' => true],
         );
 
         return response()->json([
@@ -609,27 +621,39 @@ class AdminController extends Controller
 
     public function getReport(int $id)
     {
-        $report = HelpRequest::with(['student', 'resolver'])->findOrFail($id);
+        $report = HelpRequest::with(['student', 'resolver', 'teacher.user', 'escalator'])->findOrFail($id);
+
+        $teacherName = null;
+        if ($report->teacher) {
+            $teacherName = trim($report->teacher->first_name . ' ' . $report->teacher->last_name);
+        }
 
         return response()->json([
-            'help_request_id' => $report->help_request_id,
-            'message'         => $report->message,
-            'status'          => $report->status,
-            'admin_response'  => $report->admin_response,
-            'responded_at'    => $report->responded_at?->format('M d, Y g:i A'),
-            'resolved_at'     => $report->resolved_at?->format('M d, Y g:i A'),
-            'created_at'      => $report->created_at->format('M d, Y g:i A'),
-            'student'         => $report->student ? [
+            'help_request_id'      => $report->help_request_id,
+            'message'              => $report->message,
+            'status'               => $report->status,
+            'statusLabel'          => $report->statusLabel,
+            'teacher_response'     => $report->teacher_response,
+            'teacher_responded_at' => $report->teacher_responded_at?->format('M d, Y g:i A'),
+            'escalation_reason'    => $report->escalation_reason,
+            'escalated_at'         => $report->escalated_at?->format('M d, Y g:i A'),
+            'escalated_by_name'    => $report->escalator?->name,
+            'admin_response'       => $report->admin_response,
+            'responded_at'         => $report->responded_at?->format('M d, Y g:i A'),
+            'resolved_at'          => $report->resolved_at?->format('M d, Y g:i A'),
+            'created_at'           => $report->created_at->format('M d, Y g:i A'),
+            'teacher_name'         => $teacherName,
+            'student'              => $report->student ? [
                 'name'        => trim($report->student->first_name . ' ' . $report->student->last_name),
                 'lrn'         => $report->student->lrn,
                 'grade_level' => $report->student->grade_level,
                 'section'     => $report->student->section,
                 'initials'    => strtoupper(
-                    substr($report->student->first_name, 0, 1) .
-                    substr($report->student->last_name, 0, 1)
+                    substr($report->student->first_name ?? 'U', 0, 1) .
+                    substr($report->student->last_name ?? '?', 0, 1)
                 ),
             ] : null,
-            'resolver'        => $report->resolver?->name,
+            'resolver' => $report->resolver?->name,
         ]);
     }
 
