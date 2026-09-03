@@ -766,6 +766,14 @@
                     greetingSequenceBuffer.shift();
                 }
 
+                // Immediate heuristic return for static FSL numbers without waiting for sequence buffer to fill
+                if (heuristicResult.prediction !== null && greetingSequenceBuffer.length < SEQUENCE_LENGTH) {
+                    return {
+                        greeting: heuristicResult.prediction,
+                        confidence: heuristicResult.conf
+                    };
+                }
+
                 if (greetingSequenceBuffer.length === SEQUENCE_LENGTH) {
                     const flatBuffer = new Float32Array(SEQUENCE_LENGTH * TOTAL_FEATURES);
                     for (let i = 0; i < SEQUENCE_LENGTH; i++) {
@@ -981,6 +989,24 @@
                 sendToReactNative(dataToSend);
             }
 
+            // Parent Dashboard PostMessage Integration (SEÑAS Evaluation Pipeline)
+            if (window.parent && window.parent !== window) {
+                const detectedDigit = isMatch && DIGIT_MAPPING[displayGreeting] ? DIGIT_MAPPING[displayGreeting] : '✋';
+                const detConf = isMatch ? (result.confidence || 0) : 0;
+                const handLandmarks = sortedHands.length > 0
+                    ? sortedHands.map(h => h.landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z })))
+                    : null;
+
+                window.parent.postMessage({
+                    type: 'SENAS_DETECTION',
+                    letter: detectedDigit,
+                    confidence: detConf,
+                    landmarks: handLandmarks,
+                    engine: 'gesture_level3.html',
+                    timestamp: performance.now()
+                }, '*');
+            }
+
             canvasCtx.restore();
         }
 
@@ -1040,10 +1066,10 @@
             await startCamera(nextFacingMode);
         }
 
-        // Allow the React Native host app to trigger a camera switch via postMessage
+        // Allow the React Native host app or parent window to trigger a camera switch via postMessage
         function handleNativeMessage(event) {
             try {
-                const data = JSON.parse(event.data);
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 if (data && data.type === 'switch_camera') {
                     switchCamera();
                 }

@@ -16,15 +16,56 @@ class TestingController extends Controller
      */
     private const DYNAMIC_SIGN_NAMES = ['J', 'Z'];
 
+    private const NUMBER_WORD_TO_DIGIT = [
+        'ONE' => '1', 'TWO' => '2', 'THREE' => '3', 'FOUR' => '4', 'FIVE' => '5',
+        'SIX' => '6', 'SEVEN' => '7', 'EIGHT' => '8', 'NINE' => '9', 'TEN' => '10',
+    ];
+
     private function signType(string $name, ?string $moduleName = null): string
     {
         if (in_array(strtoupper(trim($name)), self::DYNAMIC_SIGN_NAMES, true)) {
             return 'dynamic';
         }
-        if ($moduleName && in_array($moduleName, ['level2_greetings', 'level3_survival'], true)) {
+        if ($moduleName && in_array($moduleName, ['level1_numbers', 'level2_greetings', 'level3_survival'], true)) {
             return 'dynamic';
         }
         return 'static';
+    }
+
+    private function normalizeLabel(?string $label): ?string
+    {
+        if ($label === null || $label === '' || $label === '✋' || $label === '...') {
+            return null;
+        }
+
+        $label = trim($label);
+        $label = str_replace(["’", "‘", "`"], "'", $label);
+        $upper = strtoupper($label);
+
+        if (isset(self::NUMBER_WORD_TO_DIGIT[$upper])) {
+            return self::NUMBER_WORD_TO_DIGIT[$upper];
+        }
+
+        return $upper;
+    }
+
+    private function applyModuleFilter($query, ?string $moduleSlug)
+    {
+        if (!$moduleSlug || $moduleSlug === 'all') {
+            return $query;
+        }
+
+        if ($moduleSlug === 'alphabets') {
+            return $query->whereIn('module', ['alphabet_part1', 'alphabet_part2']);
+        } elseif ($moduleSlug === 'numbers') {
+            return $query->where('module', 'level1_numbers');
+        } elseif ($moduleSlug === 'greetings') {
+            return $query->where('module', 'level2_greetings');
+        } elseif ($moduleSlug === 'survival') {
+            return $query->where('module', 'level3_survival');
+        } else {
+            return $query->where('module', $moduleSlug);
+        }
     }
 
     /**
@@ -165,18 +206,22 @@ class TestingController extends Controller
         $nextTrialNumber = ($nextTrialNumber ?? 0) + 1;
 
         $cleanedPredicted = $request->predicted_label ? trim($request->predicted_label) : null;
-        $isCorrect = $cleanedPredicted !== null
-            && strtoupper($cleanedPredicted) === strtoupper(trim($gesture->name));
+        $normalizedPred = $this->normalizeLabel($cleanedPredicted);
+        $normalizedTrue = $this->normalizeLabel($gesture->name);
+
+        $isCorrect = $normalizedPred !== null
+            && $normalizedTrue !== null
+            && $normalizedPred === $normalizedTrue;
 
         $trial = TestTrial::create([
             'gesture_id' => $gesture->gesture_id,
-            'true_label' => $gesture->name,
+            'true_label' => $normalizedTrue ?? $gesture->name,
             'module' => $module->name ?? null,
             'sign_type' => $this->signType($gesture->name, $module->name ?? null),
             'signer_id' => $request->signer_id,
             'trial_number' => $nextTrialNumber,
             'landmark_data' => $request->landmark_data,
-            'predicted_label' => $cleanedPredicted,
+            'predicted_label' => $normalizedPred,
             'confidence_score' => $request->confidence_score,
             'is_correct' => $isCorrect,
             'response_latency_ms' => $request->response_latency_ms,
@@ -195,13 +240,7 @@ class TestingController extends Controller
         $moduleSlug = $request->query('module', 'all');
 
         $query = TestTrial::query();
-        if ($moduleSlug && $moduleSlug !== 'all') {
-            if ($moduleSlug === 'alphabets') {
-                $query->whereIn('module', ['alphabet_part1', 'alphabet_part2']);
-            } else {
-                $query->where('module', $moduleSlug);
-            }
-        }
+        $this->applyModuleFilter($query, $moduleSlug);
 
         $rows = $query->orderBy('gesture_id')
             ->orderBy('signer_id')
@@ -223,14 +262,7 @@ class TestingController extends Controller
     {
         $moduleSlug = $request->query('module', 'all');
         $query = TestTrial::query();
-
-        if ($moduleSlug && $moduleSlug !== 'all') {
-            if ($moduleSlug === 'alphabets') {
-                $query->whereIn('module', ['alphabet_part1', 'alphabet_part2']);
-            } else {
-                $query->where('module', $moduleSlug);
-            }
-        }
+        $this->applyModuleFilter($query, $moduleSlug);
 
         $trials = $query->get();
         $totalTrials = $trials->count();
@@ -353,14 +385,7 @@ class TestingController extends Controller
     {
         $moduleSlug = $request->query('module', 'all');
         $query = TestTrial::query();
-
-        if ($moduleSlug && $moduleSlug !== 'all') {
-            if ($moduleSlug === 'alphabets') {
-                $query->whereIn('module', ['alphabet_part1', 'alphabet_part2']);
-            } else {
-                $query->where('module', $moduleSlug);
-            }
-        }
+        $this->applyModuleFilter($query, $moduleSlug);
 
         $trials = $query->orderBy('gesture_id')
             ->orderBy('signer_id')

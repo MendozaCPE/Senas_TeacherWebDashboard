@@ -659,14 +659,25 @@
                         </div>
                     </div>
 
-                    <!-- Camera & Real-time Live Prediction (Driven directly by gesture.html) -->
+@php
+    $engineMap = [
+        'alphabets' => '/gesture.html',
+        'numbers' => '/gesture_level3.html',
+        'greetings' => '/gesture_greetings.html',
+        'survival' => '/gesture_level2.html',
+        'all' => '/gesture.html',
+    ];
+    $initialEngine = $engineMap[$currentModule ?? 'alphabets'] ?? '/gesture.html';
+    $initialEngineName = basename($initialEngine);
+@endphp
+                    <!-- Camera & Real-time Live Prediction (Driven dynamically by respective gesture web view) -->
                     <div id="camera-panel">
                         <div class="panel-label-row">
                             <div class="panel-label">Live Camera & Detection Engine</div>
-                            <div id="camera-status-tag" style="font-size:11px;font-weight:700;color:#10B981;">Engine Active (gesture.html)</div>
+                            <div id="camera-status-tag" style="font-size:11px;font-weight:700;color:#10B981;">Engine Active ({{ $initialEngineName }})</div>
                         </div>
                         <div id="camera-wrap" style="position:relative;width:100%;aspect-ratio:4/3;background:#0a1628;border-radius:14px;overflow:hidden;border:1px solid var(--border);">
-                            <iframe id="gesture-frame" src="/gesture.html" allow="camera; microphone" style="width:100%;height:100%;border:none;display:block;"></iframe>
+                            <iframe id="gesture-frame" src="{{ $initialEngine }}" allow="camera; microphone" style="width:100%;height:100%;border:none;display:block;"></iframe>
                             <div id="countdown-overlay">3</div>
                         </div>
                     </div>
@@ -812,6 +823,7 @@
         const performSignText = document.getElementById('perform-sign-text');
         const signTypeTag = document.getElementById('sign-type-tag');
         const cameraStatusTag = document.getElementById('camera-status-tag');
+        const gestureFrame = document.getElementById('gesture-frame');
         const trialLogBody = document.getElementById('trial-log-body');
         const trialLogSignTitle = document.getElementById('trial-log-sign-title');
         const trialLogCount = document.getElementById('trial-log-count');
@@ -820,8 +832,28 @@
         const INITIAL_SIGNS = @json($initialSigns);
         const CURRENT_MODULE = @json($currentModule ?? 'alphabets');
 
-        const CAPTURE_WINDOW_MS = 1500;
         const COUNTDOWN_STEPS = ['3', '2', '1', 'SIGN!'];
+
+        // Label normalization mapping for numbers and formatting
+        const NUMBER_WORD_MAP = {
+            'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5',
+            'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9', 'TEN': '10'
+        };
+
+        function normalizeLabel(str) {
+            if (!str || str === '✋' || str === '...') return '';
+            let s = String(str).trim().replace(/[’‘`]/g, "'").toUpperCase();
+            return NUMBER_WORD_MAP[s] || s;
+        }
+
+        function getEngineForSign(sign) {
+            if (!sign) return '/gesture.html';
+            const m = sign.module_name;
+            if (m === 'level1_numbers') return '/gesture_level3.html';
+            if (m === 'level2_greetings') return '/gesture_greetings.html';
+            if (m === 'level3_survival') return '/gesture_level2.html';
+            return '/gesture.html';
+        }
 
         let signs = INITIAL_SIGNS || [];
         let currentSignIndex = 0;
@@ -846,18 +878,22 @@
             window.location.href = `/admin/testing/alphabet?module=${moduleSelect.value}`;
         });
 
-        // Listen for live detection stream from embedded gesture.html
+        // Listen for live detection stream from embedded web views
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'SENAS_DETECTION') {
-                const { letter, confidence, landmarks } = event.data;
+                const { letter, confidence, landmarks, engine } = event.data;
                 latestLetter = letter;
                 latestConfidence = confidence;
                 latestLandmarks = landmarks;
 
-                if (cameraStatusTag) cameraStatusTag.textContent = 'Engine Active (gesture.html)';
+                if (cameraStatusTag) {
+                    const engineName = engine || (gestureFrame ? gestureFrame.getAttribute('src').replace('/', '') : 'gesture.html');
+                    cameraStatusTag.style.color = '#10B981';
+                    cameraStatusTag.textContent = `Engine Active (${engineName})`;
+                }
 
                 if (isCapturing) {
-                    if (firstFeedbackTime === null && letter !== '✋') {
+                    if (firstFeedbackTime === null && letter && letter !== '✋' && letter !== '...') {
                         firstFeedbackTime = performance.now();
                     }
                     captureSamples.push({
@@ -920,10 +956,20 @@
             const label = getSignLabel(sign);
             const isDynamic = sign.sign_type === 'dynamic';
 
+            // Dynamic recognition engine switching
+            const targetEngine = getEngineForSign(sign);
+            if (gestureFrame && gestureFrame.getAttribute('src') !== targetEngine) {
+                gestureFrame.src = targetEngine;
+                if (cameraStatusTag) {
+                    cameraStatusTag.style.color = '#F59E0B';
+                    cameraStatusTag.textContent = `Loading Engine (${targetEngine.replace('/', '')})...`;
+                }
+            }
+
             performSignText.textContent = label;
             trialLogSignTitle.textContent = label;
             signTypeTag.className = `sign-type-badge ${isDynamic ? 'dynamic' : 'static'}`;
-            signTypeTag.textContent = isDynamic ? 'Dynamic (LSTM)' : 'Static (MediaPipe + MobileNet)';
+            signTypeTag.textContent = isDynamic ? 'Dynamic (LSTM / Motion)' : 'Static (MediaPipe + MobileNet)';
 
             if (sign.reference_media_path) {
                 referenceMediaWrap.innerHTML = sign.reference_is_video
@@ -937,8 +983,8 @@
             recordBtn.textContent = `Record ${label}`;
             resultBanner.style.display = 'none';
             statusLine.textContent = isDynamic
-                ? `Perform motion for "${label}" during capture.`
-                : `Hold sign "${label}" steady after countdown.`;
+                ? `Perform motion for "${label}" during 3s capture window.`
+                : `Hold sign "${label}" steady after countdown (1.5s).`;
 
             await loadTrialLog(sign.gesture_id);
         }
@@ -984,6 +1030,10 @@
 
         recordBtn.onclick = async () => {
             if (isCapturing) return;
+            const sign = signs[currentSignIndex];
+            const isDynamic = sign.sign_type === 'dynamic';
+            const captureWindow = isDynamic ? 3000 : 1500;
+
             resultBanner.style.display = 'none';
             recordBtn.disabled = true;
             recordBtn.classList.add('recording');
@@ -1001,16 +1051,17 @@
             firstFeedbackTime = null;
             captureSamples = [];
 
-            await new Promise(r => setTimeout(r, CAPTURE_WINDOW_MS));
+            await new Promise(r => setTimeout(r, captureWindow));
 
             isCapturing = false;
             recordBtn.classList.remove('recording');
-            finalizeTrial();
+            finalizeTrial(captureWindow);
         };
 
-        async function finalizeTrial() {
+        async function finalizeTrial(captureWindow = 1500) {
             const sign = signs[currentSignIndex];
             const label = getSignLabel(sign);
+            const normTarget = normalizeLabel(label);
 
             if (captureSamples.length === 0) {
                 statusLine.textContent = 'No hand detected during capture — please ensure hand is clearly visible in the camera frame.';
@@ -1020,11 +1071,11 @@
 
             let finalSample;
             if (sign.sign_type === 'dynamic') {
-                const dynamicMatches = captureSamples.filter(s => s.letter === label);
+                const dynamicMatches = captureSamples.filter(s => normalizeLabel(s.letter) === normTarget);
                 if (dynamicMatches.length > 0) {
                     finalSample = dynamicMatches.reduce((prev, curr) => (curr.confidence > prev.confidence ? curr : prev));
                 } else {
-                    const validSamples = captureSamples.filter(s => s.letter && s.letter !== '✋');
+                    const validSamples = captureSamples.filter(s => s.letter && s.letter !== '✋' && s.letter !== '...');
                     finalSample = validSamples.length > 0 
                         ? validSamples.reduce((prev, curr) => (curr.confidence > prev.confidence ? curr : prev))
                         : captureSamples[captureSamples.length - 1];
@@ -1038,15 +1089,16 @@
                 : (finalSample.landmarks || []);
 
             const latency = firstFeedbackTime ? Math.round(firstFeedbackTime - captureStartTime) : 50;
+            const predNorm = normalizeLabel(finalSample.letter) || null;
 
             const payload = {
                 gesture_id: sign.gesture_id,
                 signer_id: signerSelect.value,
                 landmark_data: landmarkData,
-                predicted_label: finalSample.letter === '✋' ? null : finalSample.letter,
+                predicted_label: predNorm,
                 confidence_score: finalSample.confidence,
                 response_latency_ms: latency,
-                capture_started_at: new Date(Date.now() - CAPTURE_WINDOW_MS).toISOString(),
+                capture_started_at: new Date(Date.now() - captureWindow).toISOString(),
                 feedback_received_at: new Date().toISOString(),
             };
 
@@ -1072,12 +1124,13 @@
 
                 const saved = await res.json();
                 const isCorrect = saved.trial.is_correct;
+                const displayPred = saved.trial.predicted_label || predNorm || 'None';
 
                 resultBanner.style.display = 'block';
                 resultBanner.className = isCorrect ? 'correct' : 'incorrect';
                 resultBanner.textContent = isCorrect
-                    ? `✓ Correct! Predicted "${finalSample.letter}" (${Math.round(finalSample.confidence * 100)}% conf, ${latency} ms latency)`
-                    : `✗ Incorrect! Predicted "${finalSample.letter || 'None'}" (Expected "${label}")`;
+                    ? `✓ Correct! Predicted "${displayPred}" (${Math.round((finalSample.confidence || 0) * 100)}% conf, ${latency} ms latency)`
+                    : `✗ Incorrect! Predicted "${displayPred}" (Expected "${label}")`;
 
                 statusLine.textContent = `Trial ${saved.trial.trial_number} recorded for ${label}.`;
 

@@ -893,6 +893,24 @@
             // Send to React Native using the helper function
             sendToReactNative(dataToSend);
 
+            // Parent Dashboard PostMessage Integration (SEÑAS Evaluation Pipeline)
+            if (window.parent && window.parent !== window) {
+                const detLabel = isMatch ? displayGreeting : '✋';
+                const detConf = isMatch ? (result.confidence || 0) : 0;
+                const handLandmarks = sortedHands.length > 0
+                    ? sortedHands.map(h => h.landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z })))
+                    : null;
+
+                window.parent.postMessage({
+                    type: 'SENAS_DETECTION',
+                    letter: detLabel,
+                    confidence: detConf,
+                    landmarks: handLandmarks,
+                    engine: 'gesture_greetings.html',
+                    timestamp: performance.now()
+                }, '*');
+            }
+
             canvasCtx.restore();
         }
 
@@ -948,10 +966,10 @@
             await startCamera(nextFacingMode);
         }
 
-        // Allow the React Native host app to trigger a camera switch via postMessage
+        // Allow the React Native host app or parent window to trigger a camera switch via postMessage
         function handleNativeMessage(event) {
             try {
-                const data = JSON.parse(event.data);
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 if (data && data.type === 'switch_camera') {
                     switchCamera();
                 }
