@@ -375,9 +375,18 @@
         }
 
         /* ── Compact / Embedded Mode (iframe testing environment) ── */
-        body.compact-mode #progress-tracker { display: none !important; }
-        body.compact-mode #match-indicator { display: none !important; }
-        body.compact-mode #level-badge { display: none !important; }
+        body.compact-mode #progress-tracker {
+            display: none !important;
+        }
+
+        body.compact-mode #match-indicator {
+            display: none !important;
+        }
+
+        body.compact-mode #level-badge {
+            display: none !important;
+        }
+
         body.compact-mode #head-state {
             bottom: auto;
             top: 8px;
@@ -386,12 +395,14 @@
             font-size: 9px;
             padding: 2px 8px;
         }
+
         body.compact-mode #overlay {
             bottom: 8px;
             left: 8px;
             right: auto;
             text-align: left;
         }
+
         body.compact-mode #greeting-display {
             padding: 6px 12px;
             min-width: 0;
@@ -400,19 +411,54 @@
             border: 1px solid rgba(255, 215, 0, 0.3);
             box-shadow: none;
         }
+
         body.compact-mode #greeting {
             font-size: 18px;
             min-height: 0;
             line-height: 1.2;
         }
-        body.compact-mode #confidence { font-size: 10px; margin-top: 1px; }
-        body.compact-mode #hand-count { font-size: 10px; margin-top: 1px; }
-        body.compact-mode #greeting-sub { display: none; }
-        body.compact-mode #status-bar { top: 8px; left: 8px; right: 8px; }
-        body.compact-mode #status-bar-left { padding: 4px 10px; font-size: 10px; }
-        body.compact-mode #fps-display { font-size: 10px; padding: 3px 8px; }
-        body.compact-mode #camera-switch-btn { top: 8px; right: 8px; width: 30px; height: 30px; }
-        body.compact-mode #camera-switch-btn svg { width: 15px; height: 15px; }
+
+        body.compact-mode #confidence {
+            font-size: 10px;
+            margin-top: 1px;
+        }
+
+        body.compact-mode #hand-count {
+            font-size: 10px;
+            margin-top: 1px;
+        }
+
+        body.compact-mode #greeting-sub {
+            display: none;
+        }
+
+        body.compact-mode #status-bar {
+            top: 8px;
+            left: 8px;
+            right: 8px;
+        }
+
+        body.compact-mode #status-bar-left {
+            padding: 4px 10px;
+            font-size: 10px;
+        }
+
+        body.compact-mode #fps-display {
+            font-size: 10px;
+            padding: 3px 8px;
+        }
+
+        body.compact-mode #camera-switch-btn {
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+        }
+
+        body.compact-mode #camera-switch-btn svg {
+            width: 15px;
+            height: 15px;
+        }
     </style>
 </head>
 
@@ -513,8 +559,8 @@
         };
 
         let GREETINGS_LABELS = WORKING_SIGNS;
-        let ONE_HAND_SIGNS = ["YES", "NO", "KNOW", "UNDERSTAND", "FAST", "DON'T UNDERSTAND"];
-        let TWO_HAND_SIGNS = ["DON'T KNOW", "WRONG", "CORRECT", "SLOW"];
+        let ONE_HAND_SIGNS = ["YES", "NO", "KNOW", "UNDERSTAND", "FAST", "DON'T UNDERSTAND", "WRONG"];
+        let TWO_HAND_SIGNS = ["DON'T KNOW", "CORRECT", "SLOW"];
         let learnedGreetings = [];
         let currentGreetingIndex = 0;
 
@@ -860,6 +906,8 @@
             const is_open_palm = index_extended && middle_extended && ring_extended && pinky_extended;
             const index_curled_x = (hlm[INDEX_TIP].y > hlm[INDEX_DIP].y) && (hlm[INDEX_DIP].y < hlm[INDEX_PIP].y);
 
+            const is_y_hand = !index_extended && !middle_extended && !ring_extended && pinky_extended;
+
             // Face Anchors (MediaPipe Face Mesh Indices)
             const nose_landmark = flm[2] || flm[1];
             const chin_anchor = flm[152];
@@ -875,7 +923,8 @@
             // --- SHAKING HEAD RULES ---
             if (headState === "SHAKING") {
                 if (clean_target !== "DONT KNOW" && clean_target !== "DONT UNDERSTAND") {
-                    if (is_hand_lower_zone && (is_fist || index_curled_x) && dist3d(hlm[INDEX_PIP], chin_anchor) < 0.12) {
+                    // Now accepts your Y-hand or a fist, with a more generous distance to the chin
+                    if (is_hand_lower_zone && (is_y_hand || is_fist) && dist3d(hlm[INDEX_PIP], chin_anchor) < 0.18) {
                         return { prediction: "WRONG", conf: 0.98 };
                     }
                 }
