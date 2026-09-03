@@ -330,6 +330,37 @@
     box-shadow: 0 24px 60px rgba(7, 28, 63, 0.25);
     overflow: hidden;
 }
+
+/* ── Sign Type Filter Tabs ── */
+.sign-type-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    cursor: pointer;
+    transition: all .15s ease;
+}
+.sign-type-tab:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0d326b;
+}
+.sign-type-tab.active {
+    background: #0d326b;
+    border-color: #0d326b;
+    color: #ffffff;
+}
+.sign-type-tab[data-type="dynamic"].active {
+    background: #7c3aed;
+    border-color: #7c3aed;
+    color: #ffffff;
+}
 </style>
 
 <div class="space-y-6 pb-12">
@@ -962,6 +993,31 @@
                 <p class="text-[14px] font-semibold">No student gesture practices recorded in this time period.</p>
             </div>
         @else
+
+            {{-- Sign Type Filter Tabs --}}
+            @php
+                $hasStatic  = collect($signsBreakdown)->contains('sign_type', 'static');
+                $hasDynamic = collect($signsBreakdown)->contains('sign_type', 'dynamic');
+            @endphp
+            <div class="flex items-center gap-2 flex-wrap">
+                <button type="button" class="sign-type-tab active" data-type="all" onclick="filterSignType('all', this)">
+                    <span class="material-symbols-outlined text-[15px]">apps</span>
+                    All Signs <span class="ml-1 px-1.5 py-0.5 rounded-full bg-white/30 text-[10px] font-black">{{ count($signsBreakdown) }}</span>
+                </button>
+                @if($hasDynamic)
+                <button type="button" class="sign-type-tab" data-type="dynamic" onclick="filterSignType('dynamic', this)">
+                    <span class="material-symbols-outlined text-[15px]">waving_hand</span>
+                    Moving Signs <span class="ml-1 px-1.5 py-0.5 rounded-full bg-white/30 text-[10px] font-black">{{ collect($signsBreakdown)->where('sign_type','dynamic')->count() }}</span>
+                </button>
+                @endif
+                @if($hasStatic)
+                <button type="button" class="sign-type-tab" data-type="static" onclick="filterSignType('static', this)">
+                    <span class="material-symbols-outlined text-[15px]">back_hand</span>
+                    Static Signs <span class="ml-1 px-1.5 py-0.5 rounded-full bg-white/30 text-[10px] font-black">{{ collect($signsBreakdown)->where('sign_type','static')->count() }}</span>
+                </button>
+                @endif
+            </div>
+
             {{-- Master-Detail Split Grid --}}
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -970,11 +1026,24 @@
                     @foreach($signsBreakdown as $idx => $s)
                         <div class="gesture-sign-card {{ $idx === 0 ? 'active' : '' }}"
                              data-sign-id="{{ $s['gesture_id'] }}"
+                             data-sign-type="{{ $s['sign_type'] ?? 'static' }}"
                              onclick="selectGestureSign('{{ $s['gesture_id'] }}', this)">
                             
                             <div class="flex items-center justify-between gap-2 mb-2">
-                                <span class="text-[14px] font-black text-[#0d326b]">Sign: {{ $s['gesture_name'] }}</span>
-                                <span class="gesture-status-pill {{ $s['status'] === 'mastered' ? 'gesture-status-mastered' : 'gesture-status-practice' }}">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    {{-- Sign type badge --}}
+                                    @if(($s['sign_type'] ?? 'static') === 'dynamic')
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 border border-violet-200 shrink-0">
+                                            <span class="material-symbols-outlined text-[12px]">waving_hand</span> Moving
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shrink-0">
+                                            <span class="material-symbols-outlined text-[12px]">back_hand</span> Static
+                                        </span>
+                                    @endif
+                                    <span class="text-[14px] font-black text-[#0d326b] truncate">{{ $s['gesture_name'] }}</span>
+                                </div>
+                                <span class="gesture-status-pill {{ $s['status'] === 'mastered' ? 'gesture-status-mastered' : 'gesture-status-practice' }} shrink-0">
                                     @if($s['status'] === 'mastered')
                                         <span class="material-symbols-outlined text-[13px]">check</span> Mastered
                                     @else
@@ -983,13 +1052,17 @@
                                 </span>
                             </div>
 
+                            @if(!empty($s['module_name']))
+                                <p class="text-[10.5px] text-slate-400 font-medium mb-1.5">{{ $s['module_name'] }}</p>
+                            @endif
+
                             <div class="space-y-1.5 mb-2.5">
                                 <div class="flex items-center justify-between text-[11.5px]">
                                     <span class="text-slate-400 font-medium">{{ $s['total_attempts'] }} attempts ({{ $s['successful_attempts'] }} correct / {{ $s['wrong_attempts'] }} mistakes)</span>
                                     <span class="font-black text-[#0d326b]">{{ $s['accuracy'] }}%</span>
                                 </div>
                                 <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                    <div class="h-1.5 rounded-full bg-[#0d326b]" style="width: {{ min(100, max(4, $s['accuracy'])) }}%;"></div>
+                                    <div class="h-1.5 rounded-full {{ ($s['sign_type'] ?? 'static') === 'dynamic' ? 'bg-violet-500' : 'bg-[#0d326b]' }}" style="width: {{ min(100, max(4, $s['accuracy'])) }}%;"></div>
                                 </div>
                             </div>
 
@@ -1013,12 +1086,13 @@
                     <div>
                         {{-- Detail Top Summary Banner --}}
                         <div class="bg-white rounded-xl p-4 border border-slate-200/70 mb-4 shadow-sm">
-                            <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
                                 <div class="flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-[#0d326b] text-[22px]">front_hand</span>
+                                    <span class="material-symbols-outlined text-[#0d326b] text-[22px]" id="detailSignIcon">front_hand</span>
                                     <h4 class="text-[17px] font-black text-[#0d326b]" id="detailSignTitle">
-                                        Sign: {{ $signsBreakdown[0]['gesture_name'] ?? '' }}
+                                        {{ $signsBreakdown[0]['gesture_name'] ?? '' }}
                                     </h4>
+                                    <span id="detailSignTypeBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border"></span>
                                 </div>
                                 <span class="text-[14px] font-black text-[#0d326b]" id="detailSignAccuracy">
                                     {{ $signsBreakdown[0]['accuracy'] ?? 0 }}% Class Accuracy
@@ -1027,6 +1101,11 @@
                             <p class="text-[12px] text-slate-400 font-medium" id="detailSignSubtitle">
                                 {{ $signsBreakdown[0]['total_attempts'] ?? 0 }} total attempts ({{ $signsBreakdown[0]['successful_attempts'] ?? 0 }} correct · {{ $signsBreakdown[0]['wrong_attempts'] ?? 0 }} mistakes)
                             </p>
+                            @if(!empty($signsBreakdown[0]['module_name']))
+                                <p class="text-[11px] text-slate-400 font-medium mt-0.5" id="detailModuleName">Module: {{ $signsBreakdown[0]['module_name'] }}</p>
+                            @else
+                                <p class="text-[11px] text-slate-400 font-medium mt-0.5 hidden" id="detailModuleName"></p>
+                            @endif
                         </div>
 
                         {{-- Students List for Selected Gesture --}}
@@ -1259,13 +1338,38 @@ function selectGestureSign(signId, element) {
 
 function renderSignDetail(sign) {
     const titleEl = document.getElementById('detailSignTitle');
-    const accEl = document.getElementById('detailSignAccuracy');
-    const subEl = document.getElementById('detailSignSubtitle');
-    const listEl = document.getElementById('detailStudentsList');
+    const accEl   = document.getElementById('detailSignAccuracy');
+    const subEl   = document.getElementById('detailSignSubtitle');
+    const listEl  = document.getElementById('detailStudentsList');
+    const iconEl  = document.getElementById('detailSignIcon');
+    const badgeEl = document.getElementById('detailSignTypeBadge');
+    const moduleEl = document.getElementById('detailModuleName');
 
-    if (titleEl) titleEl.textContent = 'Sign: ' + sign.gesture_name;
+    const isDynamic = sign.sign_type === 'dynamic';
+
+    if (titleEl) titleEl.textContent = sign.gesture_name;
     if (accEl) accEl.textContent = sign.accuracy + '% Class Accuracy';
     if (subEl) subEl.textContent = sign.total_attempts + ' total attempts (' + sign.successful_attempts + ' correct · ' + sign.wrong_attempts + ' mistakes)';
+
+    // Update icon and badge based on sign type
+    if (iconEl) iconEl.textContent = isDynamic ? 'waving_hand' : 'back_hand';
+    if (badgeEl) {
+        if (isDynamic) {
+            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-violet-100 text-violet-700 border-violet-200';
+            badgeEl.innerHTML = '<span class="material-symbols-outlined text-[11px]">waving_hand</span> Moving Sign';
+        } else {
+            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-slate-100 text-slate-500 border-slate-200';
+            badgeEl.innerHTML = '<span class="material-symbols-outlined text-[11px]">back_hand</span> Static Sign';
+        }
+    }
+    if (moduleEl) {
+        if (sign.module_name) {
+            moduleEl.textContent = 'Module: ' + sign.module_name;
+            moduleEl.classList.remove('hidden');
+        } else {
+            moduleEl.classList.add('hidden');
+        }
+    }
 
     if (!listEl) return;
     listEl.innerHTML = '';
@@ -1274,6 +1378,8 @@ function renderSignDetail(sign) {
         listEl.innerHTML = '<div class="text-center py-10 text-slate-400"><p class="text-[13px] font-semibold">No student attempts recorded for this sign.</p></div>';
         return;
     }
+
+    const barColor = isDynamic ? '#7c3aed' : '#0d326b';
 
     sign.students_ranking.forEach(st => {
         let badgeIcon = '';
@@ -1311,14 +1417,40 @@ function renderSignDetail(sign) {
                 </div>
             </div>
             <div class="text-right shrink-0 pl-3">
-                <span class="text-[14px] font-black text-[#0d326b]">${st.accuracy}%</span>
+                <span class="text-[14px] font-black" style="color:${barColor}">${st.accuracy}%</span>
                 <div class="w-16 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
-                    <div class="bg-[#0d326b] h-1.5 rounded-full" style="width: ${Math.min(100, Math.max(5, st.accuracy))}%;"></div>
+                    <div class="h-1.5 rounded-full" style="width: ${Math.min(100, Math.max(5, st.accuracy))}%; background:${barColor}"></div>
                 </div>
             </div>
         `;
         listEl.appendChild(row);
     });
+}
+
+// ── Sign Type Filter ──────────────────────────────────────────────────────
+function filterSignType(type, btn) {
+    // Update tab states
+    document.querySelectorAll('.sign-type-tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    // Filter sign cards
+    const cards = document.querySelectorAll('.gesture-sign-card');
+    let firstVisible = null;
+    cards.forEach(card => {
+        const cardType = card.dataset.signType || 'static';
+        const visible = type === 'all' || cardType === type;
+        card.style.display = visible ? '' : 'none';
+        if (visible && !firstVisible) firstVisible = card;
+    });
+
+    // Auto-select first visible card and render its details
+    if (firstVisible) {
+        document.querySelectorAll('.gesture-sign-card').forEach(c => c.classList.remove('active'));
+        firstVisible.classList.add('active');
+        const signId = firstVisible.dataset.signId;
+        const sign = signsData.find(s => String(s.gesture_id) === String(signId));
+        if (sign) renderSignDetail(sign);
+    }
 }
 
 // ── Export Analytics PDF Modal ─────────────────────────────────────────────

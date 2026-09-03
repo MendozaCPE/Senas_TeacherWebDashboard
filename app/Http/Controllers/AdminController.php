@@ -110,6 +110,46 @@ class AdminController extends Controller
             ->limit(5)
             ->get();
 
+        // ── Ratings summary for dashboard ───────────────────────────────
+        $avgTeacherRatingDash = round((float) TeacherRating::avg('rating'), 1);
+        $avgStudentRatingDash = round((float) StudentRating::avg('rating'), 1);
+        $totalRatingsDash     = TeacherRating::count() + StudentRating::count();
+        $overallAvgRating     = $totalRatingsDash > 0
+            ? round(
+                (TeacherRating::sum('rating') + StudentRating::sum('rating')) / $totalRatingsDash,
+              1)
+            : 0;
+
+        // 3 newest ratings (teacher + student combined, any approval status)
+        $newestTeacherRatings = TeacherRating::with('teacher')
+            ->latest()
+            ->limit(3)
+            ->get()
+            ->map(fn($r) => [
+                'name'    => trim(($r->teacher->first_name ?? '') . ' ' . ($r->teacher->last_name ?? '')) ?: 'Teacher',
+                'role'    => 'Teacher',
+                'rating'  => $r->rating,
+                'comment' => $r->feedback,
+                'date'    => $r->created_at,
+            ]);
+
+        $newestStudentRatings = StudentRating::with('student')
+            ->latest()
+            ->limit(3)
+            ->get()
+            ->map(fn($r) => [
+                'name'    => trim(($r->student->first_name ?? '') . ' ' . ($r->student->last_name ?? '')) ?: 'Student',
+                'role'    => 'Student',
+                'rating'  => $r->rating,
+                'comment' => $r->feedback ?? '',
+                'date'    => $r->created_at,
+            ]);
+
+        $newestRatings = $newestTeacherRatings->merge($newestStudentRatings)
+            ->sortByDesc('date')
+            ->take(3)
+            ->values();
+
         return view('admin.dashboard', compact(
             'totalTeachers', 'totalStudents', 'totalLessons', 'publishedLessons',
             'totalModules', 'activeTeachers', 'activeStudents',
@@ -118,7 +158,8 @@ class AdminController extends Controller
             'newTeachersWeek', 'newStudentsWeek',
             'activityTrend', 'topTeachers', 'recentReports',
             'sparkTeachers', 'sparkStudents', 'sparkLessons',
-            'schoolStats'
+            'schoolStats',
+            'overallAvgRating', 'totalRatingsDash', 'newestRatings'
         ));
     }
 
@@ -308,6 +349,73 @@ class AdminController extends Controller
             ')
             ->first();
 
+        // ── Per-Gesture Breakdown (includes sign_type so we can split static vs dynamic) ──
+        $gestureBreakdown = DB::table('gestures as g')
+            ->leftJoin('gesture_modules as gm', 'g.module_id', '=', 'gm.module_id')
+            ->leftJoin('gesture_performances as gp', 'g.gesture_id', '=', 'gp.gesture_id')
+            ->selectRaw('
+                g.gesture_id,
+                g.name,
+                g.display_name,
+                g.sign_type,
+                gm.display_name as module_display_name,
+                COALESCE(SUM(gp.attempts), 0)             as total_attempts,
+                COALESCE(SUM(gp.successful_attempts), 0)  as total_success,
+                COALESCE(SUM(gp.wrong_attempts), 0)       as total_wrong,
+                COALESCE(SUM(CASE WHEN gp.is_mastered = 1 THEN 1 ELSE 0 END), 0) as mastered_count,
+                COUNT(DISTINCT gp.student_id)             as student_count
+            ')
+            ->groupBy('g.gesture_id', 'g.name', 'g.display_name', 'g.sign_type', 'gm.display_name')
+            ->orderByRaw('COALESCE(SUM(gp.attempts), 0) DESC')
+            ->get()
+            ->map(function ($row) {
+                $attempts = (int) $row->total_attempts;
+                $success  = (int) $row->total_success;
+                $accuracy = $attempts > 0 ? round(($success / $attempts) * 100, 1) : null;
+                $status = $attempts === 0 ? 'no_data'
+                    : ($accuracy < 40 ? 'critical'
+                    : ($accuracy < 70 ? 'warning' : 'good'));
+                return [
+                    'gesture_id'     => $row->gesture_id,
+                    'name'           => $row->display_name ?: $row->name,
+                    'sign_type'      => $row->sign_type ?? 'static',
+                    'module_name'    => $row->module_display_name ?? '',
+                    'total_attempts' => $attempts,
+                    'total_success'  => $success,
+                    'total_wrong'    => (int) $row->total_wrong,
+                    'accuracy'       => $accuracy,
+                    'mastered_count' => (int) $row->mastered_count,
+                    'student_count'  => (int) $row->student_count,
+                    'status'         => $status,
+                ];
+            })
+            // Sort: critical → warning → good → no_data; within each group by accuracy asc
+            ->sortBy(function ($g) {
+                $order = match($g['status']) {
+                    'critical' => 0,
+                    'warning'  => 1,
+                    'good'     => 2,
+                    default    => 3,
+                };
+                // Secondary: lowest accuracy first within the group
+                return $order . '_' . str_pad((string) ($g['accuracy'] ?? 999), 6, '0', STR_PAD_LEFT);
+            })
+            ->values();
+
+        // ── Dynamic (Moving) Gesture Summary ───────────────────────────
+        $dynamicGestureStats = DB::table('gestures as g')
+            ->join('gesture_performances as gp', 'g.gesture_id', '=', 'gp.gesture_id')
+            ->where('g.sign_type', 'dynamic')
+            ->selectRaw('
+                COUNT(DISTINCT g.gesture_id)              as total_gestures,
+                COUNT(DISTINCT gp.student_id)             as students_practiced,
+                SUM(gp.attempts)                          as total_attempts,
+                SUM(gp.successful_attempts)               as total_success,
+                SUM(gp.wrong_attempts)                    as total_wrong,
+                SUM(CASE WHEN gp.is_mastered = 1 THEN 1 ELSE 0 END) as total_mastered
+            ')
+            ->first();
+
         // ── Grade Level Distribution ────────────────────────────────────
         $gradeDistribution = Student::selectRaw('grade_level, COUNT(*) as count')
             ->groupBy('grade_level')
@@ -328,7 +436,8 @@ class AdminController extends Controller
             'totalGestureAttempts', 'totalGestureMastered',
             'trendPoints', 'teacherActivity',
             'mostCompletedLessons', 'leastCompletedLessons',
-            'reportTrend', 'gestureStats',
+            'reportTrend', 'gestureStats', 'gestureBreakdown',
+            'dynamicGestureStats',
             'gradeDistribution', 'programDistribution'
         ));
     }

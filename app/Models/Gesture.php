@@ -19,6 +19,7 @@ class Gesture extends Model
         'video_url',      // Keep this for backward compatibility
         'model_file',
         'difficulty',
+        'sign_type',      // 'static' (alphabet/numbers) or 'dynamic' (moving signs like hello)
         'module_id',
     ];
 

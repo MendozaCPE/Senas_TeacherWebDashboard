@@ -72,6 +72,13 @@
     <span>Default Lessons</span>
 </a>
 
+        {{-- System Media --}}
+        <a href="{{ route('admin.media.index') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('admin.media*') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->routeIs('admin.media*') ? '' : 'icon-outline' }} text-[22px]">perm_media</span>
+            <span>System Media</span>
+        </a>
+
         <div class="mx-6 my-2 border-t border-white/10"></div>
 
         <button type="button" onclick="openAdminLogoutModal()"

@@ -370,17 +370,18 @@ class AnalyticsController extends Controller
                   ->orWhereBetween('gesture_performances.created_at', [$startDate, $endDate]);
             })
             ->join('gestures', 'gesture_performances.gesture_id', '=', 'gestures.gesture_id')
-            ->select('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name', DB::raw('sum(gesture_performances.successful_attempts) as successes'), DB::raw('sum(gesture_performances.attempts) as attempts'))
-            ->groupBy('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name')
+            ->select('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name', 'gestures.sign_type', DB::raw('sum(gesture_performances.successful_attempts) as successes'), DB::raw('sum(gesture_performances.attempts) as attempts'))
+            ->groupBy('gesture_performances.gesture_id', 'gestures.name', 'gestures.display_name', 'gestures.sign_type')
             ->orderBy('gestures.name')
             ->get()
             ->map(function ($row) use ($heatColor) {
                 $attempts = $row->attempts ?: 0;
                 $rate = $attempts > 0 ? round(($row->successes / $attempts) * 100, 1) : 0;
                 return [
-                    'label' => $row->display_name ?: $row->name,
-                    'rate' => $rate,
-                    'color' => $heatColor($rate),
+                    'label'     => $row->display_name ?: $row->name,
+                    'sign_type' => $row->sign_type ?? 'static',
+                    'rate'      => $rate,
+                    'color'     => $heatColor($rate),
                 ];
             });
 
@@ -756,6 +757,7 @@ class AnalyticsController extends Controller
         // Group performances by gesture for per-sign teacher insights
         $gesturePerSignRows = DB::table('gesture_performances as gp')
             ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
+            ->leftJoin('gesture_modules as gm', 'g.module_id', '=', 'gm.module_id')
             ->join('students as s', 'gp.student_id', '=', 's.student_id')
             ->whereIn('gp.student_id', $studentIds)
             ->where('gp.attempts', '>', 0)
@@ -768,6 +770,8 @@ class AnalyticsController extends Controller
                 'g.gesture_id',
                 'g.name',
                 'g.display_name',
+                'g.sign_type',
+                'gm.display_name as module_display_name',
                 's.student_id',
                 's.first_name',
                 's.last_name',
@@ -842,6 +846,8 @@ class AnalyticsController extends Controller
             $signsBreakdown[] = [
                 'gesture_id'          => (string) $gId,
                 'gesture_name'        => $gName,
+                'sign_type'           => $first->sign_type ?? 'static',
+                'module_name'         => $first->module_display_name ?? '',
                 'total_attempts'      => $totAtt,
                 'successful_attempts' => $totSuc,
                 'wrong_attempts'      => $totWrn,

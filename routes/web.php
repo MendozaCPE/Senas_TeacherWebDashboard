@@ -6,7 +6,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
-use App\Http\Controllers\LandingPageController; 
+use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\Admin\AdminMediaController;
 use App\Http\Controllers\Admin\LessonTemplatesController;
 use App\Http\Controllers\LessonsController;
 use App\Http\Controllers\MediaController;
@@ -14,7 +15,7 @@ use App\Http\Controllers\ModulesController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
- use App\Http\Controllers\TestingController;
+use App\Http\Controllers\TestingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -92,7 +93,15 @@ Route::get('/video-proxy/{path}', function ($path) {
     $response->headers->set('Access-Control-Allow-Origin', '*');
     $response->headers->set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     $response->headers->set('Access-Control-Allow-Headers', '*');
-    $response->headers->set('Cache-Control', 'public, max-age=86400');
+
+    // Use must-revalidate with ETag so the browser always checks if the file
+    // changed. This means replaced system media shows immediately without a
+    // 24-hour wait, while still allowing conditional requests (304 Not Modified)
+    // for unchanged files so bandwidth is not wasted.
+    $response->headers->set('Cache-Control', 'public, no-cache, must-revalidate');
+    $response->setEtag(md5_file($fullPath));
+    $response->setLastModified(\Carbon\Carbon::createFromTimestamp(filemtime($fullPath)));
+    $response->isNotModified(request());
 
     return $response;
 })->where('path', '.*');
@@ -326,6 +335,8 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
         Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
     });
 
+    Route::post('/reorder', [LessonsController::class, 'reorder'])->name('reorder');
+
     Route::get('/{lesson}/view', [LessonsController::class, 'view'])->name('view');
     Route::get('/{lesson}/preview-modal', [LessonsController::class, 'previewModal'])->name('preview-modal');
     Route::get('/{lesson}/edit', [LessonsController::class, 'edit'])->name('edit');
@@ -345,7 +356,36 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
     Route::get('/my-uploads', [LessonsController::class, 'mediaLibraryMyUploads'])->name('media-library.my-uploads');
 });
 
-Route::get('/testing/alphabet', [TestingController::class, 'alphabetPage'])->name('testing.alphabet');
+    // ── SYSTEM MEDIA (Admin only — gesture_media table, sign_language_media storage) ─
+    Route::prefix('media')->name('media.')->group(function () {
+        // Index — returns ONLY gesture_media (system) records, never teacher_media
+        Route::get('/',                     [AdminMediaController::class, 'index'])->name('index');
+
+        // Upload a new media file for an existing gesture
+        Route::post('/upload',              [AdminMediaController::class, 'upload'])->name('upload');
+
+        // AJAX: all gestures for the upload-modal gesture selector
+        Route::get('/gestures',             [AdminMediaController::class, 'gestures'])->name('gestures');
+
+        // AJAX: single media record info (for pre-filling the replace modal)
+        Route::get('/{id}/info',            [AdminMediaController::class, 'info'])->name('info');
+
+        // Edit metadata (display name, description, is_primary)
+        Route::post('/{id}/edit',           [AdminMediaController::class, 'edit'])->name('edit');
+
+        // Replace a file — two-step safe flow
+        // Step 1: stage the new file in temp storage (original untouched)
+        Route::post('/{id}/stage',          [AdminMediaController::class, 'stageReplace'])->name('stage');
+        // Step 2: admin confirmed — atomically swap temp → original path
+        Route::post('/{id}/confirm-replace',[AdminMediaController::class, 'confirmReplace'])->name('confirm-replace');
+        // Admin cancelled — clean up temp file
+        Route::post('/{id}/cancel-replace', [AdminMediaController::class, 'cancelReplace'])->name('cancel-replace');
+
+        // Delete (with last-media safety check)
+        Route::delete('/{id}',              [AdminMediaController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::get('/testing/alphabet', [TestingController::class, 'alphabetPage'])->name('testing.alphabet');
  
 Route::get('/api/testing/signs', [TestingController::class, 'signs'])->name('api.testing.signs');
 Route::get('/api/testing/trials', [TestingController::class, 'trials'])->name('api.testing.trials');

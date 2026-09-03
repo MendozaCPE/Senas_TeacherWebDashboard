@@ -12,11 +12,12 @@ class GestureMedia extends Model
     protected $primaryKey = 'media_id';
     
     protected $fillable = [
-        'gesture_id',
-        'module_id',        // ✅ ADD THIS
+        'gesture_id',   // nullable — null means Admin-uploaded standalone media
+        'module_id',
         'media_type',
         'file_path',
         'file_name',
+        'display_name', // Admin-editable title, persists across page loads
         'mime_type',
         'file_size',
         'is_primary',

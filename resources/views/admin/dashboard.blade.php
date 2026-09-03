@@ -292,31 +292,98 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             </div>
         </div>
 
-        {{-- Schools --}}
+        {{-- Ratings Summary --}}
         <div class="bg-white rounded-[22px] shadow-sm border border-slate-100 overflow-hidden">
-            <div class="px-6 pt-5 pb-4 border-b border-slate-50">
-                <h3 class="text-[15px] font-black text-[#0d326b]">Schools</h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">Teachers by school</p>
-            </div>
-            <div class="p-6 space-y-4">
-                @forelse($schoolStats as $school)
-                @php $maxT = $schoolStats->max('teacher_count') ?: 1; @endphp
+            <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
                 <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <p class="text-[12px] font-semibold text-slate-700 truncate pr-2">{{ $school->name }}</p>
-                        <p class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $school->teacher_count }}</p>
+                    <h3 class="text-[15px] font-black text-[#0d326b]">App Ratings</h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Overall score &amp; latest feedback</p>
+                </div>
+                <a href="{{ route('admin.ratings') }}"
+                   class="text-[11px] font-bold text-[#1a6fd4] hover:underline flex items-center gap-1">
+                    View all <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+                </a>
+            </div>
+
+            <div class="p-6 space-y-5">
+
+                {{-- Overall average --}}
+                <div class="flex items-center gap-4 p-4 rounded-2xl"
+                     style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 100%)">
+                    @php
+                        $stars  = round($overallAvgRating * 2) / 2; // nearest 0.5
+                        $full   = floor($stars);
+                        $half   = ($stars - $full) >= 0.5 ? 1 : 0;
+                        $empty  = 5 - $full - $half;
+                    @endphp
+                    <div class="text-center shrink-0">
+                        <p class="text-[36px] font-black text-white leading-none">{{ number_format($overallAvgRating, 1) }}</p>
+                        <div class="flex items-center gap-0.5 mt-1 justify-center">
+                            @for($s = 0; $s < $full;  $s++)<span class="material-symbols-outlined text-[14px] text-amber-400" style="font-variation-settings:'FILL' 1">star</span>@endfor
+                            @if($half)<span class="material-symbols-outlined text-[14px] text-amber-400" style="font-variation-settings:'FILL' 1">star_half</span>@endif
+                            @for($s = 0; $s < $empty; $s++)<span class="material-symbols-outlined text-[14px] text-white/30" style="font-variation-settings:'FILL' 1">star</span>@endfor
+                        </div>
+                        <p class="text-[10px] text-white/60 font-semibold mt-1">{{ $totalRatingsDash }} reviews</p>
                     </div>
-                    <div class="w-full bg-slate-100 rounded-full h-2">
-                        <div class="h-2 rounded-full bg-gradient-to-r from-[#0d326b] to-[#1a6fd4]"
-                             style="width:{{ round(($school->teacher_count/$maxT)*100) }}%"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[12px] font-bold text-white/80 mb-2">out of 5.0</p>
+                        @foreach([5,4,3,2,1] as $star)
+                        @php
+                            $cnt = \App\Models\TeacherRating::where('rating',$star)->count()
+                                 + \App\Models\StudentRating::where('rating',$star)->count();
+                            $pct = $totalRatingsDash > 0 ? round(($cnt / $totalRatingsDash) * 100) : 0;
+                        @endphp
+                        <div class="flex items-center gap-1.5 mb-1">
+                            <span class="text-[9px] font-bold text-white/60 w-2 shrink-0">{{ $star }}</span>
+                            <div class="flex-1 bg-white/15 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-1.5 rounded-full bg-amber-400" style="width:{{ $pct }}%"></div>
+                            </div>
+                        </div>
+                        @endforeach
                     </div>
                 </div>
-                @empty
-                <div class="py-4 text-center">
-                    <span class="material-symbols-outlined text-slate-200 text-[36px]">domain</span>
-                    <p class="text-[13px] text-slate-400 mt-2">No schools found</p>
+
+                {{-- 3 newest comments --}}
+                <div class="space-y-3">
+                    @forelse($newestRatings as $nr)
+                    <div class="p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black text-white shrink-0"
+                                     style="background:linear-gradient(135deg,#0d326b,#1a6fd4)">
+                                    {{ strtoupper(substr($nr['name'], 0, 1)) }}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-[12px] font-bold text-[#0d326b] truncate">{{ $nr['name'] }}</p>
+                                    <p class="text-[10px] text-slate-400">{{ $nr['role'] }}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-0.5 shrink-0">
+                                @for($s = 1; $s <= 5; $s++)
+                                    <span class="material-symbols-outlined text-[13px] {{ $s <= $nr['rating'] ? 'text-amber-400' : 'text-slate-200' }}"
+                                          style="font-variation-settings:'FILL' 1">star</span>
+                                @endfor
+                            </div>
+                        </div>
+                        @if(!empty($nr['comment']))
+                            <p class="text-[11.5px] text-slate-600 leading-relaxed line-clamp-2">
+                                "{{ $nr['comment'] }}"
+                            </p>
+                        @else
+                            <p class="text-[11px] text-slate-300 italic">No comment left.</p>
+                        @endif
+                        <p class="text-[10px] text-slate-400 mt-1.5">
+                            {{ \Carbon\Carbon::parse($nr['date'])->diffForHumans() }}
+                        </p>
+                    </div>
+                    @empty
+                    <div class="py-4 text-center">
+                        <span class="material-symbols-outlined text-slate-200 text-[36px]">star</span>
+                        <p class="text-[13px] text-slate-400 mt-2">No ratings yet</p>
+                    </div>
+                    @endforelse
                 </div>
-                @endforelse
+
             </div>
         </div>
 
