@@ -1127,7 +1127,7 @@ document.addEventListener('keydown', function(e) {
 
             <!-- TAB: STUDENT ACHIEVEMENTS -->
             <div id="tab-achievements" class="modal-tab-panel hidden">
-                <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center justify-between mb-4">
                     <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student Achievements</h4>
                     <span id="modal-achievements-count" class="text-[11px] font-semibold text-slate-400"></span>
                 </div>
@@ -1138,8 +1138,8 @@ document.addEventListener('keydown', function(e) {
                     <p class="text-[12px] text-slate-400 mt-2">Loading achievements...</p>
                 </div>
 
-                <!-- Achievement grid -->
-                <div id="modal-achievements-list" class="grid grid-cols-2 gap-2.5 max-h-[360px] overflow-y-auto pr-1"></div>
+                <!-- Achievement grid — 4 columns, card-style like reference image -->
+                <div id="modal-achievements-list" class="grid grid-cols-4 gap-3 max-h-[420px] overflow-y-auto pr-1"></div>
             </div>
 
         </div>
@@ -1516,49 +1516,55 @@ document.addEventListener('keydown', function(e) {
             countEl.textContent = unlocked + ' / ' + achievements.length + ' unlocked';
 
             if (achievements.length === 0) {
-                listEl.innerHTML = '<div class="col-span-2 text-center py-10 text-slate-400"><span class="material-symbols-outlined text-[36px] text-slate-300 block mb-1">workspace_premium</span><p class="text-[12px] font-semibold">No achievements recorded yet.</p></div>';
+                listEl.innerHTML = '<div class="col-span-4 text-center py-10 text-slate-400"><span class="material-symbols-outlined text-[36px] text-slate-300 block mb-1">workspace_premium</span><p class="text-[12px] font-semibold">No achievements recorded yet.</p></div>';
                 return;
             }
 
             achievements.forEach(function(a) {
-                const cfg        = categoryConfig[a.category] || { label: a.category, bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600' };
-                const opacity    = a.is_unlocked ? '' : 'opacity-40 grayscale';
-                const imgUrl     = getAchievementImageUrl(a.code);
-                const pct        = a.progress_target > 0 ? Math.min(100, Math.round((a.progress_current / a.progress_target) * 100)) : 0;
-                const unlockedDate = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+                const cfg     = categoryConfig[a.category] || { label: a.category, bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600' };
+                const opacity = a.is_unlocked ? '' : 'grayscale opacity-50';
+                const imgUrl  = getAchievementImageUrl(a.code);
+                const pct     = a.progress_target > 0 ? Math.min(100, Math.round((a.progress_current / a.progress_target) * 100)) : (a.is_unlocked ? 100 : 0);
 
-                // Image slot: real image if mapped, fallback to material icon
-                const imgSlot = imgUrl
-                    ? `<img src="${imgUrl}" alt="${a.name}" class="w-full h-full object-contain p-0.5" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                       <span class="material-symbols-outlined text-[22px] ${cfg.text} hidden" style="display:none">${a.icon || 'workspace_premium'}</span>`
-                    : `<span class="material-symbols-outlined text-[22px] ${cfg.text}" style="${a.color ? 'color:' + a.color : ''}">${a.icon || 'workspace_premium'}</span>`;
+                // Progress bar color: green if unlocked, blue if in-progress, grey if untouched
+                const barColor = a.is_unlocked
+                    ? 'bg-emerald-500'
+                    : (a.progress_current > 0 ? 'bg-[#1a6fd4]' : 'bg-slate-300');
+
+                // Progress label
+                const progressLabel = a.is_unlocked
+                    ? '&#x2713; Unlocked'
+                    : (a.progress_target > 0 ? `${a.progress_current} / ${a.progress_target}` : '0 / 1');
+
+                // Badge / icon in the center of the card
+                const badgeEl = imgUrl
+                    ? `<img src="${imgUrl}" alt="${a.name}" class="w-14 h-14 object-contain drop-shadow-sm"
+                           onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+                       <span class="material-symbols-outlined text-[36px] ${cfg.text} hidden">${a.icon || 'workspace_premium'}</span>`
+                    : `<span class="material-symbols-outlined text-[36px] ${cfg.text}" style="${a.color ? 'color:' + a.color : ''}">${a.icon || 'workspace_premium'}</span>`;
 
                 const card = document.createElement('div');
-                card.className = `relative flex items-start gap-3 p-3 rounded-2xl border ${cfg.border} ${cfg.bg} ${opacity} transition-all`;
+                card.className = `flex flex-col items-center text-center bg-white border border-slate-200 rounded-2xl p-3 shadow-sm ${opacity} transition-all hover:shadow-md`;
                 card.innerHTML = `
-                    <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white border ${cfg.border} shadow-sm">
-                        ${imgSlot}
+                    <!-- Badge icon area -->
+                    <div class="flex items-center justify-center w-16 h-16 mb-2">
+                        ${badgeEl}
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <p class="text-[12px] font-bold text-slate-700 leading-tight">${a.name}</p>
-                            ${a.is_unlocked
-                                ? '<span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Unlocked</span>'
-                                : '<span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Locked</span>'}
-                            <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.text} border ${cfg.border}">${cfg.label}</span>
+
+                    <!-- Title -->
+                    <p class="text-[11.5px] font-bold text-slate-700 leading-tight mb-0.5">${a.name}
+                        ${a.is_unlocked ? '<span class="text-emerald-500 text-[11px]">&#x2713;</span>' : ''}
+                    </p>
+
+                    <!-- Description -->
+                    <p class="text-[10px] text-slate-400 leading-snug mb-2 px-1">${a.description || ''}</p>
+
+                    <!-- Progress bar + label -->
+                    <div class="w-full mt-auto">
+                        <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-1">
+                            <div class="h-full rounded-full ${barColor} transition-all" style="width:${pct}%"></div>
                         </div>
-                        <p class="text-[10.5px] text-slate-500 mt-0.5 leading-snug">${a.description || ''}</p>
-                        ${unlockedDate ? `<p class="text-[10px] text-emerald-600 font-semibold mt-1">🗓 ${unlockedDate}</p>` : ''}
-                        ${!a.is_unlocked && a.progress_target > 0 ? `
-                        <div class="mt-1.5">
-                            <div class="flex items-center justify-between mb-0.5">
-                                <span class="text-[9.5px] text-slate-400">Progress</span>
-                                <span class="text-[9.5px] font-bold text-slate-500">${a.progress_current} / ${a.progress_target}</span>
-                            </div>
-                            <div class="h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                                <div class="h-full rounded-full bg-[#1a6fd4]" style="width:${pct}%"></div>
-                            </div>
-                        </div>` : ''}
+                        <span class="text-[9.5px] font-semibold ${a.is_unlocked ? 'text-emerald-600' : 'text-slate-400'}">${progressLabel}</span>
                     </div>
                 `;
                 listEl.appendChild(card);
@@ -1566,7 +1572,7 @@ document.addEventListener('keydown', function(e) {
         })
         .catch(function() {
             loadingEl.classList.add('hidden');
-            listEl.innerHTML = '<div class="col-span-2 text-center py-8 text-slate-400"><p class="text-[12px] font-semibold">Failed to load achievements.</p></div>';
+            listEl.innerHTML = '<div class="col-span-4 text-center py-8 text-slate-400"><p class="text-[12px] font-semibold">Failed to load achievements.</p></div>';
         });
     }
 
