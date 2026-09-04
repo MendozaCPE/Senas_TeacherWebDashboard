@@ -505,7 +505,9 @@
             const isDefinitivelyHookedX = indexTotalLen < (indexBaseLen * 2.1) && indexTotalLen > (indexBaseLen * 0.5);
             const othersAreClosed = middleTotalLen < (handScale * 0.75) && ringTotalLen < (handScale * 0.75) && pinkyTotalLen < (handScale * 0.75);
 
-            if (isDefinitivelyHookedX && othersAreClosed && !isFistState && !indexSideways) {
+            // In X, the hand is held upright with the index finger hooked.
+            // It is NEVER pointing downwards like in Q or P.
+            if (isDefinitivelyHookedX && othersAreClosed && !isFistState && !indexSideways && !indexIsDownwards) {
                 const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
                 if (distThumbToIndexPip > (handScale * 0.22)) {
                     return { letter: 'X', confidence: 0.99 };
@@ -610,12 +612,22 @@
             // INVERTED HANDS (P & Q) — strictly blocked if all fingers are curled in a fist
             // -------------------------------------------------------------------------
             if (!isFistState && !isTrueFist) {
+                // P: Both Index and Middle are pointing downwards
                 if (indexIsDownwards && middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2)) {
                     return { letter: 'P', confidence: 0.99 };
                 }
 
-                if (indexIsDownwards && !middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2) && (predicted === 'Q' || predicted === 'G' || predicted === 'P')) {
-                    return { letter: 'Q', confidence: 0.99 };
+                // Q: Index is pointing downwards, middle/ring/pinky are curled into palm,
+                // and thumb points downwards alongside index finger
+                const isQHandShape = indexIsDownwards && !middleIsDownwards && 
+                                     !middleUp && !ringUp && !pinkyUp &&
+                                     (middleTotalLen < handScale * 0.75 || ringTip.y < ringMcp.y + (handScale * 0.25));
+
+                if (isQHandShape) {
+                    const thumbPointsDown = thumbTip.y > thumbMcp.y - (handScale * 0.10);
+                    if (thumbPointsDown || predicted === 'Q') {
+                        return { letter: 'Q', confidence: 0.99 };
+                    }
                 }
             }
 
@@ -754,7 +766,7 @@
 
             // FIXED Q DETECTOR (Strictly for non-fist downward-pointing hand)
             if (!isFistState && !isTrueFist && !indexCurled && (indexIsDownwards || predicted === 'Q') && !middleUp && !ringUp && !pinkyUp) {
-                if (getDistance2D(indexTip, indexMcp) > (handScale * 0.45)) {
+                if (getDistance2D(indexTip, indexMcp) > (handScale * 0.28)) {
                     return { letter: 'Q', confidence: 0.99 };
                 }
             }
