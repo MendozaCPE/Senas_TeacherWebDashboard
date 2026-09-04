@@ -478,6 +478,36 @@
         td.correct { color: #166534; font-weight: 700; }
         td.incorrect { color: #991b1b; font-weight: 700; }
 
+        .btn-delete-trial {
+            background: #fff;
+            color: #ef4444;
+            border: 1px solid #fecaca;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-delete-trial:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #b91c1c;
+            transform: scale(1.02);
+        }
+        .signer-badge-tag {
+            background: #f1f5f9;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
         /* ---------- Modal for Confusion Matrix & Metrics ---------- */
         #metrics-modal {
             position: fixed;
@@ -608,6 +638,7 @@
 
             <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); margin-right: -4px;">Signer:</label>
             <select id="signer-select">
+                <option value="all">👥 All Signers (View All)</option>
                 <option value="researcher1">Researcher 1 — Danah</option>
                 <option value="researcher2">Researcher 2 — Christian</option>
                 <option value="researcher3">Researcher 3 — Theresa</option>
@@ -718,10 +749,11 @@
                                 <th>Outcome</th>
                                 <th>Response Latency</th>
                                 <th>Timestamp</th>
+                                <th style="text-align:center;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="trial-log-body">
-                            <tr><td colspan="7" style="text-align:center;color:var(--text-dim);">No trials recorded yet for this sign.</td></tr>
+                            <tr><td colspan="8" style="text-align:center;color:var(--text-dim);">No trials recorded yet for this sign.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -872,12 +904,18 @@
         let captureStartTime = null;
         let firstFeedbackTime = null;
         let captureSamples = [];
+        let currentSignTrials = [];
 
         // Save & restore last-used signer
         const savedSigner = localStorage.getItem('senas_signer_id');
-        if (savedSigner) signerSelect.value = savedSigner;
+        if (savedSigner) {
+            signerSelect.value = savedSigner;
+        } else {
+            signerSelect.value = 'researcher1';
+        }
         signerSelect.addEventListener('change', () => {
             localStorage.setItem('senas_signer_id', signerSelect.value);
+            renderTrialLog();
         });
 
         // Module select redirect
@@ -1012,28 +1050,93 @@
                     return;
                 }
                 const data = await res.json();
-                trialLogBody.innerHTML = '';
-                trialLogCount.textContent = `${data.trials.length} recorded`;
+                currentSignTrials = data.trials || [];
+                renderTrialLog();
+            } catch (e) {
+                console.error('Error loading trial log:', e);
+            }
+        }
 
-                if (data.trials.length === 0) {
-                    trialLogBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-dim);">No trials recorded yet for this sign. Click Record to test.</td></tr>`;
+        function renderTrialLog() {
+            const selectedSigner = signerSelect.value;
+            const isAll = (selectedSigner === 'all' || !selectedSigner);
+            const filtered = isAll
+                ? currentSignTrials
+                : currentSignTrials.filter(t => t.signer_id === selectedSigner);
+
+            trialLogBody.innerHTML = '';
+            const signerLabel = isAll ? 'All Signers' : (signerSelect.options[signerSelect.selectedIndex]?.text.split('—')[0].trim() || selectedSigner);
+            trialLogCount.textContent = `${filtered.length} recorded${!isAll ? ` (${signerLabel})` : ' (All)'}`;
+
+            if (filtered.length === 0) {
+                trialLogBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">No trials recorded yet for ${isAll ? 'this sign' : signerLabel}. Click Record to test.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.id = `trial-row-${t.id}`;
+                tr.innerHTML = `
+                    <td><strong>#${t.trial_number}</strong></td>
+                    <td><span class="signer-badge-tag">${t.signer_id}</span></td>
+                    <td><strong>${t.predicted_label ?? '—'}</strong></td>
+                    <td>${t.confidence_score != null ? Math.round(t.confidence_score * 100) + '%' : '—'}</td>
+                    <td class="${t.is_correct ? 'correct' : 'incorrect'}">${t.is_correct ? '✓ Correct' : '✗ Incorrect'}</td>
+                    <td>${t.response_latency_ms != null ? t.response_latency_ms + ' ms' : '—'}</td>
+                    <td>${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-delete-trial" onclick="deleteTrial(${t.id}, ${t.trial_number})" title="Delete Trial #${t.trial_number}">
+                            🗑️ Delete
+                        </button>
+                    </td>`;
+                trialLogBody.appendChild(tr);
+            });
+        }
+
+        async function deleteTrial(trialId, trialNumber) {
+            if (!confirm(`Are you sure you want to delete Trial #${trialNumber}? This will remove it from the evaluation metrics.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/admin/api/testing/trials/${trialId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    console.error('Failed to delete trial:', res.status, errText);
+                    alert(`Failed to delete trial (HTTP ${res.status}).`);
                     return;
                 }
 
-                data.trials.forEach(t => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><strong>#${t.trial_number}</strong></td>
-                        <td>${t.signer_id}</td>
-                        <td><strong>${t.predicted_label ?? '—'}</strong></td>
-                        <td>${t.confidence_score != null ? Math.round(t.confidence_score * 100) + '%' : '—'}</td>
-                        <td class="${t.is_correct ? 'correct' : 'incorrect'}">${t.is_correct ? '✓ Correct' : '✗ Incorrect'}</td>
-                        <td>${t.response_latency_ms != null ? t.response_latency_ms + ' ms' : '—'}</td>
-                        <td>${new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>`;
-                    trialLogBody.appendChild(tr);
-                });
-            } catch (e) {
-                console.error('Error loading trial log:', e);
+                const respData = await res.json();
+
+                // Remove from in-memory array
+                currentSignTrials = currentSignTrials.filter(t => t.id !== trialId);
+
+                // Update sign trial count
+                const sign = signs[currentSignIndex];
+                if (sign) {
+                    if (respData.remaining_count !== undefined) {
+                        sign.trial_count = respData.remaining_count;
+                    } else if (sign.trial_count > 0) {
+                        sign.trial_count--;
+                    }
+                }
+
+                renderSignGrid();
+                updateProgressPill();
+                renderTrialLog();
+                statusLine.textContent = `Trial #${trialNumber} deleted successfully.`;
+            } catch (err) {
+                console.error('Trial delete error:', err);
+                alert('Network or server error while deleting trial.');
             }
         }
 
@@ -1042,6 +1145,13 @@
 
         recordBtn.onclick = async () => {
             if (isCapturing) return;
+
+            if (signerSelect.value === 'all') {
+                statusLine.textContent = '⚠️ Please select a specific signer (e.g., Researcher 1) in the topbar before recording.';
+                alert('Please select a specific signer (e.g., Researcher 1) from the Signer dropdown before recording a test trial.');
+                signerSelect.focus();
+                return;
+            }
             const sign = signs[currentSignIndex];
             const isDynamic = sign.sign_type === 'dynamic';
             const captureWindow = isDynamic ? 3000 : 1500;

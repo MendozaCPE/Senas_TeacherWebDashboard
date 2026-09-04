@@ -233,6 +233,29 @@ class TestingController extends Controller
     }
 
     /**
+     * DELETE /admin/api/testing/trials/{id}
+     */
+    public function destroyTrial($id)
+    {
+        $trial = TestTrial::find($id);
+        if (!$trial) {
+            return response()->json(['error' => 'Trial not found'], 404);
+        }
+
+        $gestureId = $trial->gesture_id;
+        $trial->delete();
+
+        $remainingCount = TestTrial::where('gesture_id', $gestureId)->count();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Trial deleted successfully',
+            'gesture_id' => $gestureId,
+            'remaining_count' => $remainingCount,
+        ]);
+    }
+
+    /**
      * GET /admin/api/testing/export?module=alphabets
      */
     public function export(Request $request)

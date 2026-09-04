@@ -392,6 +392,7 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
 Route::get('/api/testing/signs', [TestingController::class, 'signs'])->name('api.testing.signs');
 Route::get('/api/testing/trials', [TestingController::class, 'trials'])->name('api.testing.trials');
 Route::post('/api/testing/trials', [TestingController::class, 'store'])->name('api.testing.trials.store');
+Route::delete('/api/testing/trials/{id}', [TestingController::class, 'destroyTrial'])->name('api.testing.trials.destroy');
 Route::get('/api/testing/export', [TestingController::class, 'export'])->name('api.testing.export');
 Route::get('/api/testing/metrics', [TestingController::class, 'metrics'])->name('api.testing.metrics');
 Route::get('/api/testing/export-csv', [TestingController::class, 'exportCsv'])->name('api.testing.export-csv');

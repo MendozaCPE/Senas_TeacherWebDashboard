@@ -557,19 +557,30 @@
             }
 
             // -------------------------------------------------------------------------
+            // COMMON DISTANCES FOR FIST-BASED LETTERS (T, S, M, N, A)
+            // -------------------------------------------------------------------------
+            const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
+            const distThumbToIndexMcp = getDistance2D(thumbTip, indexMcp);
+            const distThumbToMiddlePip = getDistance2D(thumbTip, middlePip);
+            const distThumbToMiddleMcp = getDistance2D(thumbTip, middleMcp);
+
+            // A straight or outward 'A' has the thumb resting on the lateral outside of the index finger.
+            // It will be relatively far from the middle finger joints compared to tucked (T) or crossed (S) thumbs.
+            const isOutsideThumbA = distThumbToMiddleMcp > (handScale * 0.32) && distThumbToMiddlePip > (handScale * 0.32);
+
+            // -------------------------------------------------------------------------
             // T DETECTOR (STRICT FOR 'A', ACCOMMODATES SIDE VIEW 'T')
             // -------------------------------------------------------------------------
             if (isFistState || isTrueFist || predicted === 'T' || (!middleUp && !ringUp && !pinkyUp && !isIndexHooked)) {
-                const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
-                const distThumbToIndexMcp = getDistance2D(thumbTip, indexMcp);
-                const distThumbToMiddlePip = getDistance2D(thumbTip, middlePip);
+                
+                const isThumbBetweenKnucklesX = (thumbTip.x > Math.min(indexMcp.x, middleMcp.x)) && (thumbTip.x < Math.max(indexMcp.x, middleMcp.x));
 
-                // Fix: In T, thumb is tucked UNDER index (closer to PIP than MCP).
-                // In A, thumb is on the side (closer to MCP than PIP). This protects A.
-                if ((distThumbToIndexPip < (handScale * 0.28) && distThumbToIndexPip < distThumbToIndexMcp) ||
-                    (thumbTip.x > indexMcp.x && thumbTip.x < middleMcp.x && thumbTip.y > indexMcp.y)) {
-
-                    // Fix: Ensure the thumb hasn't crossed entirely to the middle finger (protects S)
+                // Fix: Ensure we don't swallow a straight-thumb 'A' by demanding the thumb is NOT purely on the outside.
+                if (
+                    (!isOutsideThumbA && distThumbToIndexPip < (handScale * 0.28) && distThumbToIndexPip < distThumbToIndexMcp) ||
+                    (isThumbBetweenKnucklesX && thumbTip.y > indexMcp.y)
+                ) {
+                    // Ensure the thumb hasn't crossed entirely to the middle finger (protects S)
                     if (distThumbToMiddlePip > (handScale * 0.22) || predicted === 'T') {
                         return { letter: 'T', confidence: 0.99 };
                     }
@@ -592,16 +603,13 @@
             // -------------------------------------------------------------------------
             if (isFistState || isTrueFist) {
                 const distThumbRingMcp = getDistance2D(thumbTip, ringMcp);
-                const distThumbMiddleMcp = getDistance2D(thumbTip, middleMcp);
-                const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp);
-                const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
-                const distThumbToMiddlePip = getDistance2D(thumbTip, middlePip);
+                const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp); // Kept for M/N checks
                 const ringTipY = ringTip.y;
                 const middleTipY = middleTip.y;
 
                 // 1. Strict S Catch (Evaluated first so N cannot steal it)
                 // In S, the thumb securely crosses over the front of the fingers (near the PIPs).
-                if (distThumbToMiddlePip < (handScale * 0.26) || distThumbToIndexPip < (handScale * 0.26) || predicted === 'S') {
+                if (!isOutsideThumbA && (distThumbToMiddlePip < (handScale * 0.26) || distThumbToIndexPip < (handScale * 0.26) || predicted === 'S')) {
                     // Prevent A from incorrectly triggering S
                     if (distThumbToIndexPip < distThumbIndexMcp || predicted === 'S') {
                         return { letter: 'S', confidence: 0.99 };
@@ -612,21 +620,21 @@
                 if (distThumbRingMcp < (handScale * 0.28) &&
                     ringTipY > ringMcp.y &&
                     middleTipY > middleMcp.y &&
-                    distThumbRingMcp < distThumbMiddleMcp &&
+                    distThumbRingMcp < distThumbToMiddleMcp &&
                     distThumbRingMcp < distThumbIndexMcp) {
                     return { letter: 'M', confidence: 0.99 };
                 }
 
                 // 3. N
-                if (distThumbMiddleMcp < (handScale * 0.26) &&
+                if (distThumbToMiddleMcp < (handScale * 0.26) &&
                     middleTipY > middleMcp.y &&
                     ringTipY > ringMcp.y &&
-                    distThumbMiddleMcp < distThumbIndexMcp) {
+                    distThumbToMiddleMcp < distThumbIndexMcp) {
                     return { letter: 'N', confidence: 0.99 };
                 }
 
                 // 4. Fallback S (prevents swallowing A by dropping the indexMcp check)
-                if (distThumbMiddleMcp < (handScale * 0.26)) {
+                if (!isOutsideThumbA && distThumbToMiddleMcp < (handScale * 0.26)) {
                     return { letter: 'S', confidence: 0.99 };
                 }
 
