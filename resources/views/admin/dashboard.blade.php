@@ -75,36 +75,70 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
     </div>
 
     {{-- ── KPI CARDS ────────────────────────────────────────────────────── --}}
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        @php
-            $kpiCards = [
-                ['icon'=>'school',    'label'=>'Total Teachers',    'val'=>$totalTeachers,                        'sub'=>'↑ '.$newTeachersWeek.' this week',                         'color'=>'#0d326b', 'subcolor'=>'#1a6fd4', 'spark'=>$sparkTeachers, 'sc'=>'#0d326b'],
-                ['icon'=>'group',     'label'=>'Total Students',    'val'=>$totalStudents,                        'sub'=>'↑ '.$newStudentsWeek.' this week',                          'color'=>'#1e4b8f', 'subcolor'=>'#1a6fd4', 'spark'=>$sparkStudents, 'sc'=>'#1e4b8f'],
-                ['icon'=>'menu_book', 'label'=>'Lessons Completed', 'val'=>number_format($totalLessonsCompleted), 'sub'=>$publishedLessons.' published lessons',                      'color'=>'#1a6fd4', 'subcolor'=>'#1a6fd4', 'spark'=>$sparkLessons,  'sc'=>'#1a6fd4'],
-                ['icon'=>'inbox',     'label'=>'Pending Reports',   'val'=>$pendingReports,                       'sub'=>$resolvedReports.' resolved of '.$totalReports.' total',    'color'=>$pendingReports>0?'#ef4444':'#3b82f6', 'subcolor'=>'#94a3b8', 'spark'=>null, 'sc'=>null],
-            ];
-        @endphp
-        @foreach($kpiCards as $kc)
-        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $kc['color'] }}">
-                    <span class="material-symbols-outlined text-white text-[18px]">{{ $kc['icon'] }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+
+        {{-- Card 1: Total Teachers — navy gradient --}}
+        <div class="stat-kpi-card text-white" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Total Teachers</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px] text-white">school</span>
                 </div>
-                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $kc['label'] }}</h3>
             </div>
-            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $kc['val'] }}</p>
-            <p class="text-[12px] font-medium mt-2 mb-4" style="color:{{ $kc['subcolor'] }}">{{ $kc['sub'] }}</p>
-            @if($kc['spark'])
-            <div class="mt-auto -mx-1">{!! $spark($kc['spark'] ?: array_fill(0,7,0), $kc['sc']) !!}</div>
-            @else
-            <div class="mt-auto">
-                <a href="{{ route('admin.reports') }}" class="text-[12px] font-bold text-[#0d326b] hover:underline flex items-center gap-1">
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $totalTeachers }}</p>
+            <p class="text-[12px] text-white/70 font-medium">↑ {{ $newTeachersWeek }} this week</p>
+            @if(!empty($sparkTeachers))
+            <div class="mt-3 opacity-60">{!! $spark($sparkTeachers, 'rgba(255,255,255,0.7)') !!}</div>
+            @endif
+        </div>
+
+        {{-- Card 2: Total Students — white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Students</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">group</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $totalStudents }}</p>
+            <p class="text-[12px] text-[#1a6fd4] font-medium">↑ {{ $newStudentsWeek }} this week</p>
+            @if(!empty($sparkStudents))
+            <div class="mt-3">{!! $spark($sparkStudents, '#1e4b8f') !!}</div>
+            @endif
+        </div>
+
+        {{-- Card 3: Lessons Completed — white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Lessons Completed</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1a6fd4] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($totalLessonsCompleted) }}</p>
+            <p class="text-[12px] text-slate-400 font-medium">{{ $publishedLessons }} published lessons</p>
+            @if(!empty($sparkLessons))
+            <div class="mt-3">{!! $spark($sparkLessons, '#1a6fd4') !!}</div>
+            @endif
+        </div>
+
+        {{-- Card 4: Pending Reports — amber gradient --}}
+        <div class="text-amber-950" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%);border:1px solid rgba(245,158,11,.5);box-shadow:0 4px 16px rgba(245,158,11,.22);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Pending Reports</span>
+                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                    <span class="material-symbols-outlined text-[20px]">inbox</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ $pendingReports }}</p>
+            <p class="text-[12px] text-amber-950/80 font-bold">{{ $resolvedReports }} resolved of {{ $totalReports }} total</p>
+            <div class="mt-3">
+                <a href="{{ route('admin.reports') }}" class="inline-flex items-center gap-1 text-[12px] font-bold text-amber-950/80 hover:text-amber-950 transition-colors">
                     View all reports <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </a>
             </div>
-            @endif
         </div>
-        @endforeach
+
     </div>
 
     {{-- ── MAIN GRID: chart (2/3) + side stats (1/3) ─────────────────── --}}

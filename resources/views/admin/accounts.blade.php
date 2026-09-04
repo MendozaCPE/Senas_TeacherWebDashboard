@@ -5,28 +5,68 @@
 <div class="flex flex-col gap-4 pt-4">
 
     <!-- Stats Row -->
-    <div class="grid grid-cols-2 xl:grid-cols-5 gap-4">
-        @php
-            $acStats = [
-                ['label'=>'Total Accounts', 'value'=>$totalAccounts,  'icon'=>'person',             'color'=>'#0d326b', 'subcolor'=>'#94a3b8', 'sub'=>'all registered users'],
-                ['label'=>'Admins',         'value'=>$adminCount,     'icon'=>'admin_panel_settings','color'=>'#1e4b8f', 'subcolor'=>'#94a3b8', 'sub'=>'with admin privileges'],
-                ['label'=>'Teachers',       'value'=>$teacherCount,   'icon'=>'school',              'color'=>'#1a6fd4', 'subcolor'=>'#94a3b8', 'sub'=>'active teacher accounts'],
-                ['label'=>'Active',         'value'=>$activeCount,    'icon'=>'check_circle',        'color'=>'#10b981', 'subcolor'=>'#10b981', 'sub'=>'accounts enabled'],
-                ['label'=>'Inactive',       'value'=>$inactiveCount,  'icon'=>'cancel',              'color'=>'#ef4444', 'subcolor'=>'#ef4444', 'sub'=>'accounts disabled'],
-            ];
-        @endphp
-        @foreach($acStats as $st)
-        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[148px]">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $st['color'] }}">
-                    <span class="material-symbols-outlined text-white text-[18px]">{{ $st['icon'] }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
+
+        {{-- Card 1: Total Accounts — navy gradient --}}
+        <div class="text-white" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Total Accounts</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px] text-white">person</span>
                 </div>
-                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $st['label'] }}</h3>
             </div>
-            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $st['value'] }}</p>
-            <p class="text-[12px] font-medium mt-2" style="color:{{ $st['subcolor'] }}">{{ $st['sub'] }}</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $totalAccounts }}</p>
+            <p class="text-[12px] text-white/70 font-medium">all registered users</p>
         </div>
-        @endforeach
+
+        {{-- Card 2: Admins — white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Admins</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $adminCount }}</p>
+            <p class="text-[12px] text-slate-400 font-medium">with admin privileges</p>
+        </div>
+
+        {{-- Card 3: Teachers — white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Teachers</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1a6fd4] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">school</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $teacherCount }}</p>
+            <p class="text-[12px] text-[#1a6fd4] font-medium">active teacher accounts</p>
+        </div>
+
+        {{-- Card 4: Active — emerald white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #d1fae5;background:#f0fdf4;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Active</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-emerald-700 tracking-tight">{{ $activeCount }}</p>
+            <p class="text-[12px] text-emerald-600 font-medium">accounts enabled</p>
+        </div>
+
+        {{-- Card 5: Inactive — amber gradient --}}
+        <div class="text-amber-950" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%);border:1px solid rgba(245,158,11,.5);box-shadow:0 4px 16px rgba(245,158,11,.22);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Inactive</span>
+                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                    <span class="material-symbols-outlined text-[20px]">cancel</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ $inactiveCount }}</p>
+            <p class="text-[12px] text-amber-950/80 font-bold">accounts disabled</p>
+        </div>
+
     </div>
 
     <!-- Search & Filter Bar -->

@@ -5,26 +5,44 @@
 <div class="flex flex-col gap-4 pt-4">
 
     <!-- Stats Row -->
-    <div class="grid grid-cols-3 gap-4">
-        @php
-            $logStats = [
-                ['label'=>'Total Log Entries', 'value'=>number_format($totalLogs), 'icon'=>'fact_check',  'color'=>'#0d326b', 'subcolor'=>'#94a3b8', 'sub'=>'all time'],
-                ['label'=>'Today',             'value'=>number_format($todayLogs), 'icon'=>'today',       'color'=>'#1e4b8f', 'subcolor'=>'#1a6fd4', 'sub'=>'logged today'],
-                ['label'=>'Last 7 Days',       'value'=>number_format($weekLogs),  'icon'=>'date_range',  'color'=>'#1a6fd4', 'subcolor'=>'#1a6fd4', 'sub'=>'this week'],
-            ];
-        @endphp
-        @foreach($logStats as $ls)
-        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[148px]">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $ls['color'] }}">
-                    <span class="material-symbols-outlined text-white text-[18px]">{{ $ls['icon'] }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+        {{-- Card 1: Total Log Entries — navy gradient --}}
+        <div class="text-white" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Total Log Entries</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px] text-white">fact_check</span>
                 </div>
-                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $ls['label'] }}</h3>
             </div>
-            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $ls['value'] }}</p>
-            <p class="text-[12px] font-medium mt-2" style="color:{{ $ls['subcolor'] }}">{{ $ls['sub'] }}</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ number_format($totalLogs) }}</p>
+            <p class="text-[12px] text-white/70 font-medium">all time</p>
         </div>
-        @endforeach
+
+        {{-- Card 2: Today — white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Today</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1e4b8f] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">today</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($todayLogs) }}</p>
+            <p class="text-[12px] text-[#1a6fd4] font-medium">logged today</p>
+        </div>
+
+        {{-- Card 3: Last 7 Days — amber gradient --}}
+        <div class="text-amber-950" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%);border:1px solid rgba(245,158,11,.5);box-shadow:0 4px 16px rgba(245,158,11,.22);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Last 7 Days</span>
+                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                    <span class="material-symbols-outlined text-[20px]">date_range</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ number_format($weekLogs) }}</p>
+            <p class="text-[12px] text-amber-950/80 font-bold">this week</p>
+        </div>
+
     </div>
 
     <!-- Filter Bar -->

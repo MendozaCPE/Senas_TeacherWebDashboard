@@ -9,10 +9,57 @@
 .a-panel { background:#fff; border-radius:20px; border:1px solid #f1f5f9; box-shadow:0 1px 3px rgba(13,50,107,.05); padding:24px; }
 .a-panel:hover { box-shadow:0 6px 24px rgba(13,50,107,.07); }
 
-/* ── Filter pill ── */
-.filter-pill { appearance:none; background:#f1f5f9; color:#1e293b; font-size:12px; font-weight:600;
-               padding:8px 32px 8px 14px; border-radius:9999px; border:none; outline:none; cursor:pointer; }
-.filter-pill:hover { background:#e2e8f0; }
+/* ── Filter container (matches teacher analytics) ── */
+.filter-container {
+    background: #ffffff;
+    border-radius: 22px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 2px 10px rgba(13,50,107,.03);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.filter-group { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.filter-wrap  { position:relative; display:inline-flex; align-items:center; }
+.filter-select {
+    appearance:none; background:#f8fafc; border:1px solid #e2e8f0;
+    border-radius:14px; padding:8px 34px 8px 14px; font-size:13px;
+    font-weight:600; color:#0d326b; cursor:pointer; outline:none;
+    transition:border-color .15s, background-color .15s;
+}
+.filter-select:hover { background:#f1f5f9; border-color:#cbd5e1; }
+.filter-wrap .material-symbols-outlined { position:absolute; right:10px; pointer-events:none; font-size:18px; color:#0d326b; }
+.filter-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:9px 18px; border-radius:14px; font-size:13px; font-weight:700;
+    color:#fff; border:none; cursor:pointer; transition:opacity .15s;
+    background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%);
+}
+.filter-btn:hover { opacity:.9; }
+.filter-reset {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:9px 16px; border-radius:14px; font-size:13px; font-weight:600;
+    color:#64748b; border:1.5px solid #e2e8f0; background:#fff;
+    text-decoration:none; transition:all .15s;
+}
+.filter-reset:hover { background:#f8fafc; border-color:#cbd5e1; color:#0d326b; }
+
+/* ── KPI stat cards (matches teacher analytics) ── */
+.stat-kpi-card {
+    border-radius: 24px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease;
+    border: 1px solid #f1f5f9;
+}
+.stat-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(13,50,107,.08);
+}
 
 /* ── Sign-type tabs ── */
 .gsign-tab { display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:9px;
@@ -103,76 +150,108 @@ $dAcc            = $dTotalAttempts > 0 ? round(($dTotalSuccess/$dTotalAttempts)*
 <div class="flex flex-col gap-5 pt-4">
 
 {{-- ══ 1. FILTER BAR ══════════════════════════════════════════════════════ --}}
-<div class="a-panel !py-3 flex items-center gap-3 flex-wrap">
-    <span class="material-symbols-outlined text-slate-400 text-[18px]">tune</span>
-    <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Period</span>
-    <form method="GET" action="{{ route('admin.analytics') }}" class="flex items-center gap-2 flex-wrap flex-1">
-        <div class="relative">
-            <select name="period" class="filter-pill pr-8">
-                @foreach(['weekly'=>'Weekly','monthly'=>'Monthly','quarterly'=>'Quarterly','yearly'=>'Yearly'] as $v=>$l)
-                <option value="{{ $v }}" {{ $period===$v?'selected':'' }}>{{ $l }}</option>
-                @endforeach
-            </select>
-            <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">expand_more</span>
+<form method="GET" action="{{ route('admin.analytics') }}" id="adminAnalyticsFilterForm">
+    <div class="filter-container">
+        <div class="filter-group">
+            <div class="flex items-center gap-2 mr-2">
+                <span class="material-symbols-outlined text-[#0d326b] text-[22px]">tune</span>
+                <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Period</span>
+            </div>
+
+            <div class="filter-wrap">
+                <select name="period" id="adminPeriodSelect" class="filter-select" onchange="document.getElementById('adminAnalyticsFilterForm').submit()">
+                    @foreach(['weekly'=>'Weekly Trend','monthly'=>'Monthly','quarterly'=>'Quarterly','yearly'=>'Yearly'] as $v=>$l)
+                    <option value="{{ $v }}" {{ $period===$v?'selected':'' }}>{{ $l }}</option>
+                    @endforeach
+                </select>
+                <span class="material-symbols-outlined">expand_more</span>
+            </div>
+
+            <div class="filter-wrap">
+                <select name="year" class="filter-select">
+                    @for($y=date('Y');$y>=2024;$y--)
+                    <option value="{{ $y }}" {{ $year==$y?'selected':'' }}>{{ $y }}</option>
+                    @endfor
+                </select>
+                <span class="material-symbols-outlined">expand_more</span>
+            </div>
+
+            <div class="filter-wrap {{ $period==='monthly'?'':'hidden' }}" id="adminMonthWrap">
+                <select name="month" class="filter-select">
+                    @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $mi=>$mn)
+                    <option value="{{ $mi+1 }}" {{ $month==$mi+1?'selected':'' }}>{{ $mn }}</option>
+                    @endforeach
+                </select>
+                <span class="material-symbols-outlined">expand_more</span>
+            </div>
+
+            <a href="{{ route('admin.analytics') }}" class="filter-reset">Reset</a>
+            <button type="submit" class="filter-btn">
+                <span class="material-symbols-outlined text-[16px]">refresh</span>
+                Apply
+            </button>
         </div>
-        @if(in_array($period,['monthly','quarterly','yearly']))
-        <div class="relative">
-            <select name="year" class="filter-pill pr-8">
-                @for($y=date('Y');$y>=2024;$y--)<option value="{{ $y }}" {{ $year==$y?'selected':'' }}>{{ $y }}</option>@endfor
-            </select>
-            <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">expand_more</span>
-        </div>
-        @endif
-        @if($period==='monthly')
-        <div class="relative">
-            <select name="month" class="filter-pill pr-8">
-                @foreach(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] as $mi=>$mn)
-                <option value="{{ $mi+1 }}" {{ $month==$mi+1?'selected':'' }}>{{ $mn }}</option>
-                @endforeach
-            </select>
-            <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">expand_more</span>
-        </div>
-        @endif
-        <button type="submit"
-            class="px-4 py-2 rounded-full text-[12px] font-bold text-white flex items-center gap-1.5 hover:opacity-90 transition-opacity"
-            style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%)">
-            <span class="material-symbols-outlined text-[14px]">refresh</span>Apply
-        </button>
-        <a href="{{ route('admin.analytics') }}"
-           class="px-4 py-2 rounded-full border border-slate-200 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 transition-colors">Reset</a>
-    </form>
-</div>
+    </div>
+</form>
+
+<script>
+document.getElementById('adminPeriodSelect')?.addEventListener('change', function() {
+    const wrap = document.getElementById('adminMonthWrap');
+    if (wrap) wrap.classList.toggle('hidden', this.value !== 'monthly');
+});
+</script>
 
 {{-- ══ 2. KPI CARDS ════════════════════════════════════════════════════════ --}}
-<div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
-    @php
-    $kpis=[
-        ['icon'=>'group',        'label'=>'Total Users',          'val'=>number_format($totalUsers),
-         'sub'=>$totalTeachers.' teachers · '.$totalStudents.' students',
-         'color'=>'#0d326b', 'subcolor'=>'#1a6fd4'],
-        ['icon'=>'monitor_heart','label'=>'Active Students (7d)', 'val'=>number_format($activeStudents),
-         'sub'=>($totalStudents>0?round(($activeStudents/$totalStudents)*100):0).'% of total students',
-         'color'=>'#1e4b8f', 'subcolor'=>'#1a6fd4'],
-        ['icon'=>'menu_book',    'label'=>'Lessons Completed',    'val'=>number_format($totalLessonsCompleted),
-         'sub'=>number_format($totalQuizAttempts).' quiz attempts total',
-         'color'=>'#1a6fd4', 'subcolor'=>'#94a3b8'],
-        ['icon'=>'insights',     'label'=>'Avg Quiz Score',       'val'=>round($avgQuizScore,1).'%',
-         'sub'=>'Platform-wide average score',
-         'color'=>'#3b82f6', 'subcolor'=>'#94a3b8'],
-    ];
-    @endphp
-    @foreach($kpis as $kpi)
-    <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
-        <div class="flex items-center gap-3 mb-4">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $kpi['color'] }}">
-                <span class="material-symbols-outlined text-white text-[18px]">{{ $kpi['icon'] }}</span>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+
+    {{-- Card 1: Total Users — navy gradient --}}
+    <div class="stat-kpi-card text-white" style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%);">
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Total Users</span>
+            <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[20px] text-white">group</span>
             </div>
-            <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $kpi['label'] }}</h3>
         </div>
-        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $kpi['val'] }}</p>
-        <p class="text-[12px] font-medium mt-2" style="color:{{ $kpi['subcolor'] }}">{{ $kpi['sub'] }}</p>
+        <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ number_format($totalUsers) }}</p>
+        <p class="text-[12px] text-white/70 font-medium">{{ $totalTeachers }} teachers · {{ $totalStudents }} students</p>
     </div>
-    @endforeach
+
+    {{-- Card 2: Active Students — white --}}
+    <div class="stat-kpi-card bg-white">
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Students (7d)</span>
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                <span class="material-symbols-outlined text-[20px]">monitor_heart</span>
+            </div>
+        </div>
+        <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($activeStudents) }}</p>
+        <p class="text-[12px] text-slate-400 font-medium">{{ $totalStudents>0?round(($activeStudents/$totalStudents)*100):0 }}% of total students</p>
+    </div>
+
+    {{-- Card 3: Lessons Completed — white --}}
+    <div class="stat-kpi-card bg-white">
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Lessons Completed</span>
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1a6fd4] flex items-center justify-center">
+                <span class="material-symbols-outlined text-[20px]">menu_book</span>
+            </div>
+        </div>
+        <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($totalLessonsCompleted) }}</p>
+        <p class="text-[12px] text-slate-400 font-medium">{{ number_format($totalQuizAttempts) }} quiz attempts total</p>
+    </div>
+
+    {{-- Card 4: Avg Quiz Score — amber gradient --}}
+    <div class="stat-kpi-card text-amber-950" style="background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%);border-color:rgba(245,158,11,.5);box-shadow:0 4px 16px rgba(245,158,11,.22);">
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Avg Quiz Score</span>
+            <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                <span class="material-symbols-outlined text-[20px]">insights</span>
+            </div>
+        </div>
+        <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ round($avgQuizScore,1) }}%</p>
+        <p class="text-[12px] text-amber-950/80 font-bold">Platform-wide average score</p>
+    </div>
+
 </div>
 
 {{-- ══ 3. TREND CHART + GESTURE OVERVIEW ══════════════════════════════════ --}}

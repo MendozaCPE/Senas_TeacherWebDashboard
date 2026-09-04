@@ -21,33 +21,23 @@
             <span class="material-symbols-outlined {{ request()->is('admin/dashboard') ? '' : 'icon-outline' }} text-[22px]">grid_view</span>
             <span>Dashboard</span>
         </a>
+
+        <a href="{{ route('admin.lesson-templates.index') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('admin.lesson-templates*') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->routeIs('admin.lesson-templates*') ? '' : 'icon-outline' }} text-[22px]">auto_stories</span>
+            <span>Default Lessons</span>
+        </a>
+
+        <a href="{{ route('admin.media.index') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('admin.media*') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->routeIs('admin.media*') ? '' : 'icon-outline' }} text-[22px]">perm_media</span>
+            <span>System Media</span>
+        </a>
+
         <a href="{{ route('admin.analytics') }}"
            class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/analytics') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('admin/analytics') ? '' : 'icon-outline' }} text-[22px]">bar_chart</span>
             <span>Analytics</span>
-        </a>
-        <a href="{{ route('admin.accounts') }}"
-           class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/accounts') ? $activeClass : $inactiveClass }}">
-            <span class="material-symbols-outlined {{ request()->is('admin/accounts') ? '' : 'icon-outline' }} text-[22px]">manage_accounts</span>
-            <span>Account Management</span>
-        </a>
-        <a href="{{ route('admin.audit-logs') }}"
-           class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/audit-logs') ? $activeClass : $inactiveClass }}">
-            <span class="material-symbols-outlined {{ request()->is('admin/audit-logs') ? '' : 'icon-outline' }} text-[22px]">fact_check</span>
-            <span>Audit Logs</span>
-        </a>
-        <a href="{{ route('admin.reports') }}"
-           class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/reports') ? $activeClass : $inactiveClass }}">
-            <span class="material-symbols-outlined {{ request()->is('admin/reports') ? '' : 'icon-outline' }} text-[22px]">inbox</span>
-            <span>Reports</span>
-            @php
-                $pendingCount = \App\Models\HelpRequest::where('status','pending')->count();
-            @endphp
-            @if($pendingCount > 0)
-            <span class="ml-auto mr-2 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                {{ $pendingCount > 99 ? '99+' : $pendingCount }}
-            </span>
-            @endif
         </a>
 
         <a href="{{ route('admin.ratings') }}"
@@ -65,18 +55,30 @@
             @endif
         </a>
 
-        {{-- ✅ NEW: Default Lessons Link --}}
-   <a href="{{ route('admin.lesson-templates.index') }}"
-   class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('admin.lesson-templates*') ? $activeClass : $inactiveClass }}">
-    <span class="material-symbols-outlined {{ request()->routeIs('admin.lesson-templates*') ? '' : 'icon-outline' }} text-[22px]">auto_stories</span>
-    <span>Default Lessons</span>
-</a>
+        <a href="{{ route('admin.reports') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/reports') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('admin/reports') ? '' : 'icon-outline' }} text-[22px]">inbox</span>
+            <span>Reports</span>
+            @php
+                $pendingCount = \App\Models\HelpRequest::where('status','pending')->count();
+            @endphp
+            @if($pendingCount > 0)
+            <span class="ml-auto mr-2 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {{ $pendingCount > 99 ? '99+' : $pendingCount }}
+            </span>
+            @endif
+        </a>
 
-        {{-- System Media --}}
-        <a href="{{ route('admin.media.index') }}"
-           class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('admin.media*') ? $activeClass : $inactiveClass }}">
-            <span class="material-symbols-outlined {{ request()->routeIs('admin.media*') ? '' : 'icon-outline' }} text-[22px]">perm_media</span>
-            <span>System Media</span>
+        <a href="{{ route('admin.accounts') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/accounts') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('admin/accounts') ? '' : 'icon-outline' }} text-[22px]">manage_accounts</span>
+            <span>Account Management</span>
+        </a>
+
+        <a href="{{ route('admin.audit-logs') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->is('admin/audit-logs') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('admin/audit-logs') ? '' : 'icon-outline' }} text-[22px]">fact_check</span>
+            <span>Audit Logs</span>
         </a>
 
         <div class="mx-6 my-2 border-t border-white/10"></div>

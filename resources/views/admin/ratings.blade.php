@@ -63,27 +63,56 @@ $starPill = function (int $rating) {
     </div>
 
     {{-- ── KPI CARDS ────────────────────────────────────────────────────── --}}
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        @php
-            $kpiCards = [
-                ['icon'=>'hourglass_top', 'label'=>'Pending Approval', 'val'=>$pendingTotal,                              'sub'=>$pendingTeacherRatings.' teacher · '.$pendingStudentRatings.' student',                  'color'=>$pendingTotal>0?'#f59e0b':'#3b82f6', 'subcolor'=>$pendingTotal>0?'#d97706':'#94a3b8'],
-                ['icon'=>'verified',      'label'=>'Approved (Live)',  'val'=>$approvedTeacherRatings+$approvedStudentRatings, 'sub'=>$approvedTeacherRatings.' teacher · '.$approvedStudentRatings.' student',         'color'=>'#10b981', 'subcolor'=>'#94a3b8'],
-                ['icon'=>'school',        'label'=>'Teacher Ratings',  'val'=>$totalTeacherRatings,                       'sub'=>$totalTeacherRatings>0?number_format($avgTeacherRating,2).' avg / 5':'No ratings yet',   'color'=>'#0d326b', 'subcolor'=>'#1a6fd4'],
-                ['icon'=>'group',         'label'=>'Student Ratings',  'val'=>$totalStudentRatings,                       'sub'=>$totalStudentRatings>0?number_format($avgStudentRating,2).' avg / 5':'No ratings yet',   'color'=>'#1a6fd4', 'subcolor'=>'#1a6fd4'],
-            ];
-        @endphp
-        @foreach($kpiCards as $kc)
-        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $kc['color'] }}">
-                    <span class="material-symbols-outlined text-white text-[18px]">{{ $kc['icon'] }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+
+        {{-- Card 1: Pending Approval — navy gradient --}}
+        <div class="text-white" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Pending Approval</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px] text-white">hourglass_top</span>
                 </div>
-                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $kc['label'] }}</h3>
             </div>
-            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $kc['val'] }}</p>
-            <p class="text-[12px] font-medium mt-2" style="color:{{ $kc['subcolor'] }}">{{ $kc['sub'] }}</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $pendingTotal }}</p>
+            <p class="text-[12px] text-white/70 font-medium">{{ $pendingTeacherRatings }} teacher · {{ $pendingStudentRatings }} student</p>
         </div>
-        @endforeach
+
+        {{-- Card 2: Approved (Live) — white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #d1fae5;background:#f0fdf4;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Approved (Live)</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">verified</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-emerald-700 tracking-tight">{{ $approvedTeacherRatings + $approvedStudentRatings }}</p>
+            <p class="text-[12px] text-emerald-600 font-medium">{{ $approvedTeacherRatings }} teacher · {{ $approvedStudentRatings }} student</p>
+        </div>
+
+        {{-- Card 3: Teacher Ratings — white --}}
+        <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff;">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Teacher Ratings</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">school</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $totalTeacherRatings }}</p>
+            <p class="text-[12px] text-[#1a6fd4] font-medium">{{ $totalTeacherRatings > 0 ? number_format($avgTeacherRating, 2).' avg / 5' : 'No ratings yet' }}</p>
+        </div>
+
+        {{-- Card 4: Student Ratings — amber gradient --}}
+        <div class="text-amber-950" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%);border:1px solid rgba(245,158,11,.5);box-shadow:0 4px 16px rgba(245,158,11,.22);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Student Ratings</span>
+                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                    <span class="material-symbols-outlined text-[20px]">group</span>
+                </div>
+            </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ $totalStudentRatings }}</p>
+            <p class="text-[12px] text-amber-950/80 font-bold">{{ $totalStudentRatings > 0 ? number_format($avgStudentRating, 2).' avg / 5' : 'No ratings yet' }}</p>
+        </div>
+
     </div>
 
     {{-- ── ANALYTICS: trend + distributions ────────────────────────────── --}}
