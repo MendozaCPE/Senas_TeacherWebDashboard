@@ -505,9 +505,7 @@
             const isDefinitivelyHookedX = indexTotalLen < (indexBaseLen * 2.1) && indexTotalLen > (indexBaseLen * 0.5);
             const othersAreClosed = middleTotalLen < (handScale * 0.75) && ringTotalLen < (handScale * 0.75) && pinkyTotalLen < (handScale * 0.75);
 
-            // In X, the hand is held upright with the index finger hooked.
-            // It is NEVER pointing downwards like in Q or P.
-            if (isDefinitivelyHookedX && othersAreClosed && !isFistState && !indexSideways && !indexIsDownwards) {
+            if (isDefinitivelyHookedX && othersAreClosed && !isFistState && !indexSideways) {
                 const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
                 if (distThumbToIndexPip > (handScale * 0.22)) {
                     return { letter: 'X', confidence: 0.99 };
@@ -577,17 +575,17 @@
             const slotMargin = handScale * 0.05;
 
             // Slot 1 (T): Between Index and Middle
-            const isThumbInIndexMiddleSlot = 
+            const isThumbInIndexMiddleSlot =
                 (thumbTip.x >= Math.min(indexMcp.x, middleMcp.x) - slotMargin && thumbTip.x <= Math.max(indexMcp.x, middleMcp.x) + slotMargin) ||
                 (thumbTip.x >= Math.min(indexPip.x, middlePip.x) - slotMargin && thumbTip.x <= Math.max(indexPip.x, middlePip.x) + slotMargin);
 
             // Slot 2 (N): Between Middle and Ring
-            const isThumbInMiddleRingSlot = 
+            const isThumbInMiddleRingSlot =
                 (thumbTip.x >= Math.min(middleMcp.x, ringMcp.x) - slotMargin && thumbTip.x <= Math.max(middleMcp.x, ringMcp.x) + slotMargin) ||
                 (thumbTip.x >= Math.min(middlePip.x, ringPip.x) - slotMargin && thumbTip.x <= Math.max(middlePip.x, ringPip.x) + slotMargin);
 
             // Slot 3 (M): Between Ring and Pinky
-            const isThumbInRingPinkySlot = 
+            const isThumbInRingPinkySlot =
                 (thumbTip.x >= Math.min(ringMcp.x, pinkyMcp.x) - slotMargin && thumbTip.x <= Math.max(ringMcp.x, pinkyMcp.x) + slotMargin) ||
                 (thumbTip.x >= Math.min(ringPip.x, pinkyPip.x) - slotMargin && thumbTip.x <= Math.max(ringPip.x, pinkyPip.x) + slotMargin);
 
@@ -612,22 +610,12 @@
             // INVERTED HANDS (P & Q) — strictly blocked if all fingers are curled in a fist
             // -------------------------------------------------------------------------
             if (!isFistState && !isTrueFist) {
-                // P: Both Index and Middle are pointing downwards
                 if (indexIsDownwards && middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2)) {
                     return { letter: 'P', confidence: 0.99 };
                 }
 
-                // Q: Index is pointing downwards, middle/ring/pinky are curled into palm,
-                // and thumb points downwards alongside index finger
-                const isQHandShape = indexIsDownwards && !middleIsDownwards && 
-                                     !middleUp && !ringUp && !pinkyUp &&
-                                     (middleTotalLen < handScale * 0.75 || ringTip.y < ringMcp.y + (handScale * 0.25));
-
-                if (isQHandShape) {
-                    const thumbPointsDown = thumbTip.y > thumbMcp.y - (handScale * 0.10);
-                    if (thumbPointsDown || predicted === 'Q') {
-                        return { letter: 'Q', confidence: 0.99 };
-                    }
+                if (indexIsDownwards && !middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2) && (predicted === 'Q' || predicted === 'G' || predicted === 'P')) {
+                    return { letter: 'Q', confidence: 0.99 };
                 }
             }
 
@@ -639,13 +627,13 @@
                 // - Thumb is in the middle-ring slot OR close to both middle & ring knuckles
                 // - Thumb is closer to middle/ring than index (past index finger)
                 // - Thumb is NOT all the way at the pinky finger (ruling out M)
-                const isNBySlot = isThumbInMiddleRingSlot && 
-                                  distThumbRingMcp < (handScale * 0.44) && 
-                                  distThumbToMiddleMcp < (handScale * 0.44);
+                const isNBySlot = isThumbInMiddleRingSlot &&
+                    distThumbRingMcp < (handScale * 0.44) &&
+                    distThumbToMiddleMcp < (handScale * 0.44);
 
                 const isNByDistances = (distThumbToMiddleMcp < (handScale * 0.38) || distThumbRingMcp < (handScale * 0.38)) &&
-                                       (distThumbRingMcp < distThumbIndexMcp || distThumbToMiddleMcp < distThumbIndexMcp) &&
-                                       (distThumbToMiddleMcp <= distThumbPinkyMcp * 1.15);
+                    (distThumbRingMcp < distThumbIndexMcp || distThumbToMiddleMcp < distThumbIndexMcp) &&
+                    (distThumbToMiddleMcp <= distThumbPinkyMcp * 1.15);
 
                 if (!isOutsideThumbA && (isNBySlot || isNByDistances || predicted === 'N')) {
                     // Protect against M: in M, thumb is in the ring-pinky slot and closer to pinky
@@ -661,13 +649,13 @@
                 // 2. M DETECTOR (Thumb tucked under 3 fingers: poking between Ring & Pinky)
                 // - Thumb is in the ring-pinky slot OR closest to ring & pinky knuckles
                 // - Thumb is past the middle finger: distThumbPinkyMcp < distThumbToMiddleMcp
-                const isMBySlot = isThumbInRingPinkySlot && 
-                                  distThumbRingMcp < (handScale * 0.42) && 
-                                  distThumbPinkyMcp < (handScale * 0.44);
+                const isMBySlot = isThumbInRingPinkySlot &&
+                    distThumbRingMcp < (handScale * 0.42) &&
+                    distThumbPinkyMcp < (handScale * 0.44);
 
                 const isMByDistances = distThumbRingMcp < (handScale * 0.38) &&
-                                       distThumbPinkyMcp < distThumbToMiddleMcp &&
-                                       distThumbRingMcp < distThumbIndexMcp;
+                    distThumbPinkyMcp < distThumbToMiddleMcp &&
+                    distThumbRingMcp < distThumbIndexMcp;
 
                 if (!isOutsideThumbA && (isMBySlot || isMByDistances || predicted === 'M')) {
                     // Protect against N: in N, thumb is in middle-ring slot and closer to middle
@@ -679,9 +667,9 @@
                 // 3. S DETECTOR (Thumb folded horizontally across the front of curled fingers)
                 // In S, the thumb lies across the front of the fingers (near PIPs), NOT tucked in slots.
                 if (!isOutsideThumbA) {
-                    const isFrontCrossing = (distThumbToMiddlePip < (handScale * 0.28)) || 
-                                           (distThumbToIndexPip < (handScale * 0.28)) ||
-                                           (distThumbToMiddleMcp < (handScale * 0.30));
+                    const isFrontCrossing = (distThumbToMiddlePip < (handScale * 0.28)) ||
+                        (distThumbToIndexPip < (handScale * 0.28)) ||
+                        (distThumbToMiddleMcp < (handScale * 0.30));
 
                     if (isFrontCrossing || predicted === 'S') {
                         return { letter: 'S', confidence: 0.99 };
@@ -766,7 +754,7 @@
 
             // FIXED Q DETECTOR (Strictly for non-fist downward-pointing hand)
             if (!isFistState && !isTrueFist && !indexCurled && (indexIsDownwards || predicted === 'Q') && !middleUp && !ringUp && !pinkyUp) {
-                if (getDistance2D(indexTip, indexMcp) > (handScale * 0.28)) {
+                if (getDistance2D(indexTip, indexMcp) > (handScale * 0.45)) {
                     return { letter: 'Q', confidence: 0.99 };
                 }
             }
