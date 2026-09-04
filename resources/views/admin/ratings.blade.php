@@ -66,22 +66,22 @@ $starPill = function (int $rating) {
     <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
         @php
             $kpiCards = [
-                ['icon'=>'hourglass_top', 'label'=>'Pending Approval', 'val'=>$pendingTotal, 'sub'=>$pendingTeacherRatings.' teacher · '.$pendingStudentRatings.' student', 'color'=>$pendingTotal>0?'#f59e0b':'#3b82f6'],
-                ['icon'=>'verified',      'label'=>'Approved (Live)',  'val'=>$approvedTeacherRatings+$approvedStudentRatings, 'sub'=>$approvedTeacherRatings.' teacher · '.$approvedStudentRatings.' student', 'color'=>'#10b981'],
-                ['icon'=>'school',        'label'=>'Teacher Ratings',  'val'=>$totalTeacherRatings, 'sub'=>$totalTeacherRatings>0?number_format($avgTeacherRating,2).' avg / 5':'No ratings yet', 'color'=>'#0d326b'],
-                ['icon'=>'group',         'label'=>'Student Ratings',  'val'=>$totalStudentRatings, 'sub'=>$totalStudentRatings>0?number_format($avgStudentRating,2).' avg / 5':'No ratings yet', 'color'=>'#1a6fd4'],
+                ['icon'=>'hourglass_top', 'label'=>'Pending Approval', 'val'=>$pendingTotal,                              'sub'=>$pendingTeacherRatings.' teacher · '.$pendingStudentRatings.' student',                  'color'=>$pendingTotal>0?'#f59e0b':'#3b82f6', 'subcolor'=>$pendingTotal>0?'#d97706':'#94a3b8'],
+                ['icon'=>'verified',      'label'=>'Approved (Live)',  'val'=>$approvedTeacherRatings+$approvedStudentRatings, 'sub'=>$approvedTeacherRatings.' teacher · '.$approvedStudentRatings.' student',         'color'=>'#10b981', 'subcolor'=>'#94a3b8'],
+                ['icon'=>'school',        'label'=>'Teacher Ratings',  'val'=>$totalTeacherRatings,                       'sub'=>$totalTeacherRatings>0?number_format($avgTeacherRating,2).' avg / 5':'No ratings yet',   'color'=>'#0d326b', 'subcolor'=>'#1a6fd4'],
+                ['icon'=>'group',         'label'=>'Student Ratings',  'val'=>$totalStudentRatings,                       'sub'=>$totalStudentRatings>0?number_format($avgStudentRating,2).' avg / 5':'No ratings yet',   'color'=>'#1a6fd4', 'subcolor'=>'#1a6fd4'],
             ];
         @endphp
         @foreach($kpiCards as $kc)
-        <div class="bg-white rounded-[22px] px-5 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col">
-            <div class="flex items-center gap-3 mb-3">
+        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+            <div class="flex items-center gap-3 mb-4">
                 <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $kc['color'] }}">
                     <span class="material-symbols-outlined text-white text-[18px]">{{ $kc['icon'] }}</span>
                 </div>
-                <p class="text-[13px] font-semibold text-slate-600 leading-snug">{{ $kc['label'] }}</p>
+                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $kc['label'] }}</h3>
             </div>
-            <p class="text-[30px] font-black text-[#0d326b] leading-none tracking-tight">{{ $kc['val'] }}</p>
-            <p class="text-[12px] font-medium text-slate-400 mt-1.5">{{ $kc['sub'] }}</p>
+            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $kc['val'] }}</p>
+            <p class="text-[12px] font-medium mt-2" style="color:{{ $kc['subcolor'] }}">{{ $kc['sub'] }}</p>
         </div>
         @endforeach
     </div>

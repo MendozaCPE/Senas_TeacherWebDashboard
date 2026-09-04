@@ -78,26 +78,26 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
     <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
         @php
             $kpiCards = [
-                ['icon'=>'school',    'label'=>'Total Teachers',    'val'=>$totalTeachers,                    'sub'=>'↑ '.$newTeachersWeek.' this week',        'color'=>'#0d326b', 'spark'=>$sparkTeachers,  'sc'=>'#0d326b'],
-                ['icon'=>'group',     'label'=>'Total Students',    'val'=>$totalStudents,                    'sub'=>'↑ '.$newStudentsWeek.' this week',         'color'=>'#1e4b8f', 'spark'=>$sparkStudents,  'sc'=>'#1e4b8f'],
-                ['icon'=>'menu_book', 'label'=>'Lessons Completed', 'val'=>number_format($totalLessonsCompleted), 'sub'=>$publishedLessons.' published lessons', 'color'=>'#1a6fd4', 'spark'=>$sparkLessons,   'sc'=>'#1a6fd4'],
-                ['icon'=>'inbox',     'label'=>'Pending Reports',   'val'=>$pendingReports,                   'sub'=>$resolvedReports.' resolved of '.$totalReports.' total', 'color'=>$pendingReports>0?'#ef4444':'#3b82f6', 'spark'=>null, 'sc'=>null],
+                ['icon'=>'school',    'label'=>'Total Teachers',    'val'=>$totalTeachers,                        'sub'=>'↑ '.$newTeachersWeek.' this week',                         'color'=>'#0d326b', 'subcolor'=>'#1a6fd4', 'spark'=>$sparkTeachers, 'sc'=>'#0d326b'],
+                ['icon'=>'group',     'label'=>'Total Students',    'val'=>$totalStudents,                        'sub'=>'↑ '.$newStudentsWeek.' this week',                          'color'=>'#1e4b8f', 'subcolor'=>'#1a6fd4', 'spark'=>$sparkStudents, 'sc'=>'#1e4b8f'],
+                ['icon'=>'menu_book', 'label'=>'Lessons Completed', 'val'=>number_format($totalLessonsCompleted), 'sub'=>$publishedLessons.' published lessons',                      'color'=>'#1a6fd4', 'subcolor'=>'#1a6fd4', 'spark'=>$sparkLessons,  'sc'=>'#1a6fd4'],
+                ['icon'=>'inbox',     'label'=>'Pending Reports',   'val'=>$pendingReports,                       'sub'=>$resolvedReports.' resolved of '.$totalReports.' total',    'color'=>$pendingReports>0?'#ef4444':'#3b82f6', 'subcolor'=>'#94a3b8', 'spark'=>null, 'sc'=>null],
             ];
         @endphp
         @foreach($kpiCards as $kc)
-        <div class="bg-white rounded-[22px] px-5 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col">
-            <div class="flex items-center gap-3 mb-3">
+        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+            <div class="flex items-center gap-3 mb-4">
                 <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $kc['color'] }}">
                     <span class="material-symbols-outlined text-white text-[18px]">{{ $kc['icon'] }}</span>
                 </div>
-                <p class="text-[13px] font-semibold text-slate-600 leading-snug">{{ $kc['label'] }}</p>
+                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $kc['label'] }}</h3>
             </div>
-            <p class="text-[30px] font-black text-[#0d326b] leading-none tracking-tight">{{ $kc['val'] }}</p>
-            <p class="text-[12px] font-medium text-slate-400 mt-1.5">{{ $kc['sub'] }}</p>
+            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $kc['val'] }}</p>
+            <p class="text-[12px] font-medium mt-2 mb-4" style="color:{{ $kc['subcolor'] }}">{{ $kc['sub'] }}</p>
             @if($kc['spark'])
-            <div class="mt-3 -mx-1">{!! $spark($kc['spark'] ?: array_fill(0,7,0), $kc['sc']) !!}</div>
+            <div class="mt-auto -mx-1">{!! $spark($kc['spark'] ?: array_fill(0,7,0), $kc['sc']) !!}</div>
             @else
-            <div class="mt-3">
+            <div class="mt-auto">
                 <a href="{{ route('admin.reports') }}" class="text-[12px] font-bold text-[#0d326b] hover:underline flex items-center gap-1">
                     View all reports <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </a>

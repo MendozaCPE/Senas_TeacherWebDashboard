@@ -25,24 +25,25 @@
     </div>
 
     {{-- ── Stats Row ────────────────────────────────────────────────────────── --}}
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
         @php
             $rStats = [
-                ['label'=>'Total Escalated',   'value'=>$totalReports,  'icon'=>'warning',        'color'=>'#0d326b'],
-                ['label'=>'Awaiting Review',   'value'=>$pendingReports,'icon'=>'schedule',        'color'=>'#f59e0b'],
-                ['label'=>'Closed by Admin',   'value'=>$resolvedCount, 'icon'=>'check_circle',    'color'=>'#10b981'],
-                ['label'=>'All Time Reports',  'value'=>\App\Models\HelpRequest::count(), 'icon'=>'inbox', 'color'=>'#64748b'],
+                ['label'=>'Total Escalated',  'value'=>$totalReports,  'icon'=>'warning',      'color'=>'#0d326b', 'subcolor'=>'#94a3b8', 'sub'=>'escalated to admin'],
+                ['label'=>'Awaiting Review',  'value'=>$pendingReports,'icon'=>'schedule',     'color'=>'#f59e0b', 'subcolor'=>'#d97706', 'sub'=>'pending admin response'],
+                ['label'=>'Closed by Admin',  'value'=>$resolvedCount, 'icon'=>'check_circle', 'color'=>'#10b981', 'subcolor'=>'#10b981', 'sub'=>'successfully resolved'],
+                ['label'=>'All Time Reports', 'value'=>\App\Models\HelpRequest::count(), 'icon'=>'inbox', 'color'=>'#64748b', 'subcolor'=>'#94a3b8', 'sub'=>'student help requests total'],
             ];
         @endphp
         @foreach($rStats as $rs)
-        <div class="bg-white rounded-[20px] shadow-sm border border-slate-100 px-5 py-4 flex items-center gap-3">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $rs['color'] }}">
-                <span class="material-symbols-outlined text-white text-[18px]">{{ $rs['icon'] }}</span>
+        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[148px]">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $rs['color'] }}">
+                    <span class="material-symbols-outlined text-white text-[18px]">{{ $rs['icon'] }}</span>
+                </div>
+                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $rs['label'] }}</h3>
             </div>
-            <div>
-                <p class="text-[22px] font-black text-[#0d326b] leading-none">{{ $rs['value'] }}</p>
-                <p class="text-[11px] font-semibold text-slate-400 mt-0.5">{{ $rs['label'] }}</p>
-            </div>
+            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $rs['value'] }}</p>
+            <p class="text-[12px] font-medium mt-2" style="color:{{ $rs['subcolor'] }}">{{ $rs['sub'] }}</p>
         </div>
         @endforeach
     </div>

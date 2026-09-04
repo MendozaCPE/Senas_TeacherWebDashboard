@@ -1599,4 +1599,141 @@ class ReportsController extends Controller
 
         return response()->json(['achievements' => $rows]);
     }
+
+    /**
+     * GET /reports/student/{studentId}/learning-path
+     * Returns learning path info + XP history + lesson activity for charts.
+     */
+    public function studentLearningPath(int $studentId)
+    {
+        $teacher = Auth::user()->teacher;
+
+        $student = Student::where('student_id', $studentId)
+            ->where('teacher_id', $teacher->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        // ── Learning Path setup ──────────────────────────────────────
+        $lp = DB::table('learning_paths')->where('student_id', $studentId)->first();
+
+        // ── XP over the last 14 days ─────────────────────────────────
+        $xpLog = DB::table('xp_log')
+            ->where('student_id', $studentId)
+            ->where('created_at', '>=', Carbon::now()->subDays(13)->startOfDay())
+            ->selectRaw('DATE(created_at) as day, SUM(xp_amount) as total_xp')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
+
+        // Build a full 14-day series (fill gaps with 0)
+        $xpSeries  = [];
+        $xpLabels  = [];
+        $cumulative = 0;
+        $cumulativeSeries = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $day   = Carbon::now()->subDays($i)->toDateString();
+            $label = Carbon::now()->subDays($i)->format('M j');
+            $xp    = isset($xpLog[$day]) ? (int) $xpLog[$day]->total_xp : 0;
+            $cumulative += $xp;
+            $xpLabels[]         = $label;
+            $xpSeries[]         = $xp;
+            $cumulativeSeries[] = $cumulative;
+        }
+
+        // ── Lessons completed per day over last 14 days ───────────────
+        $lessonActivity = DB::table('lesson_assignments')
+            ->where('student_id', $studentId)
+            ->where('status', 'completed')
+            ->whereNotNull('completed_at')
+            ->where('completed_at', '>=', Carbon::now()->subDays(13)->startOfDay())
+            ->selectRaw('DATE(completed_at) as day, COUNT(*) as count')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $lessonSeries = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $day = Carbon::now()->subDays($i)->toDateString();
+            $lessonSeries[] = isset($lessonActivity[$day]) ? (int) $lessonActivity[$day]->count : 0;
+        }
+
+        // ── Gesture accuracy over last 7 sessions ────────────────────
+        $gesturePerf = DB::table('gesture_performances')
+            ->where('student_id', $studentId)
+            ->orderBy('last_attempt_at', 'desc')
+            ->take(10)
+            ->get(['attempts', 'successful_attempts', 'mastery_level',
+                   'last_attempt_at']);
+
+        $gestureTrend = $gesturePerf->map(function ($g) {
+            $acc = $g->attempts > 0
+                ? round(($g->successful_attempts / $g->attempts) * 100, 1)
+                : 0;
+            return [
+                'accuracy'      => $acc,
+                'mastery_level' => $g->mastery_level,
+                'date'          => Carbon::parse($g->last_attempt_at)->format('M j'),
+            ];
+        })->values()->toArray();
+
+        // ── Mastery distribution for doughnut ────────────────────────
+        $masteryDist = DB::table('gesture_performances')
+            ->where('student_id', $studentId)
+            ->selectRaw('mastery_level, COUNT(*) as cnt')
+            ->groupBy('mastery_level')
+            ->pluck('cnt', 'mastery_level')
+            ->toArray();
+
+        // ── Quiz scores over time ─────────────────────────────────────
+        $quizHistory = DB::table('quiz_attempts')
+            ->where('student_id', $studentId)
+            ->where('status', 'completed')
+            ->orderBy('completed_at', 'asc')
+            ->take(10)
+            ->get(['percentage', 'completed_at'])
+            ->map(fn($q) => [
+                'score' => round((float) $q->percentage, 1),
+                'label' => Carbon::parse($q->completed_at)->format('M j'),
+            ])->values()->toArray();
+
+        // ── Stats summary ─────────────────────────────────────────────
+        $totalXpEarned = DB::table('xp_log')
+            ->where('student_id', $studentId)
+            ->sum('xp_amount');
+
+        $longestStreak = $student->streak_days ?? 0;
+
+        $completedLessonsTotal = DB::table('lesson_assignments')
+            ->where('student_id', $studentId)
+            ->where('status', 'completed')
+            ->count();
+
+        return response()->json([
+            'learning_path' => $lp ? [
+                'fsl_level'    => $lp->fsl_level,
+                'learning_goal'=> $lp->learning_goal,
+                'practice_time'=> $lp->practice_time,
+                'is_completed' => (bool) $lp->is_completed,
+                'completed_at' => $lp->completed_at,
+                'created_at'   => $lp->created_at,
+            ] : null,
+            'stats' => [
+                'total_xp'         => (int) $totalXpEarned,
+                'streak_days'      => (int) $longestStreak,
+                'completed_lessons'=> (int) $completedLessonsTotal,
+                'current_level'    => $student->fsl_mastery_level ?? 'Beginner',
+            ],
+            'charts' => [
+                'labels'       => $xpLabels,
+                'xp_daily'     => $xpSeries,
+                'xp_cumulative'=> $cumulativeSeries,
+                'lessons_daily'=> $lessonSeries,
+                'quiz_history' => $quizHistory,
+                'gesture_trend'=> $gestureTrend,
+                'mastery_dist' => $masteryDist,
+            ],
+        ]);
+    }
 }

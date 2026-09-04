@@ -149,28 +149,28 @@ $dAcc            = $dTotalAttempts > 0 ? round(($dTotalSuccess/$dTotalAttempts)*
     $kpis=[
         ['icon'=>'group',        'label'=>'Total Users',          'val'=>number_format($totalUsers),
          'sub'=>$totalTeachers.' teachers · '.$totalStudents.' students',
-         'grad'=>'linear-gradient(135deg,#0d326b 0%,#1e4b8f 100%)', 'light'=>true],
+         'color'=>'#0d326b', 'subcolor'=>'#1a6fd4'],
         ['icon'=>'monitor_heart','label'=>'Active Students (7d)', 'val'=>number_format($activeStudents),
          'sub'=>($totalStudents>0?round(($activeStudents/$totalStudents)*100):0).'% of total students',
-         'grad'=>'linear-gradient(135deg,#1e4b8f 0%,#1a6fd4 100%)', 'light'=>true],
+         'color'=>'#1e4b8f', 'subcolor'=>'#1a6fd4'],
         ['icon'=>'menu_book',    'label'=>'Lessons Completed',    'val'=>number_format($totalLessonsCompleted),
          'sub'=>number_format($totalQuizAttempts).' quiz attempts total',
-         'grad'=>'#ffffff', 'light'=>false],
+         'color'=>'#1a6fd4', 'subcolor'=>'#94a3b8'],
         ['icon'=>'insights',     'label'=>'Avg Quiz Score',       'val'=>round($avgQuizScore,1).'%',
          'sub'=>'Platform-wide average score',
-         'grad'=>'#ffffff', 'light'=>false],
+         'color'=>'#3b82f6', 'subcolor'=>'#94a3b8'],
     ];
     @endphp
     @foreach($kpis as $kpi)
-    <div class="a-card" style="background:{{ $kpi['grad'] }}">
-        <div class="flex items-center justify-between mb-4">
-            <span class="text-[11px] font-bold uppercase tracking-wider {{ $kpi['light']?'text-white/60':'text-slate-400' }}">{{ $kpi['label'] }}</span>
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center {{ $kpi['light']?'bg-white/15':'bg-[#dbeafe]' }}">
-                <span class="material-symbols-outlined text-[18px] {{ $kpi['light']?'text-white':'text-[#0d326b]' }}">{{ $kpi['icon'] }}</span>
+    <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $kpi['color'] }}">
+                <span class="material-symbols-outlined text-white text-[18px]">{{ $kpi['icon'] }}</span>
             </div>
+            <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $kpi['label'] }}</h3>
         </div>
-        <p class="text-[32px] font-black leading-none {{ $kpi['light']?'text-white':'text-[#0d326b]' }}">{{ $kpi['val'] }}</p>
-        <p class="text-[11.5px] font-medium mt-1.5 {{ $kpi['light']?'text-white/65':'text-slate-400' }}">{{ $kpi['sub'] }}</p>
+        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $kpi['val'] }}</p>
+        <p class="text-[12px] font-medium mt-2" style="color:{{ $kpi['subcolor'] }}">{{ $kpi['sub'] }}</p>
     </div>
     @endforeach
 </div>

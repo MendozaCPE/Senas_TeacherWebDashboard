@@ -51,6 +51,52 @@
     background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
 }
 
+/* ── Analytics-style KPI cards ───────────────────────────────────────── */
+.stat-kpi-card {
+    border-radius: 24px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease;
+    border: 1px solid #f1f5f9;
+}
+.stat-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(13, 50, 107, 0.08);
+}
+
+/* ── Analytics-style filter toolbar ──────────────────────────────────── */
+.filter-container {
+    background: #ffffff;
+    border-radius: 22px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 2px 10px rgba(13, 50, 107, 0.03);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.filter-select {
+    appearance: none;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 8px 34px 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0d326b;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s, background-color .15s;
+}
+.filter-select:hover { background: #f1f5f9; border-color: #cbd5e1; }
+.filter-wrap { position: relative; display: inline-flex; align-items: center; }
+.filter-wrap .material-symbols-outlined {
+    position: absolute; right: 10px; pointer-events: none;
+    font-size: 16px; color: #0d326b;
+}
+
 /* ── Results loading state (used while AJAX-fetching filtered/paginated data) ── */
 #students-results.is-loading {
     opacity: .5;
@@ -91,66 +137,52 @@
         })->count();
     @endphp
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
 
-        {{-- Total Students --}}
-        <div class="stat-card text-white" style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
-            <div class="absolute -top-7 -right-7 w-28 h-28 bg-white/5 rounded-full"></div>
-            <div class="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
-            <div class="relative z-10 flex items-center justify-between">
-                <div>
-                    <div class="flex items-center gap-1.5 mb-2">
-                        <span class="material-symbols-outlined text-white/50 text-[15px]">group</span>
-                        <p class="text-[10px] font-bold text-white/50 uppercase tracking-widest">Total Students</p>
-                    </div>
-                    <p class="text-[46px] font-black text-white leading-none">{{ $totalStudents }}</p>
-                    <p class="text-[11px] font-semibold text-[#facc15] mt-2">+{{ $newThisWeek }} this month</p>
-                </div>
-                <div class="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-white text-[28px]">school</span>
+        {{-- Card 1: Total Students — navy gradient hero --}}
+        <div class="stat-kpi-card text-white" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Total Students</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px] text-white">school</span>
                 </div>
             </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $totalStudents }}</p>
+            <p class="text-[12px] font-semibold mt-1" style="color:rgba(250,204,21,0.9)">+{{ $newThisWeek }} this month</p>
         </div>
 
-        {{-- Average XP --}}
-        <div class="stat-card bg-white border border-slate-100 shadow-sm">
-            <div class="flex items-center justify-between mb-2">
+        {{-- Card 2: Avg. XP per Student — white card with XP bar --}}
+        <div class="stat-kpi-card bg-white">
+            <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-amber-400 text-[16px]">bolt</span>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Avg. XP per Student</p>
+                    <span class="material-symbols-outlined text-amber-400 text-[17px]">bolt</span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Avg. XP per Student</span>
                 </div>
-                <span class="text-[10px] font-bold text-[#0d326b] bg-[#e8eef8] px-2 py-0.5 rounded-full">{{ $progressPct }}% to 1K</span>
+                <span class="text-[10.5px] font-bold text-[#0d326b] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">{{ $progressPct }}% to 1K</span>
             </div>
-            <p class="text-[40px] font-black text-[#0d326b] leading-none">{{ number_format($avgXp) }}</p>
-            <p class="text-[10px] text-slate-400 font-medium mt-0.5 mb-3">experience points</p>
+            <p class="text-[36px] font-black leading-none text-[#0d326b] tracking-tight">{{ number_format($avgXp) }}</p>
+            <p class="text-[11px] text-slate-400 font-medium mt-0.5 mb-3">experience points</p>
             <div class="xp-bar-wrap">
                 <div class="xp-bar-fill" style="width:{{ $progressPct }}%;background:linear-gradient(90deg,#f59e0b,#1a6fd4)"></div>
             </div>
-            <div class="flex justify-between mt-1">
-                <span class="text-[9px] text-slate-300">0 XP</span>
-                <span class="text-[9px] text-slate-400 font-medium">1,000 XP</span>
+            <div class="flex justify-between mt-1.5">
+                <span class="text-[9.5px] text-slate-300 font-medium">0 XP</span>
+                <span class="text-[9.5px] text-slate-400 font-semibold">1,000 XP</span>
             </div>
         </div>
 
-        {{-- Ready to Promote — golden gradient like Senya tip --}}
-        <div class="stat-card kpi-ready-promote">
-            <div class="absolute -top-7 -right-7 w-28 h-28 bg-[#0d326b]/5 rounded-full"></div>
-            <div class="flex items-center justify-between relative z-10">
-                <div>
-                    <div class="flex items-center gap-1.5 mb-2">
-                        <span class="material-symbols-outlined text-amber-700/60 text-[15px]">workspace_premium</span>
-                        <p class="text-[10px] font-bold text-amber-800/70 uppercase tracking-widest">Ready to Promote</p>
-                    </div>
-                    <p class="text-[46px] font-black text-[#92400e] leading-none">{{ $readyToPromote }}</p>
-                    <p class="text-[11px] font-semibold text-amber-800 mt-2">
-                        student{{ $readyToPromote !== 1 ? 's' : '' }} eligible for next level
-                    </p>
-                </div>
-                <div class="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-amber-700 text-[28px]">trending_up</span>
+        {{-- Card 3: Ready to Promote — gold gradient --}}
+        <div class="stat-kpi-card text-amber-950" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245,158,11,0.5); box-shadow: 0 4px 16px rgba(245,158,11,0.22);">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Ready to Promote</span>
+                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                    <span class="material-symbols-outlined text-[20px]">trending_up</span>
                 </div>
             </div>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ $readyToPromote }}</p>
+            <p class="text-[12px] text-amber-950/80 font-bold">student{{ $readyToPromote !== 1 ? 's' : '' }} eligible for next level</p>
         </div>
+
     </div>
 
 
@@ -160,8 +192,8 @@
         {{-- ── LEFT: Table Panel ── --}}
         <div class="flex-1 min-w-0 w-full">
 
-            {{-- Filter Toolbar with Add Student button integrated --}}
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-3.5 mb-4 flex items-center gap-3 flex-wrap">
+            {{-- Filter Toolbar — analytics filter-container style --}}
+            <div class="filter-container mb-4">
                 @php
                     $sf = session('students_filters', []);
                     $hasActiveFilters = false;
@@ -174,58 +206,76 @@
                     }
                     if (!empty($activePromotableLevel)) $hasActiveFilters = true;
                 @endphp
-                <div class="relative shrink-0 order-1 lg:order-none">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                    <input id="student-search" type="text" value="{{ $sf['search'] ?? '' }}" placeholder="Search students..." class="bg-[#f1f5f9] text-[13px] font-medium py-2.5 pl-9 pr-4 rounded-full outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400 w-[250px]" />
+
+                {{-- Search --}}
+                <div class="relative shrink-0">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[17px]">search</span>
+                    <input id="student-search" type="text" value="{{ $sf['search'] ?? '' }}"
+                        placeholder="Search students..."
+                        class="bg-[#f8fafc] border border-[#e2e8f0] text-[13px] font-medium py-2 pl-9 pr-4 rounded-[14px] outline-none focus:border-[#cbd5e1] transition-all placeholder:text-slate-400 w-[220px]" />
                 </div>
 
                 <div class="flex-1"></div>
-                <div class="relative shrink-0">
-                    <select id="filter-school-year" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
+
+                {{-- School Year --}}
+                <div class="filter-wrap shrink-0">
+                    <select id="filter-school-year" class="filter-select">
                         <option value="">School Year</option>
                         @foreach($availableSchoolYears as $sy)
                         <option value="{{ $sy }}" {{ ($sf['school_year'] ?? '') === $sy ? 'selected' : '' }}>{{ $sy }}</option>
                         @endforeach
                     </select>
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+                    <span class="material-symbols-outlined">expand_more</span>
                 </div>
-                <div class="relative shrink-0">
-                    <select id="filter-level" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
+
+                {{-- Level --}}
+                <div class="filter-wrap shrink-0">
+                    <select id="filter-level" class="filter-select">
                         <option value="">Level</option>
-                        <option value="Beginner" {{ ($sf['level'] ?? '') === 'Beginner' ? 'selected' : '' }}>Beginner</option>
+                        <option value="Beginner"     {{ ($sf['level'] ?? '') === 'Beginner'     ? 'selected' : '' }}>Beginner</option>
                         <option value="Intermediate" {{ ($sf['level'] ?? '') === 'Intermediate' ? 'selected' : '' }}>Intermediate</option>
-                        <option value="Advanced" {{ ($sf['level'] ?? '') === 'Advanced' ? 'selected' : '' }}>Advanced</option>
-                        <option value="Completed" {{ ($sf['level'] ?? '') === 'Completed' ? 'selected' : '' }}>Completed</option>
+                        <option value="Advanced"     {{ ($sf['level'] ?? '') === 'Advanced'     ? 'selected' : '' }}>Advanced</option>
+                        <option value="Completed"    {{ ($sf['level'] ?? '') === 'Completed'    ? 'selected' : '' }}>Completed</option>
                     </select>
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+                    <span class="material-symbols-outlined">expand_more</span>
                 </div>
-                <div class="relative shrink-0">
-                    <select id="filter-program" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
+
+                {{-- Program Type --}}
+                <div class="filter-wrap shrink-0">
+                    <select id="filter-program" class="filter-select">
                         <option value="">Program Type</option>
-                        <option value="Regular" {{ ($sf['program'] ?? '') === 'Regular' ? 'selected' : '' }}>Regular</option>
+                        <option value="Regular"        {{ ($sf['program'] ?? '') === 'Regular'        ? 'selected' : '' }}>Regular</option>
                         <option value="Self-contained" {{ ($sf['program'] ?? '') === 'Self-contained' ? 'selected' : '' }}>Self-Contained</option>
-                        <option value="Transition" {{ ($sf['program'] ?? '') === 'Transition' ? 'selected' : '' }}>Transition</option>
-                        <option value="Inclusion" {{ ($sf['program'] ?? '') === 'Inclusion' ? 'selected' : '' }}>Inclusion</option>
+                        <option value="Transition"     {{ ($sf['program'] ?? '') === 'Transition'     ? 'selected' : '' }}>Transition</option>
+                        <option value="Inclusion"      {{ ($sf['program'] ?? '') === 'Inclusion'      ? 'selected' : '' }}>Inclusion</option>
                     </select>
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+                    <span class="material-symbols-outlined">expand_more</span>
                 </div>
-                <div class="relative shrink-0">
-                    <select id="filter-status" class="appearance-none bg-[#f1f5f9] text-[#1e293b] text-[12px] font-semibold py-2.5 pl-4 pr-9 rounded-full outline-none border border-transparent hover:bg-slate-200 transition-colors cursor-pointer">
-                        <option value="active" {{ ($sf['status'] ?? 'active') === 'active' ? 'selected' : '' }}>Enrolled</option>
+
+                {{-- Status --}}
+                <div class="filter-wrap shrink-0">
+                    <select id="filter-status" class="filter-select">
+                        <option value="active"   {{ ($sf['status'] ?? 'active') === 'active'   ? 'selected' : '' }}>Enrolled</option>
                         <option value="inactive" {{ ($sf['status'] ?? 'active') === 'inactive' ? 'selected' : '' }}>Unenrolled</option>
-                        <option value="all" {{ ($sf['status'] ?? 'active') === 'all' ? 'selected' : '' }}>All Statuses</option>
+                        <option value="all"      {{ ($sf['status'] ?? 'active') === 'all'      ? 'selected' : '' }}>All Statuses</option>
                     </select>
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[16px] text-slate-500 pointer-events-none">expand_more</span>
+                    <span class="material-symbols-outlined">expand_more</span>
                 </div>
-                {{-- Clear filter (client-side toggled, AJAX-cleared — no page reload) --}}
+
+                {{-- Clear filters --}}
                 <span id="clear-filters-wrap" class="{{ !$hasActiveFilters ? 'hidden' : '' }}">
-                    <button type="button" id="clear-filters-btn" class="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-500 text-[13px] font-semibold transition-all hover:bg-slate-50 hover:border-slate-300">Clear</button>
+                    <button type="button" id="clear-filters-btn"
+                        class="px-4 py-2 rounded-[14px] border border-slate-200 bg-white text-slate-500 text-[13px] font-semibold transition-all hover:bg-slate-50 hover:border-slate-300">
+                        Clear
+                    </button>
                 </span>
-                {{-- Add Student Button moved here --}}
+
+                {{-- Add Student --}}
                 <button id="open-modal-btn" title="Add Student"
-                    class="bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] hover:opacity-90 text-white px-3 lg:px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2 shadow-sm border border-[#0d326b]/20 shrink-0">
+                    class="flex items-center gap-2 px-5 py-2 rounded-[14px] text-[13px] font-bold text-white transition-all hover:opacity-90 shadow-sm shrink-0"
+                    style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
                     <span class="material-symbols-outlined icon-outline text-[18px]">person_add</span>
-                    <span class="hidden lg:inline">Add Student</span>
+                    Add Student
                 </button>
             </div>
 

@@ -5,25 +5,26 @@
 <div class="flex flex-col gap-4 pt-4">
 
     <!-- Stats Row -->
-    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3">
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-4">
         @php
             $acStats = [
-                ['label'=>'Total Accounts', 'value'=>$totalAccounts,  'icon'=>'person',          'color'=>'#0d326b'],
-                ['label'=>'Admins',         'value'=>$adminCount,     'icon'=>'admin_panel_settings','color'=>'#1e4b8f'],
-                ['label'=>'Teachers',       'value'=>$teacherCount,   'icon'=>'school',           'color'=>'#1a6fd4'],
-                ['label'=>'Active',         'value'=>$activeCount,    'icon'=>'check_circle',     'color'=>'#10b981'],
-                ['label'=>'Inactive',       'value'=>$inactiveCount,  'icon'=>'cancel',           'color'=>'#ef4444'],
+                ['label'=>'Total Accounts', 'value'=>$totalAccounts,  'icon'=>'person',             'color'=>'#0d326b', 'subcolor'=>'#94a3b8', 'sub'=>'all registered users'],
+                ['label'=>'Admins',         'value'=>$adminCount,     'icon'=>'admin_panel_settings','color'=>'#1e4b8f', 'subcolor'=>'#94a3b8', 'sub'=>'with admin privileges'],
+                ['label'=>'Teachers',       'value'=>$teacherCount,   'icon'=>'school',              'color'=>'#1a6fd4', 'subcolor'=>'#94a3b8', 'sub'=>'active teacher accounts'],
+                ['label'=>'Active',         'value'=>$activeCount,    'icon'=>'check_circle',        'color'=>'#10b981', 'subcolor'=>'#10b981', 'sub'=>'accounts enabled'],
+                ['label'=>'Inactive',       'value'=>$inactiveCount,  'icon'=>'cancel',              'color'=>'#ef4444', 'subcolor'=>'#ef4444', 'sub'=>'accounts disabled'],
             ];
         @endphp
         @foreach($acStats as $st)
-        <div class="bg-white rounded-[20px] shadow-sm border border-slate-100 px-5 py-4 flex items-center gap-3">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $st['color'] }}">
-                <span class="material-symbols-outlined text-white text-[18px]">{{ $st['icon'] }}</span>
+        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[148px]">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $st['color'] }}">
+                    <span class="material-symbols-outlined text-white text-[18px]">{{ $st['icon'] }}</span>
+                </div>
+                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $st['label'] }}</h3>
             </div>
-            <div>
-                <p class="text-[22px] font-black text-[#0d326b] leading-none">{{ $st['value'] }}</p>
-                <p class="text-[11px] font-semibold text-slate-400 mt-0.5">{{ $st['label'] }}</p>
-            </div>
+            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $st['value'] }}</p>
+            <p class="text-[12px] font-medium mt-2" style="color:{{ $st['subcolor'] }}">{{ $st['sub'] }}</p>
         </div>
         @endforeach
     </div>

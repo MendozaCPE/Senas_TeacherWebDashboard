@@ -90,15 +90,17 @@
 
     <!-- User Profile -->
     <div class="px-6 mb-8 mt-4">
-        <div class="flex items-center space-x-4 bg-white/10 px-4 py-3.5 rounded-[24px] shadow-sm">
+        <div class="flex items-center space-x-4 bg-white/10 hover:bg-white/20 px-4 py-3.5 rounded-[24px] shadow-sm transition-all duration-200 group">
             <img src="{{ Auth::user()->avatarUrl() }}"
                  alt="Profile Photo"
                  class="w-10 h-10 rounded-full border-2 border-white/30 shadow-sm object-cover flex-shrink-0"
+                 style="width:40px;height:40px;object-fit:cover;"
                  onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
             <div class="flex-1 overflow-hidden">
                 <p class="text-[13px] font-bold text-white truncate">{{ Auth::user()->name }}</p>
                 <p class="text-[11px] font-medium text-white/60 truncate">Administrator</p>
             </div>
+            <span class="material-symbols-outlined text-white/40 group-hover:text-white/70 text-[16px] transition-colors">admin_panel_settings</span>
         </div>
     </div>
 </aside>
@@ -147,4 +149,27 @@ function closeAdminLogoutModal() {
 document.getElementById('adminLogoutModal')?.addEventListener('click', function(e) {
     if (e.target === this) closeAdminLogoutModal();
 });
+
+// ── SESSION GUARD ─────────────────────────────────────────────────────────
+// Force hard reload when the browser restores this page from bfcache.
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
+// Periodic server ping (every 60 s). Redirect to login if session expires.
+(function startSessionWatch() {
+    setInterval(function() {
+        fetch('/admin/dashboard', {
+            method: 'HEAD',
+            credentials: 'same-origin',
+            cache: 'no-store',
+        }).then(function(res) {
+            if (res.status === 401 || res.status === 403 || res.redirected) {
+                window.location.replace('/login');
+            }
+        }).catch(function() {});
+    }, 60000);
+})();
 </script>

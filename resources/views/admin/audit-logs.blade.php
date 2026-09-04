@@ -8,20 +8,21 @@
     <div class="grid grid-cols-3 gap-4">
         @php
             $logStats = [
-                ['label'=>'Total Log Entries', 'value'=>number_format($totalLogs), 'icon'=>'fact_check',  'color'=>'#0d326b'],
-                ['label'=>'Today',             'value'=>number_format($todayLogs), 'icon'=>'today',        'color'=>'#1e4b8f'],
-                ['label'=>'Last 7 Days',       'value'=>number_format($weekLogs),  'icon'=>'date_range',  'color'=>'#1a6fd4'],
+                ['label'=>'Total Log Entries', 'value'=>number_format($totalLogs), 'icon'=>'fact_check',  'color'=>'#0d326b', 'subcolor'=>'#94a3b8', 'sub'=>'all time'],
+                ['label'=>'Today',             'value'=>number_format($todayLogs), 'icon'=>'today',       'color'=>'#1e4b8f', 'subcolor'=>'#1a6fd4', 'sub'=>'logged today'],
+                ['label'=>'Last 7 Days',       'value'=>number_format($weekLogs),  'icon'=>'date_range',  'color'=>'#1a6fd4', 'subcolor'=>'#1a6fd4', 'sub'=>'this week'],
             ];
         @endphp
         @foreach($logStats as $ls)
-        <div class="bg-white rounded-[20px] shadow-sm border border-slate-100 px-5 py-4 flex items-center gap-3">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $ls['color'] }}">
-                <span class="material-symbols-outlined text-white text-[18px]">{{ $ls['icon'] }}</span>
+        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[148px]">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:{{ $ls['color'] }}">
+                    <span class="material-symbols-outlined text-white text-[18px]">{{ $ls['icon'] }}</span>
+                </div>
+                <h3 class="text-[14px] font-semibold text-slate-700 leading-none">{{ $ls['label'] }}</h3>
             </div>
-            <div>
-                <p class="text-[22px] font-black text-[#0d326b] leading-none">{{ $ls['value'] }}</p>
-                <p class="text-[11px] font-semibold text-slate-400 mt-0.5">{{ $ls['label'] }}</p>
-            </div>
+            <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $ls['value'] }}</p>
+            <p class="text-[12px] font-medium mt-2" style="color:{{ $ls['subcolor'] }}">{{ $ls['sub'] }}</p>
         </div>
         @endforeach
     </div>

@@ -3,6 +3,8 @@
 @section('title', 'Reports')
 @section('content')
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
 <style>
 :root {
     --navy-950: #071c3f;
@@ -191,6 +193,26 @@
     color: #78350f;
     line-height: 1.55;
 }
+
+/* ── LP SVG Chart Tooltips ── */
+.lp-chart-wrapper { position: relative; width: 100%; }
+.lp-chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: #071c3f;
+    color: #ffffff;
+    padding: 5px 11px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    transition: opacity .13s ease;
+    z-index: 50;
+}
+.lp-chart-tooltip.visible { opacity: 1; }
 
 /* ── Export PDF Modal ─────────────────────────────────────────────────────── */
 .pdf-modal-overlay {
@@ -927,7 +949,7 @@ document.addEventListener('keydown', function(e) {
 <div id="studentModalOverlay"
      class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 hidden items-center justify-center p-6"
      onclick="if(event.target===this) closeStudentModal()">
-    <div class="bg-white rounded-[28px] w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+    <div class="bg-white rounded-[28px] w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
 
         <div class="flex items-start justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/60">
             <div class="flex items-center space-x-4">
@@ -947,39 +969,86 @@ document.addEventListener('keydown', function(e) {
 
             <!-- OVERALL PERFORMANCE SECTION -->
             <div>
-                <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Overall Performance</h4>
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
-                        <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Progress</p>
-                        <p id="modalOverallPct" class="text-[20px] font-black text-[#0d326b]"></p>
+                <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-3">Overall Performance</span>
+                <div class="grid grid-cols-5 gap-3">
+
+                    <!-- Progress — navy gradient (primary metric) -->
+                    <div class="stat-kpi-card text-white" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-white/70">Progress</span>
+                            <div class="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[17px] text-white">track_changes</span>
+                            </div>
+                        </div>
+                        <p id="modalOverallPct" class="text-[28px] font-black leading-none mb-1 text-white tracking-tight"></p>
+                        <p class="text-[10px] text-white/60 font-medium">lessons completed</p>
+                        <div class="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                            <div id="modalOverallBar" class="h-full rounded-full bg-white/80"></div>
+                        </div>
                     </div>
-                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
-                        <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Lessons</p>
-                        <p id="modalLessonsCount" class="text-[20px] font-black text-[#1e293b]"></p>
+
+                    <!-- Lessons — white card -->
+                    <div class="stat-kpi-card bg-white">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lessons</span>
+                            <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[17px] text-[#1a6fd4]">menu_book</span>
+                            </div>
+                        </div>
+                        <p id="modalLessonsCount" class="text-[28px] font-black leading-none mb-1 text-[#0d326b] tracking-tight"></p>
+                        <p class="text-[10px] text-slate-400 font-medium">completed / assigned</p>
                     </div>
-                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
-                        <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Quizzes Passed</p>
-                        <p id="modalQuizzesCount" class="text-[20px] font-black text-[#1a6fd4]"></p>
+
+                    <!-- Quizzes Passed — white card -->
+                    <div class="stat-kpi-card bg-white">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quizzes Passed</span>
+                            <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[17px] text-[#0d326b]">quiz</span>
+                            </div>
+                        </div>
+                        <p id="modalQuizzesCount" class="text-[28px] font-black leading-none mb-1 text-[#0d326b] tracking-tight"></p>
+                        <p class="text-[10px] text-slate-400 font-medium">passed / attempted</p>
                     </div>
-                    <div class="bg-[#f1f5f9] rounded-2xl p-3.5">
-                        <p class="text-[10px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">Avg Score</p>
-                        <p id="modalAvgScore" class="text-[20px] font-black text-[#0d326b]"></p>
+
+                    <!-- Avg Score — white card -->
+                    <div class="stat-kpi-card bg-white">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Avg Score</span>
+                            <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[17px] text-[#1a6fd4]">grade</span>
+                            </div>
+                        </div>
+                        <p id="modalAvgScore" class="text-[28px] font-black leading-none mb-1 text-[#0d326b] tracking-tight"></p>
+                        <p class="text-[10px] text-slate-400 font-medium">average quiz score</p>
                     </div>
-                    <div class="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3.5">
-                        <p class="text-[10px] font-bold text-emerald-700 tracking-[0.08em] uppercase mb-1">Gesture Acc.</p>
-                        <p id="modalGestureAccuracy" class="text-[20px] font-black text-emerald-800"></p>
+
+                    <!-- Gesture Acc — gold card -->
+                    <div class="stat-kpi-card text-amber-950" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245,158,11,0.5); box-shadow: 0 4px 16px rgba(245,158,11,0.22);">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-amber-950/80">Gesture Acc.</span>
+                            <div class="w-8 h-8 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[17px]">sign_language</span>
+                            </div>
+                        </div>
+                        <p id="modalGestureAccuracy" class="text-[28px] font-black leading-none mb-1 text-amber-950 tracking-tight"></p>
+                        <p class="text-[10px] text-amber-950/70 font-bold">gesture accuracy rate</p>
                     </div>
+
                 </div>
-                <div class="mt-3 flex items-center space-x-2">
-                    <div class="flex-1 h-2 bg-[#f1f5f9] rounded-full overflow-hidden">
-                        <div id="modalOverallBar" class="h-full rounded-full bg-[#1a6fd4]"></div>
-                    </div>
-                    <span id="modalLastActive" class="text-[11px] font-medium text-slate-400 whitespace-nowrap"></span>
+                <div class="mt-2 flex justify-end">
+                    <span id="modalLastActive" class="text-[11px] font-medium text-slate-400"></span>
                 </div>
             </div>
 
             <!-- TAB NAV -->
             <div class="flex items-center gap-1 border-b border-slate-100 pb-0">
+                <button id="tab-btn-learning-path" onclick="switchModalTab('learning-path')"
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    <span class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px]">route</span>Learning Path
+                    </span>
+                </button>
                 <button id="tab-btn-gestures" onclick="switchModalTab('gestures')"
                     class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
                     <span class="flex items-center gap-1.5">
@@ -1140,6 +1209,27 @@ document.addEventListener('keydown', function(e) {
 
                 <!-- Achievement grid — 4 columns, card-style like reference image -->
                 <div id="modal-achievements-list" class="grid grid-cols-4 gap-3 max-h-[420px] overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- TAB: LEARNING PATH -->
+            <div id="tab-learning-path" class="modal-tab-panel hidden">
+
+                <!-- Loading spinner -->
+                <div id="lp-loading" class="py-12 text-center hidden">
+                    <span class="material-symbols-outlined text-slate-300 text-[30px] animate-spin">refresh</span>
+                    <p class="text-[12px] text-slate-400 mt-2">Loading learning path...</p>
+                </div>
+
+                <!-- Content — rendered by JS after fetch -->
+                <div id="lp-content" class="hidden space-y-4"></div>
+
+                <!-- No learning path state -->
+                <div id="lp-empty" class="hidden py-14 text-center">
+                    <span class="material-symbols-outlined text-slate-200 text-[48px] block mb-2">route</span>
+                    <p class="text-[13px] font-bold text-slate-400">No Learning Path Set</p>
+                    <p class="text-[11px] text-slate-300 mt-1">This student hasn't completed the learning path setup yet.</p>
+                </div>
+
             </div>
 
         </div>
@@ -1406,7 +1496,7 @@ document.addEventListener('keydown', function(e) {
     let _currentModalStudentId = null;
 
     function switchModalTab(tab) {
-        ['gestures', 'lessons', 'reports', 'achievements'].forEach(t => {
+        ['gestures', 'lessons', 'reports', 'achievements', 'learning-path'].forEach(t => {
             document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
             const btn = document.getElementById('tab-btn-' + t);
             if (t === tab) {
@@ -1424,6 +1514,9 @@ document.addEventListener('keydown', function(e) {
         if (tab === 'achievements' && _currentModalStudentId) {
             loadStudentAchievements(_currentModalStudentId);
         }
+        if (tab === 'learning-path' && _currentModalStudentId) {
+            loadStudentLearningPath(_currentModalStudentId);
+        }
     }
 
     // Override openStudentModal to wire up tabs + student ID
@@ -1433,8 +1526,8 @@ document.addEventListener('keydown', function(e) {
         const data = studentReportData[index];
         if (!data) return;
         _currentModalStudentId = data.student_id;
-        // Reset to gestures tab
-        switchModalTab('gestures');
+        // Reset to learning-path tab (first tab)
+        switchModalTab('learning-path');
         // Reset reports panel
         document.getElementById('modal-reports-list').innerHTML = '';
         document.getElementById('modal-report-detail').classList.add('hidden');
@@ -1446,6 +1539,12 @@ document.addEventListener('keydown', function(e) {
         document.getElementById('modal-achievements-loading').classList.add('hidden');
         document.getElementById('modal-achievements-count').textContent = '';
         _achievementsLoaded = {};
+        // Reset learning path panel
+        document.getElementById('lp-loading').classList.add('hidden');
+        document.getElementById('lp-content').classList.add('hidden');
+        document.getElementById('lp-content').innerHTML = '';
+        document.getElementById('lp-empty').classList.add('hidden');
+        _lpLoaded = {};
     };
 
     // ──────────────────────────────────────────────────────────────────────
@@ -1455,6 +1554,7 @@ document.addEventListener('keydown', function(e) {
     let currentReportDetailId = null;
     let _reportsLoaded = {};
     let _achievementsLoaded = {};
+    let _lpLoaded = {};
 
     // ──────────────────────────────────────────────────────────────────────
     // STUDENT ACHIEVEMENTS TAB — LOAD & RENDER
@@ -1573,6 +1673,479 @@ document.addEventListener('keydown', function(e) {
         .catch(function() {
             loadingEl.classList.add('hidden');
             listEl.innerHTML = '<div class="col-span-4 text-center py-8 text-slate-400"><p class="text-[12px] font-semibold">Failed to load achievements.</p></div>';
+        });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // LEARNING PATH TAB — LOAD & RENDER
+    // ──────────────────────────────────────────────────────────────────────
+
+    const GOAL_LABELS = {
+        'Alphabet_Numbers':  'Alphabet & Numbers',
+        'Greetings':         'Greetings',
+        'Classroom_Words':   'Classroom Words',
+        'Everything':        'Everything',
+        'Fingerspelling':    'Fingerspelling',
+        'Greetings_FSL_Words': 'Greetings & FSL Words',
+    };
+
+    const PRACTICE_LABELS = {
+        '5_10_min':    '5 – 10 min / day',
+        '15_20_min':   '15 – 20 min / day',
+        '30_min':      '30 min / day',
+        '1_hour_plus': '1 hour+ / day',
+    };
+
+    // ── Learning Path chart helpers — SVG-based, matching analytics page ──
+
+    const MASTERY_COLORS = {
+        needs_practice: '#93c5fd',
+        developing:     '#60a5fa',
+        proficient:     '#1e4b8f',
+        mastered:       '#0d326b',
+    };
+    const MASTERY_GRAD = {
+        needs_practice: { from: '#bfdbfe', to: '#93c5fd' },
+        developing:     { from: '#93c5fd', to: '#60a5fa' },
+        proficient:     { from: '#3b82f6', to: '#1e4b8f' },
+        mastered:       { from: '#1e4b8f', to: '#0d326b' },
+    };
+    const MASTERY_LABELS = {
+        needs_practice: 'Needs Practice',
+        developing:     'Developing',
+        proficient:     'Proficient',
+        mastered:       'Mastered',
+    };
+
+    // Build a bezier cubic SVG line + area path from an array of {x,y} points
+    function lpBezierPath(pts) {
+        if (!pts.length) return { line: '', area: '' };
+        let line = `M ${pts[0].x},${pts[0].y}`;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p0 = pts[i], p1 = pts[i + 1];
+            const dx = (p1.x - p0.x) / 2;
+            line += ` C ${p0.x + dx},${p0.y} ${p1.x - dx},${p1.y} ${p1.x},${p1.y}`;
+        }
+        const last = pts[pts.length - 1], first = pts[0];
+        const area = line + ` L ${last.x},${last.baseY} L ${first.x},${first.baseY} Z`;
+        return { line, area };
+    }
+
+    // Render a line chart into a container div and return the SVG element
+    function lpBuildLineChart(containerId, opts) {
+        // opts: { labels, values, yMin, yMax, yFormat, gradId, insightId }
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const W = 580, H = 170;
+        const pL = 38, pR = 14, pT = 16, pB = 28;
+        const plotW = W - pL - pR, plotH = H - pT - pB;
+
+        const vals  = opts.values || [];
+        const lbls  = opts.labels || [];
+        const yMin  = opts.yMin  ?? 0;
+        const yMax  = opts.yMax  ?? Math.max(10, ...vals);
+        const yRange = yMax - yMin || 1;
+        const count  = vals.length;
+
+        const pts = vals.map((v, i) => {
+            const x = count > 1 ? pL + (i / (count - 1)) * plotW : pL + plotW / 2;
+            const y = pT + plotH - ((v - yMin) / yRange) * plotH;
+            return { x: +x.toFixed(2), y: +y.toFixed(2), v, label: lbls[i] || '', baseY: pT + plotH };
+        });
+
+        const { line, area } = lpBezierPath(pts);
+        const gId   = opts.gradId || 'lpFill0';
+        const tipId = 'lp-tt-' + containerId;
+
+        // Grid lines
+        const gridTicks = opts.gridTicks || [0, 25, 50, 75, 100];
+        let gridSvg = '';
+        gridTicks.forEach(gv => {
+            const gy = +(pT + plotH - ((gv - yMin) / yRange) * plotH).toFixed(1);
+            if (gy < pT || gy > pT + plotH + 1) return;
+            const label = opts.yFormat ? opts.yFormat(gv) : gv;
+            gridSvg += `<line x1="${pL}" y1="${gy}" x2="${pL + plotW}" y2="${gy}" stroke="#f1f5f9" stroke-width="0.8" stroke-dasharray="3,3"/>`;
+            gridSvg += `<text x="4" y="${gy + 3.5}" font-size="8.5" fill="#94a3b8" font-weight="600">${label}</text>`;
+        });
+
+        // Dot + hit area
+        let dotsSvg = '';
+        pts.forEach(p => {
+            dotsSvg += `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#0d326b" stroke="#ffffff" stroke-width="2" class="cursor-pointer"/>`;
+            dotsSvg += `<circle cx="${p.x}" cy="${p.y}" r="12" fill="transparent" class="lp-line-hit cursor-pointer" data-label="${p.label}" data-value="${opts.yFormat ? opts.yFormat(p.v) : p.v}"/>`;
+            dotsSvg += `<text x="${p.x}" y="${H - 7}" font-size="8" fill="#94a3b8" font-weight="600" text-anchor="middle">${p.label}</text>`;
+        });
+
+        container.innerHTML = `
+        <div class="lp-chart-wrapper" style="position:relative">
+            <div id="${tipId}" class="lp-chart-tooltip"></div>
+            <svg viewBox="0 0 ${W} ${H}" class="w-full h-auto" overflow="visible">
+                <defs>
+                    <linearGradient id="${gId}" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#1a6fd4" stop-opacity="0.20"/>
+                        <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0.0"/>
+                    </linearGradient>
+                    <linearGradient id="${gId}Line" x1="0" y1="0" x2="100%" y2="0">
+                        <stop offset="0%" stop-color="#1e4b8f"/>
+                        <stop offset="100%" stop-color="#0d326b"/>
+                    </linearGradient>
+                </defs>
+                ${gridSvg}
+                ${area  ? `<path d="${area}" fill="url(#${gId})"/>` : ''}
+                ${line  ? `<path d="${line}" fill="none" stroke="url(#${gId}Line)" stroke-width="2.5" stroke-linecap="round"/>` : ''}
+                ${dotsSvg}
+            </svg>
+        </div>`;
+
+        // Wire tooltip
+        const tipEl = document.getElementById(tipId);
+        container.querySelectorAll('.lp-line-hit').forEach(hit => {
+            hit.addEventListener('mouseenter', function () {
+                const rect    = hit.getBoundingClientRect();
+                const wRect   = container.querySelector('.lp-chart-wrapper').getBoundingClientRect();
+                tipEl.style.left = (rect.left - wRect.left + rect.width / 2) + 'px';
+                tipEl.style.top  = (rect.top  - wRect.top  - 4) + 'px';
+                tipEl.textContent = hit.dataset.label + ': ' + hit.dataset.value;
+                tipEl.classList.add('visible');
+            });
+            hit.addEventListener('mouseleave', () => tipEl.classList.remove('visible'));
+        });
+    }
+
+    // Render the SVG variable-radius donut (exact analytics clone)
+    function lpBuildDonut(containerId, dist) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const ORDER   = ['needs_practice', 'developing', 'proficient', 'mastered'];
+        const active  = ORDER.filter(k => (dist[k] || 0) > 0).map(k => ({ key: k, count: dist[k] }));
+        const total   = active.reduce((s, a) => s + a.count, 0);
+
+        if (total === 0) {
+            container.innerHTML = `<p class="text-center text-[11px] text-slate-300 font-semibold py-6">No gesture data yet</p>`;
+            return;
+        }
+
+        const maxCount = Math.max(...active.map(a => a.count));
+        const cx = 80, cy = 80, innerR = 40;
+        const gapAngle = active.length > 1 ? 0.08 : 0;
+        let angle = -Math.PI / 2;
+        const tipId = 'lp-donut-tip-' + containerId;
+
+        const gradDefs = active.map(a => {
+            const g = MASTERY_GRAD[a.key];
+            return `<linearGradient id="lpG_${a.key}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="${g.from}"/>
+                <stop offset="100%" stop-color="${g.to}"/>
+            </linearGradient>`;
+        }).join('');
+
+        const paths = active.map(a => {
+            const fraction  = a.count / total;
+            const span      = fraction * 2 * Math.PI;
+            const outerR    = +(56 + 18 * (a.count / maxCount)).toFixed(1);
+            const segStart  = active.length > 1 ? angle + gapAngle / 2 : angle;
+            const segEnd    = active.length > 1 ? angle + span - gapAngle / 2 : angle + span - 0.001;
+            const x1 = +(cx + outerR * Math.cos(segStart)).toFixed(2);
+            const y1 = +(cy + outerR * Math.sin(segStart)).toFixed(2);
+            const x2 = +(cx + outerR * Math.cos(segEnd)).toFixed(2);
+            const y2 = +(cy + outerR * Math.sin(segEnd)).toFixed(2);
+            const x3 = +(cx + innerR * Math.cos(segEnd)).toFixed(2);
+            const y3 = +(cy + innerR * Math.sin(segEnd)).toFixed(2);
+            const x4 = +(cx + innerR * Math.cos(segStart)).toFixed(2);
+            const y4 = +(cy + innerR * Math.sin(segStart)).toFixed(2);
+            const large = (segEnd - segStart > Math.PI) ? 1 : 0;
+            const d = `M ${x1} ${y1} A ${outerR} ${outerR} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${large} 0 ${x4} ${y4} Z`;
+            angle += span;
+            const pct = +((a.count / total) * 100).toFixed(1);
+            return `<path class="lp-donut-hit cursor-pointer" d="${d}" fill="url(#lpG_${a.key})"
+                stroke="#ffffff" stroke-width="2" stroke-linejoin="round"
+                data-label="${MASTERY_LABELS[a.key]}" data-value="${a.count} (${pct}%)"/>`;
+        }).join('');
+
+        const legendRows = ORDER.filter(k => dist[k] >= 0).map(k => {
+            const cnt = dist[k] || 0;
+            const pct = total > 0 ? ((cnt / total) * 100).toFixed(1) : '0.0';
+            return `<div class="flex items-center justify-between text-[12px] gap-6">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${MASTERY_COLORS[k]}"></span>
+                    <span class="font-bold text-[#0d326b] truncate">${MASTERY_LABELS[k]}</span>
+                </div>
+                <span class="font-semibold text-slate-500 shrink-0">${cnt} (${pct}%)</span>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+        <div class="grid grid-cols-2 gap-4 items-center pt-1">
+            <div class="relative flex items-center justify-center">
+                <div id="${tipId}" class="lp-chart-tooltip"></div>
+                <svg viewBox="0 0 160 160" class="w-36 h-36 overflow-visible">
+                    <defs>
+                        <filter id="lpDonutShadow" x="-10%" y="-10%" width="120%" height="120%">
+                            <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/>
+                        </filter>
+                        ${gradDefs}
+                    </defs>
+                    <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity="0.6"/>
+                    ${paths}
+                    <circle cx="80" cy="80" r="39" fill="#ffffff" filter="url(#lpDonutShadow)"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                    <span class="text-2xl font-black text-[#0d326b] leading-none">${total}</span>
+                    <span class="text-[8.5px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">Gestures</span>
+                </div>
+            </div>
+            <div class="space-y-2">${legendRows}</div>
+        </div>`;
+
+        // Tooltip
+        const tipEl = document.getElementById(tipId);
+        container.querySelectorAll('.lp-donut-hit').forEach(seg => {
+            seg.addEventListener('mouseenter', function () {
+                const rect  = seg.getBoundingClientRect();
+                const pRect = seg.closest('.relative').getBoundingClientRect();
+                tipEl.style.left = (rect.left - pRect.left + rect.width  / 2) + 'px';
+                tipEl.style.top  = (rect.top  - pRect.top  - 8) + 'px';
+                tipEl.textContent = seg.dataset.label + ': ' + seg.dataset.value;
+                tipEl.classList.add('visible');
+            });
+            seg.addEventListener('mouseleave', () => tipEl.classList.remove('visible'));
+        });
+    }
+
+    function loadStudentLearningPath(studentId) {
+        if (_lpLoaded[studentId]) return;
+
+        const loadingEl = document.getElementById('lp-loading');
+        const contentEl = document.getElementById('lp-content');
+        const emptyEl   = document.getElementById('lp-empty');
+
+        loadingEl.classList.remove('hidden');
+        contentEl.classList.add('hidden');
+        emptyEl.classList.add('hidden');
+        contentEl.innerHTML = '';
+
+        fetch(`/reports/student/${studentId}/learning-path`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(function (data) {
+            loadingEl.classList.add('hidden');
+            _lpLoaded[studentId] = true;
+
+            const lp     = data.learning_path;
+            const stats  = data.stats   || {};
+            const charts = data.charts  || {};
+
+            // ── Computed insight text ────────────────────────────────
+            const xpArr   = charts.xp_daily     || [];
+            const xpTotal = (charts.xp_cumulative || []).slice(-1)[0] || 0;
+            const xpFirst = xpArr.find(v => v > 0) || 0;
+            const xpLast  = [...xpArr].reverse().find(v => v > 0) || 0;
+            const xpTrend = xpLast >= xpFirst ? '📈 improving' : '📉 declining';
+
+            const quizArr  = (charts.quiz_history || []).map(q => q.score);
+            const quizAvg  = quizArr.length ? (quizArr.reduce((a,b) => a+b, 0) / quizArr.length).toFixed(1) : null;
+            const quizMin  = quizArr.length ? Math.min(...quizArr).toFixed(1) : null;
+            const quizMax  = quizArr.length ? Math.max(...quizArr).toFixed(1) : null;
+
+            const lessonArr   = charts.lessons_daily || [];
+            const activeDays  = lessonArr.filter(v => v > 0).length;
+
+            const masteryDist = charts.mastery_dist || {};
+            const masteredCnt = masteryDist.mastered || 0;
+            const totalGest   = Object.values(masteryDist).reduce((a,b) => a+b, 0);
+            const masteredPct = totalGest > 0 ? ((masteredCnt / totalGest) * 100).toFixed(0) : 0;
+
+            // ── Build HTML ───────────────────────────────────────────
+            const completedBadge = lp?.is_completed
+                ? `<span class="inline-flex items-center gap-1 bg-emerald-400/20 border border-emerald-300/30 text-emerald-200 text-[9.5px] font-black px-2.5 py-1 rounded-full mt-1">
+                       <span class="material-symbols-outlined text-[11px]">verified</span>Path Completed
+                   </span>` : '';
+
+            contentEl.innerHTML = `
+            <!-- Row 1: Info card + Stats row -->
+            <div class="grid grid-cols-3 gap-4">
+                <!-- Blue info card -->
+                <div class="col-span-1 bg-gradient-to-br from-[#0d326b] to-[#1a6fd4] rounded-[22px] p-5 text-white flex flex-col gap-3">
+                    <p class="text-[9.5px] font-black uppercase tracking-[0.14em] text-white/50">Learning Path</p>
+                    <div class="space-y-3 flex-1">
+                        <div>
+                            <p class="text-[9px] text-white/40 uppercase tracking-widest font-bold mb-0.5">FSL Level</p>
+                            <p class="text-[16px] font-black leading-tight">${lp?.fsl_level || 'Not set'}</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] text-white/40 uppercase tracking-widest font-bold mb-0.5">Goal</p>
+                            <p class="text-[13px] font-bold leading-tight">${GOAL_LABELS[lp?.learning_goal] || lp?.learning_goal || 'Not set'}</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] text-white/40 uppercase tracking-widest font-bold mb-0.5">Daily Practice</p>
+                            <p class="text-[13px] font-bold leading-tight">${PRACTICE_LABELS[lp?.practice_time] || lp?.practice_time || 'Not set'}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-white/15">
+                        <div><p class="text-[9px] text-white/40 font-bold uppercase tracking-wider">Total XP</p>
+                             <p class="text-[15px] font-black leading-none">${(stats.total_xp || 0).toLocaleString()}</p></div>
+                        <div><p class="text-[9px] text-white/40 font-bold uppercase tracking-wider">Streak</p>
+                             <p class="text-[15px] font-black leading-none">${stats.streak_days || 0} 🔥</p></div>
+                        <div><p class="text-[9px] text-white/40 font-bold uppercase tracking-wider">Lessons</p>
+                             <p class="text-[15px] font-black leading-none">${stats.completed_lessons || 0}</p></div>
+                        <div><p class="text-[9px] text-white/40 font-bold uppercase tracking-wider">Level</p>
+                             <p class="text-[13px] font-black leading-none">${stats.current_level || '—'}</p></div>
+                    </div>
+                    ${completedBadge}
+                </div>
+
+                <!-- XP Line Chart -->
+                <div class="col-span-2 bg-white border border-[#edf2f7] rounded-[22px] p-4" style="box-shadow:0 4px 20px rgba(13,50,107,0.03)">
+                    <div class="flex items-start justify-between gap-3 mb-2">
+                        <div>
+                            <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">XP Activity</span>
+                            <h3 class="text-[15px] font-black text-[#0d326b]">XP Earned — Last 14 Days</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Daily experience points earned by this student</p>
+                        </div>
+                        <span class="text-[11px] font-bold text-[#0d326b] bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shrink-0">${xpArr.filter(v=>v>0).length} active days</span>
+                    </div>
+                    <div id="lp-xp-chart-${studentId}"></div>
+                    <div class="senya-insight-gold mt-3">
+                        <div class="senya-insight-gold-icon"><span class="material-symbols-outlined text-[19px]">trending_up</span></div>
+                        <div>
+                            <div class="senya-insight-gold-title">XP Trend</div>
+                            <div class="senya-insight-gold-text">
+                                Student has earned <strong>${xpTotal.toLocaleString()} total XP</strong>.
+                                Daily XP is <strong>${xpTrend}</strong> over the past 14 days
+                                with <strong>${xpArr.filter(v=>v>0).length} active day${xpArr.filter(v=>v>0).length !== 1 ? 's' : ''}</strong>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Quiz Score + Lesson Activity side by side -->
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Quiz Score Trend -->
+                <div class="bg-white border border-[#edf2f7] rounded-[22px] p-4" style="box-shadow:0 4px 20px rgba(13,50,107,0.03)">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                            <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Performance Trend</span>
+                            <h3 class="text-[15px] font-black text-[#0d326b]">Quiz Score Trend</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Score progression across all quiz attempts</p>
+                        </div>
+                        <span class="text-[11px] font-bold text-[#0d326b] bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shrink-0">${quizArr.length} attempt${quizArr.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    ${quizArr.length === 0
+                        ? `<p class="text-center text-slate-300 text-[12px] font-semibold py-10">No quiz attempts yet.</p>`
+                        : `<div id="lp-quiz-chart-${studentId}"></div>`}
+                    <div class="senya-insight-gold mt-3">
+                        <div class="senya-insight-gold-icon"><span class="material-symbols-outlined text-[19px]">school</span></div>
+                        <div>
+                            <div class="senya-insight-gold-title">Quiz Insight</div>
+                            <div class="senya-insight-gold-text">
+                                ${quizArr.length === 0
+                                    ? 'No quiz data recorded yet. Encourage the student to attempt quizzes.'
+                                    : `Average score: <strong>${quizAvg}%</strong>. Range: <strong>${quizMin}% – ${quizMax}%</strong>.
+                                       ${parseFloat(quizAvg) >= 75 ? 'Student is performing <strong>above passing threshold</strong>.' : 'Student may need <strong>additional support</strong> to reach passing score.'}`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lesson Activity -->
+                <div class="bg-white border border-[#edf2f7] rounded-[22px] p-4" style="box-shadow:0 4px 20px rgba(13,50,107,0.03)">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                            <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Lesson Activity</span>
+                            <h3 class="text-[15px] font-black text-[#0d326b]">Completions / Day</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Daily lesson completions over 14 days</p>
+                        </div>
+                        <span class="text-[11px] font-bold text-[#0d326b] bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shrink-0">${activeDays} active day${activeDays !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div id="lp-lesson-chart-${studentId}"></div>
+                    <div class="senya-insight-gold mt-3">
+                        <div class="senya-insight-gold-icon"><span class="material-symbols-outlined text-[19px]">menu_book</span></div>
+                        <div>
+                            <div class="senya-insight-gold-title">Activity Insight</div>
+                            <div class="senya-insight-gold-text">
+                                Student completed lessons on <strong>${activeDays} of the last 14 days</strong>.
+                                ${activeDays >= 10 ? 'Excellent consistency — keep it up!'
+                                    : activeDays >= 5 ? 'Moderate activity. Encourage daily practice.'
+                                    : 'Low activity detected. Student may need motivation or support.'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Gesture Mastery Donut -->
+            <div class="bg-white border border-[#edf2f7] rounded-[22px] p-4" style="box-shadow:0 4px 20px rgba(13,50,107,0.03)">
+                <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Sign Practice</span>
+                <h3 class="text-[15px] font-black text-[#0d326b] mb-1">Gesture Mastery Distribution</h3>
+                <p class="text-[11px] text-slate-400 mb-3">Breakdown of gesture practice proficiency</p>
+                <div id="lp-donut-${studentId}"></div>
+                <div class="senya-insight-gold mt-3">
+                    <div class="senya-insight-gold-icon"><span class="material-symbols-outlined text-[19px]">sign_language</span></div>
+                    <div>
+                        <div class="senya-insight-gold-title">Mastery Insight</div>
+                        <div class="senya-insight-gold-text">
+                            ${totalGest === 0
+                                ? 'No gesture practice data recorded yet.'
+                                : `Student has practiced <strong>${totalGest} gesture${totalGest !== 1 ? 's' : ''}</strong> total.
+                                   <strong>${masteredCnt} (${masteredPct}%)</strong> are fully mastered.
+                                   ${masteredPct >= 70 ? 'Excellent mastery rate — student is on track.'
+                                       : masteredPct >= 40 ? 'Good progress. Continue reinforcing weaker signs.'
+                                       : 'Most gestures still need practice. Focus on repetition and review.'}`}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            contentEl.classList.remove('hidden');
+
+            // ── Render SVG charts after HTML is in DOM ───────────────
+            // XP chart
+            const xpMax = Math.max(10, ...(charts.xp_daily || []));
+            const xpTicks = [0, Math.round(xpMax * 0.25), Math.round(xpMax * 0.5), Math.round(xpMax * 0.75), xpMax];
+            lpBuildLineChart(`lp-xp-chart-${studentId}`, {
+                labels:    charts.labels    || [],
+                values:    charts.xp_daily  || [],
+                yMin:      0,
+                yMax:      xpMax,
+                gradId:    `lpXp${studentId}`,
+                gridTicks: xpTicks,
+            });
+
+            // Quiz score chart
+            if (quizArr.length > 0) {
+                lpBuildLineChart(`lp-quiz-chart-${studentId}`, {
+                    labels:    (charts.quiz_history || []).map(q => q.label),
+                    values:    quizArr,
+                    yMin:      0,
+                    yMax:      100,
+                    gradId:    `lpQuiz${studentId}`,
+                    gridTicks: [0, 25, 50, 75, 100],
+                    yFormat:   v => v + '%',
+                });
+            }
+
+            // Lesson bar chart (rendered as line for consistency)
+            lpBuildLineChart(`lp-lesson-chart-${studentId}`, {
+                labels:    charts.labels        || [],
+                values:    charts.lessons_daily || [],
+                yMin:      0,
+                yMax:      Math.max(1, ...(charts.lessons_daily || [])),
+                gradId:    `lpLesson${studentId}`,
+                gridTicks: [0, 1, 2, 3],
+            });
+
+            // Donut
+            lpBuildDonut(`lp-donut-${studentId}`, charts.mastery_dist || {});
+        })
+        .catch(function () {
+            document.getElementById('lp-loading').classList.add('hidden');
+            document.getElementById('lp-empty').classList.remove('hidden');
+            document.getElementById('lp-empty').querySelector('p').textContent = 'Failed to load learning path data.';
         });
     }
 

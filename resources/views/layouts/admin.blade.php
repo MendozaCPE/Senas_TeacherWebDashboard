@@ -71,27 +71,7 @@
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
 
         <!-- Admin Header -->
-        <header class="h-20 px-12 flex items-center justify-between flex-shrink-0 bg-[#f4f7f9] border-b border-slate-100 relative z-30">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center"
-                     style="background: linear-gradient(135deg,#0d326b,#1a6fd4)">
-                    <span class="material-symbols-outlined text-white text-[16px]">admin_panel_settings</span>
-                </div>
-                <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Administration</p>
-                    <p class="text-[15px] font-bold text-[#0d326b] leading-none">@yield('title', 'Dashboard')</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2.5">
-                <img src="{{ Auth::user()->avatarUrl() }}"
-                     class="w-8 h-8 rounded-full border-2 border-slate-200 object-cover"
-                     onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
-                <div>
-                    <p class="text-[13px] font-bold text-[#0d326b] leading-none">{{ Auth::user()->name }}</p>
-                    <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Administrator</p>
-                </div>
-            </div>
-        </header>
+        @include('partials.admin-header')
 
         <!-- Scrollable Content -->
         <main class="flex-1 overflow-y-auto px-8 pt-2 pb-6 relative border-l border-slate-100">
@@ -101,17 +81,5 @@
         @include('partials.footer')
     </div>
 
-    <script>
-        // Session guard ping — redirect to login if session expires
-        setInterval(function() {
-            fetch('/admin/analytics', {
-                method: 'HEAD', credentials: 'same-origin', cache: 'no-store'
-            }).then(function(res) {
-                if (res.status === 401 || res.status === 403 || res.redirected) {
-                    window.location.replace('/login');
-                }
-            }).catch(function() {});
-        }, 60000);
-    </script>
 </body>
 </html>
