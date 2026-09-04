@@ -61,6 +61,44 @@
     box-shadow: 0 10px 26px rgba(13,50,107,.08);
 }
 
+/* ── Senya Insights Gold Banner ── */
+.senya-insight-gold {
+    background: linear-gradient(135deg, #fffdf8 0%, #fefce8 100%);
+    border: 1.5px solid #fbbf24;
+    border-radius: 20px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
+}
+.senya-insight-gold-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%);
+    color: #78350f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+.senya-insight-gold-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #b45309;
+    margin-bottom: 2px;
+}
+.senya-insight-gold-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #78350f;
+    line-height: 1.55;
+}
+
 /* ── Sign-type tabs ── */
 .gsign-tab { display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:9px;
              font-size:11.5px; font-weight:700; border:1.5px solid #e2e8f0; background:#f8fafc;
@@ -254,7 +292,41 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
 
 </div>
 
-{{-- ══ 3. TREND CHART + GESTURE OVERVIEW ══════════════════════════════════ --}}
+{{-- ══ 3. SENYA PLATFORM INSIGHT BANNER ═══════════════════════════════════ --}}
+@php
+$gAcc = ($gestureStats && $gestureStats->total_attempts > 0)
+    ? round(($gestureStats->total_successful / $gestureStats->total_attempts) * 100, 1)
+    : 0;
+$activePct = $totalStudents > 0 ? round(($activeStudents / $totalStudents) * 100, 1) : 0;
+$formattedScore = number_format($avgQuizScore, 1);
+
+if ($totalUsers === 0) {
+    $adminInsight = "No platform data yet. Insights will appear once teachers and students start using SEÑAS.";
+} elseif ($avgQuizScore >= 75 && $gAcc >= 70) {
+    $adminInsight = "<strong>Platform is performing well.</strong> The average quiz score across all students is <strong>{$formattedScore}%</strong> and gesture accuracy is <strong>{$gAcc}%</strong>. Keep monitoring engagement to sustain this momentum.";
+} elseif ($avgQuizScore < 50) {
+    $adminInsight = "<strong>Quiz scores need attention.</strong> The platform-wide average is <strong>{$formattedScore}%</strong>. Consider prompting teachers to review lesson content or add more practice activities for struggling students.";
+} elseif ($gAcc < 50 && $gestureStats && $gestureStats->total_attempts > 0) {
+    $adminInsight = "<strong>Gesture accuracy is below target at {$gAcc}%.</strong> A significant number of students are struggling with sign recognition. Review the gesture breakdown below to identify signs that need curriculum attention.";
+} elseif ($activePct < 30) {
+    $adminInsight = "<strong>Student engagement is low — only {$activePct}% of students were active in the last 7 days.</strong> Encourage teachers to assign new lessons or issue daily challenges to re-engage inactive students.";
+} else {
+    $mastered = number_format($totalGestureMastered);
+    $adminInsight = "Across the platform, <strong>{$totalStudents} students</strong> have attempted <strong>" . number_format($gestureStats->total_attempts ?? 0) . " gestures</strong> with an accuracy of <strong>{$gAcc}%</strong> and <strong>{$mastered} signs mastered</strong>. Average quiz score stands at <strong>{$formattedScore}%</strong>.";
+}
+@endphp
+
+<div class="senya-insight-gold">
+    <div class="senya-insight-gold-icon">
+        <span class="material-symbols-outlined text-[20px]">lightbulb</span>
+    </div>
+    <div>
+        <div class="senya-insight-gold-title">Senya Platform Overview Insight</div>
+        <div class="senya-insight-gold-text">{!! $adminInsight !!}</div>
+    </div>
+</div>
+
+{{-- ══ 4. TREND CHART + GESTURE OVERVIEW ══════════════════════════════════ --}}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
     {{-- Trend chart (2/3) --}}
@@ -376,7 +448,31 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
 
 </div>
 
-{{-- ══ 4. GESTURE BREAKDOWN (COMPACT CARD GRID) ═══════════════════════════ --}}
+{{-- ── Trend Insight ── --}}
+@php
+$lastPoint   = end($trendPoints);
+$prevPoint   = count($trendPoints) > 1 ? $trendPoints[count($trendPoints) - 2] : null;
+$trendDir    = ($prevPoint && $lastPoint['completions'] > $prevPoint['completions']) ? 'up' : (($prevPoint && $lastPoint['completions'] < $prevPoint['completions']) ? 'down' : 'stable');
+$totalPeriodCompletions = collect($trendPoints)->sum('completions');
+$totalPeriodActive      = collect($trendPoints)->sum('active_students');
+$trendInsight = match(true) {
+    $totalPeriodCompletions === 0 => "No lesson completions recorded in this period yet. Encourage teachers to assign lessons and set deadlines to drive activity.",
+    $trendDir === 'up'            => "<strong>Lesson completions are trending up</strong> — the most recent period shows <strong>" . number_format($lastPoint['completions']) . " completions</strong>. Student engagement is growing across the platform.",
+    $trendDir === 'down'          => "<strong>Completions dipped in the most recent period</strong> ({$lastPoint['completions']}). Check if teachers have upcoming assignment deadlines and remind them to keep students engaged.",
+    default                       => "Lesson completions are <strong>steady at " . number_format($lastPoint['completions']) . "</strong> this period with <strong>{$totalPeriodActive} active student sessions</strong> tracked. Consistent engagement is a good sign.",
+};
+@endphp
+<div class="senya-insight-gold mt-1">
+    <div class="senya-insight-gold-icon">
+        <span class="material-symbols-outlined text-[20px]">trending_up</span>
+    </div>
+    <div>
+        <div class="senya-insight-gold-title">Platform Trend Insight</div>
+        <div class="senya-insight-gold-text">{!! $trendInsight !!}</div>
+    </div>
+</div>
+
+{{-- ══ 5. GESTURE BREAKDOWN (COMPACT CARD GRID) ═══════════════════════════ --}}
 <div class="a-panel !p-0 overflow-hidden">
 
     {{-- Header --}}
@@ -574,7 +670,40 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
 
 </div>
 
-{{-- ══ 5. 2×2 GRID: TEACHER ACTIVITY · MOST COMPLETED · GRADE DIST · HELP REQUEST ══ --}}
+{{-- ── Gesture Coaching Insight ── --}}
+@php
+$criticalSigns = $gestureBreakdown->where('status', 'critical')->count();
+$warningSigns  = $gestureBreakdown->where('status', 'warning')->count();
+$goodSigns     = $gestureBreakdown->where('status', 'good')->count();
+$noDataSigns   = $gestureBreakdown->where('status', 'no_data')->count();
+$totalTracked  = $gestureBreakdown->count();
+$worstSign     = $gestureBreakdown->where('status', 'critical')->sortBy('accuracy')->first();
+$topSign       = $gestureBreakdown->where('status', 'good')->sortByDesc('accuracy')->first();
+
+$gestureInsight = match(true) {
+    $totalTracked === 0 || ($gestureStats->total_attempts ?? 0) === 0
+        => "No gesture practice data recorded yet. Students haven't started the sign recognition exercises. Encourage teachers to assign gesture-based lessons.",
+    $criticalSigns > 0 && $criticalSigns >= ($totalTracked * 0.4)
+        => "<strong>{$criticalSigns} signs are at critical accuracy (below 40%)</strong> — that's " . round(($criticalSigns / $totalTracked) * 100) . "% of all tracked gestures." . ($worstSign ? " The most problematic sign is <strong>\"{$worstSign['name']}\"</strong> at " . ($worstSign['accuracy'] ?? '—') . "% accuracy." : '') . " Review the curriculum content for these signs.",
+    $criticalSigns === 0 && $warningSigns === 0
+        => "<strong>All tracked gestures are performing well (≥70% accuracy).</strong>" . ($topSign ? " Top performer: <strong>\"{$topSign['name']}\"</strong> at {$topSign['accuracy']}%." : '') . " Maintain difficulty levels and introduce new gesture modules to keep students challenged.",
+    $goodSigns >= ($totalTracked * 0.6)
+        => "<strong>{$goodSigns} of {$totalTracked} gestures are in the good range (≥70%).</strong> {$criticalSigns} critical and {$warningSigns} warning signs still need attention." . ($worstSign ? " Focus on <strong>\"{$worstSign['name']}\"</strong> which is the weakest at " . ($worstSign['accuracy'] ?? '—') . "%." : ''),
+    default
+        => "Platform gesture accuracy is <strong>{$gAcc}%</strong> across <strong>" . number_format($gestureStats->total_attempts ?? 0) . " attempts</strong>. {$criticalSigns} critical, {$warningSigns} warning, {$goodSigns} good signs tracked. Prioritize reinforcing critical gestures in the next lesson cycle.",
+};
+@endphp
+<div class="senya-insight-gold">
+    <div class="senya-insight-gold-icon">
+        <span class="material-symbols-outlined text-[20px]">support_agent</span>
+    </div>
+    <div>
+        <div class="senya-insight-gold-title">Gesture Coaching Insight</div>
+        <div class="senya-insight-gold-text">{!! $gestureInsight !!}</div>
+    </div>
+</div>
+
+{{-- ══ 6. 2×2 GRID: TEACHER ACTIVITY · MOST COMPLETED · GRADE DIST · HELP REQUEST ══ --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
     {{-- Teacher Activity --}}
@@ -617,6 +746,32 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
                 </tbody>
             </table>
         </div>
+
+        {{-- Teacher Ranking Insight --}}
+        @php
+        $topTeacher    = $teacherActivity->first();
+        $activeTeachN  = $teacherActivity->where('active_students', '>', 0)->count();
+        $totalTeachN   = $teacherActivity->count();
+        $teacherInsight = match(true) {
+            $totalTeachN === 0
+                => "No teacher activity recorded yet. Teachers haven't published lessons or had student completions this period.",
+            $topTeacher && $topTeacher['completions'] > 0
+                => "<strong>{$topTeacher['name']}</strong> leads the platform with <strong>" . number_format($topTeacher['completions']) . " completions</strong> across <strong>{$topTeacher['students']} students</strong>." . ($activeTeachN < $totalTeachN ? " Note: " . ($totalTeachN - $activeTeachN) . " of {$totalTeachN} teachers have no active students this week — consider reaching out." : ' All teachers have active students this period.'),
+            default
+                => "Teacher activity data is available but no completions have been recorded this period. Encourage teachers to assign and follow up on lesson progress.",
+        };
+        @endphp
+        <div class="px-5 pb-5 pt-4 border-t border-slate-50">
+            <div class="senya-insight-gold">
+                <div class="senya-insight-gold-icon">
+                    <span class="material-symbols-outlined text-[19px]">insights</span>
+                </div>
+                <div>
+                    <div class="senya-insight-gold-title">Teacher Ranking Insight</div>
+                    <div class="senya-insight-gold-text">{!! $teacherInsight !!}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Most Completed Lessons --}}
@@ -644,6 +799,29 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
             <p class="text-[13px] text-slate-400 text-center py-4">No completion data yet</p>
             @endforelse
         </div>
+
+        {{-- Lesson Content Insight --}}
+        @php
+        $topLesson    = $mostCompletedLessons->first();
+        $bottomLesson = $leastCompletedLessons->first();
+        $lessonInsight = match(true) {
+            !$topLesson
+                => "No lesson completion data yet. Once students start completing assignments, top and low-performing lessons will surface here.",
+            $topLesson->completions > 0 && $bottomLesson && $bottomLesson->completions == 0
+                => "<strong>\"{$topLesson->title}\"</strong> leads with <strong>{$topLesson->completions} completions</strong>, while <strong>\"{$bottomLesson->title}\"</strong> has zero completions. Review whether the lowest-performing lessons are assigned or accessible to students.",
+            default
+                => "<strong>\"{$topLesson->title}\"</strong> is the most completed lesson with <strong>{$topLesson->completions} completions</strong>." . ($bottomLesson ? " Consider reviewing <strong>\"{$bottomLesson->title}\"</strong> which has the fewest completions ({$bottomLesson->completions})." : ''),
+        };
+        @endphp
+        <div class="senya-insight-gold mt-4">
+            <div class="senya-insight-gold-icon">
+                <span class="material-symbols-outlined text-[19px]">menu_book</span>
+            </div>
+            <div>
+                <div class="senya-insight-gold-title">Lesson Content Insight</div>
+                <div class="senya-insight-gold-text">{!! $lessonInsight !!}</div>
+            </div>
+        </div>
     </div>
 
     {{-- Students by Grade Level --}}
@@ -668,6 +846,30 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
             @empty
             <p class="text-[13px] text-slate-400 text-center py-4">No grade data</p>
             @endforelse
+        </div>
+
+        {{-- Grade Distribution Insight --}}
+        @php
+        $topGrade    = $gradeDistribution->sortByDesc('count')->first();
+        $gradeCount  = $gradeDistribution->count();
+        $totalInDist = $gradeDistribution->sum('count');
+        $gradeInsight = match(true) {
+            $totalInDist === 0
+                => "No grade level data recorded yet. Insights will appear once students have grade levels assigned.",
+            $gradeCount === 1
+                => "All <strong>{$totalInDist} students</strong> are in <strong>" . ($topGrade->grade_level ?? 'N/A') . "</strong>. Consider diversifying enrollment across grade levels to reach more learners.",
+            $topGrade && $totalInDist > 0
+                => "<strong>" . ($topGrade->grade_level ?? 'N/A') . "</strong> is the largest group with <strong>{$topGrade->count} students</strong> (" . round(($topGrade->count / $totalInDist) * 100) . "% of total). Spread across <strong>{$gradeCount} grade levels</strong> — ensure default lesson content covers all difficulty ranges.",
+        };
+        @endphp
+        <div class="senya-insight-gold mt-4">
+            <div class="senya-insight-gold-icon">
+                <span class="material-symbols-outlined text-[19px]">school</span>
+            </div>
+            <div>
+                <div class="senya-insight-gold-title">Grade Distribution Insight</div>
+                <div class="senya-insight-gold-text">{!! $gradeInsight !!}</div>
+            </div>
         </div>
     </div>
 
@@ -730,6 +932,37 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
                           font-weight="600" text-anchor="middle">{{ $d['label'] }}</text>
                 @endforeach
             </svg>
+        </div>
+
+        {{-- Help Request Insight --}}
+        @php
+        $totalPending  = collect($reportTrend)->sum('pending');
+        $totalResolved = collect($reportTrend)->sum('resolved');
+        $latestPending = collect($reportTrend)->last()['pending'] ?? 0;
+        $resolutionRate = ($totalPending + $totalResolved) > 0
+            ? round(($totalResolved / ($totalPending + $totalResolved)) * 100)
+            : 0;
+        $reportInsight = match(true) {
+            $totalPending === 0 && $totalResolved === 0
+                => "No help requests recorded in the last 7 days. This is a good sign — students are managing lessons without needing to escalate issues.",
+            $resolutionRate >= 80
+                => "<strong>Help requests are being resolved effectively</strong> — <strong>{$resolutionRate}% resolution rate</strong> over the past 7 days ({$totalResolved} resolved of " . ($totalPending + $totalResolved) . " submitted). Keep encouraging teachers to respond promptly.",
+            $latestPending > 0 && $totalResolved === 0
+                => "<strong>{$totalPending} help requests submitted</strong> in the past 7 days with <strong>none resolved yet.</strong> Remind teachers to review and respond to pending student concerns.",
+            $totalPending > $totalResolved
+                => "<strong>More requests are coming in than being resolved</strong> — {$totalPending} submitted vs {$totalResolved} resolved this week ({$resolutionRate}% rate). Consider following up with teachers on outstanding student reports.",
+            default
+                => "<strong>{$totalPending} help requests</strong> submitted and <strong>{$totalResolved} resolved</strong> in the last 7 days — a <strong>{$resolutionRate}% resolution rate</strong>. Monitor trends to keep response times low.",
+        };
+        @endphp
+        <div class="senya-insight-gold mt-4">
+            <div class="senya-insight-gold-icon">
+                <span class="material-symbols-outlined text-[19px]">support_agent</span>
+            </div>
+            <div>
+                <div class="senya-insight-gold-title">Help Request Insight</div>
+                <div class="senya-insight-gold-text">{!! $reportInsight !!}</div>
+            </div>
         </div>
     </div>
 
