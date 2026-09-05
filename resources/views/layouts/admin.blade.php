@@ -79,11 +79,11 @@
         @include('partials.admin-header')
 
         <!-- Scrollable Content -->
-        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-6 relative border-l border-slate-100">
+        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-0 relative border-l border-slate-100">
             @yield('content')
-
-            @include('partials.footer')
         </main>
+
+        @include('partials.footer')
     </div>
 
 </body>

@@ -3,6 +3,65 @@
 @section('title', 'Analytics')
 @section('content')
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="space-y-6 pb-12" aria-hidden="true">
+    {{-- Filter toolbar --}}
+    <div class="bg-white rounded-[22px] border border-slate-100 shadow-sm p-4 flex gap-3 flex-wrap">
+        @for($i=0;$i<3;$i++)<div class="skeleton h-9 rounded-[14px] w-36"></div>@endfor
+        <div class="skeleton h-9 rounded-[14px] w-24"></div>
+        <div class="ml-auto skeleton h-9 rounded-[14px] w-36"></div>
+    </div>
+    {{-- 4 KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div class="skeleton skeleton-card h-[130px]"></div>
+        @for($i=0;$i<2;$i++)
+        <div class="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm flex flex-col gap-3">
+            <div class="flex justify-between"><div class="skeleton h-3 rounded w-32"></div><div class="skeleton w-10 h-10 rounded-xl"></div></div>
+            <div class="skeleton h-9 rounded w-20"></div>
+            <div class="skeleton h-3 rounded w-36"></div>
+        </div>
+        @endfor
+        <div class="skeleton skeleton-card h-[130px]"></div>
+    </div>
+    {{-- Insight banner --}}
+    <div class="skeleton rounded-[18px] h-16 w-full"></div>
+    {{-- Main grid: 7 + 5 cols --}}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 bg-white rounded-[26px] border border-slate-100 shadow-sm p-6 flex flex-col gap-4">
+            <div class="flex justify-between pb-3 border-b border-slate-100">
+                <div class="flex flex-col gap-2"><div class="skeleton h-5 rounded w-40"></div><div class="skeleton h-3 rounded w-56"></div></div>
+                <div class="skeleton h-9 rounded-[14px] w-48"></div>
+            </div>
+            @for($i=0;$i<6;$i++)
+            <div class="flex items-center gap-3">
+                <div class="skeleton w-8 h-8 rounded-lg flex-shrink-0"></div>
+                <div class="skeleton skeleton-circle w-9 h-9 flex-shrink-0"></div>
+                <div class="flex-1 flex flex-col gap-1.5"><div class="skeleton h-3 rounded w-32"></div><div class="skeleton h-2 rounded w-24"></div></div>
+                <div class="skeleton h-4 rounded w-14 ml-auto"></div>
+            </div>
+            @endfor
+        </div>
+        <div class="lg:col-span-5 flex flex-col gap-6">
+            <div class="bg-white rounded-[26px] border border-slate-100 shadow-sm p-6 flex flex-col gap-4">
+                <div class="skeleton h-4 rounded w-40"></div>
+                <div class="skeleton rounded-full w-32 h-32 mx-auto"></div>
+                @for($i=0;$i<3;$i++)<div class="skeleton h-3 rounded w-full"></div>@endfor
+            </div>
+            <div class="bg-white rounded-[26px] border border-slate-100 shadow-sm p-6 flex flex-col gap-3">
+                <div class="skeleton h-4 rounded w-36"></div>
+                @for($i=0;$i<4;$i++)
+                <div class="flex items-center gap-2">
+                    <div class="skeleton h-3 rounded w-12"></div>
+                    <div class="skeleton h-5 rounded flex-1" style="opacity:{{ 1 - $i*0.2 }}"></div>
+                </div>
+                @endfor
+            </div>
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+
 <style>
 :root {
     --navy-950: #071c3f;

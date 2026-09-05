@@ -3,6 +3,61 @@
 @section('title', 'Create Checkpoint Exam')
 
 @section('content')
+
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="max-w-4xl mx-auto pb-10" aria-hidden="true">
+    {{-- Header --}}
+    <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col gap-2">
+            <div class="skeleton h-3 rounded w-32"></div>
+            <div class="skeleton h-8 rounded w-56"></div>
+            <div class="skeleton h-3 rounded w-64"></div>
+        </div>
+        <div class="skeleton h-10 rounded-xl w-36"></div>
+    </div>
+    {{-- Exam Details card --}}
+    <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-6 mb-6 flex flex-col gap-4">
+        <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-36"></div><div class="skeleton h-3 rounded w-48"></div></div>
+        </div>
+        <div class="skeleton h-10 rounded-[12px] w-full"></div>
+        <div class="skeleton h-16 rounded-[12px] w-full"></div>
+        <div class="grid grid-cols-3 gap-4">
+            @for($i=0;$i<3;$i++)<div class="skeleton h-10 rounded-[12px]"></div>@endfor
+        </div>
+    </div>
+    {{-- Questions card --}}
+    <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-6 mb-6 flex flex-col gap-4">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+                <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-24"></div><div class="skeleton h-3 rounded w-40"></div></div>
+            </div>
+            <div class="skeleton h-9 rounded-[12px] w-32"></div>
+        </div>
+        @for($i=0;$i<3;$i++)
+        <div class="border border-slate-200 rounded-[16px] p-5 flex flex-col gap-3">
+            <div class="flex gap-3"><div class="skeleton h-10 rounded-[12px] flex-1"></div><div class="skeleton w-8 h-8 rounded-lg"></div></div>
+            @for($j=0;$j<4;$j++)
+            <div class="flex items-center gap-3 border border-slate-200 rounded-[12px] p-3">
+                <div class="skeleton w-7 h-7 rounded-lg"></div>
+                <div class="skeleton h-8 rounded-[10px] flex-1"></div>
+                <div class="skeleton w-5 h-5 rounded-full"></div>
+            </div>
+            @endfor
+        </div>
+        @endfor
+    </div>
+    {{-- Footer --}}
+    <div class="flex gap-3 justify-end">
+        <div class="skeleton h-11 rounded-[12px] w-24"></div>
+        <div class="skeleton h-11 rounded-[12px] w-40"></div>
+    </div>
+</div>
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
 <style>
     .exam-card {
         background: #ffffff;

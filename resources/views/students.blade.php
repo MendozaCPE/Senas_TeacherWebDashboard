@@ -2,7 +2,89 @@
 @section('title', 'Students')
 @section('content')
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="space-y-6" aria-hidden="true">
+    {{-- KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div class="skeleton skeleton-card h-[140px]"></div>
+        <div class="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm flex flex-col gap-3">
+            <div class="flex justify-between"><div class="skeleton h-3 rounded w-32"></div><div class="skeleton skeleton-circle w-10 h-10"></div></div>
+            <div class="skeleton h-9 rounded w-20"></div>
+            <div class="skeleton h-2 rounded-full w-full"></div>
+        </div>
+        <div class="skeleton skeleton-card h-[140px]"></div>
+    </div>
+    {{-- Main: table + sidebar --}}
+    <div class="flex flex-col lg:flex-row gap-5">
+        <div class="flex-1 min-w-0 flex flex-col gap-4">
+            {{-- Filter toolbar --}}
+            <div class="bg-white rounded-[22px] border border-slate-100 p-4 flex gap-3">
+                <div class="skeleton h-9 rounded-full flex-1"></div>
+                @for($i=0;$i<3;$i++)<div class="skeleton h-9 rounded-[14px] w-28"></div>@endfor
+                <div class="skeleton h-9 rounded-[14px] w-24 ml-auto"></div>
+            </div>
+            {{-- Table --}}
+            <div class="bg-white rounded-[24px] border border-slate-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex gap-3">
+                    @for($i=0;$i<5;$i++)<div class="skeleton h-3 rounded {{ $i===0?'w-32':'w-20' }}"></div>@endfor
+                </div>
+                @for($i=0;$i<8;$i++)
+                <div class="flex items-center gap-4 px-6 py-4 border-b border-slate-50">
+                    <div class="skeleton skeleton-circle w-10 h-10 flex-shrink-0"></div>
+                    <div class="flex-1 flex flex-col gap-2"><div class="skeleton h-3 rounded w-36"></div><div class="skeleton h-2 rounded w-24"></div></div>
+                    <div class="skeleton h-6 rounded-full w-20"></div>
+                    <div class="skeleton h-2 rounded-full w-28"></div>
+                    <div class="skeleton h-7 rounded-lg w-16 ml-auto"></div>
+                </div>
+                @endfor
+            </div>
+        </div>
+        {{-- Right sidebar --}}
+        <div class="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
+            <div class="bg-white rounded-[24px] border border-slate-100 p-5 flex flex-col gap-3">
+                <div class="skeleton h-4 rounded w-32"></div>
+                @for($i=0;$i<4;$i++)
+                <div class="flex items-center gap-3">
+                    <div class="skeleton h-3 rounded w-20"></div>
+                    <div class="skeleton h-3 rounded-full flex-1"></div>
+                    <div class="skeleton h-3 rounded w-6"></div>
+                </div>
+                @endfor
+            </div>
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+
 <style>
+/* ── Local skeleton shimmer (for modal loading states) ──────────────── */
+@keyframes shimmer-modal {
+    0%   { background-position: -600px 0; }
+    100% { background-position:  600px 0; }
+}
+#sdc-loading .skeleton,
+#assignment-loading .skeleton {
+    display: block;
+    background: #e2e8f0;
+    background-image: linear-gradient(
+        90deg,
+        #e2e8f0 0px,
+        #f1f5f9 40%,
+        #eef2f7 55%,
+        #e2e8f0 100%
+    );
+    background-size: 600px 100%;
+    animation: shimmer-modal 1.6s infinite linear;
+    border-radius: 6px;
+}
+#sdc-loading .skeleton.rounded-2xl       { border-radius: 16px; }
+#sdc-loading .skeleton.rounded-full      { border-radius: 9999px; }
+#sdc-loading .skeleton.rounded-\[16px\]  { border-radius: 16px; }
+#sdc-loading .skeleton.rounded-\[12px\]  { border-radius: 12px; }
+#assignment-loading .skeleton.rounded-\[12px\] { border-radius: 12px; }
+#assignment-loading .skeleton.rounded-full     { border-radius: 9999px; }
+
 /* ── Level color tokens — navy scale only ─────────── */
 :root {
     --clr-beginner:     #93c5fd;
@@ -801,11 +883,40 @@
             </div>
         </div>
 
-        {{-- Loading state --}}
-        <div id="sdc-loading" class="flex-1 flex items-center justify-center py-16">
-            <div class="flex flex-col items-center gap-3">
-                <span class="material-symbols-outlined text-[#0d326b] text-[36px] animate-spin">progress_activity</span>
-                <p class="text-[13px] text-slate-400 font-medium">Loading student data…</p>
+        {{-- Loading state — shimmer skeleton --}}
+        <div id="sdc-loading" class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            {{-- Left sidebar skeleton --}}
+            <div class="lg:w-[240px] shrink-0 border-r border-slate-100 p-5 flex flex-col items-center gap-4">
+                <div class="skeleton w-16 h-16 rounded-2xl"></div>
+                <div class="skeleton h-4 rounded w-32"></div>
+                <div class="skeleton h-3 rounded w-24"></div>
+                <div class="skeleton h-6 rounded-full w-20 mt-1"></div>
+                <div class="w-full skeleton h-2 rounded-full mt-2"></div>
+                <div class="skeleton h-3 rounded w-28"></div>
+                <div class="grid grid-cols-3 gap-2 w-full mt-2">
+                    @for($i=0;$i<3;$i++)
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="skeleton h-5 rounded w-8"></div>
+                        <div class="skeleton h-2 rounded w-12"></div>
+                    </div>
+                    @endfor
+                </div>
+            </div>
+            {{-- Right content skeleton --}}
+            <div class="flex-1 p-6 flex flex-col gap-5 overflow-y-auto">
+                <div class="grid grid-cols-2 gap-4">
+                    @for($i=0;$i<4;$i++)
+                    <div class="bg-slate-50 rounded-[16px] p-4 flex flex-col gap-2">
+                        <div class="skeleton h-3 rounded w-24"></div>
+                        @for($j=0;$j<3;$j++)<div class="skeleton h-3 rounded w-full"></div>@endfor
+                    </div>
+                    @endfor
+                </div>
+                <div class="bg-slate-50 rounded-[16px] p-4 flex flex-col gap-3">
+                    <div class="skeleton h-3 rounded w-32"></div>
+                    <div class="skeleton h-10 rounded-[12px] w-full"></div>
+                    <div class="skeleton h-10 rounded-[12px] w-full"></div>
+                </div>
             </div>
         </div>
 
@@ -1096,12 +1207,29 @@
             <span>This is the next required step. If you cancel, this student will be added with no lessons assigned.</span>
         </div>
 
-        {{-- Loading --}}
-        <div id="assignment-loading" class="flex-1 flex items-center justify-center py-12">
-            <div class="flex flex-col items-center gap-3">
-                <span class="material-symbols-outlined text-[#0d326b] text-[36px] animate-spin">progress_activity</span>
-                <p class="text-[13px] text-slate-400 font-medium">Loading available lessons...</p>
+        {{-- Loading — shimmer skeleton --}}
+        <div id="assignment-loading" class="flex-1 flex flex-col gap-3 px-7 py-5">
+            {{-- Stats bar --}}
+            <div class="flex gap-4 pb-3 border-b border-slate-100">
+                <div class="skeleton h-3 rounded w-28"></div>
+                <div class="skeleton h-3 rounded w-24"></div>
             </div>
+            {{-- Module + lesson rows --}}
+            @for($m=0;$m<3;$m++)
+            <div class="flex flex-col gap-1.5 mt-2">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="skeleton w-5 h-5 rounded-lg"></div>
+                    <div class="skeleton h-4 rounded w-40"></div>
+                </div>
+                @for($l=0;$l<3;$l++)
+                <div class="flex items-center gap-3 pl-7 py-2 border border-slate-100 rounded-[12px]">
+                    <div class="skeleton w-4 h-4 rounded"></div>
+                    <div class="skeleton h-3 rounded flex-1"></div>
+                    <div class="skeleton h-5 rounded-full w-16"></div>
+                </div>
+                @endfor
+            </div>
+            @endfor
         </div>
 
         {{-- Content --}}

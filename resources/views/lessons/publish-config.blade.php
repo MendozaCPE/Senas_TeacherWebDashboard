@@ -2,6 +2,74 @@
 @section('title', 'Publish Lesson Configuration')
 
 @section('content')
+
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="max-w-4xl mx-auto px-4 py-6" aria-hidden="true">
+    {{-- Header row --}}
+    <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col gap-2">
+            <div class="skeleton h-8 rounded w-56"></div>
+            <div class="skeleton h-3 rounded w-72"></div>
+        </div>
+        <div class="skeleton h-10 rounded-xl w-36"></div>
+    </div>
+    {{-- Lesson overview card --}}
+    <div class="bg-white rounded-[24px] p-6 border-l-4 border-[#0d326b] border border-slate-100 shadow-sm mb-6 flex items-start gap-4">
+        <div class="skeleton w-12 h-12 rounded-2xl flex-shrink-0"></div>
+        <div class="flex-1 flex flex-col gap-2">
+            <div class="skeleton h-5 rounded w-64"></div>
+            <div class="skeleton h-3 rounded w-full max-w-md"></div>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+            @for($i=0;$i<3;$i++)<div class="skeleton h-6 rounded-full w-20"></div>@endfor
+        </div>
+    </div>
+    {{-- 3 section cards --}}
+    @foreach(['Module Assignment','Target Audience','Notifications'] as $sec)
+    <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-5">
+        <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5">
+                <div class="skeleton h-4 rounded w-40"></div>
+                <div class="skeleton h-3 rounded w-56"></div>
+            </div>
+        </div>
+        @if($loop->first)
+        <div class="flex flex-col gap-3">
+            @for($i=0;$i<2;$i++)
+            <div class="border-2 border-slate-200 rounded-[16px] p-4 flex items-start gap-3">
+                <div class="skeleton w-5 h-5 rounded-full mt-0.5 flex-shrink-0"></div>
+                <div class="flex-1 flex flex-col gap-2">
+                    <div class="skeleton h-4 rounded w-40"></div>
+                    <div class="skeleton h-3 rounded w-full max-w-sm"></div>
+                    @if($i===0)<div class="skeleton h-9 rounded-[12px] w-full mt-1"></div>@endif
+                </div>
+            </div>
+            @endfor
+        </div>
+        @elseif($loop->index===1)
+        <div class="grid grid-cols-2 gap-3">
+            @for($i=0;$i<4;$i++)
+            <div class="border-2 border-slate-200 rounded-[16px] p-4 flex items-start gap-3">
+                <div class="skeleton w-5 h-5 rounded-full flex-shrink-0"></div>
+                <div class="skeleton h-4 rounded flex-1"></div>
+            </div>
+            @endfor
+        </div>
+        @else
+        <div class="skeleton h-14 rounded-[14px] w-full"></div>
+        @endif
+    </div>
+    @endforeach
+    {{-- Action row --}}
+    <div class="flex gap-3 justify-end mt-4">
+        <div class="skeleton h-11 rounded-[12px] w-24"></div>
+        <div class="skeleton h-11 rounded-[12px] w-36"></div>
+    </div>
+</div>
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 

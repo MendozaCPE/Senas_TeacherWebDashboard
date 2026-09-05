@@ -3,6 +3,51 @@
 @section('title', 'Settings')
 @section('content')
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="pb-20" aria-hidden="true">
+    {{-- Hero banner --}}
+    <div class="skeleton rounded-[20px] h-[110px] w-full mb-6"></div>
+    {{-- Two-column layout --}}
+    <div class="flex gap-6">
+        {{-- Main: tabs + card --}}
+        <div class="flex-1 min-w-0 flex flex-col gap-4">
+            {{-- Tab nav --}}
+            <div class="flex gap-2">
+                @for($i=0;$i<5;$i++)<div class="skeleton h-9 rounded-full w-24"></div>@endfor
+            </div>
+            {{-- Settings card --}}
+            <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-5 border-b border-slate-100 flex justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="skeleton w-10 h-10 rounded-xl"></div>
+                        <div class="flex flex-col gap-2"><div class="skeleton h-4 rounded w-32"></div><div class="skeleton h-3 rounded w-48"></div></div>
+                    </div>
+                    <div class="skeleton h-9 rounded-[12px] w-20"></div>
+                </div>
+                @for($i=0;$i<5;$i++)
+                <div class="px-6 py-5 border-b border-slate-50 flex items-center gap-6">
+                    <div class="skeleton h-3 rounded w-28 flex-shrink-0"></div>
+                    <div class="skeleton h-10 rounded-[14px] flex-1 max-w-sm"></div>
+                </div>
+                @endfor
+            </div>
+        </div>
+        {{-- Right sidebar --}}
+        <div class="w-[288px] flex-shrink-0 flex flex-col gap-4">
+            <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-5 flex flex-col gap-3">
+                <div class="skeleton h-4 rounded w-36"></div>
+                <div class="skeleton rounded-full w-20 h-20 mx-auto"></div>
+                @for($i=0;$i<4;$i++)<div class="skeleton h-3 rounded w-full"></div>@endfor
+            </div>
+            <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-5 flex flex-col gap-3">
+                @for($i=0;$i<3;$i++)<div class="skeleton h-8 rounded-[12px] w-full"></div>@endfor
+            </div>
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+
 <style>
 :root {
     /* ── Colors ── */

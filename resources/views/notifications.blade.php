@@ -3,6 +3,48 @@
 @section('title', 'Notifications')
 
 @section('content')
+
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="max-w-4xl mx-auto py-6 space-y-4" aria-hidden="true">
+    {{-- Header card --}}
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="skeleton w-12 h-12 rounded-2xl flex-shrink-0"></div>
+                <div class="flex flex-col gap-2">
+                    <div class="skeleton h-5 rounded w-36"></div>
+                    <div class="skeleton h-3 rounded w-48"></div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <div class="skeleton h-8 rounded-xl w-32"></div>
+                <div class="skeleton h-8 rounded-xl w-24"></div>
+            </div>
+        </div>
+        <div class="flex gap-2 pt-4 border-t border-slate-100">
+            @for($i=0;$i<3;$i++)<div class="skeleton h-8 rounded-xl w-20"></div>@endfor
+        </div>
+    </div>
+    {{-- Notification rows --}}
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
+        @for($i=0;$i<8;$i++)
+        <div class="flex items-start gap-4 px-6 py-4">
+            <div class="relative flex-shrink-0">
+                <div class="skeleton skeleton-circle w-11 h-11"></div>
+                <div class="skeleton skeleton-circle w-4 h-4 absolute -bottom-0.5 -right-0.5"></div>
+            </div>
+            <div class="flex-1 flex flex-col gap-2">
+                <div class="skeleton h-3 rounded w-3/4"></div>
+                <div class="skeleton h-2 rounded w-full"></div>
+                <div class="skeleton h-2 rounded w-1/3"></div>
+            </div>
+            @if($i % 3 === 0)<div class="skeleton skeleton-circle w-2.5 h-2.5 mt-2 flex-shrink-0"></div>@endif
+        </div>
+        @endfor
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
 <div class="max-w-4xl mx-auto py-6">
 
     {{-- ── Page Header ──────────────────────────────────────────────────── --}}

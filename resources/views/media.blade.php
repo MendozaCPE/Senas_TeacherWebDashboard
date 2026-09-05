@@ -2,6 +2,35 @@
 @section('title', 'Media')
 @section('content')
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="flex flex-col gap-5" aria-hidden="true">
+    {{-- Toolbar --}}
+    <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-4 flex flex-col gap-3">
+        <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex gap-2">@for($i=0;$i<3;$i++)<div class="skeleton h-8 rounded-full w-20"></div>@endfor</div>
+            <div class="flex gap-2">@for($i=0;$i<4;$i++)<div class="skeleton h-8 rounded-full w-16"></div>@endfor</div>
+            <div class="ml-auto skeleton h-9 rounded-xl w-32"></div>
+        </div>
+        <div class="flex gap-2 pt-3 border-t border-slate-100">
+            @for($i=0;$i<4;$i++)<div class="skeleton h-5 rounded-full w-16"></div>@endfor
+        </div>
+    </div>
+    {{-- Media grid --}}
+    <div class="grid gap-[18px]" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+        @for($i=0;$i<12;$i++)
+        <div class="bg-white rounded-[18px] border border-slate-100 overflow-hidden shadow-sm" style="animation-delay:{{ $i*0.05 }}s">
+            <div class="skeleton w-full" style="padding-bottom:56.25%"></div>
+            <div class="p-3 flex flex-col gap-2">
+                <div class="skeleton h-3 rounded w-3/4"></div>
+                <div class="skeleton h-2 rounded w-1/2"></div>
+            </div>
+        </div>
+        @endfor
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+
 <style>
 /* ── Filter tab pills ──────────────────────────────────────────────────────── */
 .filter-tab {

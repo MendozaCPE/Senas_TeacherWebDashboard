@@ -75,6 +75,31 @@
         /* Compensate: zoom changes how vh resolves, so anchor heights to % instead */
         html, body { height: 100%; }
 
+        /* ── Skeleton / Shimmer ─────────────────────────────────────────── */
+        @keyframes shimmer {
+            0%   { background-position: -600px 0; }
+            100% { background-position:  600px 0; }
+        }
+        .skeleton {
+            background: #e2e8f0;
+            background-image: linear-gradient(
+                90deg,
+                #e2e8f0 0px,
+                #f1f5f9 40%,
+                #eef2f7 55%,
+                #e2e8f0 100%
+            );
+            background-size: 600px 100%;
+            animation: shimmer 1.6s infinite linear;
+            border-radius: 6px;
+        }
+        .skeleton-circle  { border-radius: 9999px; }
+        .skeleton-card    { border-radius: 24px; }
+        /* Hide real content while skeleton is showing */
+        .page-loading .skeleton-hide  { display: none; }
+        /* Hide skeleton once loaded */
+        .page-loaded  #dashboard-skeleton { display: none !important; }
+
         .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         .material-symbols-outlined.icon-outline { font-variation-settings: 'FILL' 0; }
         ::-webkit-scrollbar { width: 8px; }
@@ -173,12 +198,12 @@
         @include('partials.header')
 
         <!-- Scrollable Content -->
-        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-6 relative border-l border-slate-100">
+        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-0 relative border-l border-slate-100">
             @yield('content')
-
-            <!-- Footer -->
-            @include('partials.footer')
         </main>
+
+        <!-- Footer — sticky at bottom of the layout column, outside scroll area -->
+        @include('partials.footer')
     </div>
 
     <!-- ── Inactivity Timeout Modal ─────────────────────────────────────── -->
@@ -205,6 +230,14 @@
 
     <!-- Clear any previously stored dark mode preference -->
     <script>localStorage.removeItem('theme');</script>
+    <!-- Mark body as loading immediately so skeletons show; swap on DOMContentLoaded -->
+    <script>document.body.classList.add('page-loading');</script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.classList.remove('page-loading');
+            document.body.classList.add('page-loaded');
+        });
+    </script>
 
     <!-- ── Inactivity Timer (warns at 9 min, logs out at 10 min) ─────────── -->
     <script>

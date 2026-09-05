@@ -1,4 +1,4 @@
-<footer class="footer-global flex-shrink-0 py-4 px-8 flex items-center justify-center border-t border-slate-100 bg-transparent mt-4">
+<footer class="flex-shrink-0 py-2.5 px-8 flex items-center justify-center border-t border-slate-100 bg-[#f4f7f9]">
     <p class="text-[11px] font-medium tracking-wide text-slate-400 select-none text-center">
         &copy; {{ date('Y') }} &nbsp;<span class="font-bold text-slate-500">SEÑAS</span>&nbsp; &mdash; All rights reserved.
         &nbsp;&nbsp;|&nbsp;&nbsp;

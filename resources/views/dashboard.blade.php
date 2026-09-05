@@ -1,7 +1,117 @@
 @extends('layouts.app')
 @section('title', 'Dashboard')
 @section('content')
-<div class="flex flex-col gap-2 w-full">
+
+{{-- ═══════════════════════════════════════════════════════════════════════
+     SKELETON OVERLAY — mirrors the real dashboard layout exactly.
+     Visible during page-loading, hidden once page-loaded class is set.
+     ═══════════════════════════════════════════════════════════════════════ --}}
+<div id="dashboard-skeleton" class="flex flex-col gap-2 w-full" aria-hidden="true">
+
+    {{-- Top row: left column + right sidebar --}}
+    <div class="flex flex-col lg:flex-row gap-4 w-full">
+
+        {{-- Left / center column --}}
+        <div class="flex-1 min-w-0 flex flex-col space-y-4">
+
+            {{-- Welcome banner + calendar --}}
+            <div class="flex gap-5">
+                {{-- Banner --}}
+                <div class="skeleton skeleton-card flex-1 min-h-[160px]"></div>
+                {{-- Calendar widget --}}
+                <div class="skeleton skeleton-card flex-shrink-0 w-[260px] min-h-[160px]"></div>
+            </div>
+
+            {{-- KPI stats row --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                @for($i = 0; $i < 4; $i++)
+                <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px] gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="skeleton skeleton-circle w-9 h-9 flex-shrink-0"></div>
+                        <div class="skeleton h-3 rounded w-28"></div>
+                    </div>
+                    <div class="skeleton h-8 rounded w-16 mt-1"></div>
+                    <div class="skeleton h-3 rounded w-24"></div>
+                    <div class="skeleton rounded mt-auto h-[44px] w-full"></div>
+                </div>
+                @endfor
+            </div>
+
+            {{-- Your Lessons section --}}
+            <div>
+                <div class="flex justify-between items-end mb-3 pl-2">
+                    <div class="skeleton h-6 rounded w-36"></div>
+                    <div class="skeleton h-4 rounded w-28"></div>
+                </div>
+                <div class="flex space-x-4 overflow-hidden pb-6 pt-8">
+                    @for($i = 0; $i < 4; $i++)
+                    <div class="flex-shrink-0 w-[280px]">
+                        {{-- Folder tab nub --}}
+                        <div class="skeleton w-[90px] h-[24px] rounded-t-[16px] ml-4"></div>
+                        {{-- Folder body --}}
+                        <div class="skeleton skeleton-card rounded-t-none h-[220px] w-full flex flex-col p-6 gap-3" style="animation-delay: {{ $i * 0.12 }}s">
+                        </div>
+                    </div>
+                    @endfor
+                </div>
+            </div>
+
+        </div>
+
+        {{-- Right sidebar --}}
+        <div class="w-[340px] flex-shrink-0 flex flex-col space-y-4 pl-4">
+            {{-- Senya Insights widget --}}
+            <div class="skeleton skeleton-card h-[130px]"></div>
+            {{-- My Students card --}}
+            <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                {{-- Header --}}
+                <div class="px-7 pt-7 pb-4 flex items-center justify-between">
+                    <div class="flex flex-col gap-2">
+                        <div class="skeleton h-4 rounded w-28"></div>
+                        <div class="skeleton h-3 rounded w-16"></div>
+                    </div>
+                    <div class="skeleton h-6 rounded w-16"></div>
+                </div>
+                <div class="mx-7 border-t border-slate-100"></div>
+                {{-- Student rows --}}
+                @for($i = 0; $i < 5; $i++)
+                <div class="flex items-center gap-4 px-7 py-4">
+                    <div class="skeleton skeleton-circle w-11 h-11 flex-shrink-0"></div>
+                    <div class="flex-1 flex flex-col gap-2">
+                        <div class="skeleton h-3 rounded w-3/4"></div>
+                        <div class="skeleton h-2 rounded w-full"></div>
+                    </div>
+                </div>
+                @endfor
+                {{-- Footer button --}}
+                <div class="px-7 py-3 border-t border-slate-100">
+                    <div class="skeleton skeleton-card h-11 w-full rounded-xl"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- Bottom row: 3 chart cards --}}
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-4">
+        @for($i = 0; $i < 3; $i++)
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4 min-h-[260px]">
+            <div class="flex items-start justify-between">
+                <div class="flex flex-col gap-2">
+                    <div class="skeleton h-4 rounded w-36"></div>
+                    <div class="skeleton h-3 rounded w-48"></div>
+                </div>
+                <div class="skeleton skeleton-card h-10 rounded-2xl w-24"></div>
+            </div>
+            <div class="skeleton rounded-xl flex-1 min-h-[160px] w-full"></div>
+        </div>
+        @endfor
+    </div>
+
+</div>
+{{-- ═══════════════════════════════════════════════════════════════════ --}}
+
+<div class="flex flex-col gap-2 w-full skeleton-hide">
 
     <div class="flex flex-col lg:flex-row gap-4 w-full">
                 
@@ -560,8 +670,9 @@
             </div>
         </div>
 
-    </div>
-</div>
+        </div>{{-- closes right sidebar --}}
+
+    </div>{{-- closes outer flex row --}}
 
     <!-- Bottom Row: Mastery / Lesson Progress / Student Performance (full width, ignores sidebar column) -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-4">
@@ -853,7 +964,7 @@
             </div>
         </div>
 
-</div>
+</div>{{-- end .skeleton-hide real content wrapper --}}
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

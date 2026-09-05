@@ -3,9 +3,91 @@
 @section('title', 'Reports')
 @section('content')
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="space-y-6 pb-12" aria-hidden="true">
+    {{-- Filter toolbar --}}
+    <div class="bg-white rounded-[22px] border border-slate-100 shadow-sm p-4 flex gap-3 flex-wrap">
+        @for($i=0;$i<2;$i++)<div class="skeleton h-9 rounded-[14px] w-44"></div>@endfor
+        <div class="skeleton h-9 rounded-[14px] w-24"></div>
+        <div class="ml-auto skeleton h-9 rounded-[14px] w-36"></div>
+    </div>
+    {{-- 6 KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5">
+        <div class="skeleton skeleton-card h-[130px]"></div>
+        @for($i=0;$i<4;$i++)
+        <div class="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm flex flex-col gap-3">
+            <div class="flex justify-between items-start"><div class="skeleton h-3 rounded w-24"></div><div class="skeleton w-9 h-9 rounded-xl"></div></div>
+            <div class="skeleton h-8 rounded w-16"></div>
+            <div class="skeleton h-3 rounded w-28"></div>
+        </div>
+        @endfor
+        <div class="skeleton skeleton-card h-[130px]"></div>
+    </div>
+    {{-- Insight banner --}}
+    <div class="skeleton rounded-[18px] h-14 w-full"></div>
+    {{-- Student progress table --}}
+    <div class="bg-white rounded-[26px] border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-100 flex justify-between">
+            <div class="flex flex-col gap-2"><div class="skeleton h-5 rounded w-48"></div><div class="skeleton h-3 rounded w-72"></div></div>
+            <div class="skeleton h-8 rounded-full w-24"></div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead><tr class="border-b border-slate-100">
+                    @foreach(['Student','Progress','Lessons','Quizzes','Avg Score','Gesture','Last Active',''] as $h)
+                    <th class="px-4 py-3"><div class="skeleton h-3 rounded w-20"></div></th>
+                    @endforeach
+                </tr></thead>
+                <tbody>
+                @for($i=0;$i<8;$i++)
+                <tr class="border-b border-slate-50">
+                    <td class="px-4 py-3.5"><div class="flex items-center gap-3"><div class="skeleton skeleton-circle w-9 h-9"></div><div class="flex flex-col gap-1.5"><div class="skeleton h-3 rounded w-28"></div><div class="skeleton h-2 rounded w-16"></div></div></div></td>
+                    <td class="px-4 py-3.5"><div class="flex items-center gap-2"><div class="skeleton h-1.5 rounded-full w-28"></div><div class="skeleton h-3 rounded w-8"></div></div></td>
+                    <td class="px-4 py-3.5"><div class="skeleton h-3 rounded w-12"></div></td>
+                    <td class="px-4 py-3.5"><div class="skeleton h-3 rounded w-14"></div></td>
+                    <td class="px-4 py-3.5"><div class="skeleton h-3 rounded w-10"></div></td>
+                    <td class="px-4 py-3.5"><div class="skeleton h-3 rounded w-10"></div></td>
+                    <td class="px-4 py-3.5"><div class="skeleton h-3 rounded w-20"></div></td>
+                    <td class="px-4 py-3.5"><div class="skeleton w-5 h-5 rounded"></div></td>
+                </tr>
+                @endfor
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
 <style>
+/* ── Local skeleton shimmer (for modal loading states) ──────────────── */
+@keyframes shimmer-modal {
+    0%   { background-position: -600px 0; }
+    100% { background-position:  600px 0; }
+}
+#lp-loading .skeleton,
+#modal-achievements-loading .skeleton,
+#modal-reports-loading .skeleton {
+    display: block;
+    background: #e2e8f0;
+    background-image: linear-gradient(
+        90deg,
+        #e2e8f0 0px,
+        #f1f5f9 40%,
+        #eef2f7 55%,
+        #e2e8f0 100%
+    );
+    background-size: 600px 100%;
+    animation: shimmer-modal 1.6s infinite linear;
+    border-radius: 6px;
+}
+#lp-loading .skeleton.rounded-\[22px\]  { border-radius: 22px; }
+#lp-loading .skeleton.rounded-\[16px\]  { border-radius: 16px; }
+#modal-achievements-loading .skeleton.rounded-\[14px\] { border-radius: 14px; }
+#modal-achievements-loading .skeleton.rounded-full     { border-radius: 9999px; }
+
 :root {
     --navy-950: #071c3f;
     --navy-900: #0d326b;
@@ -1145,10 +1227,18 @@ document.addEventListener('keydown', function(e) {
                     <span id="modal-reports-count" class="text-[11px] font-semibold text-slate-400"></span>
                 </div>
 
-                <!-- Reports loading spinner -->
-                <div id="modal-reports-loading" class="py-8 text-center hidden">
-                    <span class="material-symbols-outlined text-slate-300 text-[30px] animate-spin">refresh</span>
-                    <p class="text-[12px] text-slate-400 mt-2">Loading reports...</p>
+                <!-- Reports loading — shimmer skeleton -->
+                <div id="modal-reports-loading" class="space-y-3 hidden">
+                    @for($i=0;$i<4;$i++)
+                    <div class="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
+                        <div class="flex justify-between gap-3">
+                            <div class="skeleton h-3 rounded flex-1"></div>
+                            <div class="skeleton h-5 rounded-full w-16 flex-shrink-0"></div>
+                        </div>
+                        <div class="skeleton h-3 rounded w-3/4"></div>
+                        <div class="skeleton h-2 rounded w-32"></div>
+                    </div>
+                    @endfor
                 </div>
 
                 <!-- Reports list -->
@@ -1237,10 +1327,16 @@ document.addEventListener('keydown', function(e) {
                     <span id="modal-achievements-count" class="text-[11px] font-semibold text-slate-400"></span>
                 </div>
 
-                <!-- Loading spinner -->
-                <div id="modal-achievements-loading" class="py-8 text-center hidden">
-                    <span class="material-symbols-outlined text-slate-300 text-[30px] animate-spin">refresh</span>
-                    <p class="text-[12px] text-slate-400 mt-2">Loading achievements...</p>
+                <!-- Loading — shimmer skeleton grid -->
+                <div id="modal-achievements-loading" class="grid grid-cols-4 gap-3 hidden">
+                    @for($i=0;$i<8;$i++)
+                    <div class="flex flex-col items-center bg-white border border-slate-100 rounded-2xl p-3 gap-2">
+                        <div class="skeleton w-14 h-14 rounded-[14px]"></div>
+                        <div class="skeleton h-3 rounded w-20"></div>
+                        <div class="skeleton h-2 rounded w-16"></div>
+                        <div class="skeleton h-1.5 rounded-full w-full mt-auto"></div>
+                    </div>
+                    @endfor
                 </div>
 
                 <!-- Achievement grid — 4 columns, card-style like reference image -->
@@ -1250,10 +1346,24 @@ document.addEventListener('keydown', function(e) {
             <!-- TAB: LEARNING PATH -->
             <div id="tab-learning-path" class="modal-tab-panel hidden">
 
-                <!-- Loading spinner -->
-                <div id="lp-loading" class="py-12 text-center hidden">
-                    <span class="material-symbols-outlined text-slate-300 text-[30px] animate-spin">refresh</span>
-                    <p class="text-[12px] text-slate-400 mt-2">Loading learning path...</p>
+                <!-- Loading — shimmer skeleton -->
+                <div id="lp-loading" class="hidden">
+                    <div class="grid grid-cols-3 gap-4 mb-4">
+                        <div class="skeleton rounded-[22px] h-[200px]"></div>
+                        <div class="col-span-2 flex flex-col gap-3">
+                            @for($i=0;$i<4;$i++)
+                            <div class="bg-white border border-slate-100 rounded-[16px] p-4 flex flex-col gap-2">
+                                <div class="skeleton h-3 rounded w-24"></div>
+                                <div class="skeleton h-6 rounded w-16"></div>
+                            </div>
+                            @endfor
+                        </div>
+                    </div>
+                    <div class="skeleton rounded-[16px] h-[140px] w-full mb-4"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="skeleton rounded-[16px] h-[120px]"></div>
+                        <div class="skeleton rounded-[16px] h-[120px]"></div>
+                    </div>
                 </div>
 
                 <!-- Content — rendered by JS after fetch -->

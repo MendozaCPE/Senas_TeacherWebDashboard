@@ -7,6 +7,96 @@
 @section('title', 'Create New Lesson')
 
 @section('content')
+
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="max-w-4xl mx-auto pb-10" aria-hidden="true">
+    {{-- Page header --}}
+    <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col gap-2">
+            <div class="skeleton h-3 rounded w-32"></div>
+            <div class="skeleton h-8 rounded w-56"></div>
+            <div class="skeleton h-3 rounded w-64"></div>
+        </div>
+        <div class="flex gap-3">
+            <div class="skeleton h-10 rounded-xl w-40"></div>
+            <div class="skeleton h-10 rounded-xl w-24"></div>
+        </div>
+    </div>
+    {{-- Section card: Lesson Details --}}
+    <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-5">
+        <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-32"></div><div class="skeleton h-3 rounded w-48"></div></div>
+        </div>
+        <div class="skeleton h-10 rounded-[12px] w-full"></div>
+        <div class="skeleton h-20 rounded-[12px] w-full"></div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="skeleton h-10 rounded-[12px]"></div>
+            <div class="skeleton h-10 rounded-[12px]"></div>
+        </div>
+    </div>
+    {{-- Section card: Module --}}
+    <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-4">
+        <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-28"></div><div class="skeleton h-3 rounded w-40"></div></div>
+        </div>
+        <div class="flex gap-3">
+            <div class="skeleton h-10 rounded-[12px] flex-1"></div>
+            <div class="skeleton h-10 rounded-[12px] w-32"></div>
+        </div>
+    </div>
+    {{-- Section card: Lesson Content --}}
+    <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-4">
+        <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-36"></div><div class="skeleton h-3 rounded w-52"></div></div>
+        </div>
+        {{-- 2 content cards --}}
+        @for($i=0;$i<2;$i++)
+        <div class="border border-slate-200 rounded-[16px] p-5 flex flex-col gap-3">
+            <div class="flex items-center gap-3">
+                <div class="skeleton w-4 h-4 rounded"></div>
+                <div class="skeleton h-8 rounded-[10px] w-36"></div>
+                <div class="skeleton h-3 rounded w-24 ml-auto"></div>
+                <div class="skeleton w-8 h-8 rounded-lg"></div>
+            </div>
+            <div class="skeleton h-10 rounded-[12px] w-full"></div>
+            <div class="skeleton h-24 rounded-[12px] w-full"></div>
+        </div>
+        @endfor
+        <div class="skeleton h-12 rounded-[14px] w-full border-2 border-dashed border-slate-200"></div>
+    </div>
+    {{-- Section card: Quiz --}}
+    <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-4">
+        <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-24"></div><div class="skeleton h-3 rounded w-44"></div></div>
+        </div>
+        <div class="border border-slate-200 rounded-[16px] p-5 flex flex-col gap-3">
+            <div class="skeleton h-10 rounded-[12px] w-full"></div>
+            @for($i=0;$i<4;$i++)
+            <div class="flex items-center gap-3 border border-slate-200 rounded-[12px] p-3">
+                <div class="skeleton w-7 h-7 rounded-lg flex-shrink-0"></div>
+                <div class="skeleton h-8 rounded-[10px] flex-1"></div>
+                <div class="skeleton w-5 h-5 rounded-full flex-shrink-0"></div>
+                <div class="skeleton w-7 h-7 rounded-lg flex-shrink-0"></div>
+            </div>
+            @endfor
+        </div>
+    </div>
+    {{-- Sticky footer --}}
+    <div class="sticky bottom-0 bg-white border-t border-slate-200 rounded-[20px] shadow-md p-4 flex justify-between items-center mt-6">
+        <div class="skeleton h-4 rounded w-48"></div>
+        <div class="flex gap-3">
+            <div class="skeleton h-10 rounded-[12px] w-28"></div>
+            <div class="skeleton h-10 rounded-[12px] w-36"></div>
+        </div>
+    </div>
+</div>
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>

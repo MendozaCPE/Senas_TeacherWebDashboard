@@ -2,6 +2,51 @@
 @section('title', 'Lessons')
 @section('content')
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="flex flex-col lg:flex-row gap-6" aria-hidden="true">
+    {{-- Left: module cards --}}
+    <div class="flex-1 min-w-0 flex flex-col space-y-6">
+        @for($m=0;$m<3;$m++)
+        <div class="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+            {{-- trapezoid tab --}}
+            <div class="skeleton h-8 w-28" style="clip-path:polygon(0 0,100% 0,88% 100%,0 100%)"></div>
+            {{-- header --}}
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="skeleton w-12 h-12 rounded-[16px] flex-shrink-0"></div>
+                    <div class="flex flex-col gap-2"><div class="skeleton h-4 rounded w-40"></div><div class="skeleton h-3 rounded w-28"></div></div>
+                </div>
+                <div class="skeleton h-8 rounded-[14px] w-32"></div>
+            </div>
+            {{-- lesson rows --}}
+            @for($l=0;$l<3;$l++)
+            <div class="flex items-center gap-4 px-6 py-3.5 border-b border-slate-50">
+                <div class="skeleton w-4 h-4 rounded"></div>
+                <div class="flex-1 skeleton h-3 rounded w-48"></div>
+                <div class="skeleton h-5 rounded-full w-16"></div>
+                <div class="skeleton h-5 rounded-full w-20"></div>
+                <div class="skeleton h-7 rounded-lg w-16 ml-auto"></div>
+            </div>
+            @endfor
+            <div class="px-6 py-3 flex gap-3">
+                <div class="skeleton h-8 rounded-[14px] w-32"></div>
+                <div class="skeleton h-8 rounded-[14px] w-40"></div>
+            </div>
+        </div>
+        @endfor
+    </div>
+    {{-- Right sidebar --}}
+    <div class="w-full lg:w-64 flex-shrink-0 flex flex-col gap-4">
+        <div class="bg-white rounded-[24px] border border-slate-100 p-5 flex flex-col gap-4">
+            <div class="skeleton h-4 rounded w-28"></div>
+            @for($i=0;$i<4;$i++)<div class="skeleton h-3 rounded w-full"></div>@endfor
+            <div class="skeleton h-10 rounded-[14px] w-full mt-2"></div>
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+
 <style>
     /* ── Module Card Styles ────────────────────────────────────────────── */
     .module-card {
@@ -1455,7 +1500,18 @@ function restoreLesson(lessonId, lessonTitle) {
         </div>
 
         <div class="overflow-y-auto flex-1 px-8 py-3" id="studentListContainer">
-            <div id="studentListLoading" class="py-10 text-center text-slate-400 text-sm">Loading students…</div>
+            <div id="studentListLoading" class="space-y-2 py-3">
+                @for($i=0;$i<6;$i++)
+                <div class="flex items-center gap-3 px-2 py-2.5">
+                    <div class="skeleton skeleton-circle w-9 h-9 flex-shrink-0"></div>
+                    <div class="flex-1 flex flex-col gap-1.5">
+                        <div class="skeleton h-3 rounded w-36"></div>
+                        <div class="skeleton h-2 rounded w-24"></div>
+                    </div>
+                    <div class="skeleton w-5 h-5 rounded flex-shrink-0"></div>
+                </div>
+                @endfor
+            </div>
             <div id="studentList" class="space-y-1 hidden"></div>
             <div id="studentListEmpty" class="py-10 text-center text-slate-400 text-sm hidden">No students found.</div>
         </div>
@@ -1497,15 +1553,20 @@ function restoreLesson(lessonId, lessonTitle) {
     {{-- Content container (transparent, no card wrapping) --}}
     <div id="lessonPreviewContent"
          style="position:relative; z-index:10000; max-width:900px; margin:0 auto; min-height:200px;">
-        {{-- Loading state --}}
+        {{-- Loading state — shimmer skeleton --}}
         <div id="lessonPreviewLoading"
-             style="display:flex; align-items:center; justify-content:center;
-                    height:260px; color:rgba(255,255,255,0.85); font-size:15px; font-weight:600; gap:10px;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                 style="animation:spin .7s linear infinite;">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-            </svg>
-            Loading preview…
+             style="display:flex; flex-direction:column; gap:16px; padding:24px; background:rgba(255,255,255,0.07); border-radius:20px;">
+            {{-- Fake mobile frame header --}}
+            <div style="height:36px; background:linear-gradient(90deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%); background-size:600px 100%; animation:shimmer 1.6s infinite linear; border-radius:10px;"></div>
+            {{-- Content blocks --}}
+            <div style="height:180px; background:linear-gradient(90deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%); background-size:600px 100%; animation:shimmer 1.6s infinite linear; border-radius:14px;"></div>
+            <div style="height:16px; width:70%; background:linear-gradient(90deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%); background-size:600px 100%; animation:shimmer 1.6s 0.1s infinite linear; border-radius:8px;"></div>
+            <div style="height:12px; width:90%; background:linear-gradient(90deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%); background-size:600px 100%; animation:shimmer 1.6s 0.2s infinite linear; border-radius:8px;"></div>
+            <div style="height:12px; width:55%; background:linear-gradient(90deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%); background-size:600px 100%; animation:shimmer 1.6s 0.3s infinite linear; border-radius:8px;"></div>
+            <div style="display:flex; gap:10px; margin-top:4px;">
+                <div style="height:40px; flex:1; background:linear-gradient(90deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%); background-size:600px 100%; animation:shimmer 1.6s 0.15s infinite linear; border-radius:10px;"></div>
+                <div style="height:40px; flex:1; background:linear-gradient(90deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%); background-size:600px 100%; animation:shimmer 1.6s 0.25s infinite linear; border-radius:10px;"></div>
+            </div>
         </div>
         <div id="lessonPreviewBody" style="display:none;"></div>
     </div>

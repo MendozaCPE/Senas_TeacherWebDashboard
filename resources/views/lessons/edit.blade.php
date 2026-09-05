@@ -13,6 +13,65 @@
 @section('title', 'Edit Lesson')
 
 @section('content')
+
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="max-w-4xl mx-auto pb-10" aria-hidden="true">
+    {{-- Page header --}}
+    <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col gap-2">
+            <div class="skeleton h-3 rounded w-32"></div>
+            <div class="skeleton h-8 rounded w-48"></div>
+            <div class="skeleton h-3 rounded w-60"></div>
+        </div>
+        <div class="flex gap-3">
+            <div class="skeleton h-10 rounded-xl w-32"></div>
+            <div class="skeleton h-10 rounded-xl w-24"></div>
+        </div>
+    </div>
+    {{-- Lesson Details card --}}
+    <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-5">
+        <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-32"></div><div class="skeleton h-3 rounded w-48"></div></div>
+        </div>
+        <div class="skeleton h-10 rounded-[12px] w-full"></div>
+        <div class="skeleton h-20 rounded-[12px] w-full"></div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="skeleton h-10 rounded-[12px]"></div>
+            <div class="skeleton h-10 rounded-[12px]"></div>
+        </div>
+    </div>
+    {{-- Content cards (pre-filled since editing) --}}
+    @for($i=0;$i<3;$i++)
+    <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-4">
+        <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
+            <div class="skeleton w-10 h-10 rounded-[12px]"></div>
+            <div class="flex flex-col gap-1.5"><div class="skeleton h-4 rounded w-36"></div><div class="skeleton h-3 rounded w-52"></div></div>
+        </div>
+        <div class="border border-slate-200 rounded-[16px] p-5 flex flex-col gap-3">
+            <div class="flex gap-3 items-center">
+                <div class="skeleton w-4 h-4 rounded"></div>
+                <div class="skeleton h-8 rounded-[10px] w-36"></div>
+                <div class="ml-auto skeleton w-8 h-8 rounded-lg"></div>
+            </div>
+            <div class="skeleton h-10 rounded-[12px] w-full"></div>
+            @if($i===0)<div class="skeleton h-32 rounded-[12px] w-full"></div>@endif
+            @if($i===1)<div class="skeleton rounded-[12px] w-full" style="padding-bottom:56.25%"></div>@endif
+        </div>
+    </div>
+    @endfor
+    {{-- Sticky footer --}}
+    <div class="sticky bottom-0 bg-white border-t border-slate-200 rounded-[20px] shadow-md p-4 flex justify-between items-center mt-6">
+        <div class="skeleton h-4 rounded w-48"></div>
+        <div class="flex gap-3">
+            <div class="skeleton h-10 rounded-[12px] w-28"></div>
+            <div class="skeleton h-10 rounded-[12px] w-36"></div>
+        </div>
+    </div>
+</div>
+<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style>
     .hidden { display: none !important; }
