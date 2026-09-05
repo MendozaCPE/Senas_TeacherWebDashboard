@@ -70,6 +70,11 @@
         }
     </script>
     <style>
+        /* Global scale — equivalent to one Ctrl+- press in the browser */
+        html { zoom: 90%; }
+        /* Compensate: zoom changes how vh resolves, so anchor heights to % instead */
+        html, body { height: 100%; }
+
         .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         .material-symbols-outlined.icon-outline { font-variation-settings: 'FILL' 0; }
         ::-webkit-scrollbar { width: 8px; }
@@ -156,13 +161,13 @@
         #inactivityModal .btn-logout:hover { background: #f8fafc; color: #0f172a; }
     </style>
 </head>
-<body class="font-sans antialiased flex h-screen overflow-hidden bg-[#f5f8fc] @yield('bg-class', '')">
+<body class="font-sans antialiased flex h-full overflow-hidden bg-[#f5f8fc] @yield('bg-class', '')">
 
     <!-- Sidebar -->
     @include('partials.sidebar')
 
     <!-- Main Layout Area -->
-    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
         
         <!-- Header Topbar -->
         @include('partials.header')
@@ -170,10 +175,10 @@
         <!-- Scrollable Content -->
         <main class="flex-1 overflow-y-auto px-8 pt-2 pb-6 relative border-l border-slate-100">
             @yield('content')
-        </main>
 
-        <!-- Footer -->
-        @include('partials.footer')
+            <!-- Footer -->
+            @include('partials.footer')
+        </main>
     </div>
 
     <!-- ── Inactivity Timeout Modal ─────────────────────────────────────── -->

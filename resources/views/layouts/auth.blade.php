@@ -36,6 +36,9 @@
         }
     </script>
     <style>
+        /* Global scale — equivalent to one Ctrl+- press in the browser */
+        html { zoom: 90%; }
+
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         * { box-sizing: border-box; }
     </style>

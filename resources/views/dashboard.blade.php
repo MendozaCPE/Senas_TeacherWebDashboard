@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Dashboard')
 @section('content')
-<div class="flex flex-col gap-2 w-full overflow-x-hidden">
+<div class="flex flex-col gap-2 w-full">
 
     <div class="flex flex-col lg:flex-row gap-4 w-full">
                 
@@ -423,7 +423,7 @@
     </div>
 
     <!-- Right Sidebar Column -->
-    <div class="w-[340px] flex-shrink-0 flex flex-col space-y-4 pl-4 self-stretch">
+    <div class="w-[340px] flex-shrink-0 flex flex-col space-y-4 pl-4">
 
         <!-- ── Senya Insights Widget ─────────────────────────────────────────── -->
         @php $insights = $senyaInsights ?? []; $insightCount = count($insights); @endphp
@@ -489,7 +489,7 @@
             <div class="mx-7 border-t border-slate-100 flex-shrink-0"></div>
 
             <!-- Scrollable list — fixed height shows ~7-8 rows, scrolls for more -->
-            <div class="overflow-y-auto divide-y divide-slate-50 flex-1 scrollbar-hide" style="max-height: 500px;">
+            <div class="overflow-y-auto divide-y divide-slate-50 flex-1 scrollbar-hide">
                 @forelse($allStudents as $s)
                 @php
                     $mastery = $s->fsl_mastery_level ?? 'Beginner';
