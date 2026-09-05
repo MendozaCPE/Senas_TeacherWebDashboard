@@ -135,17 +135,19 @@ class SettingsController extends Controller
 
     public function logoutOthers(Request $request)
     {
-        // Invalidate all other sessions by cycling the session ID.
-        // Any other browser/device holding the old session will be
-        // treated as unauthenticated on their next request.
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $user = Auth::user();
 
-        // Log the user back in with a fresh session on this device
-        Auth::login(Auth::user());
-        $request->session()->regenerate();
+        // With the database session driver we can delete every session row
+        // that belongs to this user except the current one, which signs out
+        // all other devices instantly.
+        $currentSessionId = $request->session()->getId();
 
-        return back()->with('success', 'All other sessions have been signed out.');
+        \DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $currentSessionId)
+            ->delete();
+
+        return back()->with('success', 'All other devices have been signed out successfully.');
     }
 
     public function updatePassword(Request $request)    {

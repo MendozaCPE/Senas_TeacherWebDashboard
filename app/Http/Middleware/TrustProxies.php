@@ -10,9 +10,17 @@ class TrustProxies extends Middleware
     /**
      * The trusted proxies for this application.
      *
+     * '*' trusts all proxies — safe for shared/managed hosting where the
+     * real client IP is forwarded via X-Forwarded-For. This also ensures
+     * that X-Forwarded-Proto: https is respected so Laravel knows the
+     * request is HTTPS and issues secure session cookies correctly.
+     *
+     * If you control your infrastructure, replace '*' with the specific
+     * proxy IP range (e.g. '10.0.0.0/8').
+     *
      * @var array<int, string>|string|null
      */
-    protected $proxies;
+    protected $proxies = '*';
 
     /**
      * The headers that should be used to detect proxies.

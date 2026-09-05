@@ -65,6 +65,15 @@ Route::get('/terms', [AuthController::class, 'showTerms'])->name('terms');
 // ── Logout ───────────────────────────────────────────────────────────────────
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// ── Session Ping (keep session alive — called by the inactivity modal "Stay" button) ──
+Route::post('/session/ping', function () {
+    if (!auth()->check()) {
+        return response()->json(['authenticated' => false], 401);
+    }
+    session(['_last_ping' => now()->timestamp]);
+    return response()->json(['authenticated' => true]);
+})->middleware(['auth'])->name('session.ping');
+
 // ── APK Download (public, Android app) ───────────────────────────────────────
 Route::get('/download/app', function () {
     $path = storage_path('app/public/downloads/senas_v2.apk');
@@ -112,7 +121,7 @@ Route::get('/media-player', function () {
 });
 
 // ── Protected Routes (must be logged in as teacher) ──────────────────────────
-Route::middleware(['auth', 'no.cache', 'teacher'])->group(function () {
+Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -279,7 +288,7 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN ROUTES
 // ─────────────────────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'no.cache', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'auth.session', 'no.cache', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
