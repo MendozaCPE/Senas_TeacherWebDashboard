@@ -1,14 +1,26 @@
 <header class="h-20 px-12 flex items-center justify-between flex-shrink-0 bg-[#f4f7f9] border-b border-slate-100 relative z-30">
 
+    <!-- Left: Page identity (matches admin header style) -->
+    <div class="flex items-center gap-3 flex-shrink-0 mr-6">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+             style="background: linear-gradient(135deg,#0d326b,#1a6fd4)">
+            <span class="material-symbols-outlined text-white text-[17px]">school</span>
+        </div>
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none mb-0.5">Teacher Portal</p>
+            <p class="text-[15px] font-bold text-[#0d326b] leading-none">@yield('title', 'Dashboard')</p>
+        </div>
+    </div>
+
     <!-- Global Search Bar -->
     <div class="relative w-[480px]" id="global-search-container">
         <div class="relative flex items-center">
-            <span class="absolute left-4 text-slate-400 pointer-events-none flex items-center">
+            <span class="absolute left-4 text-[#0d326b] pointer-events-none flex items-center">
                 <span class="material-symbols-outlined icon-outline text-[22px]" id="search-bar-icon">search</span>
             </span>
             <input id="global-search-input" type="text" autocomplete="off"
                    placeholder="Search students, lessons, or media..."
-                   class="w-full bg-white border border-slate-200/80 rounded-full py-2.5 pl-12 pr-10 text-[14px] focus:ring-2 focus:ring-[#0d326b]/20 focus:border-[#0d326b]/30 shadow-sm transition-all text-slate-700 outline-none placeholder:text-slate-400 font-medium"/>
+                   class="w-full bg-white border-2 border-[#0d326b]/30 rounded-full py-2.5 pl-12 pr-10 text-[14px] focus:ring-2 focus:ring-[#0d326b]/20 focus:border-[#0d326b] shadow-sm transition-all text-slate-700 outline-none placeholder:text-slate-400 font-medium"/>
             <button type="button" id="global-search-clear"
                     class="absolute right-3.5 text-slate-400 hover:text-slate-600 hidden p-1 rounded-full hover:bg-slate-100 transition-colors flex items-center justify-center"
                     title="Clear search">
@@ -35,10 +47,10 @@
         <div class="relative" id="notif-container">
             <button id="notif-btn"
                     onclick="toggleNotifDropdown()"
-                    class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-200/70 transition-colors text-slate-500 relative"
+                    class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#0d326b]/10 transition-colors text-[#0d326b] relative"
                     title="Notifications">
                 <span class="material-symbols-outlined text-[22px]" id="notif-bell-icon"
-                      style="font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;">notifications</span>
+                      style="font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; color: #0d326b;">notifications</span>
                 <span id="notif-badge"
                       class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none shadow {{ ($unreadNotifCount ?? 0) > 0 ? '' : 'hidden' }} transition-all duration-300">
                     {{ ($unreadNotifCount ?? 0) > 99 ? '99+' : ($unreadNotifCount ?? 0) }}
@@ -101,9 +113,19 @@
         <!-- ── END BELL ───────────────────────────────────────────────────── -->
 
         <div class="h-8 border-l border-slate-200"></div>
-        <div class="text-[15px] font-semibold">
-            <span class="text-[#0d326b]">@yield('title')</span>
-        </div>
+
+        <!-- User profile chip -->
+        <a href="{{ route('settings') }}"
+           class="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-full hover:bg-[#0d326b]/08 transition-colors group ml-1"
+           style="background: rgba(13,50,107,0.05);">
+            <img src="{{ Auth::user()->avatarUrl() }}"
+                 alt="Profile"
+                 class="w-8 h-8 rounded-full object-cover border-2 border-[#0d326b]/20 flex-shrink-0"
+                 onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
+            <span class="text-[13px] font-bold text-[#0d326b] leading-none">
+                {{ Auth::user()->first_name ?? explode(' ', Auth::user()->name)[0] }}
+            </span>
+        </a>
     </div>
 </header>
 

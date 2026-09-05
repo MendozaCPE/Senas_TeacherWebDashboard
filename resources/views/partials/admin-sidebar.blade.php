@@ -99,7 +99,7 @@
                  style="width:40px;height:40px;object-fit:cover;"
                  onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
             <div class="flex-1 overflow-hidden">
-                <p class="text-[13px] font-bold text-white truncate">{{ Auth::user()->name }}</p>
+                <p class="text-[13px] font-bold text-white truncate">Admin</p>
                 <p class="text-[11px] font-medium text-white/60 truncate">Administrator</p>
             </div>
             <span class="material-symbols-outlined text-white/40 group-hover:text-white/70 text-[16px] transition-colors">admin_panel_settings</span>

@@ -12,15 +12,18 @@
         </div>
     </div>
 
-    <!-- Right: Admin avatar + name -->
-    <div class="flex items-center gap-2.5">
-        <img src="{{ Auth::user()->avatarUrl() }}"
-             class="w-8 h-8 rounded-full border-2 border-slate-200 object-cover flex-shrink-0"
-             onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
-        <div>
-            <p class="text-[13px] font-bold text-[#0d326b] leading-none">{{ Auth::user()->name }}</p>
-            <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Administrator</p>
-        </div>
+    <!-- Right: Admin avatar + name (matches teacher header style) -->
+    <div class="flex items-center gap-3">
+        <a href="{{ route('admin.dashboard') }}"
+           class="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-full transition-colors group"
+           style="background: rgba(13,50,107,0.05);">
+            <img src="{{ Auth::user()->avatarUrl() }}"
+                 class="w-8 h-8 rounded-full border-2 border-[#0d326b]/20 object-cover flex-shrink-0"
+                 onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
+            <span class="text-[13px] font-bold text-[#0d326b] leading-none">
+                {{ Auth::user()->first_name ?? explode(' ', Auth::user()->name)[0] }}
+            </span>
+        </a>
     </div>
 
 </header>
