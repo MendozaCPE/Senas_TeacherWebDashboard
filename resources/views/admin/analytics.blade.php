@@ -384,6 +384,30 @@ if ($totalUsers === 0) {
                 @endforeach
             </svg>
         </div>
+
+        {{-- ── Trend Insight (inside the chart card) ── --}}
+        @php
+        $lastPoint   = end($trendPoints);
+        $prevPoint   = count($trendPoints) > 1 ? $trendPoints[count($trendPoints) - 2] : null;
+        $trendDir    = ($prevPoint && $lastPoint['completions'] > $prevPoint['completions']) ? 'up' : (($prevPoint && $lastPoint['completions'] < $prevPoint['completions']) ? 'down' : 'stable');
+        $totalPeriodCompletions = collect($trendPoints)->sum('completions');
+        $totalPeriodActive      = collect($trendPoints)->sum('active_students');
+        $trendInsight = match(true) {
+            $totalPeriodCompletions === 0 => "No lesson completions recorded in this period yet. Encourage teachers to assign lessons and set deadlines to drive activity.",
+            $trendDir === 'up'            => "<strong>Lesson completions are trending up</strong> — the most recent period shows <strong>" . number_format($lastPoint['completions']) . " completions</strong>. Student engagement is growing across the platform.",
+            $trendDir === 'down'          => "<strong>Completions dipped in the most recent period</strong> ({$lastPoint['completions']}). Check if teachers have upcoming assignment deadlines and remind them to keep students engaged.",
+            default                       => "Lesson completions are <strong>steady at " . number_format($lastPoint['completions']) . "</strong> this period with <strong>{$totalPeriodActive} active student sessions</strong> tracked. Consistent engagement is a good sign.",
+        };
+        @endphp
+        <div class="senya-insight-gold mt-4">
+            <div class="senya-insight-gold-icon">
+                <span class="material-symbols-outlined text-[20px]">trending_up</span>
+            </div>
+            <div>
+                <div class="senya-insight-gold-title">Platform Trend Insight</div>
+                <div class="senya-insight-gold-text">{!! $trendInsight !!}</div>
+            </div>
+        </div>
     </div>
 
     {{-- Gesture overview (1/3) --}}
@@ -397,14 +421,21 @@ if ($totalUsers === 0) {
             $gs   = $gestureStats;
             $gAcc = ($gs && $gs->total_attempts > 0)
                   ? round(($gs->total_successful / $gs->total_attempts) * 100, 1) : 0;
+            $gWrong     = (int)($gs->total_attempts ?? 0) - (int)($gs->total_successful ?? 0);
+            $successPct = $gAcc;
+            $wrongPct   = $gs && $gs->total_attempts > 0
+                        ? round(($gWrong / $gs->total_attempts) * 100, 1) : 0;
+            $staticCount  = $gestureBreakdown->where('sign_type','static')->count();
+            $dynamicCount = $gestureBreakdown->where('sign_type','dynamic')->count();
+            $totalSigns   = $gestureBreakdown->count();
+            $worstSign    = $gestureBreakdown->where('status','critical')->sortBy('accuracy')->first();
+            $topSign      = $gestureBreakdown->where('status','good')->sortByDesc('accuracy')->first();
+            $r=30; $circ=round(2*M_PI*$r,2);
+            $dash=round($gAcc/100*$circ,2);
         @endphp
 
         {{-- Overall accuracy ring --}}
         <div class="flex items-center gap-4 p-4 rounded-2xl" style="background:linear-gradient(135deg,#0d326b,#1e4b8f)">
-            @php
-                $r=30; $circ=round(2*M_PI*$r,2);
-                $dash=round($gAcc/100*$circ,2);
-            @endphp
             <svg width="72" height="72" viewBox="0 0 72 72" class="shrink-0">
                 <circle cx="36" cy="36" r="{{ $r }}" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="8"/>
                 <circle cx="36" cy="36" r="{{ $r }}" fill="none" stroke="white" stroke-width="8"
@@ -412,13 +443,22 @@ if ($totalUsers === 0) {
                         stroke-dashoffset="{{ round($circ/4,2) }}" stroke-linecap="round"/>
                 <text x="36" y="41" text-anchor="middle" font-size="14" font-weight="800" fill="white">{{ $gAcc }}%</text>
             </svg>
-            <div>
+            <div class="flex-1 min-w-0">
                 <p class="text-[22px] font-black text-white leading-none">{{ number_format($gs->total_attempts ?? 0) }}</p>
                 <p class="text-[11px] text-white/70 font-semibold mt-0.5">total attempts</p>
                 <p class="text-[11px] text-white/60 mt-2">{{ number_format($gs->total_mastered ?? 0) }} signs mastered</p>
+                {{-- Mini success/fail bar --}}
+                <div class="mt-2.5 w-full bg-white/15 rounded-full h-1.5 overflow-hidden">
+                    <div class="h-1.5 rounded-full bg-white/80" style="width:{{ $successPct }}%"></div>
+                </div>
+                <div class="flex justify-between mt-1">
+                    <span class="text-[9px] text-white/50 font-semibold">{{ $successPct }}% correct</span>
+                    <span class="text-[9px] text-white/40 font-semibold">{{ $wrongPct }}% wrong</span>
+                </div>
             </div>
         </div>
 
+        {{-- 4-stat grid --}}
         <div class="grid grid-cols-2 gap-3">
             <div class="rounded-2xl p-3.5 bg-[#eff6ff] border border-[#bfdbfe]">
                 <span class="material-symbols-outlined text-[20px] text-[#0d326b]">group</span>
@@ -430,46 +470,42 @@ if ($totalUsers === 0) {
                 <p class="text-[22px] font-black text-[#1e4b8f] leading-none mt-1">{{ number_format($gs->total_mastered ?? 0) }}</p>
                 <p class="text-[10px] font-semibold text-slate-500 mt-1">Gestures mastered</p>
             </div>
+            <div class="rounded-2xl p-3.5 bg-[#f0fdf4] border border-[#bbf7d0]">
+                <span class="material-symbols-outlined text-[20px] text-emerald-600">check_circle</span>
+                <p class="text-[22px] font-black text-emerald-700 leading-none mt-1">{{ number_format($gs->total_successful ?? 0) }}</p>
+                <p class="text-[10px] font-semibold text-slate-500 mt-1">Successful attempts</p>
+            </div>
+            <div class="rounded-2xl p-3.5 bg-[#fff7ed] border border-[#fed7aa]">
+                <span class="material-symbols-outlined text-[20px] text-orange-500">cancel</span>
+                <p class="text-[22px] font-black text-orange-600 leading-none mt-1">{{ number_format($gWrong) }}</p>
+                <p class="text-[10px] font-semibold text-slate-500 mt-1">Wrong attempts</p>
+            </div>
         </div>
 
-        {{-- Status summary mini chips --}}
-        <div class="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
-            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 border border-red-100 text-red-600 text-[11px] font-bold">
-                <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>{{ $criticalCount }} critical
-            </span>
-            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-100 text-amber-600 text-[11px] font-bold">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>{{ $warningCount }} warning
-            </span>
-            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100 text-[#0d326b] text-[11px] font-bold">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#0d326b] inline-block"></span>{{ $goodCount }} good
-            </span>
+        {{-- Static vs Dynamic split --}}
+        <div class="rounded-2xl border border-slate-100 bg-[#f8fafc] p-3.5">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Sign Type Split</p>
+            <div class="flex items-center gap-2 mb-1.5">
+                <span class="text-[11px] font-bold text-slate-600 w-14 shrink-0">Static</span>
+                <div class="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div class="h-2 rounded-full bg-[#0d326b]"
+                         style="width:{{ $totalSigns > 0 ? round(($staticCount/$totalSigns)*100) : 0 }}%"></div>
+                </div>
+                <span class="text-[11px] font-black text-[#0d326b] w-6 text-right shrink-0">{{ $staticCount }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[11px] font-bold text-slate-600 w-14 shrink-0">Moving</span>
+                <div class="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div class="h-2 rounded-full bg-[#1a6fd4]"
+                         style="width:{{ $totalSigns > 0 ? round(($dynamicCount/$totalSigns)*100) : 0 }}%"></div>
+                </div>
+                <span class="text-[11px] font-black text-[#1a6fd4] w-6 text-right shrink-0">{{ $dynamicCount }}</span>
+            </div>
         </div>
+
+
     </div>
 
-</div>
-
-{{-- ── Trend Insight ── --}}
-@php
-$lastPoint   = end($trendPoints);
-$prevPoint   = count($trendPoints) > 1 ? $trendPoints[count($trendPoints) - 2] : null;
-$trendDir    = ($prevPoint && $lastPoint['completions'] > $prevPoint['completions']) ? 'up' : (($prevPoint && $lastPoint['completions'] < $prevPoint['completions']) ? 'down' : 'stable');
-$totalPeriodCompletions = collect($trendPoints)->sum('completions');
-$totalPeriodActive      = collect($trendPoints)->sum('active_students');
-$trendInsight = match(true) {
-    $totalPeriodCompletions === 0 => "No lesson completions recorded in this period yet. Encourage teachers to assign lessons and set deadlines to drive activity.",
-    $trendDir === 'up'            => "<strong>Lesson completions are trending up</strong> — the most recent period shows <strong>" . number_format($lastPoint['completions']) . " completions</strong>. Student engagement is growing across the platform.",
-    $trendDir === 'down'          => "<strong>Completions dipped in the most recent period</strong> ({$lastPoint['completions']}). Check if teachers have upcoming assignment deadlines and remind them to keep students engaged.",
-    default                       => "Lesson completions are <strong>steady at " . number_format($lastPoint['completions']) . "</strong> this period with <strong>{$totalPeriodActive} active student sessions</strong> tracked. Consistent engagement is a good sign.",
-};
-@endphp
-<div class="senya-insight-gold mt-1">
-    <div class="senya-insight-gold-icon">
-        <span class="material-symbols-outlined text-[20px]">trending_up</span>
-    </div>
-    <div>
-        <div class="senya-insight-gold-title">Platform Trend Insight</div>
-        <div class="senya-insight-gold-text">{!! $trendInsight !!}</div>
-    </div>
 </div>
 
 {{-- ══ 5. GESTURE BREAKDOWN (COMPACT CARD GRID) ═══════════════════════════ --}}

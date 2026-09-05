@@ -573,22 +573,23 @@
 
     {{-- ══════════ 2. CLASS SUMMARY KPI CARDS ══════════ --}}
     @php
-        $totalStudentsShown = $studentReports->count();
-        $fullyCompleted     = $studentReports->where('overallPct', 100)->count();
-        $totalQuizzesTaken  = $studentReports->sum('quizzesTaken');
-        $totalQuizzesPassed = $studentReports->sum('quizzesPassed');
+        $allItems           = collect($studentReports->items());
+        $totalStudentsShown = $studentReports->total();
+        $fullyCompleted     = $allItems->where('overallPct', 100)->count();
+        $totalQuizzesTaken  = $allItems->sum('quizzesTaken');
+        $totalQuizzesPassed = $allItems->sum('quizzesPassed');
         $quizPassRate       = $totalQuizzesTaken > 0 ? round(($totalQuizzesPassed / $totalQuizzesTaken) * 100, 1) : 0;
-        $scoredReports      = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
+        $scoredReports      = $allItems->filter(fn($r) => $r['quizzesTaken'] > 0);
         $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
 
         // Additional stats
-        $totalLessonsAssigned = $studentReports->sum('totalLessons');
-        $totalLessonsCompleted = $studentReports->sum('completedLessons');
-        $classCompletionRate  = $totalLessonsAssigned > 0
+        $totalLessonsAssigned  = $allItems->sum('totalLessons');
+        $totalLessonsCompleted = $allItems->sum('completedLessons');
+        $classCompletionRate   = $totalLessonsAssigned > 0
             ? round(($totalLessonsCompleted / $totalLessonsAssigned) * 100, 1)
             : 0;
 
-        $gestureStudents = $studentReports->filter(fn($r) => ($r['gestureAttempts'] ?? 0) > 0);
+        $gestureStudents    = $allItems->filter(fn($r) => ($r['gestureAttempts'] ?? 0) > 0);
         $avgGestureAccuracy = $gestureStudents->isNotEmpty()
             ? round($gestureStudents->avg('gestureAccuracy'), 1)
             : 0;
@@ -705,7 +706,7 @@
                 </div>
             </div>
             <span class="text-[12px] font-bold text-[#0d326b] bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100 shrink-0 self-start sm:self-auto">
-                {{ $studentReports->count() }} {{ $studentReports->count() !== 1 ? 'students' : 'student' }}
+                {{ $studentReports->total() }} {{ $studentReports->total() !== 1 ? 'students' : 'student' }}
             </span>
         </div>
 
@@ -731,8 +732,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($studentReports as $index => $row)
-                            <tr onclick="openStudentModal({{ $index }})">
+                        @foreach($studentReports->items() as $row)
+                            <tr onclick="openStudentModal('{{ $row['student_id'] }}')" style="cursor:pointer;">
                                 <td>
                                     <div class="flex items-center space-x-3">
                                         <img src="{{ $row['avatar_url'] ?? '' }}" alt="{{ $row['studentName'] }}"
@@ -792,6 +793,41 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- ── Pagination ── --}}
+            @if($studentReports->hasPages())
+            <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                <p class="text-[12px] text-slate-400 font-medium">
+                    Showing {{ $studentReports->firstItem() }}–{{ $studentReports->lastItem() }} of {{ $studentReports->total() }} students
+                </p>
+                <div class="flex items-center gap-1">
+                    @if($studentReports->onFirstPage())
+                    <span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
+                        <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+                    </span>
+                    @else
+                    <a href="{{ $studentReports->previousPageUrl() }}" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                        <span class="material-symbols-outlined text-[16px] text-slate-600">chevron_left</span>
+                    </a>
+                    @endif
+
+                    @foreach($studentReports->getUrlRange(max(1, $studentReports->currentPage()-2), min($studentReports->lastPage(), $studentReports->currentPage()+2)) as $page => $url)
+                    <a href="{{ $url }}" class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold transition-colors {{ $page == $studentReports->currentPage() ? 'bg-[#0d326b] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">{{ $page }}</a>
+                    @endforeach
+
+                    @if($studentReports->hasMorePages())
+                    <a href="{{ $studentReports->nextPageUrl() }}" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                        <span class="material-symbols-outlined text-[16px] text-slate-600">chevron_right</span>
+                    </a>
+                    @else
+                    <span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
+                        <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                    </span>
+                    @endif
+                </div>
+            </div>
+            @endif
+
         @endif
     </div>
 </div>
@@ -842,7 +878,7 @@
                 </div>
                 <div class="pdf-preview-row">
                     <div class="pdf-preview-dot"></div>
-                    <div class="pdf-preview-text">Records: <span>{{ $studentReports->count() }} student{{ $studentReports->count() !== 1 ? 's' : '' }}</span></div>
+                    <div class="pdf-preview-text">Records: <span>{{ $studentReports->total() }} student{{ $studentReports->total() !== 1 ? 's' : '' }}</span></div>
                 </div>
                 <div class="pdf-preview-row">
                     <div class="pdf-preview-dot"></div>
@@ -1237,7 +1273,7 @@ document.addEventListener('keydown', function(e) {
 </div>
 
 <script>
-    const studentReportData = @json($studentReports->values());
+    const studentReportData = @json(collect($studentReports->items())->values());
     let currentModalGestureData = [];
 
     // ── Auto-open from notification click (?open_student=ID) ─────────────────
@@ -1245,9 +1281,9 @@ document.addEventListener('keydown', function(e) {
         const params   = new URLSearchParams(window.location.search);
         const openId   = params.get('open_student');
         if (openId) {
-            const idx = studentReportData.findIndex(s => String(s.student_id) === String(openId));
-            if (idx !== -1) {
-                openStudentModal(idx);
+            const found = studentReportData.find(s => String(s.student_id) === String(openId));
+            if (found) {
+                openStudentModal(openId);
             }
             // Clean the URL without reloading so refreshing doesn't re-open
             const cleanUrl = window.location.pathname;
@@ -1255,8 +1291,8 @@ document.addEventListener('keydown', function(e) {
         }
     });
 
-    function openStudentModal(index) {
-        const data = studentReportData[index];
+    function openStudentModal(studentId) {
+        const data = studentReportData.find(s => String(s.student_id) === String(studentId));
         if (!data) return;
 
         window._modalInitials = data.initials || 'S';
@@ -1521,9 +1557,9 @@ document.addEventListener('keydown', function(e) {
 
     // Override openStudentModal to wire up tabs + student ID
     const _origOpenStudentModal = openStudentModal;
-    openStudentModal = function(index) {
-        _origOpenStudentModal(index);
-        const data = studentReportData[index];
+    openStudentModal = function(studentId) {
+        _origOpenStudentModal(studentId);
+        const data = studentReportData.find(s => String(s.student_id) === String(studentId));
         if (!data) return;
         _currentModalStudentId = data.student_id;
         // Reset to learning-path tab (first tab)

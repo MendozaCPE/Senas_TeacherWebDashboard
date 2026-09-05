@@ -302,7 +302,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     const res = await fetch("{{ route('api.teacher-name') }}?email=" + encodeURIComponent(emailInput));
                     const data = await res.json();
                     if (data && data.name) {
-                        loadingTeacherName.textContent = 'Welcome, Teacher ' + data.name;
+                        const label = data.role === 'admin' ? 'Admin' : 'Teacher';
+                        loadingTeacherName.textContent = 'Welcome, ' + label + ' ' + data.name;
                     }
                 } catch (_) {}
             }

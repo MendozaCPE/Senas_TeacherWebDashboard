@@ -342,9 +342,25 @@ class ReportsController extends Controller
                 })
                 ->sortBy('studentName')
                 ->values();
+
+            // ── Paginate the collection (15 students per page) ──────────────
+            $perPage     = 15;
+            $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage();
+            $pagedItems  = $studentReports->slice(($currentPage - 1) * $perPage, $perPage)->values();
+            $studentReports = new \Illuminate\Pagination\LengthAwarePaginator(
+                $pagedItems,
+                $studentReports->count(),
+                $perPage,
+                $currentPage,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
         } else {
             $checkpointExams = collect();
             $studentGesturePerformance = collect();
+            $studentReports = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(), 0, 15, 1,
+                ['path' => $request->url()]
+            );
         }
 
         return view('reports', compact(

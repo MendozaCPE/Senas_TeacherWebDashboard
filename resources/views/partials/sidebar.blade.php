@@ -40,6 +40,9 @@
             <span class="material-symbols-outlined {{ request()->is('settings') ? '' : 'icon-outline' }} text-[22px]">settings</span>
             <span>Settings</span>
         </a>
+
+        <div class="mx-6 my-2 border-t border-white/10"></div>
+
         <button type="button" onclick="openLogoutModal()" class="w-full flex items-center space-x-4 px-6 py-4 {{ $inactiveClass }}">
             <span class="material-symbols-outlined icon-outline text-[22px]">logout</span>
             <span>Logout</span>
