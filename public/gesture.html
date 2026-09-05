@@ -476,7 +476,7 @@
             const ringCurled = getDistance2D(ringTip, ringMcp) < (handScale * 0.7);
             const pinkyCurled = getDistance2D(pinkyTip, pinkyMcp) < (handScale * 0.7);
             const isTrueFist = indexCurled && middleCurled && ringCurled && pinkyCurled;
-            const isFistState = !indexUp && !middleUp && !ringUp && !pinkyUp && indexCurled;
+            const isFistState = !indexUp && !middleUp && !ringUp && !pinkyUp;
 
             // =====================================================================
             // 1. DIRECTIONAL OVERRIDES & STATES 
@@ -493,6 +493,9 @@
                 (getDistance2D(indexTip, indexMcp) < handScale * 0.45) ||
                 (getDistance2D(indexTip, indexDip) < handScale * 0.12);
 
+            // =====================================================================
+            // 2. 🌟 THE MASTER 'X' DETECTOR 
+            // =====================================================================
             const indexBaseLen = getDistance2D(indexPip, indexMcp);
             const indexTotalLen = getDistance2D(indexTip, indexMcp);
             const middleTotalLen = getDistance2D(middleTip, middleMcp);
@@ -502,30 +505,7 @@
             const isDefinitivelyHookedX = indexTotalLen < (indexBaseLen * 2.1) && indexTotalLen > (indexBaseLen * 0.5);
             const othersAreClosed = middleTotalLen < (handScale * 0.75) && ringTotalLen < (handScale * 0.75) && pinkyTotalLen < (handScale * 0.75);
 
-            // =====================================================================
-            // 2. INVERTED DOWNWARD HANDS (P & Q)
-            // =====================================================================
-            // Hand is pointed downward (index pointing towards the floor). Evaluated before X/Fist.
-            if (indexIsDownwards && indexTip.y > indexPip.y && !indexCurled) {
-                // P: Index and Middle are BOTH extended downwards
-                if (middleIsDownwards && (middleTotalLen > handScale * 0.55 || middleTip.y > middlePip.y)) {
-                    return { letter: 'P', confidence: 0.99 };
-                }
-
-                // Q: Index points downwards, other 3 fingers curled into palm, thumb points down alongside index
-                if (othersAreClosed && !middleIsDownwards) {
-                    const thumbPointsDown = thumbTip.y > indexMcp.y - (handScale * 0.15);
-                    if (thumbPointsDown || predicted === 'Q' || predicted === 'G' || predicted === 'P') {
-                        return { letter: 'Q', confidence: 0.99 };
-                    }
-                }
-            }
-
-            // =====================================================================
-            // 3. 🌟 THE MASTER 'X' DETECTOR 
-            // =====================================================================
-            // In X, the hand is held upright with the index finger hooked. Never pointing downwards.
-            if (isDefinitivelyHookedX && othersAreClosed && !isFistState && !indexSideways && !indexIsDownwards) {
+            if (isDefinitivelyHookedX && othersAreClosed && !isFistState && !indexSideways) {
                 const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
                 if (distThumbToIndexPip > (handScale * 0.22)) {
                     return { letter: 'X', confidence: 0.99 };
@@ -626,6 +606,18 @@
                 }
             }
 
+            // -------------------------------------------------------------------------
+            // INVERTED HANDS (P & Q) — strictly blocked if all fingers are curled in a fist
+            // -------------------------------------------------------------------------
+            if (!isFistState && !isTrueFist) {
+                if (indexIsDownwards && middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2)) {
+                    return { letter: 'P', confidence: 0.99 };
+                }
+
+                if (indexIsDownwards && !middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2) && (predicted === 'Q' || predicted === 'G' || predicted === 'P')) {
+                    return { letter: 'Q', confidence: 0.99 };
+                }
+            }
 
             // -------------------------------------------------------------------------
             // SAFE ZONE: N, M, S STABILITY MATRIX
@@ -760,6 +752,12 @@
                 }
             }
 
+            // FIXED Q DETECTOR (Strictly for non-fist downward-pointing hand)
+            if (!isFistState && !isTrueFist && !indexCurled && (indexIsDownwards || predicted === 'Q') && !middleUp && !ringUp && !pinkyUp) {
+                if (getDistance2D(indexTip, indexMcp) > (handScale * 0.45)) {
+                    return { letter: 'Q', confidence: 0.99 };
+                }
+            }
 
             // FINAL FIST MATRIX FALLBACKS (A, E)
             if (isFistState || isTrueFist) {
