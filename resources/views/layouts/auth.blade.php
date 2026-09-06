@@ -36,15 +36,16 @@
         }
     </script>
     <style>
-        /* Global scale — equivalent to one Ctrl+- press in the browser */
+        /* Scale down UI to fit screen without cropping */
         html { zoom: 90%; }
+        html, body { margin: 0; padding: 0; }
 
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         * { box-sizing: border-box; }
     </style>
 </head>
-<body class="font-sans antialiased bg-gray-50 min-h-screen flex flex-col">
-    <div class="flex-1">
+<body class="font-sans antialiased bg-gray-50">
+    <div>
         @yield('content')
     </div>
 

@@ -2,7 +2,7 @@
 @section('title', 'Terms & Conditions')
 
 @section('content')
-<div class="flex min-h-screen">
+<div class="flex" style="min-height:calc(100vh / 0.9)">
 
     {{-- ── LEFT PANEL ── --}}
     <div class="hidden lg:flex lg:w-5/12 flex-col items-center justify-center"
