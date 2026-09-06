@@ -141,6 +141,47 @@
     .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; text-align: center; }
 </style>
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="pt-4" aria-hidden="true">
+    {{-- Header banner --}}
+    <div class="skeleton rounded-[24px] h-24 w-full mb-6"></div>
+    {{-- Two-column layout --}}
+    <div class="flex flex-col lg:flex-row gap-6">
+        {{-- Left: module cards --}}
+        <div class="flex-1 min-w-0 flex flex-col gap-5">
+            @for($i=0;$i<3;$i++)
+            <div class="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="skeleton w-12 h-12 rounded-[16px]"></div>
+                        <div class="flex flex-col gap-2"><div class="skeleton h-4 rounded w-36"></div><div class="skeleton h-3 rounded w-24"></div></div>
+                    </div>
+                    <div class="flex gap-2"><div class="skeleton h-8 rounded-xl w-20"></div><div class="skeleton h-8 rounded-xl w-20"></div></div>
+                </div>
+                <div class="divide-y divide-slate-50">
+                    @for($j=0;$j<4;$j++)
+                    <div class="flex items-center gap-4 px-5 py-3.5">
+                        <div class="skeleton w-5 h-5 rounded flex-shrink-0"></div>
+                        <div class="flex-1 flex flex-col gap-1.5"><div class="skeleton h-3 rounded w-40"></div><div class="skeleton h-2 rounded w-28"></div></div>
+                        <div class="flex gap-2"><div class="skeleton h-7 rounded-lg w-16"></div><div class="skeleton h-7 rounded-lg w-16"></div></div>
+                    </div>
+                    @endfor
+                </div>
+            </div>
+            @endfor
+        </div>
+        {{-- Right: insights sidebar --}}
+        <div class="w-full lg:w-[280px] flex-shrink-0 flex flex-col gap-4">
+            <div class="skeleton skeleton-card h-36"></div>
+            <div class="skeleton skeleton-card h-48"></div>
+            <div class="skeleton skeleton-card h-32"></div>
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
+<div class="skeleton-hide">
+
 @if(session('success'))
 <div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 flex items-center gap-3 shadow-sm">
     <span class="material-symbols-outlined text-[20px] text-emerald-600">check_circle</span>
@@ -1008,6 +1049,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
     </div>
-</div>
+</div>{{-- end skeleton-hide --}}
 
 @endsection

@@ -2,7 +2,51 @@
 @section('title', 'Account Management')
 @section('content')
 
-<div class="flex flex-col gap-4 pt-4">
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="flex flex-col gap-4 pt-4" aria-hidden="true">
+    {{-- 5 KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
+        <div class="skeleton skeleton-card h-[120px]"></div>
+        @for($i=0;$i<3;$i++)
+        <div class="bg-white rounded-[24px] p-[22px] border border-slate-100 shadow-sm flex flex-col gap-3">
+            <div class="flex items-center justify-between"><div class="skeleton h-3 rounded w-24"></div><div class="skeleton w-10 h-10 rounded-xl"></div></div>
+            <div class="skeleton h-9 rounded w-16"></div>
+            <div class="skeleton h-3 rounded w-28"></div>
+        </div>
+        @endfor
+        <div class="skeleton skeleton-card h-[120px]"></div>
+    </div>
+    {{-- Search bar --}}
+    <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm px-5 py-3.5 flex items-center gap-3">
+        <div class="skeleton h-10 rounded-full flex-1"></div>
+        <div class="skeleton h-10 rounded-full w-28"></div>
+        <div class="skeleton h-10 rounded-full w-28"></div>
+        <div class="skeleton h-10 rounded-full w-24"></div>
+    </div>
+    {{-- Table --}}
+    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
+            <div class="skeleton h-5 rounded w-32"></div>
+        </div>
+        <div class="divide-y divide-slate-50">
+            @for($i=0;$i<8;$i++)
+            <div class="flex items-center gap-4 px-6 py-4">
+                <div class="skeleton skeleton-circle w-8 h-8 flex-shrink-0"></div>
+                <div class="flex-1 flex flex-col gap-2"><div class="skeleton h-3 rounded w-36"></div><div class="skeleton h-2 rounded w-24"></div></div>
+                <div class="skeleton h-3 rounded w-40 hidden sm:block"></div>
+                <div class="skeleton h-6 rounded-full w-16 mx-auto"></div>
+                <div class="skeleton h-6 rounded-full w-16 mx-auto"></div>
+                <div class="skeleton h-3 rounded w-24 hidden lg:block"></div>
+                <div class="skeleton h-3 rounded w-20 hidden lg:block"></div>
+                <div class="skeleton skeleton-circle w-8 h-8 mx-auto"></div>
+            </div>
+            @endfor
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
+<div class="flex flex-col gap-4 pt-4 skeleton-hide">
 
     <!-- Stats Row -->
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
@@ -382,4 +426,6 @@ document.getElementById('accountModal').addEventListener('click', function(e) {
     if (e.target === this) closeAccountModal();
 });
 </script>
+
+</div>{{-- end skeleton-hide --}}
 @endsection

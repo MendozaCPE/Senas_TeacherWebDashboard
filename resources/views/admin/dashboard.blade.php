@@ -2,6 +2,90 @@
 @section('title', 'Admin Dashboard')
 @section('content')
 
+{{-- ═══════════════════════════════════════════════════════════════════════
+     SKELETON — mirrors the real dashboard layout.
+     ═══════════════════════════════════════════════════════════════════════ --}}
+<div id="page-skeleton" class="flex flex-col gap-5 w-full pt-4" aria-hidden="true">
+
+    {{-- Welcome banner --}}
+    <div class="skeleton skeleton-card w-full" style="min-height:130px;border-radius:28px;"></div>
+
+    {{-- KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        @for($i=0;$i<4;$i++)
+        <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col gap-3 min-h-[130px]">
+            <div class="flex items-center justify-between">
+                <div class="skeleton h-3 rounded w-28"></div>
+                <div class="skeleton w-10 h-10 rounded-xl"></div>
+            </div>
+            <div class="skeleton h-9 rounded w-16 mt-1"></div>
+            <div class="skeleton h-3 rounded w-24"></div>
+            <div class="skeleton rounded h-[38px] w-full mt-auto opacity-60"></div>
+        </div>
+        @endfor
+    </div>
+
+    {{-- Main grid: chart (2/3) + side stats (1/3) --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div class="lg:col-span-2 bg-white rounded-[22px] shadow-sm border border-slate-100 p-6 flex flex-col gap-4">
+            <div class="flex items-start justify-between pb-3 border-b border-slate-100">
+                <div class="flex flex-col gap-2"><div class="skeleton h-5 rounded w-36"></div><div class="skeleton h-3 rounded w-56"></div></div>
+                <div class="skeleton h-5 rounded w-40"></div>
+            </div>
+            <div class="skeleton rounded-2xl w-full" style="padding-bottom:40%;"></div>
+        </div>
+        <div class="flex flex-col gap-4">
+            <div class="bg-white rounded-[22px] shadow-sm border border-slate-100 p-5 flex flex-col gap-4">
+                <div class="skeleton h-4 rounded w-32"></div>
+                @for($i=0;$i<2;$i++)
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <div class="skeleton h-3 rounded w-24"></div>
+                        <div class="skeleton h-5 rounded w-8"></div>
+                    </div>
+                    <div class="skeleton h-2 rounded-full w-full"></div>
+                </div>
+                @endfor
+            </div>
+            <div class="bg-white rounded-[22px] shadow-sm border border-slate-100 p-5 flex flex-col gap-4">
+                <div class="skeleton h-4 rounded w-32"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    @for($i=0;$i<4;$i++)
+                    <div class="bg-[#f8fafc] rounded-2xl p-3 flex flex-col items-center gap-2">
+                        <div class="skeleton w-6 h-6 rounded skeleton-circle"></div>
+                        <div class="skeleton h-5 rounded w-12"></div>
+                        <div class="skeleton h-2 rounded w-16"></div>
+                    </div>
+                    @endfor
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Bottom grid: 3 cards --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        @for($i=0;$i<3;$i++)
+        <div class="bg-white rounded-[22px] shadow-sm border border-slate-100 overflow-hidden">
+            <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
+                <div class="flex flex-col gap-2"><div class="skeleton h-4 rounded w-28"></div><div class="skeleton h-3 rounded w-20"></div></div>
+                <div class="skeleton h-3 rounded w-16"></div>
+            </div>
+            @for($j=0;$j<4;$j++)
+            <div class="flex items-center gap-3 px-6 py-3.5">
+                <div class="skeleton skeleton-circle w-9 h-9 flex-shrink-0"></div>
+                <div class="flex-1 flex flex-col gap-2">
+                    <div class="skeleton h-3 rounded w-3/4"></div>
+                    <div class="skeleton h-2 rounded w-1/2"></div>
+                </div>
+            </div>
+            @endfor
+        </div>
+        @endfor
+    </div>
+
+</div>
+{{-- ═══════════════════════════════════════════════════════════════════ --}}
+
 @php
 /* ── Inline sparkline helper ───────────────────────────────────────── */
 $spark = function (array $data, string $color): string {
@@ -46,7 +130,7 @@ $cLine = $bezier($cPts, $bot); $cArea = $bezier($cPts, $bot, true);
 $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
 @endphp
 
-<div class="flex flex-col gap-5 w-full pt-4">
+<div class="flex flex-col gap-5 w-full pt-4 skeleton-hide">
 
     {{-- ── WELCOME BANNER ──────────────────────────────────────────────── --}}
     <div class="rounded-[28px] relative overflow-hidden flex items-center"
@@ -423,5 +507,5 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
 
     </div>
 
-</div>
+</div>{{-- end skeleton-hide --}}
 @endsection

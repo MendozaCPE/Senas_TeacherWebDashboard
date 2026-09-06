@@ -598,8 +598,8 @@
             <!-- Divider -->
             <div class="mx-7 border-t border-slate-100 flex-shrink-0"></div>
 
-            <!-- Scrollable list — fixed height shows ~7-8 rows, scrolls for more -->
-            <div class="overflow-y-auto divide-y divide-slate-50 flex-1 scrollbar-hide">
+            <!-- Scrollable list — fixed height shows 6 rows, scrolls for more -->
+            <div class="overflow-y-auto divide-y divide-slate-50 flex-shrink-0" style="max-height: 490px">
                 @forelse($allStudents as $s)
                 @php
                     $mastery = $s->fsl_mastery_level ?? 'Beginner';

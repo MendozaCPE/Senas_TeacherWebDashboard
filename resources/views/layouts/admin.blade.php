@@ -65,11 +65,39 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ── Skeleton / Shimmer ─────────────────────────────────────────── */
+        @keyframes shimmer {
+            0%   { background-position: -600px 0; }
+            100% { background-position:  600px 0; }
+        }
+        .skeleton {
+            background: #e2e8f0;
+            background-image: linear-gradient(
+                90deg,
+                #e2e8f0 0px,
+                #f1f5f9 40%,
+                #eef2f7 55%,
+                #e2e8f0 100%
+            );
+            background-size: 600px 100%;
+            animation: shimmer 1.6s infinite linear;
+            border-radius: 6px;
+        }
+        .skeleton-circle { border-radius: 9999px; }
+        .skeleton-card   { border-radius: 24px; }
+        /* Hide real content while skeleton is showing */
+        .page-loading .skeleton-hide { display: none; }
+        /* Hide skeleton once page is loaded */
+        .page-loaded #page-skeleton  { display: none; }
     </style>
+
+    <script>document.body ? document.body.classList.add('page-loading') : document.addEventListener('DOMContentLoaded', function(){ document.body.classList.add('page-loading'); });</script>
 
     @yield('extra-head')
 </head>
 <body class="font-sans antialiased flex h-full overflow-hidden bg-[#f5f8fc]">
+    <script>document.body.classList.add('page-loading');</script>
 
     @include('partials.admin-sidebar')
 
@@ -86,5 +114,11 @@
         @include('partials.footer')
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.classList.remove('page-loading');
+            document.body.classList.add('page-loaded');
+        });
+    </script>
 </body>
 </html>

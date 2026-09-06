@@ -40,7 +40,62 @@ $starPill = function (int $rating) {
 };
 @endphp
 
-<div class="flex flex-col gap-5 w-full pt-4" id="ratingsRoot" data-approval-url-base="{{ url('/admin/ratings') }}">
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="flex flex-col gap-5 w-full pt-4" aria-hidden="true">
+    {{-- Header banner --}}
+    <div class="skeleton rounded-[28px] w-full" style="min-height:120px;"></div>
+    {{-- 4 KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div class="skeleton skeleton-card h-[120px]"></div>
+        @for($i=0;$i<2;$i++)
+        <div class="bg-white rounded-[24px] p-[22px] border border-slate-100 shadow-sm flex flex-col gap-3">
+            <div class="flex justify-between"><div class="skeleton h-3 rounded w-28"></div><div class="skeleton w-10 h-10 rounded-xl"></div></div>
+            <div class="skeleton h-9 rounded w-16"></div><div class="skeleton h-3 rounded w-24"></div>
+        </div>
+        @endfor
+        <div class="skeleton skeleton-card h-[120px]"></div>
+    </div>
+    {{-- Trend chart + tabs --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="lg:col-span-2 bg-white rounded-[20px] border border-slate-100 shadow-sm p-6 flex flex-col gap-4">
+            <div class="skeleton h-5 rounded w-40"></div>
+            <div class="skeleton rounded-2xl w-full" style="padding-bottom:34%;"></div>
+        </div>
+        <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-6 flex flex-col gap-4">
+            <div class="skeleton h-5 rounded w-32"></div>
+            @for($i=0;$i<5;$i++)
+            <div class="flex items-center gap-3">
+                <div class="skeleton h-3 rounded w-4"></div>
+                <div class="skeleton h-5 rounded flex-1" style="opacity:{{ 1-$i*0.15 }}"></div>
+                <div class="skeleton h-3 rounded w-10"></div>
+            </div>
+            @endfor
+        </div>
+    </div>
+    {{-- Ratings list --}}
+    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
+            <div class="skeleton h-5 rounded w-40"></div>
+            <div class="flex gap-2"><div class="skeleton h-8 rounded-full w-24"></div><div class="skeleton h-8 rounded-full w-24"></div></div>
+        </div>
+        <div class="divide-y divide-slate-50">
+            @for($i=0;$i<7;$i++)
+            <div class="flex items-center gap-4 px-6 py-4">
+                <div class="skeleton skeleton-circle w-10 h-10 flex-shrink-0"></div>
+                <div class="flex-1 flex flex-col gap-2"><div class="skeleton h-3 rounded w-36"></div><div class="skeleton h-2 rounded w-24"></div></div>
+                <div class="skeleton h-4 rounded w-24"></div>
+                <div class="skeleton h-6 rounded-full w-20"></div>
+                <div class="flex gap-1">
+                    <div class="skeleton h-8 rounded-xl w-20"></div><div class="skeleton h-8 rounded-xl w-20"></div>
+                </div>
+            </div>
+            @endfor
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
+<div class="flex flex-col gap-5 w-full pt-4 skeleton-hide" id="ratingsRoot" data-approval-url-base="{{ url('/admin/ratings') }}">
 
     {{-- ── HEADER BANNER ────────────────────────────────────────────────── --}}
     <div class="rounded-[28px] relative overflow-hidden flex items-center"
@@ -330,7 +385,7 @@ $starPill = function (int $rating) {
         </div>
 
     </div>
-</div>
+</div>{{-- end skeleton-hide --}}
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

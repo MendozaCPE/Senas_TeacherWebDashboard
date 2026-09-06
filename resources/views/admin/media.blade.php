@@ -143,6 +143,52 @@
 @media (max-width: 500px) { .media-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
 </style>
 
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="pt-4" aria-hidden="true">
+    {{-- Toolbar --}}
+    <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm px-6 py-4 mb-6">
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex flex-col gap-1.5">
+                <div class="skeleton h-2 rounded w-10"></div>
+                <div class="flex gap-1.5">
+                    @for($i=0;$i<4;$i++)<div class="skeleton h-8 rounded-full w-20"></div>@endfor
+                </div>
+            </div>
+            <div class="w-px h-10 bg-slate-100 mx-1"></div>
+            <div class="flex flex-col gap-1.5">
+                <div class="skeleton h-2 rounded w-12"></div>
+                <div class="flex gap-1.5">
+                    @for($i=0;$i<3;$i++)<div class="skeleton h-8 rounded-full w-20"></div>@endfor
+                </div>
+            </div>
+            <div class="ml-auto flex gap-2">
+                <div class="skeleton h-9 rounded-full w-48"></div>
+                <div class="skeleton h-9 rounded-full w-28"></div>
+            </div>
+        </div>
+    </div>
+    {{-- Media grid --}}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;">
+        @for($i=0;$i<12;$i++)
+        <div class="bg-white rounded-[18px] border border-slate-100 overflow-hidden shadow-sm">
+            <div class="skeleton w-full" style="padding-top:56.25%;"></div>
+            <div class="p-3 flex flex-col gap-2">
+                <div class="skeleton h-3 rounded w-3/4"></div>
+                <div class="skeleton h-2 rounded w-1/2"></div>
+                <div class="flex gap-1.5 pt-1.5 border-t border-slate-100 mt-1">
+                    <div class="skeleton h-7 rounded-lg flex-1"></div>
+                    <div class="skeleton h-7 rounded-lg flex-1"></div>
+                    <div class="skeleton h-7 rounded-lg flex-1"></div>
+                </div>
+            </div>
+        </div>
+        @endfor
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
+<div class="skeleton-hide">
+
 {{-- ── Toolbar Card ─────────────────────────────────────────────────────────── --}}
 <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm px-6 py-4 mb-6">
     <div class="flex flex-wrap items-center gap-3">
@@ -1052,4 +1098,5 @@ document.getElementById('mediaPreviewModal').addEventListener('click', e => {
 })();
 </script>
 
+</div>{{-- end skeleton-hide --}}
 @endsection

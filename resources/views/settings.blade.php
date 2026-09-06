@@ -464,7 +464,7 @@
         <div class="set-nav-item active" data-tab="profile"><span class="material-symbols-outlined">person</span>Profile</div>
         @if($school)<div class="set-nav-item" data-tab="institution"><span class="material-symbols-outlined">apartment</span>Institution</div>@endif
         <div class="set-nav-item" data-tab="security"><span class="material-symbols-outlined">shield</span>Security <span class="nav-badge">Secure</span></div>
-        <div class="set-nav-item" data-tab="notifications"><span class="material-symbols-outlined">notifications</span>Notifications <span class="nav-badge">2</span></div>
+        <div class="set-nav-item" data-tab="notifications"><span class="material-symbols-outlined">notifications</span>Notifications</div>
         <div class="set-nav-item" data-tab="rateus" id="rateusTabBtn"><span class="material-symbols-outlined">star</span>Rate Us</div>
     </div>
 
@@ -713,6 +713,7 @@
             <div class="set-card">
                 <form action="{{ route('settings.notifications') }}" method="POST" id="notifPrefsForm">
                 @csrf
+                @method('PATCH')
                 <div class="set-section-header" style="margin-bottom:6px;">
                     <div class="set-section-title-wrap">
                         <div class="set-section-icon"><span class="material-symbols-outlined">notifications</span></div>

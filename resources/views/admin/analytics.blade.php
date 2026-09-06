@@ -185,7 +185,62 @@ $dStudents       = $dynamicGestureStats?->students_practiced ?? 0;
 $dAcc            = $dTotalAttempts > 0 ? round(($dTotalSuccess/$dTotalAttempts)*100,1) : 0;
 @endphp
 
-<div class="flex flex-col gap-5 pt-4">
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="flex flex-col gap-5 pt-4" aria-hidden="true">
+    {{-- Filter bar --}}
+    <div class="bg-white rounded-[22px] border border-slate-100 shadow-sm p-4 flex gap-3 flex-wrap">
+        @for($i=0;$i<4;$i++)<div class="skeleton h-9 rounded-[14px] w-36"></div>@endfor
+        <div class="ml-auto skeleton h-9 rounded-[14px] w-24"></div>
+    </div>
+    {{-- 4 KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div class="skeleton skeleton-card h-[120px]"></div>
+        @for($i=0;$i<2;$i++)
+        <div class="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm flex flex-col gap-3">
+            <div class="flex justify-between"><div class="skeleton h-3 rounded w-32"></div><div class="skeleton w-10 h-10 rounded-xl"></div></div>
+            <div class="skeleton h-9 rounded w-20"></div>
+            <div class="skeleton h-3 rounded w-36"></div>
+        </div>
+        @endfor
+        <div class="skeleton skeleton-card h-[120px]"></div>
+    </div>
+    {{-- Insight banner --}}
+    <div class="skeleton rounded-[18px] h-16 w-full"></div>
+    {{-- Main grid: chart (2/3) + gesture overview (1/3) --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="lg:col-span-2 bg-white rounded-[20px] border border-slate-100 shadow-sm p-6 flex flex-col gap-4">
+            <div class="flex justify-between pb-3 border-b border-slate-100">
+                <div class="flex flex-col gap-2"><div class="skeleton h-5 rounded w-40"></div><div class="skeleton h-3 rounded w-56"></div></div>
+                <div class="skeleton h-5 rounded w-32"></div>
+            </div>
+            <div class="skeleton rounded-2xl w-full" style="padding-bottom:38%;"></div>
+            <div class="skeleton rounded-[18px] h-14 w-full"></div>
+        </div>
+        <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-6 flex flex-col gap-4">
+            <div class="skeleton h-4 rounded w-40"></div>
+            <div class="skeleton rounded-2xl h-20 w-full"></div>
+            <div class="grid grid-cols-2 gap-3">
+                @for($i=0;$i<4;$i++)<div class="skeleton rounded-2xl h-20"></div>@endfor
+            </div>
+            <div class="skeleton rounded-2xl h-20 w-full"></div>
+        </div>
+    </div>
+    {{-- Gesture breakdown panel --}}
+    <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
+            <div class="flex flex-col gap-2"><div class="skeleton h-5 rounded w-52"></div><div class="skeleton h-3 rounded w-36"></div></div>
+            <div class="flex gap-2">
+                @for($i=0;$i<4;$i++)<div class="skeleton h-8 rounded-[9px] w-20"></div>@endfor
+            </div>
+        </div>
+        <div class="p-6 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+            @for($i=0;$i<16;$i++)<div class="skeleton rounded-2xl h-24"></div>@endfor
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
+<div class="flex flex-col gap-5 pt-4 skeleton-hide">
 
 {{-- ══ 1. FILTER BAR ══════════════════════════════════════════════════════ --}}
 <form method="GET" action="{{ route('admin.analytics') }}" id="adminAnalyticsFilterForm">
@@ -1004,7 +1059,7 @@ $gestureInsight = match(true) {
 
 </div>
 
-</div>{{-- /wrapper --}}
+</div>{{-- end skeleton-hide --}}
 
 <script>
 (function () {

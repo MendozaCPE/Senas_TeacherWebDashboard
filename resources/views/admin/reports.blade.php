@@ -2,7 +2,50 @@
 @section('title', 'Escalated Reports')
 @section('content')
 
-<div class="flex flex-col gap-4 pt-4">
+{{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
+<div id="page-skeleton" class="flex flex-col gap-4 pt-4" aria-hidden="true">
+    {{-- Workflow banner --}}
+    <div class="skeleton rounded-[20px] h-16 w-full"></div>
+    {{-- 4 KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div class="skeleton skeleton-card h-[120px]"></div>
+        @for($i=0;$i<2;$i++)
+        <div class="bg-white rounded-[24px] p-[22px] border border-slate-100 shadow-sm flex flex-col gap-3">
+            <div class="flex items-center justify-between"><div class="skeleton h-3 rounded w-28"></div><div class="skeleton w-10 h-10 rounded-xl"></div></div>
+            <div class="skeleton h-9 rounded w-16"></div><div class="skeleton h-3 rounded w-24"></div>
+        </div>
+        @endfor
+        <div class="skeleton skeleton-card h-[120px]"></div>
+    </div>
+    {{-- Filter bar --}}
+    <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm px-5 py-3.5 flex items-center gap-3">
+        <div class="skeleton h-10 rounded-full flex-1"></div>
+        <div class="skeleton h-10 rounded-full w-28"></div>
+        <div class="skeleton h-10 rounded-full w-24"></div>
+    </div>
+    {{-- Reports list --}}
+    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
+            <div class="skeleton h-5 rounded w-40"></div>
+        </div>
+        <div class="divide-y divide-slate-50">
+            @for($i=0;$i<7;$i++)
+            <div class="flex items-center gap-4 px-6 py-4">
+                <div class="skeleton skeleton-circle w-10 h-10 flex-shrink-0"></div>
+                <div class="flex-1 flex flex-col gap-2">
+                    <div class="skeleton h-3 rounded w-40"></div>
+                    <div class="skeleton h-2 rounded w-full max-w-xs"></div>
+                </div>
+                <div class="skeleton h-6 rounded-full w-20"></div>
+                <div class="skeleton h-8 rounded-xl w-24"></div>
+            </div>
+            @endfor
+        </div>
+    </div>
+</div>
+{{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
+
+<div class="flex flex-col gap-4 pt-4 skeleton-hide">
 
     {{-- ── Workflow Banner ─────────────────────────────────────────────────── --}}
     <div class="bg-gradient-to-r from-[#071c3f] to-[#1e4b8f] rounded-[20px] px-6 py-4 flex items-center gap-4">
@@ -463,4 +506,6 @@ document.getElementById('reportModal').addEventListener('click', function(e) {
     if (e.target === this) closeReportModal();
 });
 </script>
+
+</div>{{-- end skeleton-hide --}}
 @endsection
