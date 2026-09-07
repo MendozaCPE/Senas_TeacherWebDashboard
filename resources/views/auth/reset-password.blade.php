@@ -44,6 +44,17 @@
     animation: shimmer 4s linear infinite;
 }
 .input-wrap:focus-within .input-icon { color: #2979ff; }
+
+/* ── Password strength meter (auth pages) ── */
+.auth-pwd-bar { height: 4px; flex: 1; border-radius: 99px; background: #e8eef4; transition: background 0.3s; }
+.auth-pwd-bar.weak   { background: #ef4444; }
+.auth-pwd-bar.fair   { background: #f59e0b; }
+.auth-pwd-bar.good   { background: #3b82f6; }
+.auth-pwd-bar.strong { background: #10b981; }
+.auth-pwd-req { display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: #9ca3af; transition: color 0.2s; }
+.auth-pwd-req .auth-req-icon { font-size: 13px; transition: color 0.2s; }
+.auth-pwd-req.met { color: #059669; }
+.auth-pwd-req.met .auth-req-icon { color: #059669; }
 </style>
 
 <div class="flex" style="min-height:calc(100vh / 0.9)">
@@ -127,12 +138,34 @@
                     <div class="relative input-wrap">
                         <span class="input-icon material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl transition-colors duration-200">lock</span>
                         <input id="password" type="password" name="password"
-                               placeholder="Minimum 8 characters" required autocomplete="new-password"
+                               placeholder="At least 10 characters" required autocomplete="new-password"
+                               oninput="authEvalStrength(this.value)"
                                class="auth-input w-full rounded-2xl pl-12 pr-12 py-4 text-gray-800 placeholder-gray-400 text-sm focus:outline-none">
                         <button type="button" onclick="togglePwd('password','eye-reset')"
                                 class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2979ff] transition-colors">
                             <span id="eye-reset" class="material-symbols-outlined text-xl">visibility</span>
                         </button>
+                    </div>
+
+                    {{-- Strength bar --}}
+                    <div id="auth-strength-wrap" class="mt-2.5 hidden">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="flex gap-1 flex-1">
+                                <div class="auth-pwd-bar" id="auth-bar-1"></div>
+                                <div class="auth-pwd-bar" id="auth-bar-2"></div>
+                                <div class="auth-pwd-bar" id="auth-bar-3"></div>
+                                <div class="auth-pwd-bar" id="auth-bar-4"></div>
+                            </div>
+                            <span id="auth-strength-label" class="text-[11px] font-extrabold tracking-wide uppercase min-w-[46px] text-right"></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+                            <div class="auth-pwd-req" id="auth-req-len"><span class="material-symbols-outlined auth-req-icon">radio_button_unchecked</span><span>10+ characters</span></div>
+                            <div class="auth-pwd-req" id="auth-req-upper"><span class="material-symbols-outlined auth-req-icon">radio_button_unchecked</span><span>Uppercase (A–Z)</span></div>
+                            <div class="auth-pwd-req" id="auth-req-lower"><span class="material-symbols-outlined auth-req-icon">radio_button_unchecked</span><span>Lowercase (a–z)</span></div>
+                            <div class="auth-pwd-req" id="auth-req-num"><span class="material-symbols-outlined auth-req-icon">radio_button_unchecked</span><span>Number (0–9)</span></div>
+                            <div class="auth-pwd-req" id="auth-req-sym"><span class="material-symbols-outlined auth-req-icon">radio_button_unchecked</span><span>Special character</span></div>
+                            <div class="auth-pwd-req" id="auth-req-nocommon"><span class="material-symbols-outlined auth-req-icon">radio_button_unchecked</span><span>Not a common password</span></div>
+                        </div>
                     </div>
                 </div>
 
@@ -143,12 +176,14 @@
                         <span class="input-icon material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl transition-colors duration-200">lock</span>
                         <input id="password_confirmation" type="password" name="password_confirmation"
                                placeholder="Re-enter new password" required autocomplete="new-password"
+                               oninput="authEvalConfirm()"
                                class="auth-input w-full rounded-2xl pl-12 pr-12 py-4 text-gray-800 placeholder-gray-400 text-sm focus:outline-none">
                         <button type="button" onclick="togglePwd('password_confirmation','eye-reset-confirm')"
                                 class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2979ff] transition-colors">
                             <span id="eye-reset-confirm" class="material-symbols-outlined text-xl">visibility</span>
                         </button>
                     </div>
+                    <p id="auth-match-msg" class="hidden mt-1.5 text-[12px] font-semibold flex items-center gap-1"></p>
                 </div>
 
                 <button type="submit"
@@ -174,6 +209,61 @@ function togglePwd(inputId, iconId) {
     if (!el || !ic) return;
     el.type = el.type === 'password' ? 'text' : 'password';
     ic.textContent = el.type === 'password' ? 'visibility' : 'visibility_off';
+}
+
+const AUTH_COMMON_PASSWORDS = ['password','password1','12345678','123456789','qwerty123','letmein1','welcome1','admin1234','iloveyou1','sunshine1'];
+
+function authEvalStrength(val) {
+    const wrap  = document.getElementById('auth-strength-wrap');
+    const label = document.getElementById('auth-strength-label');
+    const bars  = [1,2,3,4].map(n => document.getElementById('auth-bar-' + n));
+    if (!val) { wrap.classList.add('hidden'); authEvalConfirm(); return; }
+    wrap.classList.remove('hidden');
+
+    const checks = {
+        'auth-req-len':      val.length >= 10,
+        'auth-req-upper':    /[A-Z]/.test(val),
+        'auth-req-lower':    /[a-z]/.test(val),
+        'auth-req-num':      /[0-9]/.test(val),
+        'auth-req-sym':      /[^A-Za-z0-9]/.test(val),
+        'auth-req-nocommon': !AUTH_COMMON_PASSWORDS.includes(val.toLowerCase()),
+    };
+    Object.entries(checks).forEach(([id, met]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('met', met);
+        el.querySelector('.auth-req-icon').textContent = met ? 'check_circle' : 'radio_button_unchecked';
+    });
+
+    const score = Object.values(checks).filter(Boolean).length + (val.length >= 14 ? 1 : 0);
+    const level = score <= 2 ? 1 : score <= 3 ? 2 : score <= 5 ? 3 : 4;
+    const meta  = [null,
+        { cls: 'weak',   color: '#ef4444', text: 'Weak'   },
+        { cls: 'fair',   color: '#f59e0b', text: 'Fair'   },
+        { cls: 'good',   color: '#3b82f6', text: 'Good'   },
+        { cls: 'strong', color: '#10b981', text: 'Strong' },
+    ];
+    bars.forEach((bar, i) => {
+        bar.className = 'auth-pwd-bar';
+        if (i < level) bar.classList.add(meta[level].cls);
+    });
+    label.textContent = meta[level].text;
+    label.style.color = meta[level].color;
+    authEvalConfirm();
+}
+
+function authEvalConfirm() {
+    const pw  = document.getElementById('password')?.value              || '';
+    const cfm = document.getElementById('password_confirmation')?.value || '';
+    const msg = document.getElementById('auth-match-msg');
+    if (!msg) return;
+    if (!cfm) { msg.classList.add('hidden'); return; }
+    msg.classList.remove('hidden');
+    if (pw === cfm) {
+        msg.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;color:#059669;">check_circle</span><span style="color:#059669;">Passwords match</span>';
+    } else {
+        msg.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;color:#ef4444;">cancel</span><span style="color:#ef4444;">Passwords do not match</span>';
+    }
 }
 </script>
 

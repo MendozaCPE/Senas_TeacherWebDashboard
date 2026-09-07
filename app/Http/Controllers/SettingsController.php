@@ -155,9 +155,33 @@ class SettingsController extends Controller
             return back()->with('error', 'Your account uses Google Sign-In. Please manage your password through your Google account settings.');
         }
 
+        $commonPasswords = [
+            'password','password1','12345678','123456789','qwerty123',
+            'letmein1','welcome1','admin1234','iloveyou1','sunshine1',
+        ];
+
         $validated = $request->validate([
             'current_password' => 'required',
-            'password'         => 'required|min:8|confirmed',
+            'password'         => [
+                'required',
+                'string',
+                'min:10',
+                'max:100',
+                'confirmed',
+                'regex:/[A-Z]/',          // at least one uppercase
+                'regex:/[a-z]/',          // at least one lowercase
+                'regex:/[0-9]/',          // at least one number
+                'regex:/[^A-Za-z0-9]/',   // at least one special character
+                function ($attribute, $value, $fail) use ($commonPasswords) {
+                    if (in_array(strtolower($value), $commonPasswords)) {
+                        $fail('This password is too common. Please choose a stronger one.');
+                    }
+                },
+            ],
+        ], [
+            'password.min'       => 'Password must be at least 10 characters.',
+            'password.regex'     => 'Password must include uppercase, lowercase, a number, and a special character.',
+            'password.confirmed' => 'The password confirmation does not match.',
         ]);
 
         if (!Hash::check($validated['current_password'], $user->password)) {

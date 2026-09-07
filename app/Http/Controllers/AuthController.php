@@ -117,11 +117,30 @@ class AuthController extends Controller
         $request->validate([
             'name'      => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email',
-            'password'  => 'required|min:8|confirmed',
+            'password'  => [
+                'required',
+                'string',
+                'min:10',
+                'max:100',
+                'confirmed',
+                'regex:/[A-Z]/',
+                'regex:/[a-z]/',
+                'regex:/[0-9]/',
+                'regex:/[^A-Za-z0-9]/',
+                function ($attribute, $value, $fail) {
+                    $common = ['password','password1','12345678','123456789','qwerty123','letmein1','welcome1','admin1234','iloveyou1','sunshine1'];
+                    if (in_array(strtolower($value), $common)) {
+                        $fail('This password is too common. Please choose a stronger one.');
+                    }
+                },
+            ],
             'school_id' => 'required|exists:schools,id',
             'terms'     => 'accepted',
         ], [
-            'terms.accepted' => 'You must agree to the Terms and Conditions.',
+            'password.min'       => 'Password must be at least 10 characters.',
+            'password.regex'     => 'Password must include uppercase, lowercase, a number, and a special character.',
+            'password.confirmed' => 'The password confirmation does not match.',
+            'terms.accepted'     => 'You must agree to the Terms and Conditions.',
         ]);
 
         // Domain restriction check
@@ -314,9 +333,29 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $request->validate([
-            'token' => 'required',
-            'email' => 'required|email|exists:users,email',
-            'password' => 'required|min:8|confirmed',
+            'token'    => 'required',
+            'email'    => 'required|email|exists:users,email',
+            'password' => [
+                'required',
+                'string',
+                'min:10',
+                'max:100',
+                'confirmed',
+                'regex:/[A-Z]/',
+                'regex:/[a-z]/',
+                'regex:/[0-9]/',
+                'regex:/[^A-Za-z0-9]/',
+                function ($attribute, $value, $fail) {
+                    $common = ['password','password1','12345678','123456789','qwerty123','letmein1','welcome1','admin1234','iloveyou1','sunshine1'];
+                    if (in_array(strtolower($value), $common)) {
+                        $fail('This password is too common. Please choose a stronger one.');
+                    }
+                },
+            ],
+        ], [
+            'password.min'       => 'Password must be at least 10 characters.',
+            'password.regex'     => 'Password must include uppercase, lowercase, a number, and a special character.',
+            'password.confirmed' => 'The password confirmation does not match.',
         ]);
 
         $status = Password::reset(

@@ -239,6 +239,19 @@
 .tip-card li { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }
 .tip-card li .material-symbols-outlined { font-size: 15px; }
 
+/* ── Password strength bar ── */
+.pwd-bar { height: 5px; flex: 1; border-radius: 99px; background: var(--gray-divider); transition: background 0.3s, transform 0.2s; }
+.pwd-bar.active-weak   { background: #ef4444; }
+.pwd-bar.active-fair   { background: #f59e0b; }
+.pwd-bar.active-good   { background: #3b82f6; }
+.pwd-bar.active-strong { background: #10b981; }
+
+/* ── Password requirement checklist ── */
+.pwd-req { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #94a3b8; transition: color 0.2s; }
+.pwd-req .pwd-req-icon { font-size: 14px; transition: color 0.2s; }
+.pwd-req.met { color: #059669; }
+.pwd-req.met .pwd-req-icon { color: #059669; }
+
 .google-info-card { background: linear-gradient(135deg, var(--navy-900), var(--navy-500)); border-radius: 16px; padding: 18px 20px; color: #fff; display: flex; gap: 12px; margin-top: 14px; }
 .google-info-card .material-symbols-outlined { font-size: 22px; flex-shrink: 0; }
 .google-info-card p { font-size: 12.5px; font-weight: 500; opacity: .95; line-height: 1.5; }
@@ -633,56 +646,94 @@
                                 <div class="set-section-sub">Change your password to keep your account safe.</div>
                             </div>
                         </div>
-                        <button type="submit" class="set-btn-primary"><span class="material-symbols-outlined" style="font-size:16px;">lock_reset</span>Update</button>
+                        <button type="submit" class="set-btn-primary"><span class="material-symbols-outlined" style="font-size:16px;">lock_reset</span>Update Password</button>
                     </div>
 
+                    {{-- Current Password --}}
                     <div class="set-row">
                         <div class="set-row-label"><span class="material-symbols-outlined">key</span>Current Password</div>
                         <div style="max-width:var(--set-input-maxw)">
                             <div class="relative">
-                                <input type="password" id="current_password" name="current_password" class="set-input pr-12" maxlength="50"
-                                       placeholder="Enter your current password" value="{{ old('current_password') }}"/>
+                                <input type="password" id="current_password" name="current_password" class="set-input pr-12" maxlength="100"
+                                       placeholder="Enter your current password" value="{{ old('current_password') }}" autocomplete="current-password"/>
                                 <button type="button" onclick="togglePwdField('current_password','eye-cur')" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                                     <span id="eye-cur" class="material-symbols-outlined text-lg">visibility</span>
                                 </button>
                             </div>
-                            @error('current_password')<p class="text-red-500 text-[12px] font-medium mt-1.5">{{ $message }}</p>@enderror
+                            @error('current_password')<p class="text-red-500 text-[12px] font-medium mt-1.5 flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">error</span>{{ $message }}</p>@enderror
                         </div>
                     </div>
 
+                    {{-- New Password --}}
                     <div class="set-row">
                         <div class="set-row-label"><span class="material-symbols-outlined">password</span>New Password</div>
-                        <div class="grid grid-cols-2 gap-4" style="max-width:var(--set-input-maxw)">
-                            <div>
-                                <div class="relative">
-                                    <input type="password" id="new_password" name="password" class="set-input pr-12" minlength="8" maxlength="50"
-                                           placeholder="Minimum 8 characters"/>
-                                    <button type="button" onclick="togglePwdField('new_password','eye-new')" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                                        <span id="eye-new" class="material-symbols-outlined text-lg">visibility</span>
-                                    </button>
-                                </div>
-                                @error('password')<p class="text-red-500 text-[12px] font-medium mt-1.5">{{ $message }}</p>@enderror
-                            </div>
+                        <div style="max-width:var(--set-input-maxw)">
                             <div class="relative">
-                                <input type="password" id="confirm_password" name="password_confirmation" class="set-input pr-12" minlength="8" maxlength="50"
-                                       placeholder="Re-enter new password"/>
+                                <input type="password" id="new_password" name="password" class="set-input pr-12" maxlength="100"
+                                       placeholder="Create a strong password" autocomplete="new-password"
+                                       oninput="evalPasswordStrength(this.value)"/>
+                                <button type="button" onclick="togglePwdField('new_password','eye-new')" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    <span id="eye-new" class="material-symbols-outlined text-lg">visibility</span>
+                                </button>
+                            </div>
+                            @error('password')<p class="text-red-500 text-[12px] font-medium mt-1.5 flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">error</span>{{ $message }}</p>@enderror
+
+                            {{-- Strength bar --}}
+                            <div id="pwd-strength-wrap" class="mt-3 hidden">
+                                <div class="flex items-center gap-2 mb-1.5">
+                                    <div class="flex gap-1 flex-1">
+                                        <div class="pwd-bar" id="pwd-bar-1"></div>
+                                        <div class="pwd-bar" id="pwd-bar-2"></div>
+                                        <div class="pwd-bar" id="pwd-bar-3"></div>
+                                        <div class="pwd-bar" id="pwd-bar-4"></div>
+                                    </div>
+                                    <span id="pwd-strength-label" class="text-[11px] font-800 tracking-wide uppercase"></span>
+                                </div>
+                            </div>
+
+                            {{-- Requirement checklist --}}
+                            <div id="pwd-checklist" class="mt-3 hidden grid grid-cols-2 gap-x-6 gap-y-1.5">
+                                <div class="pwd-req" id="req-len">
+                                    <span class="material-symbols-outlined pwd-req-icon">radio_button_unchecked</span>
+                                    <span>At least 10 characters</span>
+                                </div>
+                                <div class="pwd-req" id="req-upper">
+                                    <span class="material-symbols-outlined pwd-req-icon">radio_button_unchecked</span>
+                                    <span>Uppercase letter (A–Z)</span>
+                                </div>
+                                <div class="pwd-req" id="req-lower">
+                                    <span class="material-symbols-outlined pwd-req-icon">radio_button_unchecked</span>
+                                    <span>Lowercase letter (a–z)</span>
+                                </div>
+                                <div class="pwd-req" id="req-num">
+                                    <span class="material-symbols-outlined pwd-req-icon">radio_button_unchecked</span>
+                                    <span>Number (0–9)</span>
+                                </div>
+                                <div class="pwd-req" id="req-sym">
+                                    <span class="material-symbols-outlined pwd-req-icon">radio_button_unchecked</span>
+                                    <span>Special character (!@#…)</span>
+                                </div>
+                                <div class="pwd-req" id="req-nocommon">
+                                    <span class="material-symbols-outlined pwd-req-icon">radio_button_unchecked</span>
+                                    <span>Not a common password</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Confirm Password --}}
+                    <div class="set-row" style="border-bottom:none;">
+                        <div class="set-row-label"><span class="material-symbols-outlined">lock_reset</span>Confirm Password</div>
+                        <div style="max-width:var(--set-input-maxw)">
+                            <div class="relative">
+                                <input type="password" id="confirm_password" name="password_confirmation" class="set-input pr-12" maxlength="100"
+                                       placeholder="Re-enter new password" autocomplete="new-password"
+                                       oninput="evalConfirmMatch()"/>
                                 <button type="button" onclick="togglePwdField('confirm_password','eye-con')" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                                     <span id="eye-con" class="material-symbols-outlined text-lg">visibility</span>
                                 </button>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="set-row" style="border-bottom:none;">
-                        <div class="set-row-label"><span class="material-symbols-outlined">shield</span>Requirements</div>
-                        <div class="tip-card">
-                            <div class="tip-title"><span class="material-symbols-outlined" style="font-size:15px;">shield</span>Password Requirements</div>
-                            <ul>
-                                <li><span class="material-symbols-outlined">check_circle</span>At least 8 characters</li>
-                                <li><span class="material-symbols-outlined">check_circle</span>Upper &amp; lowercase</li>
-                                <li><span class="material-symbols-outlined">check_circle</span>Numbers &amp; symbols</li>
-                                <li><span class="material-symbols-outlined">check_circle</span>No common words</li>
-                            </ul>
+                            <p id="pwd-match-msg" class="hidden text-[12px] font-medium mt-1.5 flex items-center gap-1"></p>
                         </div>
                     </div>
                 </form>
@@ -989,6 +1040,78 @@ function togglePwdField(inputId, iconId) {
     if (!el || !ic) return;
     el.type = el.type === 'password' ? 'text' : 'password';
     ic.textContent = el.type === 'password' ? 'visibility' : 'visibility_off';
+}
+
+// ── Password strength meter ──────────────────────────────────────────────────
+const COMMON_PASSWORDS = ['password','password1','12345678','123456789','qwerty123','letmein1','welcome1','admin1234','iloveyou1','sunshine1'];
+
+function evalPasswordStrength(val) {
+    const wrap      = document.getElementById('pwd-strength-wrap');
+    const checklist = document.getElementById('pwd-checklist');
+    const label     = document.getElementById('pwd-strength-label');
+    const bars      = [1,2,3,4].map(n => document.getElementById('pwd-bar-' + n));
+
+    if (!val) {
+        wrap.classList.add('hidden');
+        checklist.classList.add('hidden');
+        evalConfirmMatch();
+        return;
+    }
+
+    wrap.classList.remove('hidden');
+    checklist.classList.remove('hidden');
+
+    // Check each requirement
+    const checks = {
+        'req-len':      val.length >= 10,
+        'req-upper':    /[A-Z]/.test(val),
+        'req-lower':    /[a-z]/.test(val),
+        'req-num':      /[0-9]/.test(val),
+        'req-sym':      /[^A-Za-z0-9]/.test(val),
+        'req-nocommon': !COMMON_PASSWORDS.includes(val.toLowerCase()),
+    };
+    Object.entries(checks).forEach(([id, met]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('met', met);
+        el.querySelector('.pwd-req-icon').textContent = met ? 'check_circle' : 'radio_button_unchecked';
+    });
+
+    // Score: 1 pt each for len, upper, lower, num, sym + bonus for length ≥14
+    const score = Object.values(checks).filter(Boolean).length
+                + (val.length >= 14 ? 1 : 0);
+
+    // Map score → strength level (1–4)
+    const level = score <= 2 ? 1 : score <= 3 ? 2 : score <= 5 ? 3 : 4;
+    const meta  = [null,
+        { cls: 'active-weak',   color: '#ef4444', text: 'Weak'   },
+        { cls: 'active-fair',   color: '#f59e0b', text: 'Fair'   },
+        { cls: 'active-good',   color: '#3b82f6', text: 'Good'   },
+        { cls: 'active-strong', color: '#10b981', text: 'Strong' },
+    ];
+    bars.forEach((bar, i) => {
+        bar.className = 'pwd-bar';
+        if (i < level) bar.classList.add(meta[level].cls);
+    });
+    label.textContent  = meta[level].text;
+    label.style.color  = meta[level].color;
+    label.style.fontWeight = '800';
+
+    evalConfirmMatch();
+}
+
+function evalConfirmMatch() {
+    const pw  = (document.getElementById('new_password')?.value     || '');
+    const cfm = (document.getElementById('confirm_password')?.value || '');
+    const msg = document.getElementById('pwd-match-msg');
+    if (!msg) return;
+    if (!cfm) { msg.classList.add('hidden'); return; }
+    msg.classList.remove('hidden');
+    if (pw === cfm) {
+        msg.innerHTML = '<span class="material-symbols-outlined text-[13px] text-emerald-600">check_circle</span><span class="text-emerald-600">Passwords match</span>';
+    } else {
+        msg.innerHTML = '<span class="material-symbols-outlined text-[13px] text-red-500">cancel</span><span class="text-red-500">Passwords do not match</span>';
+    }
 }
 
 // ── Rate Us interaction ──────────────────────────────────────────────────────

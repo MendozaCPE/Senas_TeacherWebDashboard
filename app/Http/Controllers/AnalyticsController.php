@@ -25,7 +25,15 @@ class AnalyticsController extends Controller
         $filters = session('analytics_filters', []);
         $request->merge($filters);
 
-        $data = $this->buildAnalyticsData($teacher, $request);
+        try {
+            $data = $this->buildAnalyticsData($teacher, $request);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('AnalyticsController: buildAnalyticsData failed — ' . $e->getMessage(), [
+                'teacher_id' => $teacher->id ?? null,
+                'trace'      => $e->getTraceAsString(),
+            ]);
+            $data = $this->emptyTeacherData($user);
+        }
 
         return view('analytics', $data);
     }
@@ -85,25 +93,7 @@ class AnalyticsController extends Controller
         $totalStudents = $studentIds->count();
 
         if ($totalStudents === 0) {
-            return [
-                'totalStudents'       => 0,
-                'avgQuizScore'        => 0,
-                'avgMastery'          => 0,
-                'completionRate'      => 0,
-                'avgStreakDays'       => 0,
-                'activeLast7Pct'      => 0,
-                'classSummary'        => collect(),
-                'progressOverTime'    => collect(),
-                'lessonDifficulty'    => collect(),
-                'gestureHeatmap'      => collect(),
-                'masteryDistribution' => collect(),
-                'completionFunnel'    => collect(),
-                'completionTotal'     => 0,
-                'scoreBuckets'        => collect(),
-                'maxScoreBucket'      => 1,
-                'masteryTotal'        => 0,
-                'studentRanking'      => collect(),
-            ];
+            return $this->emptyTeacherData($teacher->user ?? Auth::user());
         }
 
         // Filter parameters
@@ -1003,7 +993,7 @@ class AnalyticsController extends Controller
             'masteryTotal'               => 0,
             'studentRanking'             => collect(),
             'lessonLeaderboards'         => ['all' => ['lesson_id' => 'all', 'title' => 'All Lessons', 'total_ranked' => 0, 'rankings' => []]],
-            'availableLessonsList'       => [['id' => 'all', 'title' => 'All Lessons']],
+            'availableLessonsList'       => [['id' => 'all', 'title' => 'All Lessons (Overall Class)', 'group' => 'Overall', 'type' => 'overall']],
             'gesturePerformanceOverview' => [
                 'total_gestures'   => 0,
                 'total_attempts'   => 0,

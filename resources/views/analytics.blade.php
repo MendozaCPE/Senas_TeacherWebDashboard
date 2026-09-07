@@ -565,6 +565,7 @@
                     <div class="filter-wrap shrink-0">
                         <select id="leaderboardLessonSelector" class="filter-select max-w-[280px]">
                             @php
+                                $availableLessonsList = $availableLessonsList ?? [['id' => 'all', 'title' => 'All Lessons (Overall Class)', 'group' => 'Overall', 'type' => 'overall']];
                                 $hasGroups = collect($availableLessonsList)->contains(fn($item) => !empty($item['group']));
                             @endphp
                             @if($hasGroups)
