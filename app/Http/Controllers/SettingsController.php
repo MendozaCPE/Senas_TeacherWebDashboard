@@ -30,7 +30,7 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'first_name'     => 'required|string|max:100',
             'last_name'      => 'required|string|max:100',
-            'email'          => 'nullable|email|max:255|unique:users,email,' . $user->id,
+            // email is intentionally excluded — it cannot be changed via this form
             'specialization' => 'sometimes|in:SNED,Regular',
             'profile_photo'  => 'sometimes|nullable|file|mimes:jpg,jpeg,png,gif,webp|max:5120',
         ]);
@@ -51,11 +51,8 @@ class SettingsController extends Controller
             $user->profile_photo = $path;
         }
 
-        // Update user name and email
-        $user->name  = trim($validated['first_name'] . ' ' . $validated['last_name']);
-        if (!empty($validated['email'])) {
-            $user->email = $validated['email'];
-        }
+        // Update user name only — email is never updated from this form
+        $user->name = trim($validated['first_name'] . ' ' . $validated['last_name']);
         $user->save();
 
         // Update teacher record

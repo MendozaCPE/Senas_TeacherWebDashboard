@@ -525,10 +525,19 @@
 
                     <div class="set-row">
                         <div class="set-row-label"><span class="material-symbols-outlined">mail</span>Email</div>
-                        <div class="set-input-icon">
+                        <div class="set-input-icon" style="position:relative;">
                             <span class="material-symbols-outlined">alternate_email</span>
-                            <input type="email" name="email" class="set-input" maxlength="100" placeholder="name@deped.gov.ph" value="{{ old('email', $user->email ?? '') }}"/>
+                            <input type="email" name="email" class="set-input" maxlength="100"
+                                   value="{{ $user->email ?? '' }}"
+                                   disabled readonly
+                                   style="cursor:not-allowed; opacity:0.6; background:#f8fafc;"/>
+                            <span class="material-symbols-outlined" title="Email cannot be changed"
+                                  style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:16px;color:#94a3b8;pointer-events:none;">lock</span>
                         </div>
+                        <p class="text-[11px] text-slate-400 font-medium mt-1.5 flex items-center gap-1" style="max-width:var(--set-input-maxw)">
+                            <span class="material-symbols-outlined text-[13px]">info</span>
+                            Email address cannot be changed. Contact your administrator if needed.
+                        </p>
                     </div>
 
                     <div class="set-row">
