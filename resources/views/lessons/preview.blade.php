@@ -78,15 +78,16 @@
 /* ============ Mobile Frame ============ */
 .device-stage { max-width: 900px; margin: 0 auto; }
 .phone-mockup {
-    max-width: 390px;
+    max-width: 340px;
     margin: 0 auto;
     background: #eaf5fd;
-    border-radius: 40px;
+    border-radius: 36px;
     overflow: hidden;
     box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     border: 8px solid #1a1a1a;
     position: relative;
-    min-height: 750px;
+    min-height: 600px;
+    max-height: 80vh;
     display: flex;
     flex-direction: column;
 }
@@ -246,7 +247,7 @@
     background: rgba(255,255,255,0.7); border-radius: 12px; padding: 6px 12px; font-size: 13px;
     font-weight: 700; color: #6B7280; border: 1px solid rgba(255,255,255,0.85); cursor: pointer;
 }
-.preview-content { padding: 0 16px 16px; flex: 1; display: flex; flex-direction: column; }
+.preview-content { padding: 0 16px 16px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
 .preview-controls-wrapper {
     background: white;
     border-radius: 16px;

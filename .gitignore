@@ -28,3 +28,6 @@ database/senas_db.sql
 /tests/Unit/StudentModelTest.php
 /tests/Unit/UserModelTest.php
 .env.testing
+
+# Postman test collections, environments & results
+/postman/

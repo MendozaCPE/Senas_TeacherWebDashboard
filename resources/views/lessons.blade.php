@@ -1599,6 +1599,34 @@ function openLessonPreviewModal(url) {
             loading.style.display = 'none';
             body.style.display = 'block';
 
+            // Re-create iframes so the browser actually loads their src
+            // (some browsers block iframes set via innerHTML until they are live-replaced)
+            body.querySelectorAll('iframe').forEach(oldIframe => {
+                const newIframe = document.createElement('iframe');
+                // Copy all attributes
+                Array.from(oldIframe.attributes).forEach(attr => {
+                    newIframe.setAttribute(attr.name, attr.value);
+                });
+                oldIframe.parentNode.replaceChild(newIframe, oldIframe);
+            });
+
+            // Re-create video elements so the browser loads/plays them properly
+            body.querySelectorAll('video').forEach(oldVideo => {
+                const newVideo = document.createElement('video');
+                Array.from(oldVideo.attributes).forEach(attr => {
+                    newVideo.setAttribute(attr.name, attr.value);
+                });
+                oldVideo.querySelectorAll('source').forEach(src => {
+                    const newSrc = document.createElement('source');
+                    Array.from(src.attributes).forEach(attr => {
+                        newSrc.setAttribute(attr.name, attr.value);
+                    });
+                    newVideo.appendChild(newSrc);
+                });
+                oldVideo.parentNode.replaceChild(newVideo, oldVideo);
+                newVideo.load();
+            });
+
             // Re-run any inline scripts injected by the preview partial
             body.querySelectorAll('script').forEach(oldScript => {
                 const s = document.createElement('script');

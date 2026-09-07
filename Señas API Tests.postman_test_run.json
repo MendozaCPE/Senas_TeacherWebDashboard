@@ -1,0 +1,45 @@
+{
+	"id": "6a9e8ab31945f53c3616c513",
+	"name": "Señas API Tests",
+	"timestamp": "2026-09-07T10:01:01.841Z",
+	"collection_id": "63b8a078Efc8fa2C3fF617B9",
+	"folder_id": 0,
+	"environment_id": "aedb7f40-20f1-49ce-81af-9691b1ac9f3c",
+	"totalPass": 1174,
+	"delay": 0,
+	"persist": true,
+	"status": "finished",
+	"startedAt": "2026-09-07T09:58:11.306Z",
+	"totalFail": 126,
+	"results": [],
+	"count": 50,
+	"totalTime": 0,
+	"collection": {
+		"requests": [
+			{
+				"id": "dFf074BFbfAd24255bE2bEa8"
+			},
+			{
+				"id": "eaF0E1F90Cc6162eCF02AB4b"
+			},
+			{
+				"id": "83995f5FCfBCE08Ffc1EfCb6"
+			},
+			{
+				"id": "08d2c5CDdd69c6225acffc10"
+			},
+			{
+				"id": "1d56a9D972e85FedAcF2B2AC"
+			},
+			{
+				"id": "Ef4fe6dfbF5b43247b327Eab"
+			},
+			{
+				"id": "b62859187f1E1AD3d6fcF9c8"
+			},
+			{
+				"id": "CC0abf8833b2ABFF1aA1411C"
+			}
+		]
+	}
+}

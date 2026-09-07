@@ -751,6 +751,23 @@ function openPreviewModal(url) {
             body.innerHTML = html;
             loading.style.display = 'none';
             body.style.display = 'block';
+            // Re-create iframes and videos so the browser actually loads them
+            body.querySelectorAll('iframe').forEach(oldIframe => {
+                const newIframe = document.createElement('iframe');
+                Array.from(oldIframe.attributes).forEach(attr => { newIframe.setAttribute(attr.name, attr.value); });
+                oldIframe.parentNode.replaceChild(newIframe, oldIframe);
+            });
+            body.querySelectorAll('video').forEach(oldVideo => {
+                const newVideo = document.createElement('video');
+                Array.from(oldVideo.attributes).forEach(attr => { newVideo.setAttribute(attr.name, attr.value); });
+                oldVideo.querySelectorAll('source').forEach(src => {
+                    const newSrc = document.createElement('source');
+                    Array.from(src.attributes).forEach(attr => { newSrc.setAttribute(attr.name, attr.value); });
+                    newVideo.appendChild(newSrc);
+                });
+                oldVideo.parentNode.replaceChild(newVideo, oldVideo);
+                newVideo.load();
+            });
             body.querySelectorAll('script').forEach(oldScript => {
                 const s = document.createElement('script');
                 if (oldScript.src) s.src = oldScript.src; else s.textContent = oldScript.textContent;

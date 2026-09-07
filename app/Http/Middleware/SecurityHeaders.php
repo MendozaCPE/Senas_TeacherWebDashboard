@@ -28,6 +28,13 @@ class SecurityHeaders
         $response->headers->set('X-XSS-Protection', '1; mode=block');
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(self)');
 
+        // Allow YouTube/storage iframes and media in the lesson preview
+        $response->headers->set(
+            'Content-Security-Policy',
+            "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; " .
+            "media-src 'self' blob: data: *;"
+        );
+
         return $response;
     }
 }

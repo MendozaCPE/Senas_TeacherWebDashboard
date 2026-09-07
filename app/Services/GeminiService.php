@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
  *
  * .env keys:
  *   GEMINI_API_KEY=your_key_here
- *   GEMINI_MODEL=gemini-1.5-flash          (default)
+ *   GEMINI_MODEL=gemini-3.6-flash          (default)
  */
 class GeminiService
 {
