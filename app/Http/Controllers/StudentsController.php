@@ -341,7 +341,7 @@ class StudentsController extends Controller
             'teacher_id' => $teacher->id,
             'school_id' => $teacher->school_id,
             'lrn' => $lrn,
-            'pin' => Hash::make($pin), // Store PIN as bcrypt hash
+            'pin' => $pin,
             'first_name' => $firstName,
             'last_name' => $lastName,
             'age' => $request->age,
@@ -672,7 +672,7 @@ if (!empty($examIdsOnly)) {
                     'teacher_id'       => $teacher->id,
                     'school_id'        => $teacher->school_id,
                     'lrn'              => $lrn,
-                    'pin'              => Hash::make($pin), // Store PIN as bcrypt hash
+                    'pin'              => $pin,
                     'first_name'       => $firstName,
                     'last_name'        => $lastName,
                     'age'              => $age,

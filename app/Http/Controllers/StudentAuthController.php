@@ -61,8 +61,18 @@ class StudentAuthController extends Controller
             return response()->json(['message' => 'Student not found'], 404);
         }
 
-        // Verify PIN (plain text comparison — PINs are stored unhashed in DB)
-        if ($request->pin !== $student->pin) {
+        // Verify PIN (plain text comparison with fallback for previously hashed PINs)
+        $isValidPin = ($request->pin === $student->pin);
+        if (!$isValidPin && str_starts_with((string)$student->pin, '$2y$')) {
+            if (Hash::check($request->pin, $student->pin)) {
+                $isValidPin = true;
+                // Self-heal: revert to plain-text PIN
+                $student->pin = $request->pin;
+                $student->save();
+            }
+        }
+
+        if (! $isValidPin) {
             return response()->json(['message' => 'Invalid PIN'], 401);
         }
 
@@ -414,19 +424,29 @@ public function updateSettings(Request $request)
                 ->with(['contents', 'quiz.questions.options', 'module'])
                 ->get();
 
-            // Sort lessons strictly by module_order ASC, then lesson module_order ASC, then lesson_id ASC
-            $allLessons = $allLessons->sort(function ($a, $b) {
-                $modOrderA = $a->module->module_order ?? 0;
-                $modOrderB = $b->module->module_order ?? 0;
+            // Sort lessons strictly by module level ASC, module_order ASC, then lesson module_order ASC, then lesson_id ASC
+            $levelOrder = [
+                'beginner' => 1,
+                'intermediate' => 2,
+                'advanced' => 3,
+            ];
+            $allLessons = $allLessons->sort(function ($a, $b) use ($levelOrder) {
+                $lvlA = $levelOrder[strtolower($a->module->mastery_level ?? 'beginner')] ?? 99;
+                $lvlB = $levelOrder[strtolower($b->module->mastery_level ?? 'beginner')] ?? 99;
+                if ($lvlA !== $lvlB) {
+                    return $lvlA <=> $lvlB;
+                }
+                $modOrderA = (float)($a->module->module_order ?? 0);
+                $modOrderB = (float)($b->module->module_order ?? 0);
                 if ($modOrderA !== $modOrderB) {
-                    return $modOrderA - $modOrderB;
+                    return $modOrderA <=> $modOrderB;
                 }
-                $lesOrderA = $a->module_order ?? 0;
-                $lesOrderB = $b->module_order ?? 0;
+                $lesOrderA = (float)($a->module_order ?? 0);
+                $lesOrderB = (float)($b->module_order ?? 0);
                 if ($lesOrderA !== $lesOrderB) {
-                    return $lesOrderA - $lesOrderB;
+                    return $lesOrderA <=> $lesOrderB;
                 }
-                return $a->lesson_id - $b->lesson_id;
+                return ($a->lesson_id ?? 0) <=> ($b->lesson_id ?? 0);
             })->values();
 
             // Get completed & in-progress statuses
@@ -1437,7 +1457,7 @@ public function getLessons(Request $request)
                         'difficulty' => $lesson->difficulty,
                         'status' => !$isAccessible ? 'locked' : 'pending',
                         'score' => null,
-                        'is_locked' => !$isAccessible, // 🔥 Locked if module is locked
+                        'is_locked' => !$isAccessible ? true : ($lesson->lesson_id !== $moduleLessons->first()?->lesson_id), // 🔥 First lesson unlocked, subsequent locked
                         'assigned_at' => null,
                         'module_order' => $lesson->module_order ?? 0,
                         'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
@@ -1600,11 +1620,25 @@ public function getLessons(Request $request)
         }
         unset($module);
         
-        // Sort modules by module_order (ASCENDING)
-        $modulesMap = collect($modulesMap)->sortBy('module_order')->toArray();
-        
-        // Convert map to array
-        $modules = array_values($modulesMap);
+        // Sort modules by level first: beginner -> intermediate -> advanced, then module_order ASC
+        $levelOrder = [
+            'beginner' => 1,
+            'intermediate' => 2,
+            'advanced' => 3,
+        ];
+        $modules = collect($modulesMap)->sort(function ($a, $b) use ($levelOrder) {
+            $lvlA = $levelOrder[strtolower($a['mastery_level'] ?? 'beginner')] ?? 99;
+            $lvlB = $levelOrder[strtolower($b['mastery_level'] ?? 'beginner')] ?? 99;
+            if ($lvlA !== $lvlB) {
+                return $lvlA <=> $lvlB;
+            }
+            $ordA = (float)($a['module_order'] ?? 0);
+            $ordB = (float)($b['module_order'] ?? 0);
+            if ($ordA != $ordB) {
+                return $ordA <=> $ordB;
+            }
+            return ($a['module_id'] ?? 0) <=> ($b['module_id'] ?? 0);
+        })->values()->toArray();
 
         $xpService = new XPService();
         $xpService->updateStreak($student);
