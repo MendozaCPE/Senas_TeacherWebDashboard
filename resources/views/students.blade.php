@@ -1559,31 +1559,53 @@ function mapExcelData(rows) {
         .filter(r => r && r.some(cell => String(cell || '').trim() !== ''))
         .map((row, i) => {
             const lrn = String(row[lrnIdx] ?? '').trim();
-            let full_name = '';
-            let last_name = '';
-            if (nameIdx !== -1) { full_name = String(row[nameIdx] ?? '').trim(); }
-            else if (lastIdx !== -1 || firstIdx !== -1) {
-                const ln = String(row[lastIdx] ?? '').trim(), fn = String(row[firstIdx] ?? '').trim();
-                full_name = ln && fn ? ln + ', ' + fn : (ln || fn);
+            let first_name = '';
+            let last_name  = '';
+            if (firstIdx !== -1) { first_name = String(row[firstIdx] ?? '').trim(); }
+            if (lastIdx !== -1)  { last_name  = String(row[lastIdx] ?? '').trim(); }
+
+            if (!first_name && !last_name && nameIdx !== -1) {
+                const rawName = String(row[nameIdx] ?? '').trim();
+                if (rawName.includes(',')) {
+                    const parts = rawName.split(',');
+                    last_name  = parts[0].trim();
+                    first_name = parts.slice(1).join(',').trim();
+                } else {
+                    const parts = rawName.split(' ');
+                    last_name  = parts.length > 1 ? parts.pop() : '';
+                    first_name = parts.join(' ');
+                }
             }
-            // Extract last_name for separate editing
-            if (lastIdx !== -1) {
-                last_name = String(row[lastIdx] ?? '').trim();
-            } else if (full_name.includes(',')) {
-                last_name = full_name.split(',')[0].trim();
-            }
+            const full_name = (last_name && first_name) ? (last_name + ', ' + first_name) : (last_name || first_name);
+
             let program_type = '';
-            if (programIdx !== -1) {
-                const raw = String(row[programIdx] ?? '').trim().toLowerCase();
+            if (programIdx !== -1 && row[programIdx] !== undefined && row[programIdx] !== null) {
+                const raw = String(row[programIdx]).trim().toLowerCase();
                 program_type = PROGRAMS[raw] ?? (raw ? String(row[programIdx]).trim() : '');
             }
+
             const rawM = masteryIdx !== -1 ? String(row[masteryIdx] ?? '').trim().toLowerCase() : '';
-            const fsl_mastery_level = rawM.includes('inter') ? 'Intermediate' : rawM.includes('adv') ? 'Advanced' : 'Beginner';
-            const age = ageIdx !== -1 ? parseInt(row[ageIdx], 10) : NaN;
+            let fsl_mastery_level = '';
+            if (rawM.includes('inter'))      { fsl_mastery_level = 'Intermediate'; }
+            else if (rawM.includes('adv'))   { fsl_mastery_level = 'Advanced'; }
+            else if (rawM.includes('beg'))   { fsl_mastery_level = 'Beginner'; }
+            else if (rawM)                  { fsl_mastery_level = rawM.charAt(0).toUpperCase() + rawM.slice(1); }
+
+            let age = null;
+            if (ageIdx !== -1 && row[ageIdx] !== undefined && row[ageIdx] !== null && String(row[ageIdx]).trim() !== '') {
+                const parsedAge = parseInt(row[ageIdx], 10);
+                age = isNaN(parsedAge) ? null : parsedAge;
+            }
+
             return {
-                _row: i + 2, lrn, full_name, last_name, program_type,
+                _row: i + 2,
+                lrn,
+                first_name,
+                last_name,
+                full_name,
+                program_type,
                 grade_level:       gradeIdx   !== -1 ? String(row[gradeIdx]   ?? '').trim() || null : null,
-                age:               isNaN(age) ? null : age,
+                age,
                 section:           sectionIdx !== -1 ? String(row[sectionIdx] ?? '').trim() || null : null,
                 school_year:       syIdx      !== -1 ? String(row[syIdx]      ?? '').trim() || null : null,
                 fsl_mastery_level,
@@ -1598,11 +1620,25 @@ function validateStudent(s) {
     const errs = {};
     if (!s.lrn || String(s.lrn).trim() === '')             errs.lrn = 'Required';
     else if (!/^\d{12}$/.test(String(s.lrn).trim()))       errs.lrn = 'Must be 12 digits';
-    if (!s.full_name || String(s.full_name).trim() === '')  errs.full_name = 'Required';
+
+    if (!s.first_name || String(s.first_name).trim() === '') errs.first_name = 'Required';
+    if (!s.last_name  || String(s.last_name).trim() === '')  errs.last_name  = 'Required';
+
     if (!s.program_type || !VALID_PROGRAMS.includes(String(s.program_type).trim()))
         errs.program_type = s.program_type ? 'Invalid: "' + s.program_type + '"' : 'Required';
+
     if (!s.fsl_mastery_level || !VALID_MASTERY.includes(s.fsl_mastery_level))
         errs.fsl_mastery_level = 'Required';
+
+    if (s.age === null || s.age === undefined || String(s.age).trim() === '') {
+        errs.age = 'Required';
+    } else {
+        const a = parseInt(s.age, 10);
+        if (isNaN(a) || a < 1 || a > 120) {
+            errs.age = '1-120';
+        }
+    }
+
     if (GRADE_SEC_PROGRAMS.includes(String(s.program_type || '').trim())) {
         if (!s.grade_level || String(s.grade_level).trim() === '') errs.grade_level = 'Required';
         if (!s.section     || String(s.section).trim()     === '') errs.section     = 'Required';
@@ -1731,13 +1767,13 @@ function renderDataTable() {
     const COLS = [
         { key:'_row',              label:'#',           w:'44px',  edit:false },
         { key:'lrn',               label:'LRN',         w:'140px', edit:true, type:'text'   },
-        { key:'full_name',         label:'Student Name',w:'175px', edit:true, type:'text'   },
+        { key:'first_name',        label:'First Name',  w:'130px', edit:true, type:'text'   },
         { key:'last_name',         label:'Last Name',   w:'130px', edit:true, type:'text'   },
-        { key:'program_type',      label:'Program',     w:'130px', edit:true, type:'select', opts:VALID_PROGRAMS },
+        { key:'program_type',      label:'Program',     w:'130px', edit:true, type:'select', opts:['', ...VALID_PROGRAMS] },
         { key:'grade_level',       label:'Grade Level', w:'120px', edit:true, type:'select', opts:['','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','SPED A','SPED B'] },
         { key:'section',           label:'Section',     w:'105px', edit:true, type:'text'   },
         { key:'age',               label:'Age',         w:'64px',  edit:true, type:'text'   },
-        { key:'fsl_mastery_level', label:'FSL Mastery', w:'128px', edit:true, type:'select', opts:VALID_MASTERY },
+        { key:'fsl_mastery_level', label:'FSL Mastery', w:'128px', edit:true, type:'select', opts:['', ...VALID_MASTERY] },
         { key:'school_year',       label:'School Year', w:'115px', edit:true, type:'text'   },
     ];
 
@@ -1767,7 +1803,7 @@ function renderDataTable() {
     document.getElementById('btn-confirm-import').addEventListener('click', () => {
         const bad = parsedStudents.filter(s => !isValid(s));
         if (bad.length > 0) {
-            const names = bad.slice(0,3).map(s => s.full_name || 'Row ' + s._row).join(', ');
+            const names = bad.slice(0,3).map(s => (s.first_name ? s.first_name + ' ' + s.last_name : s.full_name) || 'Row ' + s._row).join(', ');
             showAlert(bad.length + ' student' + (bad.length > 1 ? 's' : '') + ' still have errors: ' + names + (bad.length > 3 ? '…' : '') + '. Fix them before importing.', 'warning');
             return;
         }
@@ -1810,62 +1846,67 @@ function buildTblRow(s, ri, COLS) {
 }
 
 // Live cell edit → sync + re-validate
-document.getElementById('bulk-step-table').addEventListener('input', function(e) {
+function handleImportCellUpdate(e) {
     const el = e.target;
     if (!el.dataset || !el.dataset.field) return;
     const idx = parseInt(el.dataset.idx, 10);
-    parsedStudents[idx][el.dataset.field] = el.value.trim();
-    // If last_name is edited, rebuild full_name (Last, First format)
-    if (el.dataset.field === 'last_name') {
-        const ln = el.value.trim();
-        const current = parsedStudents[idx].full_name || '';
-        let fn = '';
-        if (current.includes(',')) { fn = current.split(',').slice(1).join(',').trim(); }
-        else { fn = current.trim(); }
-        parsedStudents[idx].full_name = ln && fn ? ln + ', ' + fn : (ln || fn);
-        // update the full_name cell input in the same row if visible
-        const tr = el.closest('tr');
-        if (tr) {
-            const fnInput = tr.querySelector('[data-field="full_name"]');
-            if (fnInput) fnInput.value = parsedStudents[idx].full_name;
-        }
+    const field = el.dataset.field;
+    parsedStudents[idx][field] = el.value.trim();
+
+    // If first_name or last_name is edited, keep full_name synchronized
+    if (field === 'first_name' || field === 'last_name') {
+        const fn = parsedStudents[idx].first_name || '';
+        const ln = parsedStudents[idx].last_name || '';
+        parsedStudents[idx].full_name = (ln && fn) ? (ln + ', ' + fn) : (ln || fn);
     }
-    // If full_name is edited, update last_name too
-    if (el.dataset.field === 'full_name') {
-        const fn = el.value.trim();
-        if (fn.includes(',')) {
-            parsedStudents[idx].last_name = fn.split(',')[0].trim();
-        }
-        const tr = el.closest('tr');
-        if (tr) {
-            const lnInput = tr.querySelector('[data-field="last_name"]');
-            if (lnInput) lnInput.value = parsedStudents[idx].last_name || '';
-        }
-    }
-    const errs    = validateStudent(parsedStudents[idx]);
-    const cellErr = errs[el.dataset.field];
-    const td      = el.parentElement;
-    // Style the input/select
-    if (cellErr) {
-        el.classList.remove('bg-transparent','border-transparent','text-slate-700','placeholder:text-slate-300');
-        el.classList.add('bg-red-50','border-red-300','text-red-700');
-    } else {
-        el.classList.remove('bg-red-50','border-red-300','text-red-700','placeholder:text-red-300');
-        el.classList.add('bg-transparent','border-transparent','text-slate-700');
-    }
-    // Error hint below cell
-    let hint = td.querySelector('p');
-    if (cellErr) { if (!hint) { hint = document.createElement('p'); hint.className = 'text-[10px] text-red-500 font-semibold mt-0.5 pl-1 leading-none'; td.appendChild(hint); } hint.textContent = cellErr; }
-    else if (hint) hint.remove();
-    // Row background
+
     const tr = el.closest('tr');
-    const rowBad = Object.keys(validateStudent(parsedStudents[idx])).length > 0;
-    tr.className = (rowBad ? 'bg-red-50/30' : 'bg-white') + ' border-b border-slate-100 hover:brightness-[.98] transition-colors';
+    const errs = validateStudent(parsedStudents[idx]);
+
+    // Update styling and errors across this row (program_type changes affect grade_level/section requirement)
+    if (tr) {
+        tr.querySelectorAll('.tbl-cell').forEach(inputEl => {
+            const cellField = inputEl.dataset.field;
+            const cellErr = errs[cellField];
+            const td = inputEl.parentElement;
+
+            if (cellErr) {
+                inputEl.classList.remove('bg-transparent', 'border-transparent', 'text-slate-700', 'placeholder:text-slate-300');
+                inputEl.classList.add('bg-red-50', 'border-red-300', 'text-red-700');
+            } else {
+                inputEl.classList.remove('bg-red-50', 'border-red-300', 'text-red-700');
+                inputEl.classList.add('bg-transparent', 'border-transparent', 'text-slate-700');
+            }
+
+            let hint = td.querySelector('p');
+            if (cellErr) {
+                if (!hint) {
+                    hint = document.createElement('p');
+                    hint.className = 'text-[10px] text-red-500 font-semibold mt-0.5 pl-1 leading-none';
+                    td.appendChild(hint);
+                }
+                hint.textContent = cellErr;
+            } else if (hint) {
+                hint.remove();
+            }
+        });
+
+        // Row background
+        const rowBad = Object.keys(errs).length > 0;
+        tr.className = (rowBad ? 'bg-red-50/30' : 'bg-white') + ' border-b border-slate-100 hover:brightness-[.98] transition-colors';
+    }
+
     // Badge
     const totalBad = parsedStudents.filter(s => !isValid(s)).length;
     const badge = document.getElementById('tbl-err-badge');
-    if (badge) { badge.textContent = totalBad + ' rows need fixing'; badge.classList.toggle('hidden', totalBad === 0); }
-});
+    if (badge) {
+        badge.textContent = totalBad + ' rows need fixing';
+        badge.classList.toggle('hidden', totalBad === 0);
+    }
+}
+
+document.getElementById('bulk-step-table').addEventListener('input', handleImportCellUpdate);
+document.getElementById('bulk-step-table').addEventListener('change', handleImportCellUpdate);
 
 // ─── The actual import POST ───────────────────────────────────────────────────
 async function runImport() {

@@ -500,8 +500,25 @@ if (!empty($examIdsOnly)) {
         try {
             foreach ($studentsData as $index => $data) {
                 $rowNumber  = $index + 2; // row 1 is the header
-                $displayName = trim($data['full_name'] ?? '');
-                if ($displayName === '') {
+                $firstName = trim((string) ($data['first_name'] ?? ''));
+                $lastName  = trim((string) ($data['last_name'] ?? ''));
+                $fullName  = trim((string) ($data['full_name'] ?? ''));
+
+                if ($firstName === '' && $lastName === '' && $fullName !== '') {
+                    if (str_contains($fullName, ',')) {
+                        [$lastName, $firstName] = array_map('trim', explode(',', $fullName, 2));
+                    } else {
+                        $parts = explode(' ', $fullName);
+                        $lastName = count($parts) > 1 ? array_pop($parts) : '';
+                        $firstName = implode(' ', $parts);
+                    }
+                }
+
+                if ($firstName !== '' && $lastName !== '') {
+                    $displayName = $firstName . ' ' . $lastName;
+                } elseif ($fullName !== '') {
+                    $displayName = $fullName;
+                } else {
                     $displayName = "Row {$rowNumber} (name unknown)";
                 }
 
@@ -515,9 +532,11 @@ if (!empty($examIdsOnly)) {
                     $missing[] = 'LRN (must be exactly 12 digits)';
                 }
 
-                $fullName = trim((string) ($data['full_name'] ?? ''));
-                if ($fullName === '') {
-                    $missing[] = 'Student Name';
+                if ($firstName === '') {
+                    $missing[] = 'First Name';
+                }
+                if ($lastName === '') {
+                    $missing[] = 'Last Name';
                 }
 
                 $programType = trim((string) ($data['program_type'] ?? ''));
@@ -550,9 +569,11 @@ if (!empty($examIdsOnly)) {
                     }
                 }
 
-                // Age is optional but must be sane if provided
+                // Age is required (not nullable in students table) and must be between 1 and 120
                 $age = null;
-                if (isset($data['age']) && $data['age'] !== '' && $data['age'] !== null) {
+                if (!isset($data['age']) || $data['age'] === '' || $data['age'] === null) {
+                    $missing[] = 'Age';
+                } else {
                     $ageVal = filter_var($data['age'], FILTER_VALIDATE_INT);
                     if ($ageVal === false || $ageVal < 1 || $ageVal > 120) {
                         $missing[] = 'Age (must be a number between 1 and 120)';
@@ -609,13 +630,15 @@ if (!empty($examIdsOnly)) {
                     continue;
                 }
 
-                // ── 4. Parse name (Last, First  OR  First Last) ───────────────
-                if (str_contains($fullName, ',')) {
-                    [$lastName, $firstName] = array_map('trim', explode(',', $fullName, 2));
-                } else {
-                    $parts     = explode(' ', $fullName);
-                    $lastName  = count($parts) > 1 ? array_pop($parts) : '';
-                    $firstName = implode(' ', $parts);
+                // ── 4. Parse name fallback (if not already parsed) ───────────
+                if ($firstName === '' && $lastName === '') {
+                    if (str_contains($fullName, ',')) {
+                        [$lastName, $firstName] = array_map('trim', explode(',', $fullName, 2));
+                    } else {
+                        $parts     = explode(' ', $fullName);
+                        $lastName  = count($parts) > 1 ? array_pop($parts) : '';
+                        $firstName = implode(' ', $parts);
+                    }
                 }
 
                 // ── 5. PIN — always last 4 digits of LRN ─────────────────────
