@@ -268,14 +268,23 @@ PROMPT;
      * @param  int     $numTf        Number of true/false questions
      * @return array   Array of quiz question objects
      */
-    public function generateQuizOnly(string $contentText, int $numMc, int $numTf, int $numDd = 0, int $numGt = 0): array
+    public function generateQuizOnly(string $contentText, int $numMc, int $numTf, int $numDd = 0, int $numGt = 0, array $gestureCatalog = []): array
     {
         $total = $numMc + $numTf + $numDd + $numGt;
 
+        $gestureCatalogSection = '';
+        if (!empty($gestureCatalog) && is_array($gestureCatalog)) {
+            $lines = ['AVAILABLE GESTURE CATALOG:'];
+            foreach ($gestureCatalog as $entry) {
+                $names = implode(', ', $entry['gestures']);
+                $lines[] = "  Module \"{$entry['module']}\": {$names}";
+            }
+            $gestureCatalogSection = "\n\n" . implode("\n", $lines) . "\n";
+        }
+
         $systemPrompt = <<<PROMPT
 You are an expert quiz designer for the SENAS learning app.
-You will receive lesson content written by a teacher, and your job is to generate quiz questions based ONLY on that content.
-
+You will receive lesson content written by a teacher, and your job is to generate quiz questions based ONLY on that content.{$gestureCatalogSection}
 CRITICAL RULES:
 - Only generate questions about concepts present in the content.
 - Do NOT invent information not present in the lesson content.
@@ -306,7 +315,11 @@ Rules:
 - Generate EXACTLY {$numMc} of type "multiple_choice" (each must have exactly 4 options, correct_index must be 0-3).
 - Generate EXACTLY {$numTf} of type "true_false" (options must be exactly ["True","False"], correct_index must be 0 or 1).
 - Generate EXACTLY {$numDd} of type "drag_drop" (each must have a "drag_drop_pairs" array with at least 2 pairs and up to 5 pairs, mapping left items to right match items).
-- Generate EXACTLY {$numGt} of type "gesture" (each must have a "gesture_names" array containing FSL letters A-Z or numbers 1-10 that students need to perform, e.g. ["A", "B"] or ["5"]). Options/correct_index must be null/empty
+- Generate EXACTLY {$numGt} of type "gesture":
+  * For each gesture question, "gesture_names" MUST contain the exact gesture name(s) from the AVAILABLE GESTURE CATALOG matching the question.
+  * For example, if asking to sign "Thank You", gesture_names MUST be ["THANK YOU"]. If asking to sign "Hello", use ["HELLO"]. If asking to sign a letter, use ["A"], ["B"], etc. If asking to sign a number, use ["1"], ["2"], etc.
+  * NEVER use an unrelated single letter like "H" when the question is asking to sign a greeting or word that exists in the catalog.
+  * Options and correct_index must be null/empty for gesture questions.
 - Make questions test understanding of the lesson content, not just memorization.
 PROMPT;
 

@@ -345,7 +345,8 @@ class LessonsController extends Controller
                 (int) $validated['num_mc'],
                 (int) $validated['num_tf'],
                 (int) $validated['num_dd'],
-                (int) $validated['num_gt']
+                (int) $validated['num_gt'],
+                $this->buildGestureCatalog()
             );
 
             $questions = $this->resolveGestureQuestions($questions);
@@ -2038,10 +2039,30 @@ private function resolveGestureQuestions(array $quiz): array
                 $question['gesture_warning'] = empty($allGestureIds);
                 continue;
             }
-                if (!empty($question['gesture_names'])) {
-                    $names      = array_map('trim', $question['gesture_names']);
-                    $namesUpper = array_map('strtoupper', $names);
+                $names      = !empty($question['gesture_names']) ? array_map('trim', $question['gesture_names']) : [];
+                $namesUpper = array_map('strtoupper', $names);
 
+                // Smart detection: check if question text explicitly quotes or mentions a known word/phrase gesture
+                // (e.g. "Thank You", "Hello", "How Are You", "Slow", "Fast", "Understand")
+                $qText = $question['question'] ?? '';
+                $wordGestures = DB::table('gestures')
+                    ->whereNotNull('module_id')
+                    ->whereRaw('LENGTH(name) > 1')
+                    ->get();
+
+                $detectedName = null;
+                foreach ($wordGestures as $wg) {
+                    if (preg_match('/\b' . preg_quote($wg->name, '/') . '\b/i', $qText)) {
+                        $detectedName = strtoupper($wg->name);
+                        break;
+                    }
+                }
+
+                if ($detectedName && !in_array($detectedName, $namesUpper, true)) {
+                    $namesUpper = [$detectedName];
+                }
+
+                if (!empty($namesUpper)) {
                     // Fetch all matches, preferring rows with a non-null module_id
                     $gestures = DB::table('gestures')
                         ->whereIn(DB::raw('UPPER(name)'), $namesUpper)
