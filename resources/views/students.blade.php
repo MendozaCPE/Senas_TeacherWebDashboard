@@ -1301,7 +1301,7 @@
 
 {{-- ══════════ ADD STUDENT MODAL ══════════ --}}
 <div id="add-student-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-[32px] w-[620px] max-w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
+    <div class="bg-white rounded-[32px] w-[900px] max-w-full max-h-[92vh] overflow-y-auto p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
         <button id="close-modal-btn" class="absolute top-7 right-7 text-slate-400 hover:text-slate-600 outline-none">
             <span class="material-symbols-outlined text-[24px]">close</span>
         </button>
@@ -1321,17 +1321,17 @@
             @csrf
             <div class="grid grid-cols-2 gap-x-6 gap-y-5 mb-6">
                 <div class="flex flex-col space-y-2">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Learner Reference Number (LRN)</label>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Learner Reference Number (LRN) <span class="text-red-500">*</span></label>
                     <input type="text" name="lrn" id="input-lrn" required placeholder="12-digit LRN" pattern="\d{12}" maxlength="12" title="LRN must be exactly 12 digits" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                     <p id="lrn-error" class="hidden text-[12px] font-medium text-red-600">LRN already exists.</p>
                     <p id="lrn-warning" class="hidden text-[12px] font-medium text-amber-600 mt-1"></p>
                 </div>
                 <div class="flex flex-col space-y-2">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name <span class="text-red-500">*</span></label>
                     <input type="text" name="full_name" required placeholder="Last Name, First Name" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                 </div>
                 <div class="flex flex-col space-y-2">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Program Type</label>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Program Type <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <select name="program_type" id="input-program-type" required class="w-full bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 pl-4 pr-10 rounded-xl outline-none border border-transparent focus:border-slate-300 appearance-none transition-all cursor-pointer">
                             <option value="Regular">Regular</option>
@@ -1343,7 +1343,7 @@
                     </div>
                 </div>
                 <div class="flex flex-col space-y-2">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Age</label>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Age <span class="text-red-500">*</span></label>
                     <input type="number" name="age" required min="1" max="100" placeholder="Enter age" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                 </div>
                 <div id="field-grade-level" class="flex flex-col space-y-2">
