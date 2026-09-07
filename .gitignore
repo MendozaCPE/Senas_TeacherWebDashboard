@@ -21,3 +21,10 @@ yarn-error.log
 database/senas_db.sql
 .DS_Store
 .DS_Store
+
+# Local testing files
+/tests/Feature/AuthenticationTest.php
+/tests/Feature/StudentManagementTest.php
+/tests/Unit/StudentModelTest.php
+/tests/Unit/UserModelTest.php
+.env.testing

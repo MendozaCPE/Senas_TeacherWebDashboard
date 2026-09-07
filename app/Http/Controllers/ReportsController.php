@@ -439,7 +439,7 @@ class ReportsController extends Controller
                   ->orWhereNull('module_id');
             })
             ->with(['module', 'questions'])
-            ->orderBy('module_order', 'asc')
+            ->orderBy('module_id')
             ->orderBy('title')
             ->get();
 
