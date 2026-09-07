@@ -262,7 +262,7 @@ class StudentsController extends Controller
         ],
         'fsl_mastery_level' => 'required|in:Beginner,Intermediate,Advanced',
         'lesson_ids' => 'nullable|array',
-        'lesson_ids.*' => 'exists:lessons,lesson_id',
+        'lesson_ids.*' => 'string',
     ]);
 
     // Split full name
