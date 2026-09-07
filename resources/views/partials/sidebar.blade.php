@@ -12,31 +12,31 @@
 
     <!-- Navigation -->
     <nav class="flex-1 flex flex-col space-y-2">
-        <a href="/dashboard" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('/') || request()->is('dashboard') ? $activeClass : $inactiveClass }}">
+        <a href="/dashboard" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('/') || request()->is('dashboard') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('/') || request()->is('dashboard') ? '' : 'icon-outline' }} text-[22px]">grid_view</span>
             <span>Dashboard</span>
         </a>
-        <a href="/students" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('students') ? $activeClass : $inactiveClass }}">
+        <a href="/students" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('students') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('students') ? '' : 'icon-outline' }} text-[22px]">group</span>
             <span>Students</span>
         </a>
-        <a href="/lessons" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('lessons') || request()->is('lessons/*') ? $activeClass : $inactiveClass }}">
+        <a href="/lessons" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('lessons') || request()->is('lessons/*') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('lessons') || request()->is('lessons/*') ? '' : 'icon-outline' }} text-[22px]">menu_book</span>
             <span>Lessons</span>
         </a>
-        <a href="/media" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('media') || request()->is('media/*') ? $activeClass : $inactiveClass }}">
+        <a href="/media" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('media') || request()->is('media/*') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('media') || request()->is('media/*') ? '' : 'icon-outline' }} text-[22px]">perm_media</span>
             <span>Media</span>
         </a>
-        <a href="/analytics" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('analytics') ? $activeClass : $inactiveClass }}">
+        <a href="/analytics" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('analytics') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('analytics') ? '' : 'icon-outline' }} text-[22px]">bar_chart</span>
             <span>Analytics</span>
         </a>
-        <a href="/reports" class="flex items-center space-x-4 px-6 py-4 {{ request()->is('reports') ? $activeClass : $inactiveClass }}">
+        <a href="/reports" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('reports') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('reports') ? '' : 'icon-outline' }} text-[22px]">description</span>
             <span>Reports</span>
         </a>
-        <a href="/settings" class="flex items-center space-x-4 px-6 py-4 mt-4 {{ request()->is('settings') ? $activeClass : $inactiveClass }}">
+        <a href="/settings" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 mt-4 {{ request()->is('settings') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('settings') ? '' : 'icon-outline' }} text-[22px]">settings</span>
             <span>Settings</span>
         </a>

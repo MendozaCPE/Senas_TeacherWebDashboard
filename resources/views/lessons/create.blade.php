@@ -924,7 +924,7 @@
     <div class="flex items-center justify-between mb-8">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-2">
-                <a href="{{ route('lessons.index') }}" class="hover:text-[#0d326b] transition-colors">Lessons</a>
+                <a href="{{ route('lessons.index') }}" id="breadcrumb-lessons-link" class="hover:text-[#0d326b] transition-colors">Lessons</a>
                 <span class="material-symbols-outlined text-[14px]">chevron_right</span>
                 <span class="text-[#0d326b]">Create</span>
             </div>
@@ -941,6 +941,7 @@
                 Generate with AI
             </button>
             <a href="{{ route('lessons.index') }}"
+               id="cancel-create-btn"
                class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-[13px] text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all">
                 <span class="material-symbols-outlined text-[16px]">close</span>
                 Cancel
@@ -4063,4 +4064,157 @@ window.addEventListener('click', function(e) {
 </div>
 
 @include('lessons.partials.ai-generator-modal')
+
+{{-- ══════════ UNSAVED CHANGES MODAL (Create) ══════════ --}}
+<div id="unsavedChangesModal"
+     class="fixed inset-0 z-[99999] flex items-center justify-center p-4 hidden"
+     onclick="if(event.target===this)closeUnsavedModal()">
+    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-[3px]"></div>
+    <div id="unsavedChangesCard"
+         class="relative z-10 bg-white rounded-[28px] w-full max-w-[420px] p-8 shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
+
+        {{-- Icon --}}
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
+             style="background: linear-gradient(135deg,#fef3c7,#fde68a);">
+            <span class="material-symbols-outlined text-[28px]" style="color:#d97706;">edit_off</span>
+        </div>
+
+        {{-- Text --}}
+        <h3 class="text-[20px] font-black text-[#0d326b] mb-2 leading-tight">Unsaved Changes</h3>
+        <p class="text-[13.5px] text-slate-500 leading-relaxed mb-7">
+            You have unsaved changes to this lesson.<br>
+            What would you like to do before leaving?
+        </p>
+
+        <div class="h-px bg-slate-100 mb-6"></div>
+
+        {{-- Actions --}}
+        <div class="flex flex-col gap-3">
+            <button onclick="saveAndLeave()"
+                    class="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] text-[14px] font-bold text-white transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
+                    style="background: linear-gradient(135deg,#0d326b,#1a6fd4);">
+                <span class="material-symbols-outlined text-[17px]">save</span>
+                Save as Draft &amp; Leave
+            </button>
+            <button onclick="discardAndLeave()"
+                    class="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] text-[14px] font-bold text-white transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
+                    style="background: linear-gradient(135deg,#ef4444,#dc2626);">
+                <span class="material-symbols-outlined text-[17px]">delete_forever</span>
+                Discard &amp; Leave
+            </button>
+            <button onclick="closeUnsavedModal()"
+                    class="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] text-[14px] font-semibold text-slate-500 border border-slate-200 bg-white hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">
+                <span class="material-symbols-outlined text-[17px]">arrow_back</span>
+                Keep Editing
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes ucmPop {
+    from { transform: scale(0.93); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+#unsavedChangesModal.is-open #unsavedChangesCard {
+    animation: ucmPop 0.18s cubic-bezier(0.34,1.4,0.64,1) forwards;
+}
+</style>
+
+<script>
+/* ── Unsaved Changes Guard (Create page) ──────────────────────────── */
+let _formDirty   = false;
+let _leaveTarget = null;
+let _allowLeave  = false;
+
+function markDirty() { _formDirty = true; }
+
+function openUnsavedModal(href) {
+    _leaveTarget = href;
+    const modal = document.getElementById('unsavedChangesModal');
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+    document.body.style.overflow = 'hidden';
+}
+function closeUnsavedModal() {
+    const modal = document.getElementById('unsavedChangesModal');
+    modal.classList.remove('is-open');
+    setTimeout(() => modal.classList.add('hidden'), 180);
+    document.body.style.overflow = '';
+    _leaveTarget = null;
+}
+function discardAndLeave() {
+    _allowLeave = true;
+    _formDirty  = false;
+    const dest  = _leaveTarget;
+    const modal = document.getElementById('unsavedChangesModal');
+    modal.classList.remove('is-open');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        if (dest) window.location.href = dest;
+    }, 160);
+}
+function saveAndLeave() {
+    _allowLeave = true;
+    _formDirty  = false;
+    const form  = document.getElementById('lessonForm');
+    if (form) {
+        const statusField = document.getElementById('lessonStatusField');
+        if (statusField) statusField.value = 'draft';
+        // Bypass the validation guard for a quick draft save
+        form.dispatchEvent(new CustomEvent('force-draft-save'));
+        form.submit();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Intercept Cancel and breadcrumb links
+    ['cancel-create-btn', 'breadcrumb-lessons-link'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', function (e) {
+            if (_formDirty) { e.preventDefault(); openUnsavedModal(el.href); }
+        });
+    });
+
+    // Intercept sidebar nav links
+    document.querySelectorAll('[data-nav-intercept]').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            if (_formDirty) { e.preventDefault(); openUnsavedModal(el.href); }
+        });
+    });
+
+    // Mark dirty on any form interaction
+    const form = document.getElementById('lessonForm');
+    if (form) {
+        form.addEventListener('input',  markDirty, true);
+        form.addEventListener('change', markDirty, true);
+        // Clear dirty on normal submit
+        form.addEventListener('submit', function () {
+            _allowLeave = true;
+            _formDirty  = false;
+        });
+    }
+});
+
+// Only show native beforeunload for actual tab close / refresh
+let _isInAppNavigation = false;
+document.addEventListener('click', function (e) {
+    const link = e.target.closest('a[href]');
+    if (link && !e.defaultPrevented) {
+        const href = link.getAttribute('href') || '';
+        if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+            _isInAppNavigation = true;
+            setTimeout(() => { _isInAppNavigation = false; }, 100);
+        }
+    }
+});
+window.addEventListener('beforeunload', function (e) {
+    if (_formDirty && !_allowLeave && !_isInAppNavigation) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+</script>
 @endsection

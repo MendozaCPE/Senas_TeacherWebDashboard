@@ -674,7 +674,7 @@
     <div class="flex items-center justify-between mb-8">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-2">
-                <a href="{{ route('lessons.index') }}" class="hover:text-[#0d326b] transition-colors">Lessons</a>
+                <a href="{{ route('lessons.index') }}" id="breadcrumb-lessons-link" class="hover:text-[#0d326b] transition-colors">Lessons</a>
                 <span class="material-symbols-outlined text-[14px]">chevron_right</span>
                 <span class="text-[#0d326b] truncate max-w-[260px]">{{ $lessonData['title'] }}</span>
             </div>
@@ -689,6 +689,7 @@
                 {{ $st === 'published' ? '✓ Published' : '✎ Draft' }}
             </span>
             <a href="{{ route('lessons.index') }}"
+               id="cancel-edit-btn"
                class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-[13px] text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all">
                 <span class="material-symbols-outlined text-[16px]">close</span>
                 Cancel
@@ -1428,6 +1429,68 @@
     </form>
 </div>{{-- /.max-w-4xl --}}
 
+{{-- ══════════ UNSAVED CHANGES MODAL ══════════ --}}
+<div id="unsavedChangesModal"
+     class="fixed inset-0 z-[99999] flex items-center justify-center p-4 hidden"
+     onclick="if(event.target===this)closeUnsavedModal()">
+
+    {{-- Backdrop --}}
+    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-[3px]"></div>
+
+    {{-- Card --}}
+    <div id="unsavedChangesCard"
+         class="relative z-10 bg-white rounded-[28px] w-full max-w-[420px] p-8 shadow-2xl
+                transform transition-all duration-200 scale-95 opacity-0">
+
+        {{-- Icon --}}
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
+             style="background: linear-gradient(135deg,#fef3c7,#fde68a);">
+            <span class="material-symbols-outlined text-[28px]" style="color:#d97706;">edit_off</span>
+        </div>
+
+        {{-- Text --}}
+        <h3 class="text-[20px] font-black text-[#0d326b] mb-2 leading-tight">Unsaved Changes</h3>
+        <p class="text-[13.5px] text-slate-500 leading-relaxed mb-7">
+            You have unsaved changes to this lesson.<br>
+            If you leave now, your edits will be lost.
+        </p>
+
+        {{-- Divider --}}
+        <div class="h-px bg-slate-100 mb-6"></div>
+
+        {{-- Actions --}}
+        <div class="flex flex-col gap-3">
+            <button onclick="saveAndLeave()"
+                    class="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] text-[14px] font-bold text-white transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
+                    style="background: linear-gradient(135deg,#0d326b,#1a6fd4);">
+                <span class="material-symbols-outlined text-[17px]">save</span>
+                Save as Draft &amp; Leave
+            </button>
+            <button onclick="discardAndLeave()"
+                    class="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] text-[14px] font-bold text-white transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
+                    style="background: linear-gradient(135deg,#ef4444,#dc2626);">
+                <span class="material-symbols-outlined text-[17px]">delete_forever</span>
+                Discard &amp; Leave
+            </button>
+            <button onclick="closeUnsavedModal()"
+                    class="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] text-[14px] font-semibold text-slate-500 border border-slate-200 bg-white hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">
+                <span class="material-symbols-outlined text-[17px]">arrow_back</span>
+                Keep Editing
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes ucmPop {
+    from { transform: scale(0.93); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+#unsavedChangesModal.is-open #unsavedChangesCard {
+    animation: ucmPop 0.18s cubic-bezier(0.34,1.4,0.64,1) forwards;
+}
+</style>
+
 {{-- Preview Overlay --}}
 <div id="previewOverlay">
     <button type="button" class="preview-close" onclick="closePreview()">✕</button>
@@ -1467,6 +1530,124 @@ function tooLargeMessage(file) {
 
 let contentIndex = {{ isset($lessonData['contents']) ? count($lessonData['contents']) : 0 }};
 let quizIndex    = {{ isset($lessonData['quiz']) ? count($lessonData['quiz']) : 0 }};
+
+/* ═══════════════════════════════════════════════════════
+   UNSAVED CHANGES GUARD
+═══════════════════════════════════════════════════════ */
+let _formDirty    = false;
+let _leaveTarget  = null;
+let _allowLeave   = false;
+
+function markDirty() { _formDirty = true; }
+
+function openUnsavedModal(href) {
+    _leaveTarget = href;
+    const modal = document.getElementById('unsavedChangesModal');
+    modal.classList.remove('hidden');
+    // Trigger animation on next frame
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+    document.body.style.overflow = 'hidden';
+}
+function closeUnsavedModal() {
+    const modal = document.getElementById('unsavedChangesModal');
+    modal.classList.remove('is-open');
+    setTimeout(() => modal.classList.add('hidden'), 180);
+    document.body.style.overflow = '';
+    _leaveTarget = null;
+}
+function discardAndLeave() {
+    _allowLeave = true;
+    _formDirty  = false;
+    const modal = document.getElementById('unsavedChangesModal');
+    modal.classList.remove('is-open');
+    const dest = _leaveTarget;
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        if (dest) window.location.href = dest;
+    }, 160);
+}
+function saveAndLeave() {
+    // Submit as draft then navigate — the form action already redirects
+    _allowLeave = true;
+    _formDirty  = false;
+    // Store where to go, then submit the form as draft
+    const form = document.getElementById('lessonForm');
+    if (form) {
+        // Create a hidden status input so it saves as draft
+        const inp = document.createElement('input');
+        inp.type  = 'hidden';
+        inp.name  = 'status';
+        inp.value = 'draft';
+        form.appendChild(inp);
+        form.submit();
+    }
+}
+
+// Intercept exit links (Cancel + breadcrumb + all sidebar nav links)
+document.addEventListener('DOMContentLoaded', function () {
+    const exitSelectors = ['#cancel-edit-btn', '#breadcrumb-lessons-link'];
+    exitSelectors.forEach(function (sel) {
+        const el = document.querySelector(sel);
+        if (!el) return;
+        el.addEventListener('click', function (e) {
+            if (_formDirty) {
+                e.preventDefault();
+                openUnsavedModal(el.href);
+            }
+        });
+    });
+
+    // Intercept sidebar nav links
+    document.querySelectorAll('[data-nav-intercept]').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            if (_formDirty) {
+                e.preventDefault();
+                openUnsavedModal(el.href);
+            }
+        });
+    });
+
+    // Mark dirty on any change inside the form
+    const form = document.getElementById('lessonForm');
+    if (form) {
+        form.addEventListener('input',  markDirty, true);
+        form.addEventListener('change', markDirty, true);
+    }
+
+    // Clear dirty flag when submitting (any save button)
+    if (form) {
+        form.addEventListener('submit', function () {
+            _allowLeave = true;
+            _formDirty  = false;
+        });
+    }
+});
+
+// Only fire beforeunload for true tab/window close or refresh — NOT for
+// in-app link clicks (those are handled above via the custom modal).
+// We detect real unloads by checking if the page visibility is going hidden
+// within a short window of the beforeunload event, which happens on refresh/close.
+let _isInAppNavigation = false;
+document.addEventListener('click', function (e) {
+    const link = e.target.closest('a[href]');
+    if (link && !e.defaultPrevented) {
+        const href = link.getAttribute('href');
+        // Same-origin link = in-app nav
+        if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+            _isInAppNavigation = true;
+            // Reset after a tick in case navigation is cancelled
+            setTimeout(() => { _isInAppNavigation = false; }, 100);
+        }
+    }
+});
+
+window.addEventListener('beforeunload', function (e) {
+    if (_formDirty && !_allowLeave && !_isInAppNavigation) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
 
 /* ═══════════════════════════════════════════════════════
    AJAX UPLOAD HELPERS
