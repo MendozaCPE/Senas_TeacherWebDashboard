@@ -3,7 +3,7 @@
 @section('content')
 
 {{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
-<div id="page-skeleton" class="flex flex-col gap-4 pt-4" aria-hidden="true">
+<div id="page-skeleton" class="flex flex-col gap-4 pt-4 w-full min-w-0" aria-hidden="true">
     {{-- 5 KPI cards --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
         <div class="skeleton skeleton-card h-[120px]"></div>
@@ -46,7 +46,7 @@
 </div>
 {{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
 
-<div class="flex flex-col gap-4 pt-4 skeleton-hide">
+<div class="flex flex-col gap-4 pt-4 skeleton-hide w-full min-w-0">
 
     <!-- Stats Row -->
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
@@ -250,7 +250,7 @@
 </div>
 
 <!-- Account Management Modal -->
-<div id="accountModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-[999] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+<div id="accountModal" class="fixed inset-0 z-[999] items-center justify-center opacity-0 transition-opacity duration-300" style="display:none;background:rgba(15,23,42,0.5);">
     <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="accountModalBox">
         <div class="flex items-center justify-between mb-6">
             <div>
@@ -337,6 +337,7 @@ function openAccountModal(id, name, role, status) {
     const modal = document.getElementById('accountModal');
     const box   = document.getElementById('accountModalBox');
     modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     requestAnimationFrame(() => { modal.classList.remove('opacity-0'); box.classList.remove('scale-95'); });
 }
 
@@ -344,7 +345,7 @@ function closeAccountModal() {
     const modal = document.getElementById('accountModal');
     const box   = document.getElementById('accountModalBox');
     modal.classList.add('opacity-0'); box.classList.add('scale-95');
-    setTimeout(() => modal.classList.add('hidden'), 300);
+    setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
 }
 
 function updateStatusButtons(status) {
@@ -426,6 +427,4 @@ document.getElementById('accountModal').addEventListener('click', function(e) {
     if (e.target === this) closeAccountModal();
 });
 </script>
-
-</div>{{-- end skeleton-hide --}}
 @endsection

@@ -3,7 +3,7 @@
 @section('content')
 
 {{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
-<div id="page-skeleton" class="flex flex-col gap-4 pt-4" aria-hidden="true">
+<div id="page-skeleton" class="flex flex-col gap-4 pt-4 w-full min-w-0" aria-hidden="true">
     {{-- Workflow banner --}}
     <div class="skeleton rounded-[20px] h-16 w-full"></div>
     {{-- 4 KPI cards --}}
@@ -45,7 +45,7 @@
 </div>
 {{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
 
-<div class="flex flex-col gap-4 pt-4 skeleton-hide">
+<div class="flex flex-col gap-4 pt-4 skeleton-hide w-full min-w-0">
 
     {{-- ── Workflow Banner ─────────────────────────────────────────────────── --}}
     <div class="bg-gradient-to-r from-[#071c3f] to-[#1e4b8f] rounded-[20px] px-6 py-4 flex items-center gap-4">
@@ -271,7 +271,7 @@
 </div>
 
 {{-- ── Report Detail Modal ───────────────────────────────────────────────────── --}}
-<div id="reportModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-[999] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+<div id="reportModal" class="fixed inset-0 z-[999] items-center justify-center opacity-0 transition-opacity duration-300" style="display:none;background:rgba(15,23,42,0.5);">
     <div class="bg-white rounded-3xl max-w-lg w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 overflow-hidden" id="reportModalBox">
 
         {{-- Modal Header --}}
@@ -381,6 +381,7 @@ async function openReportModal(id) {
     document.getElementById('response-feedback').classList.add('hidden');
     document.getElementById('response-textarea').value = '';
     modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     requestAnimationFrame(() => { modal.classList.remove('opacity-0'); box.classList.remove('scale-95'); });
 
     try {
@@ -454,7 +455,7 @@ function closeReportModal() {
     const modal = document.getElementById('reportModal');
     const box   = document.getElementById('reportModalBox');
     modal.classList.add('opacity-0'); box.classList.add('scale-95');
-    setTimeout(() => modal.classList.add('hidden'), 300);
+    setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
 }
 
 async function submitAdminResponse() {
@@ -506,6 +507,4 @@ document.getElementById('reportModal').addEventListener('click', function(e) {
     if (e.target === this) closeReportModal();
 });
 </script>
-
-</div>{{-- end skeleton-hide --}}
 @endsection

@@ -101,17 +101,24 @@
 
     @include('partials.admin-sidebar')
 
-    <div class="flex-1 flex flex-col h-full overflow-hidden">
+    <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
 
         <!-- Admin Header -->
         @include('partials.admin-header')
 
         <!-- Scrollable Content -->
-        <main class="flex-1 overflow-y-auto px-8 pt-2 pb-0 relative border-l border-slate-100">
+        <main class="flex-1 min-w-0 w-full overflow-y-auto overflow-x-hidden px-8 pt-2 pb-0 relative border-l border-slate-100">
             @yield('content')
-        </main>
 
-        @include('partials.footer')
+            {{-- Footer rendered inside the scroll area so it is always below content --}}
+            <footer class="py-2.5 flex items-center justify-center border-t border-slate-100 bg-[#f4f7f9] mt-4">
+                <p class="text-[11px] font-medium tracking-wide text-slate-400 select-none text-center">
+                    &copy; {{ date('Y') }} &nbsp;<span class="font-bold text-slate-500">SEÑAS</span>&nbsp; &mdash; All rights reserved.
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    <span class="text-slate-400">Developed for Filipino Deaf learners by the <span class="font-semibold text-slate-500">SEÑAS Team</span></span>
+                </p>
+            </footer>
+        </main>
     </div>
 
     <script>

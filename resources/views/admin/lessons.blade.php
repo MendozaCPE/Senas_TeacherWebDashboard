@@ -1066,6 +1066,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
     </div>
+</div>{{-- end examChoiceModal --}}
 </div>{{-- end skeleton-hide --}}
 
 @endsection
