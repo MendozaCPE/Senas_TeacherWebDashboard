@@ -594,7 +594,6 @@
                         <div class="flex items-center gap-3">
                             <img src="https://api.dicebear.com/7.x/identicon/svg?seed={{ urlencode($school->name) }}&backgroundColor=eef2f6&iconColor=0d326b"
                                  alt="School Logo" class="w-[46px] h-[46px] rounded-full object-cover bg-slate-100 border-2 border-[#eff6ff] p-2 shrink-0"/>
-                            <span class="text-[12px] text-slate-400 font-medium">Auto-generated from school name</span>
                         </div>
                     </div>
                     <div class="set-row">
@@ -746,7 +745,6 @@
                         <div class="set-section-icon"><span class="material-symbols-outlined">verified_user</span></div>
                         <div>
                             <div class="set-section-title">Login &amp; Sessions</div>
-                            <div class="set-section-sub">Extra layers of protection for your account.</div>
                         </div>
                     </div>
                 </div>
