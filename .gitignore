@@ -31,3 +31,5 @@ database/senas_db.sql
 
 # Postman test collections, environments & results
 /postman/users.csv
+
+users.csv

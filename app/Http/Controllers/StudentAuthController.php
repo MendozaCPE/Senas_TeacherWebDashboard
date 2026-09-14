@@ -6193,15 +6193,20 @@ public function getHelpRequests(Request $request)
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($request) {
+                $response = $request->teacher_response ?: $request->admin_response;
+                $respondedAt = $request->teacher_responded_at ?: $request->responded_at;
                 return [
                     'id' => $request->help_request_id,
                     'subject' => $request->subject,
                     'message' => $request->message,
                     'status' => $request->status,
-                    'admin_response' => $request->admin_response,
-                    'created_at' => $request->created_at->toISOString(),
+                    'admin_response' => $response,
+                    'teacher_response' => $request->teacher_response,
+                    'response' => $response,
+                    'created_at' => $request->created_at ? $request->created_at->toISOString() : null,
                     'resolved_at' => $request->resolved_at ? $request->resolved_at->toISOString() : null,
-                    'responded_at' => $request->responded_at ? $request->responded_at->toISOString() : null,
+                    'responded_at' => $respondedAt ? $respondedAt->toISOString() : null,
+                    'teacher_responded_at' => $request->teacher_responded_at ? $request->teacher_responded_at->toISOString() : null,
                 ];
             });
 
@@ -6241,16 +6246,22 @@ public function getHelpRequestById(Request $request, $id)
             return response()->json(['error' => 'Help request not found'], 404);
         }
 
+        $response = $helpRequest->teacher_response ?: $helpRequest->admin_response;
+        $respondedAt = $helpRequest->teacher_responded_at ?: $helpRequest->responded_at;
         return response()->json([
             'success' => true,
             'help_request' => [
                 'id' => $helpRequest->help_request_id,
+                'subject' => $helpRequest->subject,
                 'message' => $helpRequest->message,
                 'status' => $helpRequest->status,
-                'admin_response' => $helpRequest->admin_response,
-                'created_at' => $helpRequest->created_at->toISOString(),
+                'admin_response' => $response,
+                'teacher_response' => $helpRequest->teacher_response,
+                'response' => $response,
+                'created_at' => $helpRequest->created_at ? $helpRequest->created_at->toISOString() : null,
                 'resolved_at' => $helpRequest->resolved_at ? $helpRequest->resolved_at->toISOString() : null,
-                'responded_at' => $helpRequest->responded_at ? $helpRequest->responded_at->toISOString() : null,
+                'responded_at' => $respondedAt ? $respondedAt->toISOString() : null,
+                'teacher_responded_at' => $helpRequest->teacher_responded_at ? $helpRequest->teacher_responded_at->toISOString() : null,
             ],
         ]);
 
