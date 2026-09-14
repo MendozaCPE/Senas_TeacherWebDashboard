@@ -310,7 +310,6 @@
       justify-content:center;
       align-items:center;
       transform-style:preserve-3d;
-      animation: heroFloat 4s ease-in-out infinite;
     }
     .hero-carousel-item {
       position:absolute;
@@ -881,19 +880,25 @@
     }
     .tip-content .tip-slides {
       position: relative;
-      min-height: clamp(80px,10vw,110px);
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: start;
+      min-height: clamp(110px,12vw,140px);
     }
     .tip-content .tip-slide {
-      display: none;
-      position: relative;
+      grid-area: 1 / 1;
+      display: block;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(15px);
+      transition: opacity .4s ease, transform .4s ease;
+      pointer-events: none;
     }
     .tip-content .tip-slide.active {
-      display: block;
-      animation: tipIn .5s ease;
-    }
-    @keyframes tipIn {
-      from { opacity:0; transform:translateX(20px); }
-      to { opacity:1; transform:translateX(0); }
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+      pointer-events: auto;
     }
     .tip-content .tip-slide h3 {
       font-family: 'Baloo 2', sans-serif;
@@ -1200,7 +1205,6 @@
       border: 1px solid rgba(255,255,255,.8);
       box-shadow: var(--shadow-xl);
       padding: 10px;
-      animation: floatSoft 5s ease-in-out infinite;
       transition: transform 0.4s;
     }
     .badges-left .earn-badge-img:hover {
@@ -1234,8 +1238,8 @@
       position: relative;
       width: 100%;
       max-width: 440px;
-      min-height: 320px;
-      height: clamp(320px, 38vw, 400px);
+      min-height: 350px;
+      height: clamp(350px, 42vw, 440px);
       perspective: 1000px;
       overflow: hidden;
       flex-shrink: 0;
@@ -1251,10 +1255,10 @@
     }
     .badge-slide {
       position: absolute;
-      width: clamp(200px, 25vw, 280px);
-      height: 100%;
-      max-height: 100%;
-      border-radius: clamp(16px,2vw,22px);
+      width: clamp(190px, 23vw, 250px);
+      height: clamp(340px, 40vw, 420px);
+      border-radius: 24px;
+      overflow: hidden;
       transition: all 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
       opacity: 0;
       transform: translateX(60px) scale(0.85) rotateY(10deg);
@@ -1264,15 +1268,17 @@
       align-items: center;
       justify-content: center;
       box-sizing: border-box;
-      background: transparent;
+      background: #10192e;
+      border: 3px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 18px 40px -10px rgba(11, 30, 61, 0.28), 0 0 0 1px rgba(11, 30, 61, 0.08);
     }
     .badge-slide img {
       width: 100%;
       height: 100%;
-      object-fit: contain;
-      border-radius: inherit;
+      object-fit: cover;
+      object-position: center;
+      border-radius: 21px;
       display: block;
-      max-height: 100%;
     }
     .badge-slide.active {
       opacity: 1;
@@ -2441,7 +2447,7 @@ footer {
   <div class="nav-inner">
     <a href="#top" class="brand">
       <img class="brand-mark" src="{{ asset('images/senya_teaching.png') }}" alt="SEÑAS logo" onerror="this.onerror=null;this.src='{{ url('images/senya_teaching.png') }}';">
-      <span>SEÑAS<small>Learn FSL with AI</small></span>
+      <span>SEÑAS<small>Let's Learn FSL!</small></span>
     </a>
     <nav class="nav-links" id="navLinks">
       <a href="#about" class="active">About</a>
@@ -2840,9 +2846,9 @@ footer {
     <div class="download-panel">
       <div class="download-panel-main">
         <span class="download-kicker"><i class="fa-solid fa-mobile-screen-button"></i> Get started in seconds</span>
-        <h3 class="download-title">Download the App — It's Free</h3>
+        <h3 class="download-title">Download the Latest Version — Free</h3>
         <p class="download-sub"><i class="fa-brands fa-android"></i> Available for Android now &middot; iOS coming soon</p>
-        <a href="{{ route('app.download') }}" download="SENAS.apk" class="btn btn-amber btn-lg download-btn"><i class="fa-solid fa-download"></i> Download the App</a>
+        <a href="{{ route('app.download') }}" download="SENAS.apk" class="btn btn-amber btn-lg download-btn"><i class="fa-solid fa-download"></i> Download Latest Version</a>
         <div class="download-meta-hint">
           <i class="fa-solid fa-circle-check"></i> Direct installation &bull; No Play Store login required
         </div>
@@ -2879,7 +2885,7 @@ footer {
         <div class="spec-card">
           <div class="spec-icon"><i class="fa-solid fa-code-branch"></i></div>
           <div class="spec-info">
-            <span class="spec-title">v1.0.0</span>
+            <span class="spec-title">v1.3</span>
             <span class="spec-sub">Latest Release</span>
           </div>
         </div>
@@ -3184,11 +3190,6 @@ footer {
 
 <script>
   (function(){
-    if ('scrollRestoration' in history) {
-      history.scrollRestoration = 'manual';
-    }
-    window.scrollTo({ top: 0, behavior: 'instant' });
-
     const revealEls = document.querySelectorAll('.reveal');
     const revealIO = new IntersectionObserver((entries)=>{
       entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); });
@@ -3583,31 +3584,36 @@ counters.forEach(c => countIO.observe(c));
 </script>
 </body>
 <script>
-    // Fetch real-time stats every 2 minutes
-    function updateStats() {
+    // Silently refresh background stats without touching the DOM
+    // (prevents layout shift / page-jump glitch caused by textContent mutation during scroll)
+    function updateStatsBackground() {
         fetch('/api/landing-stats')
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                // Update the stats in the DOM
-                const statElements = document.querySelectorAll('.stat-num');
-                if (statElements.length >= 3) {
-                    statElements[0].textContent = data.gestureAccuracy + '%';
-                    statElements[1].textContent = data.activeLearners.toLocaleString();
-                    statElements[2].textContent = data.totalLessons.toLocaleString();
-                }
-                
-                // Update floating badges
+                // Only update data-count attributes — the counter animation JS reads from these;
+                // do NOT touch .textContent directly to avoid scroll position jumps.
+                const statEls = document.querySelectorAll('.stat-num[data-count]');
+                statEls.forEach(el => {
+                    const key = el.dataset.statKey;
+                    if (key && data[key] !== undefined) {
+                        el.dataset.count = data[key];
+                    }
+                });
+                // Update floating badge labels only if they are off-screen
                 const badges = document.querySelectorAll('.floating-badge .label');
                 if (badges.length >= 2) {
-                    badges[0].textContent = data.gestureAccuracy + '% Accuracy';
-                    badges[1].textContent = data.totalStudents.toLocaleString() + '+ Learners';
+                    const rect = badges[0].closest('.floating-badge')?.getBoundingClientRect();
+                    const isOffscreen = rect && (rect.bottom < 0 || rect.top > window.innerHeight);
+                    if (isOffscreen) {
+                        badges[0].textContent = data.gestureAccuracy + '% Accuracy';
+                        badges[1].textContent = (data.totalStudents || 0).toLocaleString() + '+ Learners';
+                    }
                 }
             })
-            .catch(error => console.error('Error fetching stats:', error));
+            .catch(() => {}); // silently ignore network errors
     }
-
-    // Update every 2 minutes
-    setInterval(updateStats, 120000);
+    // Background refresh every 5 minutes — no DOM mutation that causes scroll jumps
+    setInterval(updateStatsBackground, 300000);
 </script>
 
 </html>

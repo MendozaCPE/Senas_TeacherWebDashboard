@@ -76,15 +76,24 @@ Route::post('/session/ping', function () {
 
 // ── APK Download (public, Android app) ───────────────────────────────────────
 Route::get('/download/app', function () {
-    $path = storage_path('app/public/downloads/senas_v2.apk');
+    // Try public/storage/downloads first (symlinked), then fall back to storage/app/public
+    $paths = [
+        public_path('storage/downloads/senas_v1.3.apk'),
+        storage_path('app/public/downloads/senas_v1.3.apk'),
+    ];
 
-    if (!file_exists($path)) {
+    $path = null;
+    foreach ($paths as $candidate) {
+        if (file_exists($candidate)) { $path = $candidate; break; }
+    }
+
+    if (!$path) {
         abort(404, 'APK file not found.');
     }
 
-    return response()->download($path, 'SENAS.apk', [
+    return response()->download($path, 'SENAS_v1.3.apk', [
         'Content-Type' => 'application/vnd.android.package-archive',
-        'Content-Disposition' => 'attachment; filename="SENAS.apk"',
+        'Content-Disposition' => 'attachment; filename="SENAS_v1.3.apk"',
     ]);
 })->name('app.download');
 
