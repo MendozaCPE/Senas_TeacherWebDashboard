@@ -30,4 +30,4 @@ database/senas_db.sql
 .env.testing
 
 # Postman test collections, environments & results
-/postman/
+/postman/users.csv
