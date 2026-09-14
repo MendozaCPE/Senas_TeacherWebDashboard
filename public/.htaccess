@@ -33,3 +33,9 @@
     php_value max_execution_time 120
     php_value max_input_time 120
 </IfModule>
+
+# Ensure Android APKs are served with the correct MIME type
+<IfModule mod_mime.c>
+    AddType application/vnd.android.package-archive .apk
+</IfModule>
+AddType application/vnd.android.package-archive .apk

@@ -1872,6 +1872,94 @@
   .download-qr-text h4{justify-content:center;}
 }
 
+/* App Store / Play Store Specifications Strip */
+.download-specs-bar {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(11, 30, 61, 0.09);
+  margin-top: 4px;
+}
+.spec-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(11, 30, 61, 0.08);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all .2s cubic-bezier(.16,1,.3,1);
+}
+.spec-card:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(11,30,61,.12);
+  border-color: rgba(44,80,210,.2);
+}
+.spec-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(44, 80, 210, 0.09);
+  color: var(--blue-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+.spec-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.spec-title {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: clamp(.92rem, 1vw, 1.05rem);
+  color: var(--navy);
+  line-height: 1.2;
+}
+.spec-sub {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.download-meta-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  font-size: clamp(.74rem, .8vw, .82rem);
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+.download-meta-hint i {
+  color: var(--teal-deep);
+}
+@media(max-width: 768px) {
+  .download-specs-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+@media(max-width: 440px) {
+  .download-specs-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
 
     /* ===== DEAF COMMUNITY – Enhanced ===== */
     #deaf-community {
@@ -2396,7 +2484,7 @@ footer {
       <h1>Learn <span class="accent">Filipino Sign Language</span> with AI-powered gesture recognition</h1>
       <p class="lead">SEÑAS combines real-time AI gesture recognition, AI-generated lessons, and a powerful Teacher Dashboard — creating a complete Filipino Sign Language ecosystem designed for the SNED program.</p>
       <div class="hero-ctas">
-      <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</a>
+      <a href="{{ route('app.download') }}" download="SENAS.apk" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download the App</a>
 <a href="#mobile-app" class="btn btn-white btn-lg"><i class="fa-solid fa-play"></i> See how it works</a>
       </div>
    <div class="hero-stats">
@@ -2754,7 +2842,10 @@ footer {
         <span class="download-kicker"><i class="fa-solid fa-mobile-screen-button"></i> Get started in seconds</span>
         <h3 class="download-title">Download the App — It's Free</h3>
         <p class="download-sub"><i class="fa-brands fa-android"></i> Available for Android now &middot; iOS coming soon</p>
-        <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg download-btn"><i class="fa-solid fa-download"></i> Download the App</a>
+        <a href="{{ route('app.download') }}" download="SENAS.apk" class="btn btn-amber btn-lg download-btn"><i class="fa-solid fa-download"></i> Download the App</a>
+        <div class="download-meta-hint">
+          <i class="fa-solid fa-circle-check"></i> Direct installation &bull; No Play Store login required
+        </div>
       </div>
 
       <div class="download-divider" aria-hidden="true"><span>or</span></div>
@@ -2762,11 +2853,46 @@ footer {
       <div class="download-qr">
         <img src="{{ asset('images/qr-download.png') }}" alt="Scan to download the SEÑAS Android app" class="download-qr-img" onerror="this.onerror=null;this.src='{{ url('images/qr-download.png') }}';">
         <div class="download-qr-text">
-      <h4><i class="fa-solid fa-qrcode"></i> Scan to install</h4>
-      <p>On a laptop or desktop? Scan this with your phone's camera to download the <strong>.apk</strong> directly to your Android device.</p>
+          <h4><i class="fa-solid fa-qrcode"></i> Scan to install</h4>
+          <p>On a laptop or desktop? Scan this with your phone's camera to download the <strong>.apk</strong> directly to your Android device.</p>
         </div>
       </div>
-  </div>
+
+      <!-- App Store / Play Store Specifications Strip -->
+      <div class="download-specs-bar">
+        <div class="spec-card">
+          <div class="spec-icon"><i class="fa-solid fa-hard-drive"></i></div>
+          <div class="spec-info">
+            <span class="spec-title">171 MB</span>
+            <span class="spec-sub">Download Size</span>
+          </div>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-icon"><i class="fa-brands fa-android"></i></div>
+          <div class="spec-info">
+            <span class="spec-title">Android 7.0+</span>
+            <span class="spec-sub">Requires Nougat &amp; up</span>
+          </div>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-icon"><i class="fa-solid fa-code-branch"></i></div>
+          <div class="spec-info">
+            <span class="spec-title">v1.0.0</span>
+            <span class="spec-sub">Latest Release</span>
+          </div>
+        </div>
+
+        <div class="spec-card">
+          <div class="spec-icon"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="spec-info">
+            <span class="spec-title">Direct .APK</span>
+            <span class="spec-sub">Safe &amp; Verified</span>
+          </div>
+        </div>
+      </div>
+    </div>
 </section>
 
 <!-- ===== STUDENT BADGES ===== -->
@@ -3037,7 +3163,7 @@ footer {
       <h2>Start learning Filipino Sign Language today</h2>
       <p>Download the SEÑAS app and experience AI-powered gesture recognition that makes learning FSL accessible, engaging, and fun.</p>
       <div class="hero-ctas">
-        <a href="{{ route('app.download') }}" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students</a>
+        <a href="{{ route('app.download') }}" download="SENAS.apk" class="btn btn-amber btn-lg"><i class="fa-solid fa-download"></i> Download App for Students</a>
         <a href="{{ route('register') }}" class="btn btn-ghost-d btn-lg"><i class="fa-solid fa-graduation-cap"></i> Sign up as a Teacher</a>
       </div>
     </div>

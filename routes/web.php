@@ -82,7 +82,10 @@ Route::get('/download/app', function () {
         abort(404, 'APK file not found.');
     }
 
-    return response()->download($path, 'SENAS.apk');
+    return response()->download($path, 'SENAS.apk', [
+        'Content-Type' => 'application/vnd.android.package-archive',
+        'Content-Disposition' => 'attachment; filename="SENAS.apk"',
+    ]);
 })->name('app.download');
 
 // ── Video Proxy Layer ────────────────────────────────────────────────────────
