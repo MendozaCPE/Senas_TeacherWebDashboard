@@ -1925,6 +1925,8 @@ document.addEventListener('keydown', function(e) {
     };
 
     // Maps achievement code → image filename in /storage/img/
+    // Base URL is injected by Blade so it's always an absolute URL (works on production too)
+    const ACHIEVEMENT_IMG_BASE = '{{ rtrim(asset("storage/img"), "/") }}';
     const ACHIEVEMENT_IMAGES = {
         'xp_50':              'first_step.png',
         'xp_100':             'alphabet_star.png',
@@ -1946,7 +1948,7 @@ document.addEventListener('keydown', function(e) {
 
     function getAchievementImageUrl(code) {
         const file = ACHIEVEMENT_IMAGES[code];
-        return file ? `/storage/img/${file}` : null;
+        return file ? `${ACHIEVEMENT_IMG_BASE}/${file}` : null;
     }
 
     function loadStudentAchievements(studentId) {
