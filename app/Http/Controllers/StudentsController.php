@@ -249,7 +249,7 @@ class StudentsController extends Controller
             function ($attribute, $value, $fail) {
                 if (empty($value)) return;
                 if (!preg_match('/^(\d{4})-(\d{4})$/', $value, $m)) {
-                    $fail('School year must be in YYYY-YYYY format (e.g. 2024-2025).');
+                    $fail('School year must be in YYYY-YYYY format (e.g. 2025-2026).');
                     return;
                 }
                 if ((int)$m[2] !== (int)$m[1] + 1) {
@@ -653,7 +653,8 @@ if (!empty($examIdsOnly)) {
                     ? trim((string) ($data['section'] ?? ''))
                     : (trim((string) ($data['section'] ?? '')) ?: null);
 
-                $schoolYear = trim((string) ($data['school_year'] ?? '')) ?: null;
+                // Default blank school_year to the active school year 2025-2026
+                $schoolYear = trim((string) ($data['school_year'] ?? '')) ?: '2025-2026';
 
                 // ── 7. Create User + Student ──────────────────────────────────
                 $username = $this->generateUniqueUsername($firstName, $lastName);
@@ -748,7 +749,7 @@ if (!empty($examIdsOnly)) {
                     if (empty($value)) return;
                     // Must be YYYY-YYYY
                     if (!preg_match('/^(\d{4})-(\d{4})$/', $value, $m)) {
-                        $fail('School year must be in YYYY-YYYY format (e.g. 2024-2025).');
+                        $fail('School year must be in YYYY-YYYY format (e.g. 2025-2026).');
                         return;
                     }
                     $y1 = (int) $m[1];

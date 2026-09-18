@@ -493,11 +493,6 @@
                                                 <span class="material-symbols-outlined text-[12px] text-emerald-600">verified</span>
                                                 Ready for {{ $promoteTo }}
                                             </span>
-                                        @elseif($enoughXp && $promoteTo)
-                                            <span class="xp-eligible-chip">
-                                                <span class="material-symbols-outlined text-[9px]">arrow_upward</span>
-                                                Eligible for {{ $promoteTo }}
-                                            </span>
                                         @elseif($lvl === 'Completed')
                                             <span style="font-size:9px;color:#7e22ce;font-weight:700">🏆 Completed</span>
                                         @else
@@ -1038,7 +1033,7 @@
                                 <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">School Year</p>
                                 <p id="sdc-school-year" class="text-[14px] font-bold text-slate-700 view-only leading-snug"></p>
                                 <div class="edit-only hidden">
-                                    <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2024-2025" maxlength="9"
+                                    <input id="sdc-edit-school-year" type="text" placeholder="e.g. 2025-2026" maxlength="9"
                                         class="w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
                                     <p id="sdc-sy-error" class="hidden text-[10px] text-red-500 font-semibold mt-1"></p>
                                 </div>
@@ -1369,7 +1364,7 @@
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">School Year</label>
-                    <input type="text" name="school_year" id="single-school-year" placeholder="e.g. 2024-2025" maxlength="9" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
+                    <input type="text" name="school_year" id="single-school-year" value="2025-2026" placeholder="e.g. 2025-2026" maxlength="9" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
                     <p id="single-sy-error" class="hidden text-[12px] font-medium text-red-600"></p>
                 </div>
                 <div class="flex flex-col space-y-2">
@@ -1597,6 +1592,11 @@ function mapExcelData(rows) {
                 age = isNaN(parsedAge) ? null : parsedAge;
             }
 
+            // Default blank school_year to the current active school year
+            const DEFAULT_SCHOOL_YEAR = '2025-2026';
+            const rawSy = syIdx !== -1 ? String(row[syIdx] ?? '').trim() : '';
+            const school_year = rawSy || DEFAULT_SCHOOL_YEAR;
+
             return {
                 _row: i + 2,
                 lrn,
@@ -1607,7 +1607,7 @@ function mapExcelData(rows) {
                 grade_level:       gradeIdx   !== -1 ? String(row[gradeIdx]   ?? '').trim() || null : null,
                 age,
                 section:           sectionIdx !== -1 ? String(row[sectionIdx] ?? '').trim() || null : null,
-                school_year:       syIdx      !== -1 ? String(row[syIdx]      ?? '').trim() || null : null,
+                school_year,
                 fsl_mastery_level,
             };
         });
@@ -2223,7 +2223,7 @@ function sdcExitEdit() {
 function sdcValidateSchoolYear(val) {
     if (!val || val.trim() === '') return null; // optional field — blank is ok
     const m = val.trim().match(/^(\d{4})-(\d{4})$/);
-    if (!m) return 'Must be in YYYY-YYYY format (e.g. 2024-2025).';
+    if (!m) return 'Must be in YYYY-YYYY format (e.g. 2025-2026).';
     const y1 = parseInt(m[1]), y2 = parseInt(m[2]);
     if (y2 !== y1 + 1) return 'Second year must be exactly one after the first (e.g. ' + y1 + '-' + (y1+1) + ').';
     const now = new Date().getFullYear();

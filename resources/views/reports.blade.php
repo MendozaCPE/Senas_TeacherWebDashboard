@@ -238,6 +238,140 @@
     background: linear-gradient(135deg, #1e4b8f 0%, #1a6fd4 100%);
 }
 
+/* ── Searchable Combobox (rpt-combo) ── */
+.rpt-combo {
+    position: relative;
+    min-width: 210px;
+}
+.rpt-combo-input-wrap {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0 10px;
+    gap: 6px;
+    transition: border-color .18s, box-shadow .18s, background .18s;
+    cursor: text;
+}
+.rpt-combo-input-wrap:focus-within {
+    background: #fff;
+    border-color: #1a6fd4;
+    box-shadow: 0 0 0 3px rgba(26,111,212,.10);
+}
+.rpt-combo-icon {
+    font-size: 18px;
+    color: #94a3b8;
+    flex-shrink: 0;
+    transition: color .18s;
+}
+.rpt-combo-input-wrap:focus-within .rpt-combo-icon {
+    color: #1a6fd4;
+}
+.rpt-combo-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0d326b;
+    padding: 8px 0;
+    min-width: 0;
+}
+.rpt-combo-input::placeholder { color: #94a3b8; font-weight: 500; }
+.rpt-combo-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    transition: color .15s;
+    flex-shrink: 0;
+}
+.rpt-combo-clear:hover { color: #ef4444; }
+.rpt-combo-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    max-width: 320px;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(13,50,107,.13);
+    z-index: 9999;
+    display: none;
+    padding: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+.rpt-combo-dropdown.open { display: block; }
+.rpt-combo-group-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #94a3b8;
+    padding: 8px 10px 4px;
+}
+.rpt-combo-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+    gap: 4px;
+    white-space: nowrap;
+}
+.rpt-combo-option:hover,
+.rpt-combo-option.highlighted {
+    background: #eff6ff;
+    color: #0d326b;
+}
+.rpt-combo-option.selected {
+    background: #e8f0ff;
+    color: #0d326b;
+}
+.rpt-combo-option--all {
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 4px;
+    padding-bottom: 10px;
+    font-weight: 700;
+    color: #0d326b;
+}
+.rpt-combo-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0d326b, #1a6fd4);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+.rpt-combo-empty {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 14px 10px;
+    font-weight: 500;
+}
+.rpt-combo-empty.hidden { display: none; }
+
 /* ── Senya Gold Insight Containers ── */
 .senya-insight-gold {
     background: linear-gradient(135deg, #fffdf8 0%, #fefce8 100%);
@@ -590,10 +724,44 @@
         </div>
     @endif
 
-    {{-- ══════════ 1. TOOLBAR: FILTER + EXPORT (UNIFORM WITH ANALYTICS) ══════════ --}}
+
+    {{-- ══════════ 1. TOOLBAR: FILTER + EXPORT ══════════ --}}
     @php $rf = session('reports_filters', []); @endphp
+
+    {{-- Build current label for student --}}
+    @php
+        $currentStudentId    = $rf['student_id'] ?? 'all';
+        $currentStudentLabel = 'All Students';
+        foreach ($students as $s) {
+            if ((string)$s->student_id === (string)$currentStudentId) {
+                $currentStudentLabel = $s->first_name . ' ' . $s->last_name;
+                break;
+            }
+        }
+
+        $currentLessonId    = $rf['lesson_id'] ?? 'all';
+        $currentLessonLabel = 'All Content';
+        foreach ($lessons as $l) {
+            $k = 'lesson_' . $l->lesson_id;
+            if ($currentLessonId === $k || $currentLessonId === (string)$l->lesson_id) {
+                $currentLessonLabel = $l->title; break;
+            }
+        }
+        if (!empty($checkpointExams)) {
+            foreach ($checkpointExams as $e) {
+                if ($currentLessonId === 'exam_' . $e->exam_id) {
+                    $currentLessonLabel = $e->title; break;
+                }
+            }
+        }
+    @endphp
+
     <form method="POST" action="{{ route('reports.filter') }}" id="filterForm">
         @csrf
+        {{-- Hidden real values submitted to server --}}
+        <input type="hidden" name="student_id" id="studentIdHidden" value="{{ $currentStudentId }}">
+        <input type="hidden" name="lesson_id"  id="lessonIdHidden"  value="{{ $currentLessonId }}">
+
         <div class="filter-container">
             <div class="filter-group">
                 <div class="flex items-center gap-2 mr-2">
@@ -601,57 +769,93 @@
                     <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Reports</span>
                 </div>
 
-                <div class="filter-wrap">
-                    <select name="student_id" class="filter-select">
-                        <option value="all" {{ ($rf['student_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Students</option>
+                {{-- ── Student search combobox ── --}}
+                <div class="rpt-combo" id="studentCombo">
+                    <div class="rpt-combo-input-wrap">
+                        <span class="material-symbols-outlined rpt-combo-icon">person_search</span>
+                        <input type="text" id="studentSearch" class="rpt-combo-input"
+                               placeholder="Search student…"
+                               value="{{ $currentStudentLabel === 'All Students' ? '' : $currentStudentLabel }}"
+                               autocomplete="off" />
+                        <button type="button" class="rpt-combo-clear" id="studentClear"
+                                style="{{ $currentStudentLabel === 'All Students' ? 'display:none' : '' }}"
+                                title="Clear">
+                            <span class="material-symbols-outlined" style="font-size:15px">close</span>
+                        </button>
+                    </div>
+                    <div class="rpt-combo-dropdown" id="studentDropdown">
+                        <div class="rpt-combo-option rpt-combo-option--all" data-value="all" data-label="All Students">
+                            <span class="material-symbols-outlined" style="font-size:15px;margin-right:6px;color:#0d326b">groups</span>
+                            All Students
+                        </div>
                         @foreach($students as $s)
-                            <option value="{{ $s->student_id }}" {{ ($rf['student_id'] ?? '') == $s->student_id ? 'selected' : '' }}>
-                                {{ $s->first_name }} {{ $s->last_name }}
-                            </option>
+                        <div class="rpt-combo-option" data-value="{{ $s->student_id }}" data-label="{{ $s->first_name }} {{ $s->last_name }}">
+                            <span class="rpt-combo-avatar">{{ strtoupper(substr($s->first_name,0,1)) }}</span>
+                            {{ $s->first_name }} {{ $s->last_name }}
+                        </div>
                         @endforeach
-                    </select>
-                    <span class="material-symbols-outlined">expand_more</span>
+                        <div class="rpt-combo-empty hidden">No students found</div>
+                    </div>
                 </div>
 
-                <div class="filter-wrap">
-                    <select name="lesson_id" class="filter-select">
-                        <option value="all" {{ ($rf['lesson_id'] ?? 'all') === 'all' ? 'selected' : '' }}>All Content</option>
+                {{-- ── Content search combobox ── --}}
+                <div class="rpt-combo" id="lessonCombo">
+                    <div class="rpt-combo-input-wrap">
+                        <span class="material-symbols-outlined rpt-combo-icon">search</span>
+                        <input type="text" id="lessonSearch" class="rpt-combo-input"
+                               placeholder="Search lessons / exams…"
+                               value="{{ $currentLessonLabel === 'All Content' ? '' : $currentLessonLabel }}"
+                               autocomplete="off" />
+                        <button type="button" class="rpt-combo-clear" id="lessonClear"
+                                style="{{ $currentLessonLabel === 'All Content' ? 'display:none' : '' }}"
+                                title="Clear">
+                            <span class="material-symbols-outlined" style="font-size:15px">close</span>
+                        </button>
+                    </div>
+                    <div class="rpt-combo-dropdown" id="lessonDropdown">
+                        <div class="rpt-combo-option rpt-combo-option--all" data-value="all" data-label="All Content">
+                            <span class="material-symbols-outlined" style="font-size:15px;margin-right:6px;color:#0d326b">library_books</span>
+                            All Content
+                        </div>
                         @if($lessons->isNotEmpty())
-                            <optgroup label="Lessons">
-                                @foreach($lessons as $l)
-                                    <option value="lesson_{{ $l->lesson_id }}" {{ ($rf['lesson_id'] ?? '') == ('lesson_' . $l->lesson_id) || ($rf['lesson_id'] ?? '') == (string)$l->lesson_id ? 'selected' : '' }}>
-                                        {{ $l->title }}
-                                    </option>
-                                @endforeach
-                            </optgroup>
+                        <div class="rpt-combo-group-label">Lessons</div>
+                        @foreach($lessons as $l)
+                        <div class="rpt-combo-option" data-value="lesson_{{ $l->lesson_id }}" data-label="{{ $l->title }}">
+                            <span class="material-symbols-outlined" style="font-size:14px;margin-right:6px;color:#1e4b8f">menu_book</span>
+                            {{ $l->title }}
+                        </div>
+                        @endforeach
                         @endif
                         @if(!empty($checkpointExams) && $checkpointExams->isNotEmpty())
-                            <optgroup label="Checkpoint Exams">
-                                @foreach($checkpointExams as $e)
-                                    <option value="exam_{{ $e->exam_id }}" {{ ($rf['lesson_id'] ?? '') == ('exam_' . $e->exam_id) ? 'selected' : '' }}>
-                                        {{ $e->title }}
-                                    </option>
-                                @endforeach
-                            </optgroup>
+                        <div class="rpt-combo-group-label">Checkpoint Exams</div>
+                        @foreach($checkpointExams as $e)
+                        <div class="rpt-combo-option" data-value="exam_{{ $e->exam_id }}" data-label="{{ $e->title }}">
+                            <span class="material-symbols-outlined" style="font-size:14px;margin-right:6px;color:#d97706">quiz</span>
+                            {{ $e->title }}
+                        </div>
+                        @endforeach
                         @endif
-                    </select>
-                    <span class="material-symbols-outlined">expand_more</span>
+                        <div class="rpt-combo-empty hidden">No results found</div>
+                    </div>
                 </div>
 
-                <a href="{{ route('reports') }}" onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all'})}).then(()=>window.location.href='{{ route('reports') }}')" class="filter-reset">Reset</a>
+                <a href="{{ route('reports') }}"
+                   onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all'})}).then(()=>window.location.href='{{ route('reports') }}')"
+                   class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">refresh</span>
                     Apply
                 </button>
             </div>
 
-            {{-- Export PDF button (opens modal) --}}
+            {{-- Export PDF button --}}
             <button type="button" id="openExportModal" class="export-btn" onclick="openPdfModal()">
                 <span class="material-symbols-outlined text-[19px]">picture_as_pdf</span>
                 Export Report
             </button>
         </div>
     </form>
+
 
     {{-- ══════════ 2. CLASS SUMMARY KPI CARDS ══════════ --}}
     @php
@@ -2542,4 +2746,156 @@ document.addEventListener('keydown', function(e) {
 .modal-tab-btn:hover { color: #0d326b; }
 </style>
 
-@endsection
+<script>
+/* ══════════ Searchable Combobox — Filter Reports ══════════ */
+(function () {
+    function initCombo({ comboId, inputId, dropdownId, hiddenId, clearId }) {
+        const combo     = document.getElementById(comboId);
+        const input     = document.getElementById(inputId);
+        const dropdown  = document.getElementById(dropdownId);
+        const hidden    = document.getElementById(hiddenId);
+        const clearBtn  = document.getElementById(clearId);
+
+        if (!combo || !input || !dropdown || !hidden) return;
+
+        const allOptions = Array.from(dropdown.querySelectorAll('.rpt-combo-option'));
+        const emptyMsg   = dropdown.querySelector('.rpt-combo-empty');
+        let highlighted  = -1;
+
+        function getVisibleOptions() {
+            return allOptions.filter(o => o.style.display !== 'none' && !o.classList.contains('rpt-combo-empty'));
+        }
+
+        function openDropdown() {
+            dropdown.classList.add('open');
+            highlighted = -1;
+        }
+
+        function closeDropdown() {
+            dropdown.classList.remove('open');
+            highlighted = -1;
+        }
+
+        function filterOptions(q) {
+            const query = q.trim().toLowerCase();
+            let anyVisible = false;
+            allOptions.forEach(opt => {
+                const label = (opt.dataset.label || opt.textContent).toLowerCase();
+                const match = !query || label.includes(query);
+                opt.style.display = match ? '' : 'none';
+                if (match) anyVisible = true;
+            });
+            emptyMsg && emptyMsg.classList.toggle('hidden', anyVisible);
+        }
+
+        function selectOption(opt) {
+            const val   = opt.dataset.value;
+            const label = opt.dataset.label;
+            hidden.value = val;
+            input.value  = (val === 'all') ? '' : label;
+            allOptions.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            // Show/hide clear button
+            if (clearBtn) clearBtn.style.display = (val === 'all') ? 'none' : '';
+            closeDropdown();
+        }
+
+        function highlightOption(idx) {
+            const visible = getVisibleOptions();
+            visible.forEach(o => o.classList.remove('highlighted'));
+            if (idx >= 0 && idx < visible.length) {
+                visible[idx].classList.add('highlighted');
+                visible[idx].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        // Open on focus / click
+        input.addEventListener('focus', () => {
+            filterOptions(input.value);
+            openDropdown();
+        });
+        input.addEventListener('click', () => {
+            filterOptions(input.value);
+            openDropdown();
+        });
+
+        // Live filter as user types
+        input.addEventListener('input', () => {
+            filterOptions(input.value);
+            openDropdown();
+            highlighted = -1;
+        });
+
+        // Keyboard navigation
+        input.addEventListener('keydown', e => {
+            const visible = getVisibleOptions();
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlighted = Math.min(highlighted + 1, visible.length - 1);
+                highlightOption(highlighted);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlighted = Math.max(highlighted - 1, 0);
+                highlightOption(highlighted);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (highlighted >= 0 && visible[highlighted]) {
+                    selectOption(visible[highlighted]);
+                } else if (visible.length === 1) {
+                    selectOption(visible[0]);
+                }
+            } else if (e.key === 'Escape') {
+                closeDropdown();
+                input.blur();
+            }
+        });
+
+        // Click on option
+        allOptions.forEach(opt => {
+            opt.addEventListener('mousedown', e => {
+                e.preventDefault(); // prevent input blur before click
+                selectOption(opt);
+            });
+        });
+
+        // Clear button
+        if (clearBtn) {
+            clearBtn.addEventListener('click', e => {
+                e.preventDefault();
+                const allOpt = allOptions.find(o => o.dataset.value === 'all');
+                if (allOpt) selectOption(allOpt);
+                else { hidden.value = 'all'; input.value = ''; clearBtn.style.display = 'none'; }
+            });
+        }
+
+        // Close on outside click
+        document.addEventListener('mousedown', e => {
+            if (!combo.contains(e.target)) closeDropdown();
+        });
+
+        // Mark currently selected option on init
+        const curVal = hidden.value;
+        const curOpt = allOptions.find(o => o.dataset.value === curVal);
+        if (curOpt) curOpt.classList.add('selected');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initCombo({
+            comboId:    'studentCombo',
+            inputId:    'studentSearch',
+            dropdownId: 'studentDropdown',
+            hiddenId:   'studentIdHidden',
+            clearId:    'studentClear',
+        });
+        initCombo({
+            comboId:    'lessonCombo',
+            inputId:    'lessonSearch',
+            dropdownId: 'lessonDropdown',
+            hiddenId:   'lessonIdHidden',
+            clearId:    'lessonClear',
+        });
+    });
+})();
+</script>
+
+@endsection
