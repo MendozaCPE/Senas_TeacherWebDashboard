@@ -826,7 +826,7 @@ class AnalyticsController extends Controller
                 }
             }
 
-            $isMasteredMajority = ($acc >= 75 || ($totalStudents > 0 && $masteredStudents >= ceil($totalStudents / 2)));
+            $isMasteredMajority = ($acc >= 75);
             if ($isMasteredMajority) {
                 $masteredSignsCount++;
             } else {
@@ -859,12 +859,15 @@ class AnalyticsController extends Controller
             ];
         }
 
-        // Sort signs by needs practice first, then accuracy ASC
+        // Sort signs strictly in ascending order by accuracy (lowest accuracy/needs practice at top, best mastery at bottom)
         usort($signsBreakdown, function ($a, $b) {
-            if ($a['status'] !== $b['status']) {
-                return $a['status'] === 'needs_practice' ? -1 : 1;
+            if ($a['accuracy'] !== $b['accuracy']) {
+                return $a['accuracy'] <=> $b['accuracy'];
             }
-            return $a['accuracy'] <=> $b['accuracy'];
+            if ($a['wrong_attempts'] !== $b['wrong_attempts']) {
+                return $b['wrong_attempts'] <=> $a['wrong_attempts'];
+            }
+            return $b['total_attempts'] <=> $a['total_attempts'];
         });
 
         // ── 4. SENYA INSIGHTS GENERATION FOR EACH SECTION (EMOJI-FREE) ──
