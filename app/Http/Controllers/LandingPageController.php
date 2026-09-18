@@ -28,7 +28,7 @@ class LandingPageController extends Controller
     private function getRealTimeStats(): array
     {
         // ─── TOTAL STUDENTS ─────────────────────────────────────────────
-        $totalStudents = Student::where('status', 'active')->count();
+        $totalStudents = Student::count();
 
         // ─── TOTAL LESSONS ──────────────────────────────────────────────
         $totalLessons = Lesson::where('status', 'published')
@@ -74,8 +74,7 @@ class LandingPageController extends Controller
         $totalLessonsCompleted = StudentLessonProgress::where('lesson_completed', 1)->count();
 
         // ─── TEACHER RATING (real average from database) ──
-        $avgRating = TeacherRating::where('is_approved', true)->avg('rating')
-            ?: TeacherRating::avg('rating');
+        $avgRating = TeacherRating::avg('rating');
         $teacherRating = $avgRating ? number_format($avgRating, 1) . '★' : '5.0★';
 
         return [
@@ -94,8 +93,9 @@ class LandingPageController extends Controller
 
     private function getRatingsData(): array
     {
-        $totalTeacherRatings = TeacherRating::where('is_approved', true)->count();
-        $totalStudentRatings = StudentRating::where('is_approved', true)->count();
+        // All ratings (approved or not) contribute to the overall counts and star distribution
+        $totalTeacherRatings = TeacherRating::count();
+        $totalStudentRatings = StudentRating::count();
         $totalRatings = $totalTeacherRatings + $totalStudentRatings;
 
         if ($totalRatings === 0) {
@@ -108,18 +108,16 @@ class LandingPageController extends Controller
         }
 
         // Combined average across both sources (sum of ratings / total count)
-        $teacherRatingSum = (float) TeacherRating::where('is_approved', true)->sum('rating');
-        $studentRatingSum = (float) StudentRating::where('is_approved', true)->sum('rating');
+        $teacherRatingSum = (float) TeacherRating::sum('rating');
+        $studentRatingSum = (float) StudentRating::sum('rating');
         $avgRating = round(($teacherRatingSum + $studentRatingSum) / $totalRatings, 1);
 
-        // Distribution: count per star (5 → 1, descending for display), approved only, both sources combined
-        $teacherDistRaw = TeacherRating::where('is_approved', true)
-            ->select('rating', DB::raw('COUNT(*) as cnt'))
+        // Distribution: count per star (5 → 1, descending for display), all ratings combined
+        $teacherDistRaw = TeacherRating::select('rating', DB::raw('COUNT(*) as cnt'))
             ->groupBy('rating')
             ->pluck('cnt', 'rating')
             ->toArray();
-        $studentDistRaw = StudentRating::where('is_approved', true)
-            ->select('rating', DB::raw('COUNT(*) as cnt'))
+        $studentDistRaw = StudentRating::select('rating', DB::raw('COUNT(*) as cnt'))
             ->groupBy('rating')
             ->pluck('cnt', 'rating')
             ->toArray();
@@ -133,7 +131,7 @@ class LandingPageController extends Controller
             ];
         }
 
-        // Featured reviews: approved ratings with non-empty feedback from both sources, most recent first, max 6
+        // Featured reviews: only APPROVED ratings with non-empty feedback are displayed as testimonials
         $teacherReviews = TeacherRating::with(['teacher.user'])
             ->where('is_approved', true)
             ->whereNotNull('feedback')

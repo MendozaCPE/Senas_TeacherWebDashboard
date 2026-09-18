@@ -2499,8 +2499,8 @@ footer {
         <div class="stat-label">gesture accuracy</div>
     </div>
     <div>
-        <div class="stat-num" data-count="{{ $activeLearners ?? 0 }}">{{ number_format($activeLearners ?? 0) }}</div>
-        <div class="stat-label">Active learners</div>
+        <div class="stat-num" data-count="{{ $totalStudents ?? 0 }}" data-stat-key="totalStudents">{{ number_format($totalStudents ?? 0) }}</div>
+        <div class="stat-label">Total learners</div>
     </div>
     <div>
         <div class="stat-num" data-count="{{ $totalLessons ?? 0 }}">{{ number_format($totalLessons ?? 0) }}</div>
