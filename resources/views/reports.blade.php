@@ -657,7 +657,13 @@
     @php
         $allItems           = collect($studentReports->items());
         $totalStudentsShown = $studentReports->total();
-        $fullyCompleted     = $allItems->where('overallPct', 100)->count();
+        $fullyCompleted     = $allItems->filter(function ($r) {
+            $pct     = (float) ($r['overallPct'] ?? 0);
+            $mastery = strtolower((string) ($r['fslMasteryLevel'] ?? ''));
+            $status  = strtolower((string) ($r['studentStatus'] ?? ''));
+            $isComp  = !empty($r['isCompleted']);
+            return $pct >= 100 || $mastery === 'completed' || $status === 'completed' || $isComp;
+        })->count();
         $totalQuizzesTaken  = $allItems->sum('quizzesTaken');
         $totalQuizzesPassed = $allItems->sum('quizzesPassed');
         $quizPassRate       = $totalQuizzesTaken > 0 ? round(($totalQuizzesPassed / $totalQuizzesTaken) * 100, 1) : 0;
@@ -711,7 +717,7 @@
                 </div>
             </div>
             <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $fullyCompleted }}</p>
-            <p class="text-[12px] text-slate-400 font-medium">student{{ $fullyCompleted !== 1 ? 's' : '' }} at 100%</p>
+            <p class="text-[12px] text-slate-400 font-medium">student{{ $fullyCompleted !== 1 ? 's' : '' }} at 100%+ or completed</p>
         </div>
 
         {{-- Card 4: Quizzes Passed / Taken --}}
@@ -769,7 +775,7 @@
                 @if($totalStudentsShown === 0)
                     No student records found with current filters. Adjust your student or lesson filter to see progress.
                 @elseif($fullyCompleted > 0)
-                    <strong>Outstanding achievement:</strong> {{ $fullyCompleted }} student{{ $fullyCompleted !== 1 ? 's have' : ' has' }} achieved 100% completion rate across assigned lessons. Overall quiz score average is {{ number_format($avgScoreOverall, 1) }} pts.
+                    <strong>Outstanding achievement:</strong> {{ $fullyCompleted }} student{{ $fullyCompleted !== 1 ? 's have' : ' has' }} achieved full completion across assigned lessons. Overall quiz score average is {{ number_format($avgScoreOverall, 1) }} pts.
                 @else
                     <strong>Class Overview:</strong> {{ $totalStudentsShown }} student{{ $totalStudentsShown !== 1 ? 's are' : ' is' }} actively progressing with a {{ number_format($classCompletionRate, 1) }}% overall completion rate and {{ number_format($avgGestureAccuracy, 1) }}% gesture accuracy.
                 @endif
@@ -831,7 +837,7 @@
                                     <div class="flex items-center space-x-2">
                                         <div class="w-28 h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
                                             <div class="h-full rounded-full {{ $row['overallPct'] >= 100 ? 'bg-[#0d326b]' : 'bg-[#1a6fd4]' }}"
-                                                 style="width: {{ $row['overallPct'] }}%"></div>
+                                                 style="width: {{ min(100, $row['overallPct']) }}%"></div>
                                         </div>
                                         <span class="text-[11px] font-bold text-slate-500">{{ $row['overallPct'] }}%</span>
                                     </div>
@@ -1421,7 +1427,7 @@ document.addEventListener('keydown', function(e) {
         document.getElementById('modalLastActive').textContent = 'Last active ' + data.lastAccessed;
 
         const bar = document.getElementById('modalOverallBar');
-        bar.style.width = data.overallPct + '%';
+        bar.style.width = Math.min(100, data.overallPct) + '%';
         bar.className = 'h-full rounded-full ' + (data.overallPct >= 100 ? 'bg-[#0d326b]' : 'bg-[#1a6fd4]');
 
         // Store & Filter Gesture Performance

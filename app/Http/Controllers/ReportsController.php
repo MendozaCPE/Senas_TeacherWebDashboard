@@ -328,6 +328,13 @@ class ReportsController extends Controller
                         'quizPassRate'     => $quizPassRate,
                         'avgScore'         => round($avgScore, 1),
                         'overallPct'       => $overallPct,
+                        'fslMasteryLevel'  => $student->fsl_mastery_level ?? 'Beginner',
+                        'studentStatus'    => $student->status ?? 'active',
+                        'isCompleted'      => (
+                            $overallPct >= 100 ||
+                            strcasecmp((string)($student->fsl_mastery_level ?? ''), 'completed') === 0 ||
+                            strcasecmp((string)($student->status ?? ''), 'completed') === 0
+                        ),
                         'gestureAccuracy'  => $gAccuracy,
                         'gestureAttempts'  => $totAttempts,
                         'gestureSuccess'   => $totSuccess,
@@ -668,6 +675,13 @@ class ReportsController extends Controller
                     'quizPassRate'       => $quizPassRate,
                     'avgScore'           => round($avgScore, 1),
                     'overallPct'         => $overallPct,
+                    'fslMasteryLevel'    => $student->fsl_mastery_level ?? 'Beginner',
+                    'studentStatus'      => $student->status ?? 'active',
+                    'isCompleted'        => (
+                        $overallPct >= 100 ||
+                        strcasecmp((string)($student->fsl_mastery_level ?? ''), 'completed') === 0 ||
+                        strcasecmp((string)($student->status ?? ''), 'completed') === 0
+                    ),
                     'gestureAccuracy'    => $gestureAccuracy,
                     'gestureTotalSigns'  => $gestureTotalSigns,
                     'gestureMastered'    => $gestureMastered,
