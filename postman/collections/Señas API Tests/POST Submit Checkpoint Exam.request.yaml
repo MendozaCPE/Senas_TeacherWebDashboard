@@ -1,0 +1,28 @@
+$kind: http-request
+name: 'POST Submit Checkpoint Exam'
+method: POST
+url: '{{base_url}}/api/student/checkpoint-exam/{{exam_id}}/submit'
+order: 8000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "answers": [
+        {
+          "question_id": 1,
+          "selected_option_text": "True"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Checkpoint exam request returns a handled response', function () {
+          pm.expect([200, 201, 403, 404, 422]).to.include(pm.response.code);
+      });

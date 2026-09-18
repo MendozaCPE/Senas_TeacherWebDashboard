@@ -1,0 +1,19 @@
+$kind: http-request
+name: 'GET Teacher Info'
+method: GET
+url: '{{base_url}}/api/teacher/{{teacher_id}}'
+order: 2000
+headers:
+  - key: Accept
+    value: application/json
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Teacher info request succeeded', function () {
+          pm.expect(pm.response.code).to.equal(200);
+      });
+      const json = pm.response.json();
+      pm.test('Teacher payload exists', function () {
+          pm.expect(json.teacher).to.be.an('object');
+      });

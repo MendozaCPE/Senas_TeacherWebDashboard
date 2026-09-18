@@ -1,0 +1,49 @@
+﻿{
+  "info": {
+    "_postman_id": "senas-api-tests-collection",
+    "name": "Senas API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "POST Student Login",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Login succeeded', function () { pm.expect(pm.response.code).to.equal(200); });", "const json = pm.response.json();", "pm.test('Token returned', function () { pm.expect(json.token).to.be.a('string').and.not.empty; });", "if (json.token) { pm.environment.set('token', json.token); }"] } }],
+      "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"},{"key":"Accept","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"lrn\": \"{{student_lrn}}\", \"pin\": \"{{student_pin}}\"}", "options": {"raw":{"language":"json"}} }, "url": { "raw": "{{base_url}}/api/student/login", "host": ["{{base_url}}"], "path": ["api","student","login"] } }
+    },
+    {
+      "name": "GET Teacher Info",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Teacher info succeeded', function () { pm.expect([200,403,404]).to.include(pm.response.code); });"] } }],
+      "request": { "method": "GET", "header": [{"key":"Accept","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}], "url": { "raw": "{{base_url}}/api/teacher/{{teacher_id}}", "host": ["{{base_url}}"], "path": ["api","teacher","{{teacher_id}}"] } }
+    },
+    {
+      "name": "POST Submit Quiz",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Quiz submit handled', function () { pm.expect([200,201,422]).to.include(pm.response.code); });"] } }],
+      "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"},{"key":"Accept","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}], "body": { "mode": "raw", "raw": "{\"quiz_id\": 1, \"answers\": [{\"question_id\": 1, \"selected_option_id\": 1, \"is_correct\": true}], \"score\": 1, \"total_points\": 5, \"percentage\": 20}", "options": {"raw":{"language":"json"}} }, "url": { "raw": "{{base_url}}/api/student/lesson/{{lesson_id}}/quiz/submit", "host": ["{{base_url}}"], "path": ["api","student","lesson","{{lesson_id}}","quiz","submit"] } }
+    },
+    {
+      "name": "GET Student Mastery",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Mastery succeeded', function () { pm.expect(pm.response.code).to.equal(200); });"] } }],
+      "request": { "method": "GET", "header": [{"key":"Accept","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}], "url": { "raw": "{{base_url}}/api/student/mastery", "host": ["{{base_url}}"], "path": ["api","student","mastery"] } }
+    },
+    {
+      "name": "POST Save Gesture Performance",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Gesture performance handled', function () { pm.expect([200,201,422]).to.include(pm.response.code); });"] } }],
+      "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"},{"key":"Accept","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}], "body": { "mode": "raw", "raw": "{\"module_name\": \"alphabet_part1\", \"letter_performances\": [{\"letter\": \"letter_a\", \"attempts\": 3, \"wrong_attempts\": 1, \"success_count\": 2, \"consecutive_wrong\": 0}], \"session_id\": \"postman-session-1\", \"hint_usage\": {\"letter_a\": 1}}", "options": {"raw":{"language":"json"}} }, "url": { "raw": "{{base_url}}/api/student/gesture-performance", "host": ["{{base_url}}"], "path": ["api","student","gesture-performance"] } }
+    },
+    {
+      "name": "GET Gesture Progress",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Gesture progress succeeded', function () { pm.expect(pm.response.code).to.equal(200); });"] } }],
+      "request": { "method": "GET", "header": [{"key":"Accept","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}], "url": { "raw": "{{base_url}}/api/student/gesture-progress", "host": ["{{base_url}}"], "path": ["api","student","gesture-progress"] } }
+    },
+    {
+      "name": "GET Lesson Leaderboard",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Leaderboard handled', function () { pm.expect([200,404]).to.include(pm.response.code); });"] } }],
+      "request": { "method": "GET", "header": [{"key":"Accept","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}], "url": { "raw": "{{base_url}}/api/student/lesson/{{lesson_id}}/leaderboard", "host": ["{{base_url}}"], "path": ["api","student","lesson","{{lesson_id}}","leaderboard"] } }
+    },
+    {
+      "name": "POST Submit Checkpoint Exam",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Checkpoint exam handled', function () { pm.expect([200,201,403,404,422]).to.include(pm.response.code); });"] } }],
+      "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"},{"key":"Accept","value":"application/json"},{"key":"Authorization","value":"Bearer {{token}}"}], "body": { "mode": "raw", "raw": "{\"answers\": [{\"question_id\": 1, \"selected_option_text\": \"True\"}]}", "options": {"raw":{"language":"json"}} }, "url": { "raw": "{{base_url}}/api/student/checkpoint-exam/{{exam_id}}/submit", "host": ["{{base_url}}"], "path": ["api","student","checkpoint-exam","{{exam_id}}","submit"] } }
+    }
+  ]
+}

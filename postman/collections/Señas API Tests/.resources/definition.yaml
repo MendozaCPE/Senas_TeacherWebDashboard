@@ -1,0 +1,71 @@
+$kind: collection
+description: Student API test collection generated from the pasted setup steps.
+variables:
+  base_url: https://xn--seas-hqa.tech
+  teacher_id: "1"
+  lesson_id: "1"
+  quiz_id: "1"
+  exam_id: "1"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const lrn = pm.environment.get('student_lrn');
+      const pin = pm.environment.get('student_pin');
+      const baseUrl = pm.collectionVariables.get('base_url') || pm.environment.get('base_url') || 'https://xn--seas-hqa.tech';
+
+      if (!lrn || !pin) {
+          console.warn('Set student_lrn and student_pin in the environment to auto-login.');
+          return;
+      }
+
+      if (pm.request.url.toString().includes('/api/student/login')) {
+          return;
+      }
+
+      pm.sendRequest({
+          url: `${baseUrl}/api/student/login`,
+          method: 'POST',
+          header: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+          },
+          body: {
+              mode: 'raw',
+              raw: JSON.stringify({
+                  lrn,
+                  pin
+              })
+          }
+      }, function (err, res) {
+          if (err) {
+              console.error('Auto-login failed', err);
+              return;
+          }
+
+          const json = res.json();
+          if (res.code >= 200 && res.code < 300 && json.token) {
+              pm.environment.set('token', json.token);
+              if (json.user?.student?.teacher_id) {
+                  pm.collectionVariables.set('teacher_id', String(json.user.student.teacher_id));
+              }
+              if (json.user?.student?.id) {
+                  pm.environment.set('student_id', String(json.user.student.id));
+              }
+          } else {
+              console.error('Auto-login did not return a token', json);
+          }
+      });
+    language: text/javascript
+  - type: http:afterResponse
+    code: |-
+      pm.test('Status code is not 5xx', function () {
+          pm.expect(pm.response.code).to.be.below(500);
+      });
+      pm.test('Response time is under 5000 ms', function () {
+          pm.expect(pm.response.responseTime).to.be.below(5000);
+      });
+    language: text/javascript

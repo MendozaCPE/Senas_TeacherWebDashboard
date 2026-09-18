@@ -1,0 +1,39 @@
+$kind: http-request
+name: 'POST Student Login'
+method: POST
+url: '{{base_url}}/api/student/login'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "lrn": "{{student_lrn}}",
+      "pin": "{{student_pin}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Login succeeded', function () {
+          pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const json = pm.response.json();
+      pm.test('Token returned', function () {
+          pm.expect(json.token).to.be.a('string').and.not.empty;
+      });
+
+      if (json.token) {
+          pm.environment.set('token', json.token);
+      }
+      if (json.user?.student?.teacher_id) {
+          pm.collectionVariables.set('teacher_id', String(json.user.student.teacher_id));
+      }
+      if (json.user?.student?.id) {
+          pm.environment.set('student_id', String(json.user.student.id));
+      }

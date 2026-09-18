@@ -1,0 +1,21 @@
+name: Señas Local
+values:
+  - key: base_url
+    value: 'https://xn--seas-hqa.tech'
+  - key: student_lrn
+    value: '123456789012'
+  - key: student_pin
+    value: '1234'
+  - key: token
+    value: ''
+  - key: student_id
+    value: '5'
+  - key: teacher_id
+    value: '1'
+  - key: lesson_id
+    value: '1'
+  - key: quiz_id
+    value: '1'
+  - key: exam_id
+    value: '1'
+color: 0

@@ -1,0 +1,36 @@
+$kind: http-request
+name: 'POST Save Gesture Performance'
+method: POST
+url: '{{base_url}}/api/student/gesture-performance'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "module_name": "alphabet_part1",
+      "letter_performances": [
+        {
+          "letter": "letter_a",
+          "attempts": 3,
+          "wrong_attempts": 1,
+          "success_count": 2,
+          "consecutive_wrong": 0
+        }
+      ],
+      "session_id": "postman-session-1",
+      "hint_usage": {
+        "letter_a": 1
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Gesture performance request returns success or validation feedback', function () {
+          pm.expect([200, 201, 422]).to.include(pm.response.code);
+      });

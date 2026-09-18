@@ -91,8 +91,15 @@ class AdminController extends Controller
         $sparkTeachers = [];
         $sparkStudents = [];
         $sparkLessons  = [];
+        $sparkDates    = [];
         for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->toDateString();
+            $day = Carbon::now()->subDays($i);
+            $date = $day->toDateString();
+            $sparkDates[] = [
+                'day'   => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')),
+                'date'  => $day->format('M j, Y'),
+                'short' => $day->format('M j'),
+            ];
             $sparkTeachers[] = User::where('role', 'teacher')->whereDate('created_at', '<=', $date)->count();
             $sparkStudents[] = Student::whereDate('created_at', '<=', $date)->count();
             $sparkLessons[]  = DB::table('lesson_assignments')
@@ -157,7 +164,7 @@ class AdminController extends Controller
             'totalLessonsCompleted', 'totalQuizAttempts',
             'newTeachersWeek', 'newStudentsWeek',
             'activityTrend', 'topTeachers', 'recentReports',
-            'sparkTeachers', 'sparkStudents', 'sparkLessons',
+            'sparkTeachers', 'sparkStudents', 'sparkLessons', 'sparkDates',
             'schoolStats',
             'overallAvgRating', 'totalRatingsDash', 'newestRatings'
         ));

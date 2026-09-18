@@ -87,19 +87,157 @@
 {{-- ═══════════════════════════════════════════════════════════════════ --}}
 
 @php
-/* ── Inline sparkline helper ───────────────────────────────────────── */
-$spark = function (array $data, string $color): string {
-    if (count($data) < 2) $data = array_fill(0, 7, $data[0] ?? 0);
-    $max = max($data); $min = min($data); $range = max($max - $min, 1); $n = count($data);
-    $pts = [];
-    foreach ($data as $i => $v) {
-        $x = $n > 1 ? ($i / ($n - 1)) * 240 : 120;
-        $y = 38 - 6 - (($v - $min) / $range) * 26;
-        $pts[] = round($x,1).','.round($y,1);
+/* ── Inline sparkline helper with interactive points and tooltips ──── */
+$spark = function (array $data, string $color, string $metric = '', string $unit = '', array $dates = [], string $id = '', bool $isDarkCard = false, int $width = 240, int $height = 38): string {
+    if (count($data) < 2) {
+        $data = array_fill(0, 7, $data[0] ?? 0);
     }
-    return '<svg viewBox="0 0 240 38" class="w-full" style="height:38px" preserveAspectRatio="none">'
-        .'<polyline fill="none" stroke="'.e($color).'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="'.implode(' ',$pts).'"/>'
-        .'</svg>';
+    $count = count($data);
+    if (empty($dates) || count($dates) < $count) {
+        $dates = [];
+        for ($i = $count - 1; $i >= 0; $i--) {
+            $d = \Carbon\Carbon::now()->subDays($i);
+            $dates[] = [
+                'day'   => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $d->format('l')),
+                'date'  => $d->format('M j, Y'),
+                'short' => $d->format('M j'),
+            ];
+        }
+    }
+
+    $max = max($data);
+    $min = min($data);
+    $padTop = 6;
+    $padBottom = 6;
+    $padX = 8;
+    $plotW = $width - ($padX * 2);
+    $plotH = $height - $padTop - $padBottom;
+
+    $pts = [];
+    foreach ($data as $i => $value) {
+        $x = round($padX + ($count > 1 ? ($i / ($count - 1)) * $plotW : $plotW / 2), 1);
+        if ($max === $min) {
+            $y = $max == 0 ? round($height - $padBottom, 1) : round($height / 2, 1);
+        } else {
+            $y = round(($height - $padBottom) - (($value - $min) / ($max - $min)) * $plotH, 1);
+        }
+        $pts[] = ['x' => $x, 'y' => $y, 'val' => $value];
+    }
+
+    // Smooth bezier curve
+    $curvePath = "M {$pts[0]['x']},{$pts[0]['y']}";
+    for ($i = 0; $i < count($pts) - 1; $i++) {
+        $p0 = $pts[$i];
+        $p1 = $pts[$i + 1];
+        $dx = ($p1['x'] - $p0['x']) / 2;
+        $c1x = round($p0['x'] + $dx, 1);
+        $c1y = $p0['y'];
+        $c2x = round($p1['x'] - $dx, 1);
+        $c2y = $p1['y'];
+        $curvePath .= " C {$c1x},{$c1y} {$c2x},{$c2y} {$p1['x']},{$p1['y']}";
+    }
+    $lastPt = end($pts);
+    $areaPath = $curvePath . " L {$lastPt['x']},{$height} L {$pts[0]['x']},{$height} Z";
+
+    $gradId = 'admSparkGrad_' . $id . '_' . substr(md5($color . ($isDarkCard ? 'dark' : 'light')), 0, 6);
+
+    $svgPoints = '';
+    foreach ($pts as $i => $pt) {
+        $isLast = ($i === $count - 1);
+        $val = $pt['val'];
+        $d = $dates[$i] ?? [
+            'day'   => $isLast ? 'Today' : 'Day ' . ($i + 1),
+            'date'  => '',
+            'short' => '',
+        ];
+
+        $formattedUnit = $unit;
+        if ($unit === 'Teachers') {
+            $formattedUnit = $val === 1 ? 'Teacher' : 'Teachers';
+        } elseif ($unit === 'Students') {
+            $formattedUnit = $val === 1 ? 'Student' : 'Students';
+        } elseif ($unit === 'Completions') {
+            $formattedUnit = $val === 1 ? 'Completion' : 'Completions';
+        }
+
+        // Crosshair vertical line
+        $crosshairColor = $isDarkCard ? '#ffffff' : $color;
+        $svgPoints .= '<line class="kpi-crosshair-line" data-idx="' . $i . '" x1="' . $pt['x'] . '" y1="0" x2="' . $pt['x'] . '" y2="' . $height . '" stroke="' . e($crosshairColor) . '" stroke-width="1.2" stroke-dasharray="2 2" stroke-opacity="0" style="transition: stroke-opacity 0.15s ease; pointer-events: none;"/>';
+
+        // Outer glowing halo
+        $haloColor = $isDarkCard ? '#ffffff' : $color;
+        $svgPoints .= '<circle class="kpi-point-halo" data-idx="' . $i . '" cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="8" fill="' . e($haloColor) . '" fill-opacity="0" style="transition: fill-opacity 0.18s ease, r 0.18s ease; pointer-events: none;"/>';
+
+        // Indicator pulse for current day
+        if ($isLast) {
+            $svgPoints .= '<circle cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="5.5" fill="' . e($haloColor) . '" fill-opacity="' . ($isDarkCard ? '0.25' : '0.16') . '" pointer-events="none"/>';
+        }
+
+        // Trend line dot
+        $dotFill = $isDarkCard ? '#ffffff' : $color;
+        $dotStroke = $isDarkCard ? '#0d326b' : '#ffffff';
+        $r = $isLast ? 3.5 : 3;
+        $svgPoints .= '<circle class="kpi-point-dot" data-idx="' . $i . '" data-is-last="' . ($isLast ? '1' : '0') . '" cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="' . $r . '" fill="' . e($dotFill) . '" stroke="' . e($dotStroke) . '" stroke-width="2" style="transition: r 0.18s ease, stroke-width 0.18s ease; pointer-events: none;"/>';
+
+        // Hit target
+        $svgPoints .= '<circle class="kpi-point-hit" data-idx="' . $i . '" cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="16" fill="transparent" style="cursor: pointer;" '
+            . 'data-val="' . e(number_format($val)) . '" '
+            . 'data-unit="' . e($formattedUnit) . '" '
+            . 'data-day="' . e($d['day']) . '" '
+            . 'data-date="' . e($d['date']) . '" '
+            . 'data-short="' . e($d['short']) . '" '
+            . 'data-color="' . e($color) . '" '
+            . 'data-dark="' . ($isDarkCard ? '1' : '0') . '" '
+            . 'data-metric="' . e($metric) . '"/>';
+    }
+
+    // Tooltip styling based on dark or light card
+    if ($isDarkCard) {
+        $tipHtml = '<div class="kpi-sparkline-tooltip pointer-events-none absolute z-30 opacity-0 scale-95 transition-all duration-150 -translate-x-1/2 -translate-y-full bg-white text-[#0d326b] rounded-xl shadow-2xl px-2.5 py-1.5 whitespace-nowrap border border-white/40 mb-2">'
+            . '  <div class="flex items-center justify-between gap-3 text-[10px] leading-tight">'
+            . '    <span class="font-extrabold text-[#0d326b] tracking-tight kpi-tip-day">Today</span>'
+            . '    <span class="text-slate-400 text-[9px] font-medium kpi-tip-date"></span>'
+            . '  </div>'
+            . '  <div class="text-[12px] font-black text-[#0d326b] mt-1 flex items-center gap-1.5 leading-none">'
+            . '    <span class="w-1.5 h-1.5 rounded-full kpi-tip-dot flex-shrink-0 bg-[#0d326b]"></span>'
+            . '    <span class="kpi-tip-val font-black text-[#0d326b] text-[13px]"></span>'
+            . '    <span class="font-bold text-slate-600 text-[10.5px] kpi-tip-unit"></span>'
+            . '  </div>'
+            . '  <div class="kpi-tip-arrow absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-slate-200/80"></div>'
+            . '</div>';
+    } else {
+        $tipHtml = '<div class="kpi-sparkline-tooltip pointer-events-none absolute z-30 opacity-0 scale-95 transition-all duration-150 -translate-x-1/2 -translate-y-full bg-[#0d326b] text-white rounded-xl shadow-xl px-2.5 py-1.5 whitespace-nowrap border border-blue-400/20 mb-2">'
+            . '  <div class="flex items-center justify-between gap-3 text-[10px] leading-tight">'
+            . '    <span class="font-bold text-white tracking-tight kpi-tip-day">Today</span>'
+            . '    <span class="text-blue-200/90 text-[9px] font-medium kpi-tip-date"></span>'
+            . '  </div>'
+            . '  <div class="text-[12px] font-black text-white mt-1 flex items-center gap-1.5 leading-none">'
+            . '    <span class="w-1.5 h-1.5 rounded-full kpi-tip-dot flex-shrink-0" style="background-color: ' . e($color) . ';"></span>'
+            . '    <span class="kpi-tip-val font-black text-white text-[13px]"></span>'
+            . '    <span class="font-semibold text-blue-100 text-[10.5px] kpi-tip-unit"></span>'
+            . '  </div>'
+            . '  <div class="kpi-tip-arrow absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45 border-r border-b border-blue-400/20"></div>'
+            . '</div>';
+    }
+
+    $areaColor = $isDarkCard ? '#ffffff' : $color;
+    $lineColor = $isDarkCard ? '#ffffff' : $color;
+
+    return '<div class="kpi-sparkline-container relative w-full h-[38px] select-none">'
+        . $tipHtml
+        . '<svg viewBox="0 0 ' . $width . ' ' . $height . '" class="w-full h-[38px] overflow-visible" preserveAspectRatio="none" aria-hidden="true">'
+        . '  <defs>'
+        . '    <linearGradient id="' . $gradId . '" x1="0%" y1="0%" x2="0%" y2="100%">'
+        . '      <stop offset="0%" stop-color="' . e($areaColor) . '" stop-opacity="' . ($isDarkCard ? '0.28' : '0.22') . '"/>'
+        . '      <stop offset="85%" stop-color="' . e($areaColor) . '" stop-opacity="' . ($isDarkCard ? '0.05' : '0.03') . '"/>'
+        . '      <stop offset="100%" stop-color="' . e($areaColor) . '" stop-opacity="0"/>'
+        . '    </linearGradient>'
+        . '  </defs>'
+        . '  <path d="' . $areaPath . '" fill="url(#' . $gradId . ')"/>'
+        . '  <path d="' . $curvePath . '" fill="none" stroke="' . e($lineColor) . '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        .    $svgPoints
+        . '</svg>'
+        . '</div>';
 };
 
 /* ── Smooth bezier path builder ────────────────────────────────────── */
@@ -172,7 +310,7 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $totalTeachers }}</p>
             <p class="text-[12px] text-white/70 font-medium">↑ {{ $newTeachersWeek }} this week</p>
             @if(!empty($sparkTeachers))
-            <div class="mt-3 opacity-60">{!! $spark($sparkTeachers, 'rgba(255,255,255,0.7)') !!}</div>
+            <div class="mt-3 relative kpi-sparkline-wrap">{!! $spark($sparkTeachers, '#ffffff', 'Total Teachers', 'Teachers', $sparkDates ?? [], 'teachers', true) !!}</div>
             @endif
         </div>
 
@@ -187,7 +325,7 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $totalStudents }}</p>
             <p class="text-[12px] text-[#1a6fd4] font-medium">↑ {{ $newStudentsWeek }} this week</p>
             @if(!empty($sparkStudents))
-            <div class="mt-3">{!! $spark($sparkStudents, '#1e4b8f') !!}</div>
+            <div class="mt-3 relative kpi-sparkline-wrap">{!! $spark($sparkStudents, '#1e4b8f', 'Total Students', 'Students', $sparkDates ?? [], 'students', false) !!}</div>
             @endif
         </div>
 
@@ -202,7 +340,7 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($totalLessonsCompleted) }}</p>
             <p class="text-[12px] text-slate-400 font-medium">{{ $publishedLessons }} published lessons</p>
             @if(!empty($sparkLessons))
-            <div class="mt-3">{!! $spark($sparkLessons, '#1a6fd4') !!}</div>
+            <div class="mt-3 relative kpi-sparkline-wrap">{!! $spark($sparkLessons, '#1a6fd4', 'Lessons Completed', 'Completions', $sparkDates ?? [], 'lessons', false) !!}</div>
             @endif
         </div>
 
@@ -508,4 +646,141 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
     </div>
 
 </div>{{-- end skeleton-hide --}}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // ── KPI Sparklines: hover tooltip & point effects ──
+    (function () {
+        const wraps = document.querySelectorAll('.kpi-sparkline-wrap');
+        wraps.forEach(function (wrap) {
+            const tip = wrap.querySelector('.kpi-sparkline-tooltip');
+            if (!tip) return;
+
+            const tipDay = tip.querySelector('.kpi-tip-day');
+            const tipDate = tip.querySelector('.kpi-tip-date');
+            const tipVal = tip.querySelector('.kpi-tip-val');
+            const tipUnit = tip.querySelector('.kpi-tip-unit');
+            const tipDot = tip.querySelector('.kpi-tip-dot');
+            const tipArrow = tip.querySelector('.kpi-tip-arrow');
+
+            const hits = wrap.querySelectorAll('.kpi-point-hit');
+            let hideTimer = null;
+
+            hits.forEach(function (hit) {
+                const idx = hit.dataset.idx;
+                const dot = wrap.querySelector('.kpi-point-dot[data-idx="' + idx + '"]');
+                const halo = wrap.querySelector('.kpi-point-halo[data-idx="' + idx + '"]');
+                const crosshair = wrap.querySelector('.kpi-crosshair-line[data-idx="' + idx + '"]');
+
+                function activate() {
+                    if (hideTimer) {
+                        clearTimeout(hideTimer);
+                        hideTimer = null;
+                    }
+
+                    // Reset all other points in this sparkline
+                    wrap.querySelectorAll('.kpi-point-dot').forEach(function (d) {
+                        if (d !== dot) {
+                            const isL = d.dataset.isLast === '1';
+                            d.setAttribute('r', isL ? '3.5' : '3');
+                            d.setAttribute('stroke-width', '2');
+                        }
+                    });
+                    wrap.querySelectorAll('.kpi-point-halo').forEach(function (h) {
+                        if (h !== halo) {
+                            h.setAttribute('r', '8');
+                            h.setAttribute('fill-opacity', '0');
+                        }
+                    });
+                    wrap.querySelectorAll('.kpi-crosshair-line').forEach(function (c) {
+                        if (c !== crosshair) {
+                            c.setAttribute('stroke-opacity', '0');
+                        }
+                    });
+
+                    // Update tooltip content
+                    if (tipDay) tipDay.textContent = hit.dataset.day || '';
+                    if (tipDate) tipDate.textContent = hit.dataset.date || '';
+                    if (tipVal) tipVal.textContent = hit.dataset.val || '0';
+                    if (tipUnit) tipUnit.textContent = hit.dataset.unit || '';
+                    if (tipDot && hit.dataset.dark !== '1') {
+                        tipDot.style.backgroundColor = hit.dataset.color || '#0d326b';
+                    }
+
+                    // Highlight hovered point elements
+                    if (dot) {
+                        dot.setAttribute('r', '5.5');
+                        dot.setAttribute('stroke-width', '2.5');
+                    }
+                    if (halo) {
+                        halo.setAttribute('r', '9.5');
+                        halo.setAttribute('fill-opacity', hit.dataset.dark === '1' ? '0.35' : '0.25');
+                    }
+                    if (crosshair) {
+                        crosshair.setAttribute('stroke-opacity', '0.35');
+                    }
+
+                    // Calculate position
+                    const hitRect = hit.getBoundingClientRect();
+                    const wrapRect = wrap.getBoundingClientRect();
+                    const tipW = tip.offsetWidth || 110;
+                    const pointCenterX = hitRect.left - wrapRect.left + (hitRect.width / 2);
+                    const pointCenterY = hitRect.top - wrapRect.top;
+
+                    // Clamp horizontally so tooltip stays neatly inside card bounds
+                    const minLeft = (tipW / 2) + 2;
+                    const maxLeft = wrapRect.width - (tipW / 2) - 2;
+                    const clampedLeft = Math.max(minLeft, Math.min(maxLeft, pointCenterX));
+
+                    tip.style.left = clampedLeft + 'px';
+                    tip.style.top = (pointCenterY - 8) + 'px';
+
+                    // Position arrow
+                    if (tipArrow) {
+                        const arrowOffset = pointCenterX - clampedLeft;
+                        tipArrow.style.transform = 'translateX(calc(-50% + ' + arrowOffset + 'px)) rotate(45deg)';
+                    }
+
+                    tip.classList.remove('opacity-0', 'scale-95');
+                    tip.classList.add('opacity-100', 'scale-100');
+                }
+
+                function deactivate() {
+                    if (dot) {
+                        const isL = dot.dataset.isLast === '1';
+                        dot.setAttribute('r', isL ? '3.5' : '3');
+                        dot.setAttribute('stroke-width', '2');
+                    }
+                    if (halo) {
+                        halo.setAttribute('r', '8');
+                        halo.setAttribute('fill-opacity', '0');
+                    }
+                    if (crosshair) {
+                        crosshair.setAttribute('stroke-opacity', '0');
+                    }
+
+                    hideTimer = setTimeout(function () {
+                        tip.classList.remove('opacity-100', 'scale-100');
+                        tip.classList.add('opacity-0', 'scale-95');
+                    }, 50);
+                }
+
+                hit.addEventListener('mouseenter', activate);
+                hit.addEventListener('mouseleave', deactivate);
+                hit.addEventListener('touchstart', function (e) {
+                    activate();
+                }, { passive: true });
+            });
+
+            // Hide when tapping elsewhere on touch devices
+            document.addEventListener('touchstart', function (e) {
+                if (!wrap.contains(e.target)) {
+                    tip.classList.remove('opacity-100', 'scale-100');
+                    tip.classList.add('opacity-0', 'scale-95');
+                }
+            }, { passive: true });
+        });
+    })();
+});
+</script>
 @endsection

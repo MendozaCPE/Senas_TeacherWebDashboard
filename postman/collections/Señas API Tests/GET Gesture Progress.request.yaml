@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'GET Gesture Progress'
+method: GET
+url: '{{base_url}}/api/student/gesture-progress'
+order: 6000
+headers:
+  - key: Accept
+    value: application/json
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Gesture progress request succeeded', function () {
+          pm.expect(pm.response.code).to.equal(200);
+      });

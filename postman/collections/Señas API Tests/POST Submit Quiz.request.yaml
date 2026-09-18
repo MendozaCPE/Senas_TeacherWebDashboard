@@ -1,0 +1,38 @@
+$kind: http-request
+name: 'POST Submit Quiz'
+method: POST
+url: '{{base_url}}/api/student/lesson/{{lesson_id}}/quiz/submit'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "quiz_id": {{quiz_id}},
+      "answers": [
+        {
+          "question_id": 1,
+          "selected_option_id": 1,
+          "is_correct": true
+        },
+        {
+          "question_id": 2,
+          "selected_option_id": 6,
+          "is_correct": true
+        }
+      ],
+      "score": 2,
+      "total_points": 5,
+      "percentage": 40
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Quiz submit returns success or validation feedback', function () {
+          pm.expect([200, 201, 422]).to.include(pm.response.code);
+      });

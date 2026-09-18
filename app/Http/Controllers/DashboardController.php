@@ -104,8 +104,15 @@ class DashboardController extends Controller
                 ->count();
 
             // ── Sparklines (last 7 days, ending today) ───────────────────────────
+            $sparklineDates = [];
             for ($i = 6; $i >= 0; $i--) {
                 $day = Carbon::today()->subDays($i);
+
+                $sparklineDates[] = [
+                    'day'   => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')),
+                    'date'  => $day->format('M j, Y'),
+                    'short' => $day->format('M j'),
+                ];
 
                 $sparklineTotalStudents[] = Student::where('teacher_id', $teacherId)
                     ->where('status', 'active')
@@ -419,6 +426,7 @@ class DashboardController extends Controller
             'sparklineActive',
             'sparklineAccuracy',
             'sparklineLessons',
+            'sparklineDates',
             'students',
             'lessons',
             'modules',

@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'GET Lesson Leaderboard'
+method: GET
+url: '{{base_url}}/api/student/lesson/{{lesson_id}}/leaderboard'
+order: 7000
+headers:
+  - key: Accept
+    value: application/json
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Lesson leaderboard request succeeded', function () {
+          pm.expect(pm.response.code).to.equal(200);
+      });
