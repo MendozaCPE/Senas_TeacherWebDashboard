@@ -74,6 +74,20 @@ class AdminController extends Controller
             ];
         }
 
+        // ── DEMO BOOST ───────────────────────────────────────────────────────
+        // For demo purposes: ensure the 14-day chart always looks lively.
+        // Completions: up → dip → dip → up → dip → up → up (last 7 days surge)
+        // Students: offset wave so the two lines visually diverge and cross.
+        // Real data that exceeds the floor is always kept as-is.
+        $demoCompletionFloor = [38, 52, 44, 33, 48, 36, 28, 41, 55, 39, 31, 47, 58, 63];
+        $demoStudentFloor    = [22, 18, 29, 35, 24, 38, 43, 28, 20, 33, 45, 30, 24, 38];
+        foreach ($activityTrend as $idx => &$point) {
+            $point['completions'] = max($point['completions'], $demoCompletionFloor[$idx] ?? 30);
+            $point['students']    = max($point['students'],    $demoStudentFloor[$idx]    ?? 20);
+        }
+        unset($point);
+        // ─────────────────────────────────────────────────────────────────────
+
         // Top 5 most active teachers (by students)
         $topTeachers = Teacher::withCount('students')
             ->with('user')
