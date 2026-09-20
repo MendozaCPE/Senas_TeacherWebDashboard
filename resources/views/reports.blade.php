@@ -1924,9 +1924,9 @@ document.addEventListener('keydown', function(e) {
         special:      { label: 'Special',       bg: 'bg-amber-50',    border: 'border-amber-200',  text: 'text-amber-700'  },
     };
 
-    // Maps achievement code → image filename in /storage/img/
+    // Maps achievement code → image filename in /images/img/ (or /images/)
     // Base URL is injected by Blade so it's always an absolute URL (works on production too)
-    const ACHIEVEMENT_IMG_BASE = '{{ rtrim(asset("storage/img"), "/") }}';
+    const ACHIEVEMENT_IMG_BASE = '{{ rtrim(asset("images/img"), "/") }}';
     const ACHIEVEMENT_IMAGES = {
         'xp_50':              'first_step.png',
         'xp_100':             'alphabet_star.png',
@@ -1997,7 +1997,7 @@ document.addEventListener('keydown', function(e) {
                 // Badge / icon in the center of the card
                 const badgeEl = imgUrl
                     ? `<img src="${imgUrl}" alt="${a.name}" class="w-14 h-14 object-contain drop-shadow-sm"
-                           onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+                           onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='{{ rtrim(asset('images'), '/') }}/${ACHIEVEMENT_IMAGES[a.code] || ''}';}else{this.style.display='none';this.nextElementSibling.style.display='block';}" />
                        <span class="material-symbols-outlined text-[36px] ${cfg.text} hidden">${a.icon || 'workspace_premium'}</span>`
                     : `<span class="material-symbols-outlined text-[36px] ${cfg.text}" style="${a.color ? 'color:' + a.color : ''}">${a.icon || 'workspace_premium'}</span>`;
 
