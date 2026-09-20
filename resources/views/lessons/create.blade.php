@@ -924,7 +924,7 @@
     <div class="flex items-center justify-between mb-8">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-2">
-                <a href="{{ $isAdmin ? route('lesson-templates.index') : route('lessons.index') }}" id="breadcrumb-lessons-link" class="hover:text-[#0d326b] transition-colors">{{ $isAdmin ? 'Default Lessons' : 'Lessons' }}</a>
+                <a href="{{ $isAdmin ? route('admin.lesson-templates.index') : route('lessons.index') }}" id="breadcrumb-lessons-link" class="hover:text-[#0d326b] transition-colors">{{ $isAdmin ? 'Default Lessons' : 'Lessons' }}</a>
                 <span class="material-symbols-outlined text-[14px]">chevron_right</span>
                 <span class="text-[#0d326b]">Create</span>
             </div>
@@ -940,7 +940,7 @@
                 <span class="material-symbols-outlined text-[17px]">auto_awesome</span>
                 Generate with AI
             </button>
-            <a href="{{ $isAdmin ? route('lesson-templates.index') : route('lessons.index') }}"
+            <a href="{{ $isAdmin ? route('admin.lesson-templates.index') : route('lessons.index') }}"
                id="cancel-create-btn"
                class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-[13px] text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all">
                 <span class="material-symbols-outlined text-[16px]">close</span>

@@ -76,14 +76,14 @@ class AdminController extends Controller
 
         // ── DEMO BOOST ───────────────────────────────────────────────────────
         // For demo purposes: ensure the 14-day chart always looks lively.
-        // Completions: up → dip → dip → up → dip → up → up (last 7 days surge)
-        // Students: offset wave so the two lines visually diverge and cross.
+        // Completions: dramatic peaks & valleys so the line towers tall.
+        // Students: offset undulating wave that stays clearly lower.
         // Real data that exceeds the floor is always kept as-is.
-        $demoCompletionFloor = [38, 52, 44, 33, 48, 36, 28, 41, 55, 39, 31, 47, 58, 63];
-        $demoStudentFloor    = [22, 18, 29, 35, 24, 38, 43, 28, 20, 33, 45, 30, 24, 38];
+        $demoCompletionFloor = [210, 148, 95, 172, 88, 135, 62, 189, 245, 112, 78, 198, 268, 183];
+        $demoStudentFloor    = [42, 38, 55, 48, 63, 35, 58, 44, 52, 67, 39, 72, 58, 65];
         foreach ($activityTrend as $idx => &$point) {
-            $point['completions'] = max($point['completions'], $demoCompletionFloor[$idx] ?? 30);
-            $point['students']    = max($point['students'],    $demoStudentFloor[$idx]    ?? 20);
+            $point['completions'] = max($point['completions'], $demoCompletionFloor[$idx] ?? 80);
+            $point['students']    = max($point['students'],    $demoStudentFloor[$idx]    ?? 35);
         }
         unset($point);
         // ─────────────────────────────────────────────────────────────────────
@@ -123,6 +123,14 @@ class AdminController extends Controller
                 ->whereDate('updated_at', $date)
                 ->count();
         }
+
+        // ── DEMO BOOST: sparkLessons — ensure the KPI sparkline is dynamic ──
+        // Each index = day (0=6 days ago … 6=today). Varied wave to look alive.
+        $sparkLessonsFloor = [48, 72, 55, 91, 63, 84, 77];
+        foreach ($sparkLessons as $idx => &$val) {
+            $val = max($val, $sparkLessonsFloor[$idx] ?? 50);
+        }
+        unset($val);
 
         // School distribution
         $schoolStats = DB::table('schools')
@@ -297,6 +305,46 @@ class AdminController extends Controller
                 ];
             }
         }
+
+        // ── DEMO BOOST: trendPoints ──────────────────────────────────────────
+        // Ensures every period's chart looks rich & dynamic for presentation.
+        // Completions floor: big varied wave; active_students: lower offset wave.
+        // Real data that is higher is always kept as-is.
+        $trendN = count($trendPoints);
+        // Generic floor arrays mapped by period length (8=weekly, 4=monthly, 12=yearly, 3=quarterly)
+        $demoTrendFloors = [
+            // weekly (8 points, going back 7 weeks)
+            8  => [
+                'completions'    => [312, 445, 378, 521, 289, 467, 398, 543],
+                'active_students'=> [87, 112, 95, 134, 78, 118, 103, 141],
+            ],
+            // monthly (4 points = 4 weekly buckets)
+            4  => [
+                'completions'    => [648, 892, 735, 1024],
+                'active_students'=> [156, 198, 172, 231],
+            ],
+            // yearly (12 points = Jan–Dec)
+            12 => [
+                'completions'    => [0, 0, 0, 0, 0, 0, 487, 712, 634, 891, 745, 0],
+                'active_students'=> [0, 0, 0, 0, 0, 0, 118, 162, 143, 198, 176, 0],
+            ],
+            // quarterly (3 points)
+            3  => [
+                'completions'    => [1245, 1876, 2134],
+                'active_students'=> [287, 412, 498],
+            ],
+        ];
+        if (isset($demoTrendFloors[$trendN])) {
+            $floors = $demoTrendFloors[$trendN];
+            foreach ($trendPoints as $idx => &$tp) {
+                $cFloor = $floors['completions'][$idx]    ?? 0;
+                $sFloor = $floors['active_students'][$idx] ?? 0;
+                if ($cFloor > 0) $tp['completions']     = max($tp['completions'],     $cFloor);
+                if ($sFloor > 0) $tp['active_students'] = max($tp['active_students'], $sFloor);
+            }
+            unset($tp);
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         // ── Teacher Activity Ranking ────────────────────────────────────
         $teacherActivity = Teacher::with('user')
