@@ -1,40 +1,101 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 @php
-    // Helper function to resolve absolute media URLs correctly
+    // Helper: build a YouTube embed URL from a stored watch URL, embed URL, shorts, or raw video ID
+    $youtubeEmbedUrl = function($url) {
+        if (empty($url) || !is_string($url)) return null;
+        $url = trim($url);
+        $id = null;
+
+        if (preg_match('#(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|watch\?.+&v=|shorts/|live/))([a-zA-Z0-9_-]{11})#i', $url, $m)) {
+            $id = $m[1];
+        } elseif (preg_match('/^[a-zA-Z0-9_-]{11}$/', $url)) {
+            $id = $url;
+        }
+
+        if (!$id) return null;
+        return 'https://www.youtube.com/embed/' . $id . '?rel=0&modestbranding=1&enablejsapi=1';
+    };
+
+    // Helper: check if a media item is a YouTube video
+    $isYoutube = function($url, $contentType = null) use ($youtubeEmbedUrl) {
+        if ($contentType === 'youtube_video') return true;
+        return !empty($youtubeEmbedUrl($url));
+    };
+
+    // Helper: check if media path points to an actual video file (MP4, WebM, etc.)
+    $isVideo = function($path, $contentType = null) {
+        if (empty($path) || !is_string($path)) return false;
+
+        // YouTube URLs are embeds, not direct video tags
+        if (preg_match('#(?:youtu\.be|youtube\.com)#i', $path)) {
+            return false;
+        }
+
+        $cleanPath = parse_url($path, PHP_URL_PATH) ?? $path;
+        $ext = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
+
+        $videoExts = ['mp4', 'webm', 'ogg', 'mov', 'm4v', 'avi', 'mkv'];
+        $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'jfif', 'ico'];
+
+        // If file extension clearly indicates an image, NEVER treat as video (even for gesture_demo)
+        if (in_array($ext, $imageExts)) {
+            return false;
+        }
+
+        // If file extension is a known video format
+        if (in_array($ext, $videoExts)) {
+            return true;
+        }
+
+        // Only fallback to content_type when no extension exists
+        return in_array($contentType, ['video']);
+    };
+
+    // Helper: resolve absolute or relative media URLs correctly for system media & teacher media
     $getMediaUrl = function($path) {
-        if (!$path) return null;
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        if (empty($path) || !is_string($path)) return null;
+        $path = trim($path);
+
+        // If it's a YouTube URL, keep as-is for the embed handler
+        if (preg_match('#(?:youtu\.be|youtube\.com)#i', $path)) {
             return $path;
         }
+
+        // 1. Extract path if it is an absolute URL pointing to a storage directory (e.g. old port 8080 or localhost)
+        if (preg_match('#^https?://[^/]+(?:/[^/]+)*/storage/(.+)$#i', $path, $matches)) {
+            $storageRel = ltrim($matches[1], '/');
+            return asset('storage/' . $storageRel);
+        }
+
+        // 2. If it's a localhost / 127.0.0.1 URL
+        if (preg_match('#^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?(?:/[^/]+)*/?(?:storage/)?(.*)$#i', $path, $matches)) {
+            $rel = ltrim($matches[1], '/');
+            if (!empty($rel)) {
+                return asset('storage/' . $rel);
+            }
+        }
+
+        // 3. Genuine external URL (CDN or remote image)
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        // 4. Normalize relative paths
         $cleanPath = ltrim($path, '/');
+        $cleanPath = preg_replace('#^(?:storage/app/public/|storage/|public/)#i', '', $cleanPath);
+
+        // Check where the file exists on the local filesystem
+        if (file_exists(public_path('images/' . $cleanPath))) {
+            return asset('images/' . $cleanPath);
+        }
+        if (file_exists(public_path('images/img/' . $cleanPath))) {
+            return asset('images/img/' . $cleanPath);
+        }
         if (file_exists(public_path($cleanPath))) {
             return asset($cleanPath);
         }
-        if (file_exists(public_path('storage/' . $cleanPath))) {
-            return asset('storage/' . $cleanPath);
-        }
-        return asset($cleanPath);
-    };
 
-    // Helper function to check if media path is a video
-    $isVideo = function($path, $contentType = null) {
-        if ($contentType === 'gesture_demo') return true;
-        if (!$path) return false;
-        $ext = strtolower(pathinfo(parse_url($path, PHP_URL_PATH), PATHINFO_EXTENSION));
-        return in_array($ext, ['mp4', 'webm', 'ogg', 'mov', 'm4v', 'avi']);
-    };
-
-    // Helper: build a YouTube embed URL from a stored watch URL or video ID
-    $youtubeEmbedUrl = function($url) {
-        if (!$url) return null;
-        // extract video ID
-        $id = null;
-        if (preg_match('/youtu\.be\/([a-zA-Z0-9_-]{11})/', $url, $m))       $id = $m[1];
-        elseif (preg_match('/[?&]v=([a-zA-Z0-9_-]{11})/', $url, $m))        $id = $m[1];
-        elseif (preg_match('/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/', $url, $m)) $id = $m[1];
-        elseif (preg_match('/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/', $url, $m)) $id = $m[1];
-        if (!$id) return null;
-        return 'https://www.youtube.com/embed/' . $id . '?rel=0&modestbranding=1';
+        return asset('storage/' . $cleanPath);
     };
 @endphp
 
@@ -50,6 +111,28 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
+}
+.preview-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1.5px solid rgba(15,49,114,0.15);
+    padding: 7px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0d326b;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(15,49,114,0.06);
+    transition: all 0.2s ease;
+}
+.preview-back-btn:hover {
+    background: #0d326b;
+    color: #ffffff;
+    border-color: #0d326b;
+    transform: translateX(-2px);
+    box-shadow: 0 4px 14px rgba(13,50,107,0.22);
 }
 .toggle-group {
     display: inline-flex;
@@ -265,14 +348,14 @@
     flex-wrap: wrap;
     gap: 12px;
 }
-.media-wrap { margin: 10px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); background: #0f3172; }
-.slide-image { width: 100%; display: block; max-height: 220px; object-fit: cover; }
+.media-wrap { margin: 10px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); background: #0f172a; }
+.slide-image { width: 100%; display: block; max-height: 220px; object-fit: contain; background: #0f172a; }
 .slide-video { width: 100%; display: block; max-height: 220px; background: #000; }
 .youtube-embed-wrap { position: relative; width: 100%; padding-bottom: 56.25%; /* 16:9 */ margin: 10px 0; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); background: #0f0f0f; }
 .youtube-embed-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: block; }
 .hero-image { width: 80px; height: 80px; flex-shrink: 0; object-fit: contain; }
-.quiz-media-wrap { border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); margin: 0 auto 12px; background: #f8f9fa; }
-.quiz-media { width: 100%; display: block; max-height: 160px; object-fit: contain; padding: 8px; background: #fff; }
+.quiz-media-wrap { border-radius: 14px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,49,114,0.14); margin: 0 auto 12px; background: #0f172a; }
+.quiz-media { width: 100%; display: block; max-height: 180px; object-fit: contain; padding: 6px; background: #0f172a; }
 
 .preview-close-btn {
     position: sticky; top: 10px; float: right; background: rgba(255,255,255,0.9); border: none;
@@ -476,26 +559,54 @@
     $totalQuestions = count($lessonData['quiz'] ?? []);
     $colors = ['#2563EB', '#059669', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#14B8A6'];
 
-    // Helper to format image URLs — uses a closure to avoid fatal "redeclare" errors
+    // Helper to format image / media URLs — uses a closure to avoid fatal "redeclare" errors
     // when the preview blade is rendered more than once per PHP process (opcache / view cache).
     if (!function_exists('formatImageUrl')) {
         function formatImageUrl($path) {
-            if (empty($path)) {
+            if (empty($path) || !is_string($path)) {
                 return null;
             }
-            if (filter_var($path, FILTER_VALIDATE_URL)) {
+            $path = trim($path);
+
+            // YouTube URLs handled separately
+            if (preg_match('#(?:youtu\.be|youtube\.com)#i', $path)) {
                 return $path;
             }
-            $normalizedPath = ltrim($path, '/');
-            $normalizedPath = preg_replace('#^(storage/app/public/|storage/|public/)#', '', $normalizedPath);
-            if ($normalizedPath === '') {
-                return null;
+
+            // 1. Check if it's an absolute URL pointing to storage (e.g. old port 8080 or other domain)
+            if (preg_match('#^https?://[^/]+(?:/[^/]+)*/storage/(.+)$#i', $path, $matches)) {
+                $storageRel = ltrim($matches[1], '/');
+                return asset('storage/' . $storageRel);
             }
-            $root = request()->root();
-            if (str_ends_with($root, '/index.php')) {
-                $root = substr($root, 0, -strlen('/index.php'));
+
+            // 2. Check if it's localhost or 127.0.0.1
+            if (preg_match('#^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?(?:/[^/]+)*/?(?:storage/)?(.*)$#i', $path, $matches)) {
+                $rel = ltrim($matches[1], '/');
+                if (!empty($rel)) {
+                    return asset('storage/' . $rel);
+                }
             }
-            return rtrim($root, '/') . '/storage/' . $normalizedPath;
+
+            // 3. Genuine external URL (CDN or remote image)
+            if (preg_match('#^https?://#i', $path)) {
+                return $path;
+            }
+
+            // 4. Relative paths
+            $cleanPath = ltrim($path, '/');
+            $cleanPath = preg_replace('#^(?:storage/app/public/|storage/|public/)#i', '', $cleanPath);
+
+            if (file_exists(public_path('images/' . $cleanPath))) {
+                return asset('images/' . $cleanPath);
+            }
+            if (file_exists(public_path('images/img/' . $cleanPath))) {
+                return asset('images/img/' . $cleanPath);
+            }
+            if (file_exists(public_path($cleanPath))) {
+                return asset($cleanPath);
+            }
+
+            return asset('storage/' . $cleanPath);
         }
     }
     $fmtImg = 'formatImageUrl';
@@ -537,9 +648,15 @@
 <!-- ============ TOP CONTROLS: Mobile/Web + Lesson/Quiz ============ -->
 <div class="preview-controls-wrapper">
     <div class="preview-controls">
-        <div class="toggle-group" id="deviceToggle">
-            <button class="toggle-btn active" data-device="mobile" onclick="setDevice('mobile')">📱 Mobile</button>
-            <button class="toggle-btn" data-device="web" onclick="setDevice('web')">🖥️ Web</button>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="preview-back-btn" onclick="handlePreviewBack()" title="Back to Lessons">
+                <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>
+                <span>Back</span>
+            </button>
+            <div class="toggle-group" id="deviceToggle">
+                <button class="toggle-btn active" data-device="mobile" onclick="setDevice('mobile')">📱 Mobile</button>
+                <button class="toggle-btn" data-device="web" onclick="setDevice('web')">🖥️ Web</button>
+            </div>
         </div>
         @if($totalQuestions > 0)
         <div class="toggle-group" id="contentToggle">
@@ -568,8 +685,13 @@
                         <p style="font-size:12px; color:#64748b; margin:0; max-width:260px;">This lesson only has quiz questions. Add lesson content slides to show material here.</p>
                     </div>
                 @elseif($totalSlides > 0)
-                    <div class="preview-header">
+                    <div class="preview-header" style="display:flex; align-items:center; justify-content:space-between;">
+                        <button type="button" onclick="handlePreviewBack()" style="background:rgba(15,49,114,0.08); border:none; border-radius:8px; color:#0f3172; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:5px 9px;" title="Back">
+                            <span class="material-symbols-outlined" style="font-size:15px;">arrow_back</span>
+                            <span>Back</span>
+                        </button>
                         <span class="logo">SEÑAS</span>
+                        <div style="width:48px;"></div>
                     </div>
                     <div class="glass-card">
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -601,32 +723,39 @@
                                 <div class="glass-card" style="flex:1;">
                                     <div class="slide-accent" style="background: {{ $slideColor }};"></div>
                                     <h3 style="font-size: 17px; font-weight: 800; color: {{ $slideColor }}; margin-bottom: 10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                   @php $currentContentType = $current['content_type'] ?? 'text'; @endphp
-@if($currentContentType === 'youtube_video' && !empty($current['media']))
-    @php $ytEmbed = $youtubeEmbedUrl($current['media']); @endphp
-    @if($ytEmbed)
-        <div class="youtube-embed-wrap">
-            <iframe src="{{ $ytEmbed }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
-    @endif
-@elseif(!empty($current['media']) && is_string($current['media']))
-    @php
-        $mediaUrl = formatImageUrl($current['media']);
-        $isVideoFile = $isVideo($current['media'], $currentContentType);
-    @endphp
-    @if($mediaUrl)
-        <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">
-            @if($isVideoFile)
-                <video controls autoplay muted loop playsinline class="slide-video" style="width:100%;display:block;max-height:220px;background:#000;">
-                    <source src="{{ $mediaUrl }}" type="video/mp4">
-                    Your browser does not support video playback.
-                </video>
-            @else
-                <img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" style="width:100%;display:block;max-height:220px;object-fit:cover;" onerror="this.parentElement.style.display='none'">
-            @endif
-        </div>
-    @endif
-@endif
+                                   @php
+                                       $currentContentType = $current['content_type'] ?? 'text';
+                                       $rawMedia = $current['media'] ?? null;
+                                       $ytEmbed = (!empty($rawMedia) && is_string($rawMedia)) ? $youtubeEmbedUrl($rawMedia) : null;
+                                       $isYt = !empty($ytEmbed) || ($currentContentType === 'youtube_video' && !empty($rawMedia));
+                                   @endphp
+                                   @if($isYt && $ytEmbed)
+                                       <div class="youtube-embed-wrap">
+                                           <iframe src="{{ $ytEmbed }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                                       </div>
+                                   @elseif(!empty($rawMedia) && is_string($rawMedia))
+                                       @php
+                                           $mediaUrl = formatImageUrl($rawMedia);
+                                           $isVideoFile = $isVideo($rawMedia, $currentContentType);
+                                       @endphp
+                                       @if($mediaUrl)
+                                           <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">
+                                               @if($isVideoFile)
+                                                   <video controls playsinline class="slide-video" style="width:100%;display:block;max-height:220px;background:#000;" preload="metadata">
+                                                       <source src="{{ $mediaUrl }}" type="video/mp4">
+                                                       <source src="{{ $mediaUrl }}">
+                                                       Your browser does not support video playback.
+                                                   </video>
+                                               @else
+                                                   <img src="{{ $mediaUrl }}" alt="{{ $current['title'] ?? 'Slide media' }}" class="slide-image" style="width:100%;display:block;max-height:220px;object-fit:contain;background:#0f172a;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';">
+                                                   <div style="display:none;padding:24px;text-align:center;color:#94a3b8;font-size:12px;background:#0f172a;flex-direction:column;align-items:center;justify-content:center;">
+                                                       <span style="font-size:24px;margin-bottom:4px;">🖼️</span>
+                                                       <span>Media unavailable</span>
+                                                   </div>
+                                               @endif
+                                           </div>
+                                       @endif
+                                   @endif
                                     <p style="font-size: 14px; color: #334155; line-height: 1.6;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
                                 </div>
                                 <div class="senya-tip">
@@ -672,20 +801,27 @@
                         <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="m-q-{{ $qIndex }}" data-correct="{{ $correctIdx }}">
                             <div class="glass-card" style="text-align:center; padding:24px;">
                              @if(!empty($q['_media']))
-    @php 
-        $imageUrl = formatImageUrl($q['_media']);
-        $qIsVideo = $isVideo($q['_media'], $q['_type'] ?? null);
+    @php
+        $rawQMedia = $q['_media'];
+        $qYt = $youtubeEmbedUrl($rawQMedia);
+        $imageUrl = formatImageUrl($rawQMedia);
+        $qIsVideo = $isVideo($rawQMedia, $q['_type'] ?? null);
     @endphp
-    @if($imageUrl)
+    @if($qYt)
+        <div class="youtube-embed-wrap" style="margin:0 auto 12px;max-width:100%;">
+            <iframe src="{{ $qYt }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        </div>
+    @elseif($imageUrl)
         <div class="quiz-media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;margin:0 auto 12px;">
             @if($qIsVideo)
-                <video controls autoplay muted loop playsinline class="quiz-media" style="width:100%;display:block;max-height:160px;background:#000;object-fit:contain;padding:8px;">
+                <video controls playsinline class="quiz-media" style="width:100%;display:block;max-height:180px;background:#000;object-fit:contain;padding:4px;" preload="metadata">
                     <source src="{{ $imageUrl }}" type="video/mp4">
+                    <source src="{{ $imageUrl }}">
                     Your browser does not support video playback.
                 </video>
             @else
-                <img src="{{ $imageUrl }}" alt="Quiz image" class="quiz-media" style="width:100%;display:block;max-height:160px;object-fit:contain;padding:8px;background:#fff;"
-                     onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
+                <img src="{{ $imageUrl }}" alt="Quiz media" class="quiz-media" style="width:100%;display:block;max-height:180px;object-fit:contain;padding:4px;background:#0f172a;"
+                     onerror="this.parentElement.innerHTML='<div style=\'padding:16px;text-align:center;color:#94a3b8;font-size:12px;\'>⚠️ Media unavailable</div>'">
             @endif
         </div>
     @endif
@@ -915,6 +1051,9 @@
         <div class="web-body">
             <div class="web-sidebar">
                 <div class="logo">SEÑAS</div>
+                <button type="button" onclick="handlePreviewBack()" class="nav-item" style="width:100%; border:none; background:none; text-align:left; cursor:pointer; display:flex; align-items:center; gap:8px;" title="Back to Lessons">
+                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span> Back
+                </button>
                 <div class="nav-item current">📖 Lessons</div>
             </div>
             <div class="web-main">
@@ -951,32 +1090,39 @@
                                             <div class="glass-card">
                                                 <div class="slide-accent" style="background:{{ $slideColor }};"></div>
                                                 <h3 style="font-size:19px; font-weight:800; color:{{ $slideColor }}; margin-bottom:10px;">{{ $current['title'] ?? 'Slide Title' }}</h3>
-                                               @php $currentContentType = $current['content_type'] ?? 'text'; @endphp
-@if($currentContentType === 'youtube_video' && !empty($current['media']))
-    @php $ytEmbed = $youtubeEmbedUrl($current['media']); @endphp
-    @if($ytEmbed)
-        <div class="youtube-embed-wrap">
-            <iframe src="{{ $ytEmbed }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
-    @endif
-@elseif(!empty($current['media']) && is_string($current['media']))
-    @php
-        $mediaUrl = formatImageUrl($current['media']);
-        $isVideoFile = $isVideo($current['media'], $currentContentType);
-    @endphp
-    @if($mediaUrl)
-        <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">
-            @if($isVideoFile)
-                <video controls autoplay muted loop playsinline class="slide-video" style="width:100%;display:block;max-height:220px;background:#000;">
-                    <source src="{{ $mediaUrl }}" type="video/mp4">
-                    Your browser does not support video playback.
-                </video>
-            @else
-                <img src="{{ $mediaUrl }}" alt="Slide image" class="slide-image" style="width:100%;display:block;max-height:220px;object-fit:cover;" onerror="this.parentElement.style.display='none'">
-            @endif
-        </div>
-    @endif
-@endif
+                                                @php
+                                                    $currentContentType = $current['content_type'] ?? 'text';
+                                                    $rawMedia = $current['media'] ?? null;
+                                                    $ytEmbed = (!empty($rawMedia) && is_string($rawMedia)) ? $youtubeEmbedUrl($rawMedia) : null;
+                                                    $isYt = !empty($ytEmbed) || ($currentContentType === 'youtube_video' && !empty($rawMedia));
+                                                @endphp
+                                                @if($isYt && $ytEmbed)
+                                                    <div class="youtube-embed-wrap" style="max-height:420px;padding-bottom:min(56.25%, 380px);">
+                                                        <iframe src="{{ $ytEmbed }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                                                    </div>
+                                                @elseif(!empty($rawMedia) && is_string($rawMedia))
+                                                    @php
+                                                        $mediaUrl = formatImageUrl($rawMedia);
+                                                        $isVideoFile = $isVideo($rawMedia, $currentContentType);
+                                                    @endphp
+                                                    @if($mediaUrl)
+                                                        <div class="media-wrap" style="background:#0f172a;border-radius:14px;overflow:hidden;">
+                                                            @if($isVideoFile)
+                                                                <video controls playsinline class="slide-video" style="width:100%;display:block;max-height:380px;background:#000;" preload="metadata">
+                                                                    <source src="{{ $mediaUrl }}" type="video/mp4">
+                                                                    <source src="{{ $mediaUrl }}">
+                                                                    Your browser does not support video playback.
+                                                                </video>
+                                                            @else
+                                                                <img src="{{ $mediaUrl }}" alt="{{ $current['title'] ?? 'Slide media' }}" class="slide-image" style="width:100%;display:block;max-height:380px;object-fit:contain;background:#0f172a;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';">
+                                                                <div style="display:none;padding:32px;text-align:center;color:#94a3b8;font-size:13px;background:#0f172a;flex-direction:column;align-items:center;justify-content:center;">
+                                                                    <span style="font-size:32px;margin-bottom:6px;">🖼️</span>
+                                                                    <span>Media unavailable</span>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                @endif
                                                 <p style="font-size:14.5px; color:#334155; line-height:1.7;">{{ $current['content_text'] ?? 'Content goes here...' }}</p>
                                             </div>
                                             <div class="slide-nav">
@@ -1029,11 +1175,28 @@
                                     <div class="quiz-question-panel {{ $qIndex == 0 ? 'active' : '' }}" id="w-q-{{ $qIndex }}" data-correct="{{ $correctIdx }}">
                                         <div class="glass-card" style="text-align:center; padding:28px;">
                                             @if(!empty($q['_media']))
-                                                @php $imageUrl = formatImageUrl($q['_media']); @endphp
-                                                @if($imageUrl)
-                                                    <div class="quiz-media-wrap" style="max-width:360px;">
-                                                        <img src="{{ $imageUrl }}" class="quiz-media"
-                                                             onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#999;font-size:13px;\'>⚠️ Image not available</div>'">
+                                                @php
+                                                    $rawQMedia = $q['_media'];
+                                                    $qYt = $youtubeEmbedUrl($rawQMedia);
+                                                    $imageUrl = formatImageUrl($rawQMedia);
+                                                    $qIsVideo = $isVideo($rawQMedia, $q['_type'] ?? null);
+                                                @endphp
+                                                @if($qYt)
+                                                    <div class="youtube-embed-wrap" style="max-width:460px;margin:0 auto 16px;">
+                                                        <iframe src="{{ $qYt }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                                                    </div>
+                                                @elseif($imageUrl)
+                                                    <div class="quiz-media-wrap" style="max-width:460px;background:#0f172a;border-radius:14px;overflow:hidden;margin:0 auto 16px;">
+                                                        @if($qIsVideo)
+                                                            <video controls playsinline class="quiz-media" style="width:100%;display:block;max-height:240px;background:#000;object-fit:contain;padding:6px;" preload="metadata">
+                                                                <source src="{{ $imageUrl }}" type="video/mp4">
+                                                                <source src="{{ $imageUrl }}">
+                                                                Your browser does not support video playback.
+                                                            </video>
+                                                        @else
+                                                            <img src="{{ $imageUrl }}" alt="Quiz media" class="quiz-media" style="width:100%;display:block;max-height:240px;object-fit:contain;padding:6px;background:#0f172a;"
+                                                                 onerror="this.parentElement.innerHTML='<div style=\'padding:20px;text-align:center;color:#94a3b8;font-size:13px;\'>⚠️ Media unavailable</div>'">
+                                                        @endif
                                                     </div>
                                                 @endif
                                             @endif
@@ -1160,9 +1323,18 @@
                                                 <div class="option-card" onclick="selectOption('w', {{ $qIndex }}, {{ $optIndex }})" id="w-opt-{{ $qIndex }}-{{ $optIndex }}">
                                                     <div class="option-circle">{{ chr(65+$optIndex) }}</div>
                                                     @if(!empty($option['image']))
-                                                        @php $optionImageUrl = formatImageUrl($option['image']); @endphp
+                                                        @php
+                                                            $optionImageUrl = formatImageUrl($option['image']);
+                                                            $optIsVideo = $isVideo($option['image']);
+                                                        @endphp
                                                         @if($optionImageUrl)
-                                                            <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
+                                                            @if($optIsVideo)
+                                                                <video muted loop playsinline class="option-image-thumb" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#000;">
+                                                                    <source src="{{ $optionImageUrl }}" type="video/mp4">
+                                                                </video>
+                                                            @else
+                                                                <img src="{{ $optionImageUrl }}" alt="" class="option-image-thumb" onerror="this.style.display='none'">
+                                                            @endif
                                                         @endif
                                                     @endif
                                                     <span style="font-size:14.5px; font-weight:600; color:#1F2937;">{{ $option['text'] }}</span>
@@ -1641,4 +1813,16 @@ if (totalSlides > 0) { setSlide('m', 0); setSlide('w', 0); }
 if (totalQuestions > 0) { setQuestion('m', 0); setQuestion('w', 0); }
 if (totalSlides === 0 && totalQuestions > 0) { setContentMode('quiz'); }
 })();
+
+window.handlePreviewBack = function() {
+    if (typeof closeLessonPreviewModal === 'function' && document.getElementById('lessonPreviewModal')?.style.display !== 'none') {
+        closeLessonPreviewModal();
+    } else if (window.parent && window.parent !== window && typeof window.parent.closeLessonPreviewModal === 'function') {
+        window.parent.closeLessonPreviewModal();
+    } else if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = "{{ route('lessons.index') }}";
+    }
+};
 </script>

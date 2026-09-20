@@ -1538,6 +1538,20 @@ function restoreLesson(lessonId, lessonTitle) {
     {{-- Transparent backdrop --}}
     <div style="position:fixed; inset:0; background:rgba(10,20,50,0.55); backdrop-filter:blur(4px);"></div>
 
+    {{-- Back button (fixed top-left) --}}
+    <button onclick="closeLessonPreviewModal()"
+            id="lessonPreviewBackBtn"
+            style="position:fixed; top:18px; left:20px; z-index:10001; height:44px; padding:0 20px;
+                   background:rgba(255,255,255,0.95); border:1.5px solid rgba(13,50,107,0.12); border-radius:24px; font-size:13.5px; font-weight:700;
+                   color:#0d326b; cursor:pointer; display:flex; align-items:center; gap:8px;
+                   box-shadow:0 4px 20px rgba(0,0,0,0.18); backdrop-filter:blur(8px); transition:all .2s ease;"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.background='#fff'; this.style.boxShadow='0 6px 24px rgba(0,0,0,0.25)'"
+            onmouseout="this.style.transform=''; this.style.background='rgba(255,255,255,0.95)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.18)'"
+            title="Back to Lessons">
+        <span class="material-symbols-outlined" style="font-size:20px; font-weight:700;">arrow_back</span>
+        <span>Back</span>
+    </button>
+
     {{-- X close button (fixed top-right) --}}
     <button onclick="closeLessonPreviewModal()"
             style="position:fixed; top:18px; right:20px; z-index:10001; width:44px; height:44px;

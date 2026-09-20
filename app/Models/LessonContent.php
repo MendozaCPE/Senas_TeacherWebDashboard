@@ -60,6 +60,16 @@ class LessonContent extends Model
             return $m[1];
         }
 
+        // youtube.com/live/VIDEO_ID
+        if (preg_match('#youtube\.com/live/([a-zA-Z0-9_-]{11})#', $url, $m)) {
+            return $m[1];
+        }
+
+        // Direct 11-character video ID
+        if (preg_match('/^[a-zA-Z0-9_-]{11}$/', trim($url))) {
+            return trim($url);
+        }
+
         return null;
     }
 

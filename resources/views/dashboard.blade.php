@@ -524,11 +524,12 @@
 
                             <div class="flex-1 overflow-y-auto space-y-1.5 pr-1 -mr-1">
                                 @forelse($module->lessons as $lesson)
-                                <a href="{{ route('lessons.view', $lesson->hash_id) }}"
-                                   class="flex items-center justify-between px-3 py-2 rounded-lg bg-white/60 hover:bg-white transition-colors">
+                                <button type="button"
+                                        onclick="openDashboardLessonPreview('{{ route('lessons.preview-modal', $lesson->hash_id) }}', {{ json_encode($lesson->title) }})"
+                                        class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/60 hover:bg-white transition-colors text-left cursor-pointer border-0">
                                     <span class="text-[12px] font-semibold truncate pr-2" style="color: {{ $p['title'] }}">{{ $lesson->title }}</span>
-                                    <span class="material-symbols-outlined text-[14px] flex-shrink-0" style="color: {{ $p['sub'] }}">chevron_right</span>
-                                </a>
+                                    <span class="material-symbols-outlined text-[14px] flex-shrink-0" style="color: {{ $p['sub'] }}">open_in_new</span>
+                                </button>
                                 @empty
                                 <p class="text-[12px] italic" style="color: {{ $p['sub'] }}">No lessons yet</p>
                                 @endforelse
@@ -1318,6 +1319,140 @@ document.addEventListener('DOMContentLoaded', function () {
             }, { passive: true });
         }
     })();
+});
+</script>
+
+{{-- ══ DASHBOARD LESSON PREVIEW MODAL ══════════════════════════════════════ --}}
+<div id="dashLessonPreviewModal"
+     style="display:none; position:fixed; inset:0; z-index:9999; overflow-y:auto; padding:24px 16px;"
+     onclick="if(event.target===this)closeDashLessonPreview()">
+    {{-- Backdrop --}}
+    <div style="position:fixed; inset:0; background:rgba(10,20,50,0.6); backdrop-filter:blur(5px);"></div>
+
+    {{-- Back Button (top-left) --}}
+    <button onclick="closeDashLessonPreview()"
+            id="dashLessonPreviewBackBtn"
+            style="position:fixed; top:18px; left:20px; z-index:10001; height:44px; padding:0 20px;
+                   background:rgba(255,255,255,0.95); border:1.5px solid rgba(13,50,107,0.12); border-radius:24px;
+                   font-size:13.5px; font-weight:700; color:#0d326b; cursor:pointer;
+                   display:flex; align-items:center; gap:8px;
+                   box-shadow:0 4px 20px rgba(0,0,0,0.18); backdrop-filter:blur(8px); transition:all .2s ease;"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.background='#fff'; this.style.boxShadow='0 6px 24px rgba(0,0,0,0.25)'"
+            onmouseout="this.style.transform=''; this.style.background='rgba(255,255,255,0.95)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.18)'"
+            title="Back to Dashboard">
+        <span class="material-symbols-outlined" style="font-size:20px; font-weight:700;">arrow_back</span>
+        <span>Back</span>
+    </button>
+
+    {{-- Close Button (top-right) --}}
+    <button onclick="closeDashLessonPreview()"
+            style="position:fixed; top:18px; right:20px; z-index:10001; width:44px; height:44px;
+                   background:rgba(255,255,255,0.95); border:none; border-radius:50%; font-size:22px;
+                   cursor:pointer; display:flex; align-items:center; justify-content:center;
+                   box-shadow:0 4px 20px rgba(0,0,0,0.2); transition:transform .2s, background .2s;"
+            onmouseover="this.style.transform='scale(1.1)'; this.style.background='#fff'"
+            onmouseout="this.style.transform=''; this.style.background='rgba(255,255,255,0.95)'"
+            title="Close preview">✕</button>
+
+    {{-- Content container --}}
+    <div id="dashLessonPreviewContent"
+         style="position:relative; z-index:10000; max-width:900px; margin:0 auto; min-height:200px;">
+
+        {{-- Shimmer loading --}}
+        <div id="dashLessonPreviewLoading"
+             style="display:flex; flex-direction:column; gap:16px; padding:24px;
+                    background:rgba(255,255,255,0.07); border-radius:20px;">
+            <div style="height:36px; border-radius:10px;
+                        background:linear-gradient(90deg,rgba(255,255,255,0.08) 0,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%);
+                        background-size:600px 100%; animation:dash-shimmer 1.6s infinite linear;"></div>
+            <div style="height:180px; border-radius:14px;
+                        background:linear-gradient(90deg,rgba(255,255,255,0.08) 0,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%);
+                        background-size:600px 100%; animation:dash-shimmer 1.6s infinite linear;"></div>
+            <div style="height:16px; width:70%; border-radius:8px;
+                        background:linear-gradient(90deg,rgba(255,255,255,0.08) 0,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%);
+                        background-size:600px 100%; animation:dash-shimmer 1.6s 0.1s infinite linear;"></div>
+            <div style="height:12px; width:90%; border-radius:8px;
+                        background:linear-gradient(90deg,rgba(255,255,255,0.08) 0,rgba(255,255,255,0.18) 40%,rgba(255,255,255,0.1) 55%,rgba(255,255,255,0.08) 100%);
+                        background-size:600px 100%; animation:dash-shimmer 1.6s 0.2s infinite linear;"></div>
+        </div>
+
+        <div id="dashLessonPreviewBody" style="display:none;"></div>
+    </div>
+</div>
+
+<style>
+@keyframes dash-shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+}
+</style>
+
+<script>
+function openDashboardLessonPreview(url, title) {
+    const modal   = document.getElementById('dashLessonPreviewModal');
+    const loading = document.getElementById('dashLessonPreviewLoading');
+    const body    = document.getElementById('dashLessonPreviewBody');
+
+    // Reset state
+    body.innerHTML = '';
+    body.style.display = 'none';
+    loading.style.display = 'flex';
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        })
+        .then(html => {
+            body.innerHTML = html;
+            loading.style.display = 'none';
+            body.style.display = 'block';
+
+            // Re-create iframes so browser loads their src
+            body.querySelectorAll('iframe').forEach(old => {
+                const n = document.createElement('iframe');
+                Array.from(old.attributes).forEach(a => n.setAttribute(a.name, a.value));
+                old.parentNode.replaceChild(n, old);
+            });
+
+            // Re-create video elements
+            body.querySelectorAll('video').forEach(old => {
+                const n = document.createElement('video');
+                Array.from(old.attributes).forEach(a => n.setAttribute(a.name, a.value));
+                old.querySelectorAll('source').forEach(s => {
+                    const ns = document.createElement('source');
+                    Array.from(s.attributes).forEach(a => ns.setAttribute(a.name, a.value));
+                    n.appendChild(ns);
+                });
+                old.parentNode.replaceChild(n, old);
+                n.load();
+            });
+
+            // Re-run inline scripts
+            body.querySelectorAll('script').forEach(old => {
+                const s = document.createElement('script');
+                if (old.src) { s.src = old.src; } else { s.textContent = old.textContent; }
+                document.head.appendChild(s);
+                old.remove();
+            });
+        })
+        .catch(err => {
+            loading.innerHTML = '<span style="color:#fca5a5;">⚠ Failed to load preview. Please try again.</span>';
+            console.error('Dashboard lesson preview error:', err);
+        });
+}
+
+function closeDashLessonPreview() {
+    const modal = document.getElementById('dashLessonPreviewModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('dashLessonPreviewBody').innerHTML = '';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDashLessonPreview();
 });
 </script>
 
