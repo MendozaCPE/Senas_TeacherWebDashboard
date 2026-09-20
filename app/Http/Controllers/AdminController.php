@@ -39,10 +39,10 @@ class AdminController extends Controller
             ->count();
         $activeStudents = Student::where('last_activity_date', '>=', Carbon::now()->subDays(7))->count();
 
-        // Help requests summary
-        $pendingReports  = HelpRequest::where('status', 'pending')->count();
-        $resolvedReports = HelpRequest::where('status', 'resolved')->count();
-        $totalReports    = HelpRequest::count();
+        // Escalated concerns summary (reports escalated by teachers)
+        $pendingReports  = HelpRequest::where('status', 'escalated')->whereNotNull('escalated_by')->count();
+        $resolvedReports = HelpRequest::where('status', 'closed')->whereNotNull('escalated_by')->count();
+        $totalReports    = HelpRequest::whereIn('status', ['escalated', 'closed'])->whereNotNull('escalated_by')->count();
 
         // Lessons completed across all teachers
         $totalLessonsCompleted = DB::table('lesson_assignments')
@@ -81,8 +81,10 @@ class AdminController extends Controller
             ->limit(5)
             ->get();
 
-        // Recent help requests
-        $recentReports = HelpRequest::with('student')
+        // Recent escalated concerns from teachers
+        $recentReports = HelpRequest::with(['student', 'teacher', 'escalator'])
+            ->whereIn('status', ['escalated', 'closed'])
+            ->whereNotNull('escalated_by')
             ->latest()
             ->limit(5)
             ->get();
@@ -642,9 +644,10 @@ class AdminController extends Controller
         $dateFrom     = $request->get('date_from', '');
         $dateTo       = $request->get('date_to', '');
 
-        // Admin only sees escalated (and closed) reports — student → teacher → admin workflow
+        // Admin only sees reports that a teacher explicitly escalated — student → teacher → admin workflow
         $query = HelpRequest::with(['student', 'resolver', 'teacher.user', 'escalator'])
             ->whereIn('status', ['escalated', 'closed'])
+            ->whereNotNull('escalated_by')
             ->latest();
 
         if ($search) {
@@ -677,11 +680,11 @@ class AdminController extends Controller
 
         $reports = $query->paginate(15)->withQueryString();
 
-        // Stats — only escalated/closed scope
-        $totalReports    = HelpRequest::whereIn('status', ['escalated', 'closed'])->count();
-        $pendingReports  = HelpRequest::where('status', 'escalated')->count();   // "pending admin review"
+        // Stats — only reports that a teacher explicitly escalated
+        $totalReports    = HelpRequest::whereIn('status', ['escalated', 'closed'])->whereNotNull('escalated_by')->count();
+        $pendingReports  = HelpRequest::where('status', 'escalated')->whereNotNull('escalated_by')->count();   // "pending admin review"
         $inProgressCount = 0; // not used in new workflow, kept for view compat
-        $resolvedCount   = HelpRequest::where('status', 'closed')->count();
+        $resolvedCount   = HelpRequest::where('status', 'closed')->whereNotNull('escalated_by')->count();
         $respondedCount  = 0; // not used in new workflow, kept for view compat
 
         return view('admin.reports', compact(

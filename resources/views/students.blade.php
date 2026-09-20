@@ -213,10 +213,9 @@
         $completedCnt  = $sbStudents->where('fsl_mastery_level','Completed')->count();
         $avgXp         = $sbStudents->count() ? round($sbStudents->avg('total_xp')) : 0;
         $progressPct   = min(100, round($avgXp / 1000 * 100));
-        $readyToPromote = $sbStudents->filter(function($s) {
-            $xp = $s->total_xp ?? 0; $lvl = $s->fsl_mastery_level;
-            return ($lvl==='Beginner'&&$xp>=300)||($lvl==='Intermediate'&&$xp>=600)||($lvl==='Advanced'&&$xp>=1000);
-        })->count();
+        $readyToPromote = !empty($allReadyStudentIds)
+            ? count($allReadyStudentIds)
+            : (isset($promotionReadyCounts) ? array_sum($promotionReadyCounts) : 0);
     @endphp
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -254,11 +253,14 @@
         </div>
 
         {{-- Card 3: Ready to Promote — gold gradient --}}
-        <div class="stat-kpi-card text-amber-950" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245,158,11,0.5); box-shadow: 0 4px 16px rgba(245,158,11,0.22);">
+        <div role="button" tabindex="0" onclick="togglePromoFilter('all')"
+             class="stat-kpi-card text-amber-950 cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] select-none {{ ($activePromotableLevel ?? '') === 'all' ? 'ring-2 ring-amber-800' : '' }}"
+             style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245,158,11,0.5); box-shadow: 0 4px 16px rgba(245,158,11,0.22);"
+             title="Click to {{ ($activePromotableLevel ?? '') === 'all' ? 'clear filter' : 'filter all ' . $readyToPromote . ' student(s) eligible for promotion' }}">
             <div class="flex items-center justify-between mb-4">
                 <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Ready to Promote</span>
                 <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
-                    <span class="material-symbols-outlined text-[20px]">trending_up</span>
+                    <span class="material-symbols-outlined text-[20px]">{{ ($activePromotableLevel ?? '') === 'all' ? 'check' : 'trending_up' }}</span>
                 </div>
             </div>
             <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ $readyToPromote }}</p>

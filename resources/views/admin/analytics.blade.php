@@ -112,17 +112,17 @@
              color:#64748b; cursor:pointer; transition:all .15s; }
 .gstat-tab:hover { background:#f1f5f9; border-color:#cbd5e1; color:#0d326b; }
 .gstat-tab.active                      { background:#0d326b; border-color:#0d326b; color:#fff; }
-.gstat-tab[data-status="critical"].active { background:#ef4444; border-color:#ef4444; color:#fff; }
-.gstat-tab[data-status="warning"].active  { background:#f59e0b; border-color:#f59e0b; color:#fff; }
-.gstat-tab[data-status="good"].active     { background:#0d326b; border-color:#0d326b; color:#fff; }
+.gstat-tab[data-status="critical"].active { background:#0d326b; border-color:#0d326b; color:#fff; }
+.gstat-tab[data-status="warning"].active  { background:#1a6fd4; border-color:#1a6fd4; color:#fff; }
+.gstat-tab[data-status="good"].active     { background:#93c5fd; border-color:#93c5fd; color:#1e3a5f; }
 
 /* ── Gesture sign cards (compact grid) ── */
 .gsign-card { border-radius:16px; border:1px solid #f1f5f9; background:#fff;
               padding:14px 16px; transition:border-color .15s, box-shadow .15s; }
 .gsign-card:hover { border-color:#bfdbfe; box-shadow:0 4px 14px rgba(13,50,107,.07); }
-.gsign-card.is-critical { border-left:3px solid #ef4444; }
-.gsign-card.is-warning  { border-left:3px solid #f59e0b; }
-.gsign-card.is-good     { border-left:3px solid #0d326b; }
+.gsign-card.is-critical { border-left:3px solid #0d326b; }
+.gsign-card.is-warning  { border-left:3px solid #1a6fd4; }
+.gsign-card.is-good     { border-left:3px solid #93c5fd; }
 .gsign-card.is-nodata   { border-left:3px solid #e2e8f0; opacity:.7; }
 
 /* ── Accuracy pill ── */
@@ -574,14 +574,14 @@ if ($totalUsers === 0) {
             <p class="text-[12px] text-slate-400 mt-0.5">{{ $gestureBreakdown->count() }} signs tracked — sorted by accuracy (lowest first)</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
-            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Critical &lt;40%
+            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style="background:#e8edf7;color:#0d326b;">
+                <span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#0d326b;"></span>Critical &lt;40%
             </span>
-            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>Warning 40–70%
+            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style="background:#dbeafe;color:#1a6fd4;">
+                <span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#1a6fd4;"></span>Warning 40–70%
             </span>
-            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[#0d326b]">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#0d326b] inline-block"></span>Good ≥70%
+            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style="background:#eff6ff;color:#60a5fa;">
+                <span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#93c5fd;"></span>Good ≥70%
             </span>
         </div>
     </div>
@@ -623,13 +623,13 @@ if ($totalUsers === 0) {
                     All
                 </button>
                 <button type="button" class="gstat-tab" data-status="critical" onclick="adminFilterStatus('critical',this)">
-                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span> Critical
+                    <span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#0d326b;"></span> Critical
                 </button>
                 <button type="button" class="gstat-tab" data-status="warning" onclick="adminFilterStatus('warning',this)">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span> Warning
+                    <span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#1a6fd4;"></span> Warning
                 </button>
                 <button type="button" class="gstat-tab" data-status="good" onclick="adminFilterStatus('good',this)">
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#0d326b] inline-block"></span> Good
+                    <span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#93c5fd;"></span> Good
                 </button>
                 <button type="button" class="gstat-tab" data-status="no_data" onclick="adminFilterStatus('no_data',this)">
                     No data
@@ -654,15 +654,15 @@ if ($totalUsers === 0) {
                     default    => 'is-nodata',
                 };
                 $accColor = match($g['status']) {
-                    'critical' => '#ef4444',
-                    'warning'  => '#f59e0b',
-                    'good'     => '#0d326b',
+                    'critical' => '#0d326b',
+                    'warning'  => '#1a6fd4',
+                    'good'     => '#93c5fd',
                     default    => '#94a3b8',
                 };
                 $accRingBg = match($g['status']) {
-                    'critical' => 'background:linear-gradient(135deg,#fef2f2,#fee2e2)',
-                    'warning'  => 'background:linear-gradient(135deg,#fffbeb,#fef3c7)',
-                    'good'     => 'background:linear-gradient(135deg,#eff6ff,#dbeafe)',
+                    'critical' => 'background:linear-gradient(135deg,#e8edf7,#cdd8f0)',
+                    'warning'  => 'background:linear-gradient(135deg,#dbeafe,#bfdbfe)',
+                    'good'     => 'background:linear-gradient(135deg,#eff6ff,#e0f2fe)',
                     default    => 'background:#f8fafc',
                 };
             @endphp
@@ -711,15 +711,15 @@ if ($totalUsers === 0) {
                     </div>
                     {{-- Mastered badge --}}
                     @if($g['status'] === 'good')
-                        <span class="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-[#0d326b] text-white shrink-0">
+                        <span class="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-bold shrink-0" style="background:#93c5fd;color:#1e3a5f;">
                             <span class="material-symbols-outlined text-[10px]">verified</span> Good
                         </span>
                     @elseif($g['status'] === 'critical')
-                        <span class="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-red-500 text-white shrink-0">
+                        <span class="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-bold shrink-0" style="background:#0d326b;color:#fff;">
                             <span class="material-symbols-outlined text-[10px]">warning</span> Critical
                         </span>
                     @elseif($g['status'] === 'warning')
-                        <span class="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-400 text-white shrink-0">
+                        <span class="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9.5px] font-bold shrink-0" style="background:#1a6fd4;color:#fff;">
                             <span class="material-symbols-outlined text-[10px]">priority_high</span> Warning
                         </span>
                     @endif
@@ -915,51 +915,69 @@ $gestureInsight = match(true) {
         </div>
     </div>
 
-    {{-- Students by Grade Level --}}
+    {{-- Students by Program --}}
     <div class="a-panel">
         <div class="flex items-center justify-between mb-4">
             <div>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Students</p>
-                <h3 class="text-[14px] font-bold text-[#0d326b]">Students by Grade Level</h3>
+                <h3 class="text-[14px] font-bold text-[#0d326b]">Students by Program</h3>
             </div>
-            <span class="material-symbols-outlined text-slate-300 text-[20px]">school</span>
+            <span class="material-symbols-outlined text-slate-300 text-[20px]">account_tree</span>
         </div>
-        @php $maxG=$gradeDistribution->max('count')?:1; @endphp
-        <div class="space-y-2.5">
-            @forelse($gradeDistribution as $gd)
+        @php
+            $maxP = $programDistribution->max('count') ?: 1;
+            $totalP = $programDistribution->sum('count');
+            // Assign distinct blue shades per index
+            $programColors = [
+                'linear-gradient(90deg,#0d326b,#1a4e9e)',
+                'linear-gradient(90deg,#1a6fd4,#3b8fe8)',
+                'linear-gradient(90deg,#60a5fa,#93c5fd)',
+                'linear-gradient(90deg,#0d326b,#1a6fd4)',
+                'linear-gradient(90deg,#1e40af,#3b82f6)',
+            ];
+        @endphp
+        <div class="space-y-3">
+            @forelse($programDistribution as $i => $pd)
+            @php
+                $barColor = $programColors[$i % count($programColors)];
+                $pct = $totalP > 0 ? round(($pd->count / $totalP) * 100) : 0;
+            @endphp
             <div class="flex items-center gap-3">
-                <span class="text-[11px] font-bold text-slate-500 w-16 shrink-0">{{ $gd->grade_level??'N/A' }}</span>
-                <div class="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div class="h-2 rounded-full" style="width:{{ round(($gd->count/$maxG)*100) }}%; background:linear-gradient(90deg,#0d326b,#1a6fd4)"></div>
+                <span class="text-[11px] font-bold text-slate-600 w-28 shrink-0 truncate" title="{{ $pd->program_type ?? 'N/A' }}">
+                    {{ $pd->program_type ?? 'N/A' }}
+                </span>
+                <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div class="h-2.5 rounded-full transition-all" style="width:{{ round(($pd->count/$maxP)*100) }}%; background:{{ $barColor }}"></div>
                 </div>
-                <span class="text-[12px] font-black text-[#0d326b] w-8 text-right shrink-0">{{ $gd->count }}</span>
+                <span class="text-[11px] text-slate-400 font-semibold w-8 text-right shrink-0">{{ $pct }}%</span>
+                <span class="text-[12px] font-black text-[#0d326b] w-6 text-right shrink-0">{{ $pd->count }}</span>
             </div>
             @empty
-            <p class="text-[13px] text-slate-400 text-center py-4">No grade data</p>
+            <p class="text-[13px] text-slate-400 text-center py-4">No program data available</p>
             @endforelse
         </div>
 
-        {{-- Grade Distribution Insight --}}
+        {{-- Program Distribution Insight --}}
         @php
-        $topGrade    = $gradeDistribution->sortByDesc('count')->first();
-        $gradeCount  = $gradeDistribution->count();
-        $totalInDist = $gradeDistribution->sum('count');
-        $gradeInsight = match(true) {
-            $totalInDist === 0
-                => "No grade level data recorded yet. Insights will appear once students have grade levels assigned.",
-            $gradeCount === 1
-                => "All <strong>{$totalInDist} students</strong> are in <strong>" . ($topGrade->grade_level ?? 'N/A') . "</strong>. Consider diversifying enrollment across grade levels to reach more learners.",
-            $topGrade && $totalInDist > 0
-                => "<strong>" . ($topGrade->grade_level ?? 'N/A') . "</strong> is the largest group with <strong>{$topGrade->count} students</strong> (" . round(($topGrade->count / $totalInDist) * 100) . "% of total). Spread across <strong>{$gradeCount} grade levels</strong> — ensure default lesson content covers all difficulty ranges.",
+        $topProgram   = $programDistribution->sortByDesc('count')->first();
+        $programCount = $programDistribution->count();
+        $totalInProg  = $programDistribution->sum('count');
+        $programInsight = match(true) {
+            $totalInProg === 0
+                => "No program data recorded yet. Insights will appear once students have programs assigned.",
+            $programCount === 1
+                => "All <strong>{$totalInProg} students</strong> are in the <strong>" . ($topProgram->program_type ?? 'N/A') . "</strong> program. Consider enrolling students across multiple programs for broader reach.",
+            $topProgram && $totalInProg > 0
+                => "<strong>" . ($topProgram->program_type ?? 'N/A') . "</strong> is the largest program group with <strong>{$topProgram->count} students</strong> (" . round(($topProgram->count / $totalInProg) * 100) . "% of total). Spread across <strong>{$programCount} programs</strong> — tailor lesson content to match each program's learning needs.",
         };
         @endphp
         <div class="senya-insight-gold mt-4">
             <div class="senya-insight-gold-icon">
-                <span class="material-symbols-outlined text-[19px]">school</span>
+                <span class="material-symbols-outlined text-[19px]">account_tree</span>
             </div>
             <div>
-                <div class="senya-insight-gold-title">Grade Distribution Insight</div>
-                <div class="senya-insight-gold-text">{!! $gradeInsight !!}</div>
+                <div class="senya-insight-gold-title">Program Distribution Insight</div>
+                <div class="senya-insight-gold-text">{!! $programInsight !!}</div>
             </div>
         </div>
     </div>

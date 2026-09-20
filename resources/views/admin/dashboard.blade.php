@@ -344,19 +344,19 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             @endif
         </div>
 
-        {{-- Card 4: Pending Reports — amber gradient --}}
+        {{-- Card 4: Escalated Concerns — amber gradient --}}
         <div class="text-amber-950" style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%);border:1px solid rgba(245,158,11,.5);box-shadow:0 4px 16px rgba(245,158,11,.22);">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Pending Reports</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Escalated Concerns</span>
                 <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
-                    <span class="material-symbols-outlined text-[20px]">inbox</span>
+                    <span class="material-symbols-outlined text-[20px]">flag</span>
                 </div>
             </div>
             <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ $pendingReports }}</p>
             <p class="text-[12px] text-amber-950/80 font-bold">{{ $resolvedReports }} resolved of {{ $totalReports }} total</p>
             <div class="mt-3">
                 <a href="{{ route('admin.reports') }}" class="inline-flex items-center gap-1 text-[12px] font-bold text-amber-950/80 hover:text-amber-950 transition-colors">
-                    View all reports <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    View all escalated concerns <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </a>
             </div>
         </div>
@@ -514,35 +514,45 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             </div>
         </div>
 
-        {{-- Recent Reports --}}
+        {{-- Escalated Concerns --}}
         <div class="bg-white rounded-[22px] shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
                 <div>
-                    <h3 class="text-[15px] font-black text-[#0d326b]">Recent Reports</h3>
-                    <p class="text-[11px] text-slate-400 mt-0.5">Help requests from students</p>
+                    <h3 class="text-[15px] font-black text-[#0d326b]">Escalated Concerns</h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Concerns escalated by teachers</p>
                 </div>
                 <a href="{{ route('admin.reports') }}" class="text-[11px] font-black uppercase tracking-wider text-[#0d326b] hover:underline">View All</a>
             </div>
             <div class="divide-y divide-slate-50">
                 @forelse($recentReports as $report)
                 @php
-                    $sm = ['pending'=>['bg'=>'bg-amber-100','text'=>'text-amber-700','label'=>'Pending'],'in_progress'=>['bg'=>'bg-blue-100','text'=>'text-blue-700','label'=>'In Progress'],'responded'=>['bg'=>'bg-purple-100','text'=>'text-purple-700','label'=>'Responded'],'resolved'=>['bg'=>'bg-emerald-100','text'=>'text-emerald-700','label'=>'Resolved']];
-                    $sc = $sm[$report->status] ?? $sm['pending'];
+                    $sm = [
+                        'escalated' => ['bg' => 'bg-amber-100', 'text' => 'text-amber-700', 'label' => 'Escalated'],
+                        'closed'    => ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-700', 'label' => 'Resolved'],
+                    ];
+                    $sc = $sm[$report->status] ?? ['bg' => 'bg-amber-100', 'text' => 'text-amber-700', 'label' => 'Escalated'];
+                    $teacherName = $report->escalator?->name ?? ($report->teacher ? trim($report->teacher->first_name . ' ' . $report->teacher->last_name) : null);
                 @endphp
                 <div class="flex items-start gap-3 px-6 py-3.5">
                     <div class="w-8 h-8 rounded-full bg-[#0d326b] flex items-center justify-center text-white text-[11px] font-black flex-shrink-0">
-                        {{ strtoupper(substr($report->student->first_name??'U',0,1).substr($report->student->last_name??'?',0,1)) }}
+                        {{ strtoupper(substr($report->student->first_name??'S',0,1).substr($report->student->last_name??'?',0,1)) }}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-[13px] font-bold text-slate-800 truncate">{{ trim(($report->student->first_name??'').(' ').($report->student->last_name??'Unknown')) }}</p>
-                        <p class="text-[11px] text-slate-400 truncate mt-0.5">{{ Str::limit($report->message,50) }}</p>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <p class="text-[13px] font-bold text-slate-800 truncate">{{ trim(($report->student->first_name??'').(' ').($report->student->last_name??'Unknown Student')) }}</p>
+                            @if($teacherName)
+                                <span class="text-[10px] text-slate-400 font-medium truncate">• via {{ $teacherName }}</span>
+                            @endif
+                        </div>
+                        <p class="text-[11px] text-slate-500 truncate mt-0.5">{{ $report->escalation_reason ?: Str::limit($report->message, 50) }}</p>
                     </div>
                     <span class="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full {{ $sc['bg'] }} {{ $sc['text'] }}">{{ $sc['label'] }}</span>
                 </div>
                 @empty
                 <div class="px-6 py-8 text-center">
-                    <span class="material-symbols-outlined text-slate-200 text-[36px]">inbox</span>
-                    <p class="text-[13px] text-slate-400 mt-2">No reports yet</p>
+                    <span class="material-symbols-outlined text-slate-200 text-[36px]">flag</span>
+                    <p class="text-[13px] text-slate-400 mt-2">No escalated concerns yet</p>
+                    <p class="text-[11px] text-slate-300 mt-0.5">Concerns escalated by teachers will appear here</p>
                 </div>
                 @endforelse
             </div>
