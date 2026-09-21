@@ -2495,15 +2495,15 @@ footer {
       </div>
    <div class="hero-stats">
     <div>
-        <div class="stat-num" data-count="{{ $gestureAccuracy ?? 98 }}">{{ $gestureAccuracy ?? 98 }}%</div>
-        <div class="stat-label">gesture accuracy</div>
+        <div class="stat-num" data-count="{{ $totalSigns ?? 51 }}" data-stat-key="totalSigns">{{ $totalSigns ?? 51 }}</div>
+        <div class="stat-label">FSL signs</div>
     </div>
     <div>
         <div class="stat-num" data-count="{{ $totalStudents ?? 0 }}" data-stat-key="totalStudents">{{ number_format($totalStudents ?? 0) }}</div>
         <div class="stat-label">Total learners</div>
     </div>
     <div>
-        <div class="stat-num" data-count="{{ $totalLessons ?? 0 }}">{{ number_format($totalLessons ?? 0) }}</div>
+        <div class="stat-num" data-count="{{ $totalLessons ?? 0 }}" data-stat-key="totalLessons">{{ number_format($totalLessons ?? 0) }}</div>
         <div class="stat-label">FSL lessons</div>
     </div>
 </div>
@@ -2511,7 +2511,7 @@ footer {
 
     <div class="hero-carousel reveal visible" id="heroCarousel">
       <div class="hero-float-badge hfb-1"><i class="fa-solid fa-hand-sparkles"></i> Gesture detected</div>
-      <div class="hero-float-badge hfb-2"><i class="fa-solid fa-bolt" style="color:var(--amber);"></i> 98% accuracy</div>
+      <div class="hero-float-badge hfb-2"><i class="fa-solid fa-bolt" style="color:var(--amber);"></i> {{ $gestureAccuracy ?? 0 }}% accuracy</div>
       <div class="hero-float-badge hfb-3"><i class="fa-solid fa-robot"></i> AI feedback live</div>
 
       <div class="hero-carousel-track" id="heroCarouselTrack">
@@ -2575,7 +2575,7 @@ footer {
   <div class="floating-badge top-right">
     <div class="icon"><i class="fa-solid fa-star" style="color:var(--amber);"></i></div>
     <div>
-        <div class="label">{{ $gestureAccuracy ?? 98 }}% Accuracy</div>
+        <div class="label">{{ $gestureAccuracy ?? 0 }}% Accuracy</div>
         <div class="sub">AI recognition rate</div>
     </div>
 </div>

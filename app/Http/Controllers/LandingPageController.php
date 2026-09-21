@@ -35,6 +35,9 @@ class LandingPageController extends Controller
             ->whereNull('deleted_at')
             ->count();
 
+        // ─── TOTAL SIGNS (GESTURES) ─────────────────────────────────────
+        $totalSigns = DB::table('gestures')->count();
+
         // ─── GESTURE ACCURACY ──────────────────────────────────────────
         $gestureStats = DB::table('gesture_performances')
             ->select(
@@ -45,7 +48,8 @@ class LandingPageController extends Controller
 
         $accuracy = 0;
         if ($gestureStats && $gestureStats->total_attempts > 0) {
-            $accuracy = round(($gestureStats->total_successful / $gestureStats->total_attempts) * 100);
+            $rawAccuracy = ($gestureStats->total_successful / $gestureStats->total_attempts) * 100;
+            $accuracy = $rawAccuracy == round($rawAccuracy) ? (int) $rawAccuracy : round($rawAccuracy, 1);
         }
 
         // ─── ACTIVE LEARNERS (last 7 days) ─────────────────────────────
@@ -81,7 +85,8 @@ class LandingPageController extends Controller
             // Hero stats
             'totalStudents'         => $totalStudents,
             'totalLessons'          => $totalLessons,
-            'gestureAccuracy'       => 98,
+            'totalSigns'            => $totalSigns ?: 51,
+            'gestureAccuracy'       => $accuracy,
             'activeLearners'        => $activeLearners,
             // Teacher Dashboard stats
             'totalTeachers'         => $totalTeachers,
