@@ -45,7 +45,12 @@ class GeminiService
         $systemPrompt = $this->buildSystemPrompt($params);
         $userPrompt   = $this->buildUserPrompt($params);
 
-        $rawContent = $this->callGemini($systemPrompt, $userPrompt, 8192, 90);
+        try {
+            $rawContent = $this->callGemini($systemPrompt, $userPrompt, 8192, 90);
+        } catch (\RuntimeException $e) {
+            Log::warning('Gemini generate() failed — falling back to DeepSeek', ['error' => $e->getMessage()]);
+            return (new DeepSeekService())->generate($params);
+        }
 
         $lesson = $this->parseJson($rawContent, 'Gemini');
         $this->validateLessonStructure($lesson, $params['num_slides']);
@@ -119,11 +124,18 @@ class GeminiService
         $systemPrompt = $this->buildQuizOnlySystemPrompt($numMc, $numTf, $numDd, $numGt, $total, $gestureCatalog);
         $userPrompt   = "Generate {$total} quiz questions ({$numMc} multiple choice, {$numTf} true/false, {$numDd} drag/drop, {$numGt} gesture) based on the following lesson content:\n\n---\n{$contentText}\n---";
 
-        $rawContent = $this->callGemini($systemPrompt, $userPrompt, 3000, 60);
+        try {
+            $rawContent = $this->callGemini($systemPrompt, $userPrompt, 3000, 60);
+        } catch (\RuntimeException $e) {
+            Log::warning('Gemini generateQuizOnly() failed — falling back to DeepSeek', ['error' => $e->getMessage()]);
+            return (new DeepSeekService())->generateQuizOnly($contentText, $numMc, $numTf, $numDd, $numGt, $gestureCatalog);
+        }
+
         $data = $this->parseJson($rawContent, 'Gemini');
 
         if (empty($data['quiz']) || !is_array($data['quiz'])) {
-            throw new \RuntimeException('Gemini returned no quiz questions. Please try again.');
+            Log::warning('Gemini returned no quiz questions — falling back to DeepSeek');
+            return (new DeepSeekService())->generateQuizOnly($contentText, $numMc, $numTf, $numDd, $numGt, $gestureCatalog);
         }
 
         return $data['quiz'];
@@ -166,7 +178,13 @@ Additional instructions: {$extra}
 Capture the key ideas from the document and turn them into engaging lesson slides and {$totalQuestions} quiz questions.
 TEXT;
 
-        $rawContent = $this->callGemini($systemPrompt, $userPrompt, 4096, 90);
+        try {
+            $rawContent = $this->callGemini($systemPrompt, $userPrompt, 4096, 90);
+        } catch (\RuntimeException $e) {
+            Log::warning('Gemini generateFromPdfText() failed — falling back to DeepSeek', ['error' => $e->getMessage()]);
+            return (new DeepSeekService())->generateFromPdfText($pdfText, $params);
+        }
+
         $lesson = $this->parseJson($rawContent, 'Gemini');
         $this->validateLessonStructure($lesson, (int) $params['num_slides']);
 
