@@ -418,3 +418,61 @@ Route::get('/api/testing/export', [TestingController::class, 'export'])->name('a
 Route::get('/api/testing/metrics', [TestingController::class, 'metrics'])->name('api.testing.metrics');
 Route::get('/api/testing/export-csv', [TestingController::class, 'exportCsv'])->name('api.testing.export-csv');
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEACHER LEADER ROUTES
+// Dedicated portal — no admin or teacher routes bleed in here.
+// ─────────────────────────────────────────────────────────────────────────────
+use App\Http\Controllers\TeacherLeader\TeacherLeaderController;
+
+Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher_leader'])
+    ->prefix('teacher-leader')
+    ->name('teacher-leader.')
+    ->group(function () {
+
+    // Dashboard — School Academic Performance
+    Route::get('/dashboard', [TeacherLeaderController::class, 'dashboard'])->name('dashboard');
+
+    // Default Lessons — read-only curriculum catalog
+    Route::get('/lessons', [TeacherLeaderController::class, 'lessons'])->name('lessons');
+
+    // AJAX: lesson preview detail for modal
+    Route::get('/lessons/{lessonId}/preview', [TeacherLeaderController::class, 'lessonPreview'])->name('lessons.preview');
+
+    // System Media — read-only gallery
+    Route::get('/media', [TeacherLeaderController::class, 'media'])->name('media');
+
+    // Analytics — School Academic Insights
+    Route::get('/analytics', [TeacherLeaderController::class, 'analytics'])->name('analytics');
+    Route::post('/analytics/filter', [TeacherLeaderController::class, 'analyticsFilter'])->name('analytics.filter');
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ICT COORDINATOR ROUTES
+// Dedicated portal — no admin/teacher/teacher_leader routes bleed in here.
+// ─────────────────────────────────────────────────────────────────────────────
+use App\Http\Controllers\Ict\IctController;
+
+Route::middleware(['auth', 'auth.session', 'no.cache', 'ict'])
+    ->prefix('ict')
+    ->name('ict.')
+    ->group(function () {
+
+    // Dashboard — System Adoption & Popularity
+    Route::get('/dashboard', [IctController::class, 'dashboard'])->name('dashboard');
+
+    // Account Management — school-scoped teachers + teacher_leaders
+    Route::get('/accounts',                         [IctController::class, 'accounts'])->name('accounts');
+    Route::post('/accounts/add',                    [IctController::class, 'addAccount'])->name('accounts.add');
+    Route::patch('/accounts/{id}/status',           [IctController::class, 'updateStatus'])->name('accounts.status');
+    Route::patch('/accounts/{id}/role',             [IctController::class, 'updateRole'])->name('accounts.role');
+    Route::post('/accounts/{id}/reset-password',    [IctController::class, 'resetPassword'])->name('accounts.reset-password');
+
+    // Settings — school profile + personal profile + password
+    Route::get('/settings',                  [IctController::class, 'settings'])->name('settings');
+    Route::patch('/settings/profile',        [IctController::class, 'updateProfile'])->name('settings.profile');
+    Route::patch('/settings/school',         [IctController::class, 'updateSchool'])->name('settings.school');
+    Route::patch('/settings/password',       [IctController::class, 'updatePassword'])->name('settings.password');
+});
