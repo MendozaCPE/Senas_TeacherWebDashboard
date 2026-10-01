@@ -446,6 +446,9 @@ Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher_leader'])
     // Analytics — School Academic Insights
     Route::get('/analytics', [TeacherLeaderController::class, 'analytics'])->name('analytics');
     Route::post('/analytics/filter', [TeacherLeaderController::class, 'analyticsFilter'])->name('analytics.filter');
+
+    // Reports — Per-teacher class performance with student drill-down
+    Route::get('/reports', [TeacherLeaderController::class, 'reports'])->name('reports');
 });
 
 

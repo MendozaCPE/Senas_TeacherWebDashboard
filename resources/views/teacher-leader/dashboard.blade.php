@@ -626,85 +626,101 @@ if (empty($insights)) {
                 @endif
             </div>
 
-            <!-- ── Recent Engagement (styled exactly like My Students) ──────── -->
+            <!-- ── Teachers in School (styled like My Students panel) ─────── -->
             <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
                 <!-- Header -->
                 <div class="px-7 pt-7 pb-4 flex items-center justify-between flex-shrink-0">
                     <div>
-                        <h4 class="text-[15px] font-black text-[#0d326b]">Recent Engagement</h4>
-                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">{{ $activeStudents }} active this week</p>
+                        <h4 class="text-[15px] font-black text-[#0d326b]">Teachers</h4>
+                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">{{ $totalTeachers }} in {{ $school->name ?? 'your school' }}</p>
                     </div>
                     <a href="{{ route('teacher-leader.analytics') }}"
                        class="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-[#0d326b] hover:bg-[#e8eef8] transition-colors">
-                        View All
+                        Analytics
                     </a>
                 </div>
 
-                <!-- Divider -->
                 <div class="mx-7 border-t border-slate-100 flex-shrink-0"></div>
 
-                <!-- Scrollable list -->
+                <!-- Scrollable teacher list -->
                 <div class="overflow-y-auto divide-y divide-slate-50 flex-shrink-0" style="max-height: 460px">
-                    @forelse($recentEngagement as $s)
+                    @forelse($recentTeachers as $row)
                     @php
-                        $mastery = $s->fsl_mastery_level ?? 'Beginner';
-                        $masteryMap = [
-                            'beginner'     => ['bg' => '#eff6ff', 'text' => '#1e4b8f', 'dot' => '#93c5fd'],
-                            'elementary'   => ['bg' => '#dbeafe', 'text' => '#1e4b8f', 'dot' => '#3b82f6'],
-                            'intermediate' => ['bg' => '#bfdbfe', 'text' => '#0d326b', 'dot' => '#1a6fd4'],
-                            'advanced'     => ['bg' => '#0d326b', 'text' => '#ffffff', 'dot' => '#93c5fd'],
-                        ];
-                        $mk = strtolower(trim($mastery));
-                        $mc = $masteryMap[$mk] ?? $masteryMap['beginner'];
-                        $level = $s->level ?? 1;
-                        $xp = $s->total_xp ?? 0;
-                        $xpNext = $level * 100;
-                        $xpPct = $xpNext > 0 ? min(100, round(($xp % $xpNext) / $xpNext * 100)) : 0;
+                        $t    = $row['teacher'];
+                        $u    = $row['user'];
+                        $avg  = $row['avg_score'];
+                        $scoreColor = $avg >= 75 ? '#16a34a' : ($avg >= 50 ? '#d97706' : ($avg > 0 ? '#ef4444' : '#94a3b8'));
+                        $scoreBg    = $avg >= 75 ? '#f0fdf4' : ($avg >= 50 ? '#fffbeb' : ($avg > 0 ? '#fef2f2' : '#f8fafc'));
+                        $statusColor = ($u?->status === 'active') ? '#16a34a' : '#94a3b8';
+                        $statusBg    = ($u?->status === 'active') ? '#f0fdf4' : '#f8fafc';
                     @endphp
                     <div class="flex items-center gap-4 px-7 py-4 hover:bg-slate-50 transition-colors">
-                        <!-- Avatar -->
+
+                        <!-- Avatar with status dot -->
                         <div class="relative flex-shrink-0">
-                            <img src="{{ $s->avatarUrl() }}"
+                            <img src="{{ $u?->avatarUrl() ?? 'https://ui-avatars.com/api/?name=T&background=0d326b&color=fff&size=128&bold=true&rounded=true' }}"
                                  class="w-11 h-11 rounded-full shadow-sm object-cover bg-[#0d326b]"
-                                 alt="{{ $s->first_name }}"
-                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ urlencode($s->initials) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
-                            <!-- Level badge -->
-                            <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#0d326b] border-2 border-white flex items-center justify-center">
-                                <span class="text-[8px] font-black text-white leading-none">{{ $level }}</span>
-                            </div>
+                                 alt="{{ $t->first_name }}"
+                                 onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode(substr($t->first_name,0,1).substr($t->last_name,0,1)) }}&background=0d326b&color=fff&size=128&bold=true&rounded=true'">
+                            <!-- Online status dot -->
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
+                                  style="background: {{ $statusColor }}"></span>
                         </div>
 
-                        <!-- Info -->
+                        <!-- Teacher info -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between gap-2 mb-1">
-                                <p class="text-[13px] font-bold text-slate-800 truncate">{{ $s->first_name }} {{ $s->last_name }}</p>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex-shrink-0"
-                                      style="background: {{ $mc['bg'] }}; color: {{ $mc['text'] }};">
-                                    <span class="w-1.5 h-1.5 rounded-full" style="background: {{ $mc['dot'] }};"></span>
-                                    {{ $mastery }}
+                                <p class="text-[13px] font-bold text-slate-800 truncate">
+                                    {{ $t->first_name }} {{ $t->last_name }}
+                                </p>
+                                @if($avg > 0)
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black flex-shrink-0"
+                                      style="background:{{ $scoreBg }};color:{{ $scoreColor }}">
+                                    {{ $avg }}%
                                 </span>
+                                @else
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 bg-slate-100 text-slate-400">
+                                    No data
+                                </span>
+                                @endif
                             </div>
 
-                            <div class="flex items-center gap-2">
+                            <!-- Progress bar = avg quiz score -->
+                            <div class="flex items-center gap-2 mb-1">
                                 <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                     <div class="h-full rounded-full transition-all duration-500"
-                                         style="width: {{ max(15, $xpPct) }}%; background: #1a6fd4;"></div>
+                                         style="width:{{ max(4, $avg) }}%;background:{{ $scoreColor }}"></div>
                                 </div>
-                                <span class="text-[10px] font-semibold text-slate-400 flex-shrink-0">{{ $xp }} XP</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-1">Gr. {{ $s->grade_level }} &bull; {{ $s->section }}</p>
+
+                            <div class="flex items-center gap-3 text-[10px] text-slate-400">
+                                <span class="flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[11px] icon-outline">group</span>
+                                    {{ $row['student_count'] }} {{ Str::plural('student', $row['student_count']) }}
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[11px] icon-outline">task_alt</span>
+                                    {{ $row['lessons_done'] }} done
+                                </span>
+                                @if($row['active_students'] > 0)
+                                <span class="flex items-center gap-1 text-emerald-500 font-semibold">
+                                    <span class="material-symbols-outlined text-[11px]">bolt</span>
+                                    {{ $row['active_students'] }} active
+                                </span>
+                                @endif
+                            </div>
                         </div>
                     </div>
                     @empty
                     <div class="px-6 py-8 text-center">
-                        <span class="material-symbols-outlined text-slate-200 text-[36px]">bolt</span>
-                        <p class="text-[13px] text-slate-400 mt-2">No recent activity</p>
+                        <span class="material-symbols-outlined text-slate-200 text-[36px]">school</span>
+                        <p class="text-[13px] text-slate-400 mt-2">No teachers yet</p>
                     </div>
                     @endforelse
                 </div>
 
-                {{-- Quick link to analytics --}}
-                <div class="px-7 py-3 border-t border-slate-100">
+                <!-- Footer link -->
+                <div class="px-7 py-3 border-t border-slate-100 flex-shrink-0">
                     <a href="{{ route('teacher-leader.analytics') }}"
                        class="block w-full py-3 rounded-xl text-center text-[12px] font-black uppercase tracking-wider text-white transition-all hover:opacity-90 shadow-sm"
                        style="background:linear-gradient(135deg,#0d326b 0%,#1a6fd4 100%)">

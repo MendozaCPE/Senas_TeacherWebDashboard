@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\TeacherLeader;
 
 use App\Http\Controllers\Controller;
+use App\Models\CheckpointExam;
+use App\Models\CheckpointExamAssignment;
 use App\Models\GestureMedia;
+use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Student;
+use App\Models\StudentLessonProgress;
 use App\Models\Teacher;
 use App\Models\User;
 use App\Services\LessonTemplateService;
@@ -41,12 +45,14 @@ class TeacherLeaderController extends Controller
         return (int) (Auth::user()->teacher->school_id ?? 0);
     }
 
-    /**
-     * Collect the IDs of every teacher in this school.
-     */
     private function schoolTeacherIds(int $schoolId): \Illuminate\Support\Collection
     {
-        return Teacher::where('school_id', $schoolId)->pluck('id');
+        return Teacher::where('school_id', $schoolId)
+            ->whereHas('user', fn ($q) => $q
+                ->where('role', 'teacher')
+                ->where('is_system', false)
+            )
+            ->pluck('id');
     }
 
     /**
@@ -156,12 +162,37 @@ class TeacherLeaderController extends Controller
             ->values()
             ->take(3);
 
-        // ── Recent Engagement: newest active students ─────────────────────────
-        $recentEngagement = Student::whereIn('student_id', $studentIds)
-            ->whereNotNull('last_activity_date')
-            ->orderByDesc('last_activity_date')
-            ->limit(6)
-            ->get();
+        // ── Recently active teachers in the school ───────────────────────────
+        $recentTeachers = Teacher::whereIn('id', $teacherIds)
+            ->with(['user', 'students'])
+            ->get()
+            ->map(function ($teacher) use ($studentIds) {
+                // Per-teacher stats
+                $tStudentIds = $teacher->students()->pluck('student_id');
+                $avgScore = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where('status', 'completed')
+                    ->avg('percentage') ?? 0;
+                $completedLessons = DB::table('lesson_assignments')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where('status', 'completed')
+                    ->count();
+                $activeStudentsCount = Student::whereIn('student_id', $tStudentIds)
+                    ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
+                    ->count();
+                return [
+                    'teacher'        => $teacher,
+                    'user'           => $teacher->user,
+                    'student_count'  => $tStudentIds->count(),
+                    'avg_score'      => round((float) $avgScore, 1),
+                    'lessons_done'   => $completedLessons,
+                    'active_students'=> $activeStudentsCount,
+                    'last_active'    => $teacher->user?->updated_at,
+                ];
+            })
+            ->sortByDesc('last_active')
+            ->values()
+            ->take(8);
 
         // ── Sparklines (7 days) ───────────────────────────────────────────────
         $sparkDates      = [];
@@ -182,7 +213,7 @@ class TeacherLeaderController extends Controller
             'totalTeachers', 'totalStudents',
             'completionRate', 'totalAssigned', 'totalCompleted',
             'avgQuizScore', 'activeStudents',
-            'activityTrend', 'topClasses', 'needsSupport', 'recentEngagement',
+            'activityTrend', 'topClasses', 'needsSupport', 'recentTeachers',
             'sparkDates', 'sparkStudents', 'sparkLessons', 'sparkTeachers'
         ));
     }
@@ -500,6 +531,244 @@ class TeacherLeaderController extends Controller
         }
 
         return redirect()->route('teacher-leader.analytics');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. REPORTS — Per-teacher class performance with per-student drill-down
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function reports(Request $request)
+    {
+        $schoolId   = $this->schoolId();
+        $school     = Auth::user()->teacher->school ?? null;
+        $teacherIds = $this->schoolTeacherIds($schoolId);
+
+        // Filter: which teacher are we drilling into?
+        $filterTeacherId = (int) $request->get('teacher_id', 0);
+        if ($filterTeacherId && ! $teacherIds->contains($filterTeacherId)) {
+            $filterTeacherId = 0; // out-of-school teacher — silently reset
+        }
+
+        // Load all teachers with basic student + quiz summary
+        $teachers = Teacher::whereIn('id', $teacherIds)
+            ->with(['user', 'students' => fn ($q) => $q->where('status', 'active')])
+            ->get()
+            ->map(function ($teacher) {
+                $studentIds = $teacher->students->pluck('student_id');
+                $totalStudents = $studentIds->count();
+
+                $avgScore = round((float) DB::table('quiz_attempts')
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'completed')
+                    ->avg('percentage') ?? 0, 1);
+
+                $assigned  = DB::table('lesson_assignments')
+                    ->whereIn('student_id', $studentIds)->count();
+                $completed = DB::table('lesson_assignments')
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'completed')->count();
+                $completionRate = $assigned > 0 ? round($completed / $assigned * 100, 1) : 0;
+
+                $activeStudents = Student::whereIn('student_id', $studentIds)
+                    ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
+                    ->count();
+
+                return [
+                    'teacher'         => $teacher,
+                    'total_students'  => $totalStudents,
+                    'avg_score'       => $avgScore,
+                    'completion_rate' => $completionRate,
+                    'active_students' => $activeStudents,
+                    'status'          => $avgScore >= 75 ? 'on_track' : ($avgScore >= 50 ? 'needs_attention' : 'needs_support'),
+                ];
+            })
+            ->sortByDesc('avg_score')
+            ->values();
+
+        // If drilling into a specific teacher, build the per-student report
+        $selectedTeacher    = null;
+        $studentReports     = collect();
+        $lessons            = collect();
+        $checkpointExams    = collect();
+
+        if ($filterTeacherId) {
+            $selectedTeacher = Teacher::with(['user', 'school'])->find($filterTeacherId);
+
+            if ($selectedTeacher) {
+                $teacherId  = $selectedTeacher->id;
+                $students   = Student::where('teacher_id', $teacherId)
+                    ->where('status', 'active')
+                    ->orderBy('first_name')
+                    ->get();
+
+                $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
+                $teacherModuleIds = $modules->pluck('module_id');
+
+                $lessons = Lesson::where('teacher_id', $teacherId)
+                    ->where('status', 'published')
+                    ->whereNull('deleted_at')
+                    ->whereIn('module_id', $teacherModuleIds)
+                    ->with(['module', 'quiz'])
+                    ->orderBy('module_order')
+                    ->get();
+
+                $checkpointExams = CheckpointExam::where('teacher_id', $teacherId)
+                    ->where('status', 'published')
+                    ->whereIn('module_id', $teacherModuleIds)
+                    ->with(['module', 'questions'])
+                    ->orderBy('module_id')
+                    ->get();
+
+                $studentIds = $students->pluck('student_id');
+                $lessonIds  = $lessons->pluck('lesson_id');
+                $totalSteps = 7;
+
+                // Bulk StudentLessonProgress
+                $allRows = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->whereIn('lesson_id', $lessonIds)
+                    ->get()
+                    ->groupBy('student_id');
+
+                // Bulk gesture performance
+                $gestureByStudent = DB::table('gesture_performances as gp')
+                    ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
+                    ->whereIn('gp.student_id', $studentIds)
+                    ->where('gp.attempts', '>', 0)
+                    ->select('gp.student_id', 'g.name as g_name', 'g.display_name as g_display_name',
+                        'gp.attempts', 'gp.successful_attempts', 'gp.wrong_attempts',
+                        'gp.mastery_level', 'gp.is_mastered', 'gp.last_attempt_at')
+                    ->get()
+                    ->map(fn ($row) => [
+                        'student_id'         => $row->student_id,
+                        'gestureName'        => $row->g_display_name ?: $row->g_name,
+                        'attempts'           => (int) $row->attempts,
+                        'successfulAttempts' => (int) $row->successful_attempts,
+                        'wrongAttempts'      => (int) $row->wrong_attempts,
+                        'accuracy'           => $row->attempts > 0 ? round($row->successful_attempts / $row->attempts * 100, 1) : 0,
+                        'masteryLevel'       => $row->mastery_level ?? 'needs_practice',
+                        'isMastered'         => (bool) $row->is_mastered,
+                        'lastAttemptAt'      => $row->last_attempt_at ? Carbon::parse($row->last_attempt_at)->format('M d, Y') : '—',
+                    ])
+                    ->groupBy('student_id');
+
+                // Bulk checkpoint data
+                $checkpointAssignments = DB::table('checkpoint_exam_assignments')
+                    ->whereIn('student_id', $studentIds)
+                    ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
+                    ->get()->groupBy('student_id');
+
+                $checkpointAttempts = DB::table('checkpoint_exam_attempts')
+                    ->whereIn('student_id', $studentIds)
+                    ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
+                    ->whereIn('status', ['completed', 'failed'])
+                    ->get()->groupBy('student_id');
+
+                $studentReports = $students->map(function ($student) use (
+                    $allRows, $lessons, $checkpointExams,
+                    $gestureByStudent, $checkpointAssignments, $checkpointAttempts, $totalSteps
+                ) {
+                    $rows        = $allRows->get($student->student_id) ?? collect();
+                    $progressMap = $rows->keyBy('lesson_id');
+
+                    // Lesson breakdown
+                    $lessonBreakdown = $lessons->map(function ($lesson) use ($progressMap, $totalSteps) {
+                        $row     = $progressMap->get($lesson->lesson_id);
+                        $started = $row !== null;
+                        return [
+                            'lessonTitle'   => $lesson->title,
+                            'difficulty'    => $lesson->difficulty ?? '—',
+                            'lessonType'    => $lesson->lesson_type ?? '',
+                            'is_exam'       => false,
+                            'moduleTitle'   => $lesson->module?->title ?? 'Unassigned',
+                            'module_id'     => $lesson->module_id,
+                            'ai_generated'  => (bool) $lesson->ai_generated,
+                            'started'       => $started,
+                            'stepPct'       => $started && $totalSteps > 0 ? min(100, round($row->current_step / $totalSteps * 100)) : 0,
+                            'completed'     => $started && (bool) $row->lesson_completed,
+                            'quizCompleted' => $started && (bool) $row->quiz_completed,
+                            'quizScore'     => $started ? $row->quiz_score : null,
+                            'lastAccessed'  => $started && $row->last_accessed_at ? Carbon::parse($row->last_accessed_at)->diffForHumans() : '—',
+                        ];
+                    })->values();
+
+                    // Checkpoint breakdown
+                    $stAssignments = $checkpointAssignments->get($student->student_id) ?? collect();
+                    $stAttempts    = $checkpointAttempts->get($student->student_id) ?? collect();
+
+                    $checkpointBreakdown = $checkpointExams->map(function ($exam) use ($stAssignments, $stAttempts) {
+                        $assign      = $stAssignments->firstWhere('exam_id', $exam->exam_id);
+                        $examAttempts = $stAttempts->where('exam_id', $exam->exam_id);
+                        $best        = $examAttempts->sortByDesc('percentage')->first();
+                        $latest      = $examAttempts->sortByDesc('completed_at')->first();
+                        $started     = ($assign && $assign->status !== 'pending') || $examAttempts->isNotEmpty();
+                        $completed   = ($assign && $assign->status === 'completed') || ($best && $best->percentage >= ($exam->passing_score ?? 60));
+                        $score       = $best ? round($best->percentage, 1) : ($assign?->score !== null ? round($assign->score, 1) : null);
+                        $last        = $latest?->completed_at ? Carbon::parse($latest->completed_at)->diffForHumans() : ($assign?->updated_at ? Carbon::parse($assign->updated_at)->diffForHumans() : '—');
+                        return [
+                            'lessonTitle'   => $exam->title,
+                            'difficulty'    => 'Exam',
+                            'lessonType'    => 'checkpoint_exam',
+                            'is_exam'       => true,
+                            'exam_id'       => $exam->exam_id,
+                            'moduleTitle'   => $exam->module?->title ?? 'Unassigned',
+                            'module_id'     => $exam->module_id,
+                            'ai_generated'  => false,
+                            'started'       => $started,
+                            'stepPct'       => $completed ? 100 : ($started ? 50 : 0),
+                            'completed'     => $completed,
+                            'failed'        => !$completed && $examAttempts->isNotEmpty(),
+                            'quizCompleted' => $best !== null,
+                            'quizScore'     => $score,
+                            'lastAccessed'  => $last,
+                        ];
+                    })->values();
+
+                    $allContent   = $lessonBreakdown->concat($checkpointBreakdown);
+                    $totalLessons = $lessons->count() + $checkpointExams->count();
+                    $doneCount    = $rows->where('lesson_completed', 1)->count() + $checkpointBreakdown->where('completed', true)->count();
+                    $quizDone     = $rows->where('quiz_completed', 1)->count() + $checkpointBreakdown->where('quizCompleted', true)->count();
+                    $avgScore     = $quizDone > 0 ? round(($rows->where('quiz_completed', 1)->sum('quiz_score') + $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore')->sum('quizScore')) / $quizDone, 1) : 0;
+                    $overallPct   = $totalLessons > 0 ? round($doneCount / $totalLessons * 100) : 0;
+
+                    $gRows       = $gestureByStudent->get($student->student_id) ?? collect();
+                    $totAttempts = (int) $gRows->sum('attempts');
+                    $totSuccess  = (int) $gRows->sum('successfulAttempts');
+                    $gAccuracy   = $totAttempts > 0 ? round($totSuccess / $totAttempts * 100, 1) : 0;
+
+                    return [
+                        'student_id'       => $student->student_id,
+                        'studentName'      => trim($student->first_name . ' ' . $student->last_name),
+                        'gradeLevel'       => $student->grade_level ?? 'N/A',
+                        'initials'         => $student->initials,
+                        'avatar_url'       => $student->avatarUrl(),
+                        'totalLessons'     => $totalLessons,
+                        'completedLessons' => $doneCount,
+                        'quizzesTaken'     => $quizDone,
+                        'quizzesPassed'    => $checkpointBreakdown->where('completed', true)->count() + $rows->where('quiz_completed', 1)->count(),
+                        'quizPassRate'     => $quizDone > 0 ? round($doneCount / $quizDone * 100, 1) : 0,
+                        'avgScore'         => $avgScore,
+                        'overallPct'       => $overallPct,
+                        'fslMasteryLevel'  => $student->fsl_mastery_level ?? 'Beginner',
+                        'gestureAccuracy'  => $gAccuracy,
+                        'gestureAttempts'  => $totAttempts,
+                        'gestureSuccess'   => $totSuccess,
+                        'gestureWrong'     => (int) $gRows->sum('wrongAttempts'),
+                        'gesturesMastered' => (int) $gRows->where('isMastered', true)->count(),
+                        'gestureBreakdown' => $gRows->values(),
+                        'lastAccessed'     => $rows->isNotEmpty() ? Carbon::parse($rows->sortByDesc('last_accessed_at')->first()->last_accessed_at)->diffForHumans() : '—',
+                        'lessons'          => $allContent,
+                    ];
+                })
+                ->sortBy('studentName')
+                ->values();
+            }
+        }
+
+        return view('teacher-leader.reports', compact(
+            'school', 'teachers',
+            'filterTeacherId', 'selectedTeacher',
+            'studentReports', 'lessons', 'checkpointExams'
+        ));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

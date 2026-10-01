@@ -41,6 +41,12 @@
             <span>Analytics</span>
         </a>
 
+        <a href="{{ route('teacher-leader.reports') }}"
+           class="flex items-center space-x-4 px-6 py-4 {{ request()->routeIs('teacher-leader.reports*') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->routeIs('teacher-leader.reports*') ? '' : 'icon-outline' }} text-[22px]">assignment</span>
+            <span>Reports</span>
+        </a>
+
         <div class="mx-6 my-2 border-t border-white/10"></div>
 
         <button type="button" onclick="openTlLogoutModal()"

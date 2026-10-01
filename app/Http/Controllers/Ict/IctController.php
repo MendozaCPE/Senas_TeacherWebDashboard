@@ -34,17 +34,40 @@ class IctController extends Controller
 
     private function schoolId(): int
     {
+        // ICT Coordinators are linked to a school via the teachers table
+        // (same mechanism as teacher_leader) — role is 'ict', not 'teacher'
         return (int) (Auth::user()->teacher->school_id ?? 0);
     }
 
-    /** All teacher IDs (any role) belonging to this school. */
-    private function schoolTeacherIds(int $schoolId): \Illuminate\Support\Collection
+    private function school(): ?\App\Models\School
     {
-        return Teacher::where('school_id', $schoolId)->pluck('id');
+        return Auth::user()->teacher?->school;
     }
 
-    /** All user IDs whose teacher record belongs to this school. */
+    /** Teacher IDs (role=teacher only) — excludes teacher_leader, ict, admin, and system accounts. */
+    private function schoolTeacherIds(int $schoolId): \Illuminate\Support\Collection
+    {
+        return Teacher::where('school_id', $schoolId)
+            ->whereHas('user', fn ($q) => $q
+                ->where('role', 'teacher')
+                ->where('is_system', false)
+            )
+            ->pluck('id');
+    }
+
+    /** User IDs for teachers + teacher_leaders only (not ict, not admin, not system) — used for account management table. */
     private function schoolUserIds(int $schoolId): \Illuminate\Support\Collection
+    {
+        return Teacher::where('school_id', $schoolId)
+            ->whereHas('user', fn ($q) => $q
+                ->whereIn('role', ['teacher', 'teacher_leader'])
+                ->where('is_system', false)
+            )
+            ->pluck('user_id');
+    }
+
+    /** All user IDs in the school regardless of role — used for dashboard adoption metrics. */
+    private function allSchoolUserIds(int $schoolId): \Illuminate\Support\Collection
     {
         return Teacher::where('school_id', $schoolId)->pluck('user_id');
     }
@@ -62,18 +85,19 @@ class IctController extends Controller
     public function dashboard()
     {
         $schoolId  = $this->schoolId();
-        $school    = Auth::user()->teacher->school ?? null;
-        $userIds   = $this->schoolUserIds($schoolId);
+        $school    = $this->school();
+        $allUserIds = $this->allSchoolUserIds($schoolId);  // all roles — for adoption metrics
+        $userIds    = $this->schoolUserIds($schoolId);      // teachers+teacher_leaders only — for account mgmt
         $studentIds = $this->schoolStudentIds($schoolId);
 
         // ── KPI counts ───────────────────────────────────────────────────────
-        $totalTeachers       = User::whereIn('id', $userIds)->where('role', 'teacher')->count();
-        $totalTeacherLeaders = User::whereIn('id', $userIds)->where('role', 'teacher_leader')->count();
-        $totalIct            = User::whereIn('id', $userIds)->where('role', 'ict')->count();
+        $totalTeachers       = User::whereIn('id', $allUserIds)->where('role', 'teacher')->count();
+        $totalTeacherLeaders = User::whereIn('id', $allUserIds)->where('role', 'teacher_leader')->count();
+        $totalIct            = User::whereIn('id', $allUserIds)->where('role', 'ict')->count();
         $totalStudents       = $studentIds->count();
 
         // Active users (last 7 days): teachers active = updated_at proxy
-        $activeTeachers = User::whereIn('id', $userIds)
+        $activeTeachers = User::whereIn('id', $allUserIds)
             ->whereIn('role', ['teacher', 'teacher_leader', 'ict'])
             ->where('updated_at', '>=', Carbon::now()->subDays(7))
             ->count();
@@ -82,14 +106,12 @@ class IctController extends Controller
             ->count();
 
         // ── Login trend: lesson completions + student activity as usage proxy ─
-        // (No explicit login table; we use lesson_assignments.updated_at for
-        //  teacher-side activity and students.last_activity_date for student-side)
         $usageTrend = [];
         for ($i = 13; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i)->toDateString();
             $usageTrend[] = [
                 'label'    => Carbon::now()->subDays($i)->format('M j'),
-                'teachers' => User::whereIn('id', $userIds)
+                'teachers' => User::whereIn('id', $allUserIds)
                     ->whereIn('role', ['teacher', 'teacher_leader', 'ict'])
                     ->whereDate('updated_at', $date)
                     ->count(),
@@ -107,17 +129,17 @@ class IctController extends Controller
             $day  = Carbon::now()->subDays($i);
             $date = $day->toDateString();
             $sparkDates[]    = ['short' => $day->format('M j'), 'day' => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')), 'date' => $day->format('M j, Y')];
-            $sparkTeachers[] = User::whereIn('id', $userIds)
+            $sparkTeachers[] = User::whereIn('id', $allUserIds)
                 ->whereIn('role', ['teacher', 'teacher_leader', 'ict'])
                 ->whereDate('updated_at', $date)->count();
             $sparkStudents[] = Student::whereIn('student_id', $studentIds)
                 ->whereDate('last_activity_date', $date)->count();
         }
 
-        // ── System adoption rate: active/total --──────────────────────────
-        $totalUsers    = $userIds->count() + $totalStudents;
-        $activeUsers   = $activeTeachers + $activeStudents;
-        $adoptionRate  = $totalUsers > 0 ? round($activeUsers / $totalUsers * 100, 1) : 0;
+        // ── System adoption rate: active/total ────────────────────────────
+        $totalUsers   = $allUserIds->count() + $totalStudents;
+        $activeUsers  = $activeTeachers + $activeStudents;
+        $adoptionRate = $totalUsers > 0 ? round($activeUsers / $totalUsers * 100, 1) : 0;
 
         // ── Lesson completion activity in the school ─────────────────────
         $totalLessonsDone = DB::table('lesson_assignments')
@@ -125,8 +147,8 @@ class IctController extends Controller
             ->where('status', 'completed')
             ->count();
 
-        // ── Recently active teachers ─────────────────────────────────────
-        $recentTeachers = User::whereIn('id', $userIds)
+        // ── Recently active staff (teachers + teacher_leaders only) ──────
+        $recentTeachers = User::whereIn('id', $allUserIds)
             ->whereIn('role', ['teacher', 'teacher_leader'])
             ->with('teacher')
             ->latest('updated_at')
@@ -150,7 +172,7 @@ class IctController extends Controller
     public function accounts(Request $request)
     {
         $schoolId   = $this->schoolId();
-        $school     = Auth::user()->teacher->school ?? null;
+        $school     = $this->school();
         $userIds    = $this->schoolUserIds($schoolId);
 
         $search       = trim($request->get('search', ''));
@@ -359,18 +381,18 @@ class IctController extends Controller
 
     public function settings()
     {
-        $user    = Auth::user();
-        $teacher = $user->teacher;
-        $school  = $teacher?->school;
+        $user       = Auth::user();
+        $ictProfile = $user->teacher;        // teachers row — holds school_id + first/last name for the ICT coordinator
+        $school     = $ictProfile?->school;
 
-        return view('ict.settings', compact('user', 'teacher', 'school'));
+        return view('ict.settings', compact('user', 'ictProfile', 'school'));
     }
 
     /** PATCH /ict/settings/profile */
     public function updateProfile(Request $request)
     {
-        $user    = Auth::user();
-        $teacher = $user->teacher;
+        $user       = Auth::user();
+        $ictProfile = $user->teacher;
 
         $validated = $request->validate([
             'first_name'    => 'required|string|max:100',
@@ -391,10 +413,11 @@ class IctController extends Controller
         $user->name = trim($validated['first_name'] . ' ' . $validated['last_name']);
         $user->save();
 
-        if ($teacher) {
-            $teacher->first_name = $validated['first_name'];
-            $teacher->last_name  = $validated['last_name'];
-            $teacher->save();
+        // Update the name fields in the teachers row (used for display)
+        if ($ictProfile) {
+            $ictProfile->first_name = $validated['first_name'];
+            $ictProfile->last_name  = $validated['last_name'];
+            $ictProfile->save();
         }
 
         return back()->with('success', 'Profile updated successfully.');
@@ -403,10 +426,10 @@ class IctController extends Controller
     /** PATCH /ict/settings/school */
     public function updateSchool(Request $request)
     {
-        $teacher = Auth::user()->teacher;
+        $ictProfile = Auth::user()->teacher;
 
-        if (! $teacher) {
-            return back()->with('error', 'Teacher record not found.');
+        if (! $ictProfile) {
+            return back()->with('error', 'ICT Coordinator profile record not found.');
         }
 
         $validated = $request->validate([
@@ -416,18 +439,18 @@ class IctController extends Controller
             'division'       => 'nullable|string|max:100',
         ]);
 
-        $school = $teacher->school;
+        $school = $ictProfile->school;
         if ($school) {
-            $school->name    = $validated['school_name'];
-            $school->address = $validated['school_address'] ?? $school->address;
-            $school->region  = $validated['region']         ?? $school->region;
-            $school->division = $validated['division']      ?? $school->division;
+            $school->name     = $validated['school_name'];
+            $school->address  = $validated['school_address'] ?? $school->address;
+            $school->region   = $validated['region']         ?? $school->region;
+            $school->division = $validated['division']       ?? $school->division;
             $school->save();
 
             AuditLog::record(
                 action:      'update_school',
                 module:      'ict_settings',
-                description: "School profile updated: {$school->name}",
+                description: "School profile updated by ICT Coordinator: {$school->name}",
                 userId:      Auth::id(),
                 userName:    Auth::user()->name,
                 userRole:    Auth::user()->role,
