@@ -4,7 +4,7 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
-    <title>SEÑAS — @yield('title', 'Teacher Leader Portal')</title>
+    <title>SEÑAS — @yield('title', 'Grade Leader Portal')</title>
     <link rel="icon" type="image/png" href="{{ asset('images/senya_face.png') }}">
 
     {{-- BFCache / Back-button session guard --}}
@@ -92,12 +92,12 @@
 <body class="font-sans antialiased flex h-full overflow-hidden bg-[#f5f8fc]">
     <script>document.body.classList.add('page-loading');</script>
 
-    @include('partials.teacher-leader-sidebar')
+    @include('partials.grade-leader-sidebar')
 
     <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
 
         {{-- Header --}}
-        @include('partials.teacher-leader-header')
+        @include('partials.grade-leader-header')
 
         {{-- Scrollable Content --}}
         <main class="flex-1 min-w-0 w-full overflow-y-auto overflow-x-hidden px-8 pt-2 pb-0 relative border-l border-slate-100">

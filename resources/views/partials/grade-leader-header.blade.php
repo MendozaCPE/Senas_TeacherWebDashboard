@@ -7,7 +7,7 @@
         </div>
         <div>
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none mb-0.5">
-                {{ Auth::user()->teacher->school->name ?? 'Leader Portal' }}
+                {{ Auth::user()->teacher->school->name ?? 'Grade Leader Portal' }}
             </p>
             <p class="text-[15px] font-bold text-[#0d326b] leading-none">@yield('title', 'Dashboard')</p>
         </div>

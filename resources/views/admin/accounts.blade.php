@@ -428,3 +428,4 @@ document.getElementById('accountModal').addEventListener('click', function(e) {
 });
 </script>
 @endsection
+

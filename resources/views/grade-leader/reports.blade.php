@@ -1,4 +1,4 @@
-@extends('layouts.teacher-leader')
+@extends('layouts.grade-leader')
 @section('title', 'Class Reports')
 @section('content')
 
@@ -68,7 +68,7 @@
         </div>
         @if($filterTeacherId && $selectedTeacher)
         <div class="relative z-10 pr-10 flex-shrink-0">
-            <a href="{{ route('teacher-leader.reports') }}"
+            <a href="{{ route('grade-leader.reports') }}"
                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 text-white text-[12px] font-bold transition-colors border border-white/20">
                 <span class="material-symbols-outlined text-[16px]">arrow_back</span> All Teachers
             </a>
@@ -176,7 +176,7 @@
                         };
                         $scoreColor = $row['avg_score'] >= 75 ? '#16a34a' : ($row['avg_score'] >= 50 ? '#d97706' : '#ef4444');
                     @endphp
-                    <tr onclick="window.location='{{ route('teacher-leader.reports') }}?teacher_id={{ $row['teacher']->id }}'">
+                    <tr onclick="window.location='{{ route('grade-leader.reports') }}?teacher_id={{ $row['teacher']->id }}'">
                         <td>
                             <div class="flex items-center gap-3">
                                 <img src="{{ $row['teacher']->user?->avatarUrl() ?? '' }}"
@@ -855,3 +855,5 @@ function tlBuildLineChart(containerId, opts) {
 }
 </script>
 @endpush
+
+

@@ -421,37 +421,37 @@ Route::get('/api/testing/export-csv', [TestingController::class, 'exportCsv'])->
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEACHER LEADER ROUTES
+// GRADE LEADER ROUTES
 // Dedicated portal — no admin or teacher routes bleed in here.
 // ─────────────────────────────────────────────────────────────────────────────
-use App\Http\Controllers\TeacherLeader\TeacherLeaderController;
+use App\Http\Controllers\GradeLeader\GradeLeaderController;
 
-Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher_leader'])
-    ->prefix('teacher-leader')
-    ->name('teacher-leader.')
+Route::middleware(['auth', 'auth.session', 'no.cache', 'grade_leader'])
+    ->prefix('grade-leader')
+    ->name('grade-leader.')
     ->group(function () {
 
     // Dashboard — School Academic Performance
-    Route::get('/dashboard', [TeacherLeaderController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard', [GradeLeaderController::class, 'dashboard'])->name('dashboard');
 
     // Default Lessons — read-only curriculum catalog
-    Route::get('/lessons', [TeacherLeaderController::class, 'lessons'])->name('lessons');
+    Route::get('/lessons', [GradeLeaderController::class, 'lessons'])->name('lessons');
 
     // Lesson preview page — returns rendered HTML partial for the fullscreen overlay modal
-    Route::get('/lessons/{lessonId}/preview-page', [TeacherLeaderController::class, 'lessonPreviewPage'])->name('lessons.preview-page');
+    Route::get('/lessons/{lessonId}/preview-page', [GradeLeaderController::class, 'lessonPreviewPage'])->name('lessons.preview-page');
 
     // Checkpoint Exam — read-only view
-    Route::get('/checkpoint-exam/{id}', [TeacherLeaderController::class, 'showCheckpointExam'])->name('checkpoint-exam.show');
+    Route::get('/checkpoint-exam/{id}', [GradeLeaderController::class, 'showCheckpointExam'])->name('checkpoint-exam.show');
 
     // System Media — read-only gallery
-    Route::get('/media', [TeacherLeaderController::class, 'media'])->name('media');
+    Route::get('/media', [GradeLeaderController::class, 'media'])->name('media');
 
     // Analytics — School Academic Insights
-    Route::get('/analytics', [TeacherLeaderController::class, 'analytics'])->name('analytics');
-    Route::post('/analytics/filter', [TeacherLeaderController::class, 'analyticsFilter'])->name('analytics.filter');
+    Route::get('/analytics', [GradeLeaderController::class, 'analytics'])->name('analytics');
+    Route::post('/analytics/filter', [GradeLeaderController::class, 'analyticsFilter'])->name('analytics.filter');
 
     // Reports — Per-teacher class performance with student drill-down
-    Route::get('/reports', [TeacherLeaderController::class, 'reports'])->name('reports');
+    Route::get('/reports', [GradeLeaderController::class, 'reports'])->name('reports');
 });
 
 

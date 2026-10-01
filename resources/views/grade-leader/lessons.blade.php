@@ -1,4 +1,4 @@
-@extends('layouts.teacher-leader')
+@extends('layouts.grade-leader')
 @section('title', 'Default Lessons')
 @section('content')
 
@@ -286,7 +286,7 @@
                                 <tr class="lesson-row cursor-pointer"
                                     data-lesson-id="{{ $lesson->lesson_id }}"
                                     data-page="{{ $lessonPage }}"
-                                    onclick="openPreviewModal('{{ route('teacher-leader.lessons.preview-page', $lesson->lesson_id) }}')"
+                                    onclick="openPreviewModal('{{ route('grade-leader.lessons.preview-page', $lesson->lesson_id) }}')"
                                     style="cursor:pointer;">
                                     <td class="lesson-title-cell">
                                         <div class="flex items-center gap-2.5">
@@ -305,7 +305,7 @@
                                         </span>
                                     </td>
                                     <td style="text-align:right;" onclick="event.stopPropagation();">
-                                        <button onclick="event.stopPropagation(); openPreviewModal('{{ route('teacher-leader.lessons.preview-page', $lesson->lesson_id) }}')"
+                                        <button onclick="event.stopPropagation(); openPreviewModal('{{ route('grade-leader.lessons.preview-page', $lesson->lesson_id) }}')"
                                                 class="action-link"
                                                 title="View Lesson">
                                             <span class="material-symbols-outlined text-[15px] text-[#1a6fd4]">visibility</span>
@@ -345,7 +345,7 @@
 
                 </div>
 
-                {{-- Checkpoint Exams (Read-only for Teacher Leader) --}}
+                {{-- Checkpoint Exams (Read-only for Grade Leader) --}}
                 @if($module->checkpointExams && $module->checkpointExams->isNotEmpty())
                 <div class="px-6 pb-4 pt-3 border-t border-amber-100 bg-amber-50/30">
                     <div class="text-[11px] font-bold text-amber-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
@@ -365,7 +365,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <a href="{{ route('teacher-leader.checkpoint-exam.show', $exam->hash_id) }}"
+                            <a href="{{ route('grade-leader.checkpoint-exam.show', $exam->hash_id) }}"
                                class="action-link"
                                style="color:#0d326b;background:#ffffff;border-color:#fde68a;"
                                title="View Exam">
@@ -667,4 +667,6 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 @endsection
+
+
 

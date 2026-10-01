@@ -1,4 +1,4 @@
-@extends('layouts.teacher-leader')
+@extends('layouts.grade-leader')
 @section('title', 'System Media')
 @section('content')
 
@@ -29,7 +29,6 @@
     </div>
 </div>
 {{-- ── END SKELETON ─────────────────────────────────────────────────────── --}}
-<script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('page-skeleton');if(s)s.style.display='none';});</script>
 
 <style>
 /* ── Filter tab pills ──────────────────────────────────────────────────────── */
@@ -156,6 +155,8 @@
 </style>
 
 {{-- ── Single Toolbar Card: search + filters + view-only badge ────────────── --}}
+<div class="skeleton-hide">
+
 <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm px-6 py-4 mb-6 pt-4">
 
     {{-- Top row: Search + Type + Sort + View Only badge --}}
@@ -258,7 +259,7 @@
 </div>
 
 <script>
-// ── Media Data & State ────────────────────────────────────────────────────────
+// ── Media Data & State ─────────────────────────────────────────────────────────
 const ALL_MEDIA = {!! json_encode($mediaJs) !!};
 
 let activeType          = 'all';
@@ -479,4 +480,8 @@ document.getElementById('mediaPreviewModal').addEventListener('click', e => {
 applyFilters();
 </script>
 
+</div>{{-- /skeleton-hide --}}
+
 @endsection
+
+

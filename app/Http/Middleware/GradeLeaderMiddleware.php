@@ -7,16 +7,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * TeacherLeaderMiddleware
+ * GradeLeaderMiddleware
  *
- * Guards routes that are exclusively for the teacher_leader role.
+ * Guards routes exclusively for the grade_leader role.
  * - Unauthenticated users → login page
  * - Admins             → admin dashboard
  * - Regular teachers   → teacher dashboard
+ * - ict                → ict dashboard
  * - Anyone else        → 403
- * - teacher_leader     → allowed through
+ * - grade_leader       → allowed through
  */
-class TeacherLeaderMiddleware
+class GradeLeaderMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
@@ -26,12 +27,16 @@ class TeacherLeaderMiddleware
 
         $role = Auth::user()->role;
 
-        if ($role === 'teacher_leader') {
+        if ($role === 'grade_leader') {
             return $next($request);
         }
 
         if ($role === 'admin') {
             return redirect()->route('admin.dashboard');
+        }
+
+        if ($role === 'ict') {
+            return redirect()->route('ict.dashboard');
         }
 
         if ($role === 'teacher') {

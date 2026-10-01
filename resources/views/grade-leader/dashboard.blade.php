@@ -1,4 +1,4 @@
-@extends('layouts.teacher-leader')
+@extends('layouts.grade-leader')
 @section('title', 'School Dashboard')
 @section('content')
 
@@ -332,12 +332,12 @@ if (empty($insights)) {
                     <!-- Text content -->
                     <div class="relative z-10 px-8 py-7 flex-1">
                         <h2 class="text-[26px] font-black text-white leading-tight mb-2">
-                            {{ $greeting }}, Teacher Leader {{ $leaderFirstName }}!
+                            {{ $greeting }}, Grade Leader {{ $leaderFirstName }}!
                         </h2>
                         <p class="text-[13px] text-white/70 font-medium leading-relaxed mb-5">
                             Here is a summary of your school's<br>academic progress today.
                         </p>
-                        <a href="{{ route('teacher-leader.lessons') }}"
+                        <a href="{{ route('grade-leader.lessons') }}"
                            class="inline-flex items-center space-x-2 text-[12px] font-black text-white/80 uppercase tracking-[0.1em] hover:text-white transition-colors">
                             <span>GO TO LESSONS</span>
                             <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
@@ -732,7 +732,7 @@ if (empty($insights)) {
 
                 <!-- Footer link -->
                 <div class="px-7 py-3 border-t border-slate-100 flex-shrink-0 mt-auto">
-                    <a href="{{ route('teacher-leader.reports') }}"
+                    <a href="{{ route('grade-leader.reports') }}"
                        class="block w-full py-3 rounded-xl text-center text-[12px] font-black uppercase tracking-wider text-white transition-all hover:opacity-90 shadow-sm"
                        style="background:linear-gradient(135deg,#0d326b 0%,#1a6fd4 100%)">
                         View Full Reports
@@ -1280,3 +1280,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endsection
+
+

@@ -70,7 +70,7 @@
 
         <div style="border-radius:24px;padding:22px 24px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Teacher Leaders</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Grade Leaders</span>
                 <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[20px]">verified</span>
                 </div>
@@ -118,7 +118,7 @@
                         style="appearance:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:9px 34px 9px 14px;font-size:13px;font-weight:600;color:#0d326b;cursor:pointer;outline:none;">
                     <option value="all"          {{ $roleFilter==='all'?'selected':'' }}>All Roles</option>
                     <option value="teacher"       {{ $roleFilter==='teacher'?'selected':'' }}>Teacher</option>
-                    <option value="teacher_leader"{{ $roleFilter==='teacher_leader'?'selected':'' }}>Teacher Leader</option>
+                    <option value="grade_leader"{{ $roleFilter==='grade_leader'?'selected':'' }}>Grade Leader</option>
                 </select>
                 <span class="material-symbols-outlined absolute right-2.5 pointer-events-none text-[#0d326b] text-[18px]">expand_more</span>
             </div>
@@ -158,7 +158,7 @@
         <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
             <div>
                 <h3 class="text-[15px] font-black text-[#0d326b]">School Accounts</h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">Teachers &amp; Teacher Leaders — {{ $school->name ?? '' }}</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Teachers &amp; Grade Leaders — {{ $school->name ?? '' }}</p>
             </div>
             <span class="text-[12px] font-semibold text-slate-400">
                 {{ $accounts->total() }} {{ Str::plural('account', $accounts->total()) }}
@@ -194,12 +194,12 @@
                         <td class="px-4 py-3.5 text-slate-500 hidden sm:table-cell">{{ $account->email }}</td>
                         <td class="px-4 py-3.5 text-center">
                             @php
-                                $roleStyle = $account->role==='teacher_leader'
+                                $roleStyle = $account->role==='grade_leader'
                                     ? 'background:#eff6ff;color:#1d4ed8'
                                     : 'background:#f8fafc;color:#475569';
                             @endphp
                             <span class="text-[10px] font-bold px-2.5 py-1 rounded-full" style="{{ $roleStyle }}">
-                                {{ $account->role==='teacher_leader'?'Teacher Leader':'Teacher' }}
+                                {{ $account->role==='grade_leader'?'Grade Leader':'Teacher' }}
                             </span>
                         </td>
                         <td class="px-4 py-3.5 text-center">
@@ -290,7 +290,7 @@
                     <select name="role" required
                             style="appearance:none;width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:10px 34px 10px 16px;font-size:13px;font-weight:600;color:#0d326b;outline:none;">
                         <option value="teacher">Classroom Teacher</option>
-                        <option value="teacher_leader">Teacher Leader</option>
+                        <option value="grade_leader">Grade Leader</option>
                     </select>
                     <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#0d326b] text-[18px]">expand_more</span>
                 </div>
@@ -372,9 +372,9 @@
                             style="border-color:#e2e8f0;background:#f8fafc;color:#64748b">
                         <span class="material-symbols-outlined text-[14px] align-middle mr-1">school</span>Teacher
                     </button>
-                    <button onclick="setRole('teacher_leader')"
+                    <button onclick="setRole('grade_leader')"
                             class="manage-role-btn flex-1 py-2.5 rounded-2xl text-[13px] font-bold border transition"
-                            data-val="teacher_leader"
+                            data-val="grade_leader"
                             style="border-color:#e2e8f0;background:#f8fafc;color:#64748b">
                         <span class="material-symbols-outlined text-[14px] align-middle mr-1">verified</span>Leader
                     </button>
@@ -512,7 +512,7 @@ function setRole(val) {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            showMsg('Role updated to ' + (val==='teacher_leader'?'Teacher Leader':'Teacher') + '.', true);
+            showMsg('Role updated to ' + (val==='grade_leader'?'Grade Leader':'Teacher') + '.', true);
             document.querySelectorAll('.manage-role-btn').forEach(btn => {
                 const active = btn.dataset.val === val;
                 btn.style.background  = active ? '#eff6ff' : '#f8fafc';
@@ -558,3 +558,4 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 @endsection
+

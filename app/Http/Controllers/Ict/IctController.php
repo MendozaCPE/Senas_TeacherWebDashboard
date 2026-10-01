@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
  *
  * Handles the three tabs of the School ICT Coordinator portal:
  *   - dashboard  : system adoption KPIs + login/usage trend
- *   - accounts   : school-scoped account management (teachers + teacher_leaders)
+ *   - accounts   : school-scoped account management (teachers + grade_leaders)
  *   - settings   : school profile + personal profile + password change
  *
  * Every query is strictly scoped to the ICT coordinator's assigned school_id.
@@ -35,7 +35,7 @@ class IctController extends Controller
     private function schoolId(): int
     {
         // ICT Coordinators are linked to a school via the teachers table
-        // (same mechanism as teacher_leader) — role is 'ict', not 'teacher'
+        // (same mechanism as grade_leader) — role is 'ict', not 'teacher'
         return (int) (Auth::user()->teacher->school_id ?? 0);
     }
 
@@ -44,7 +44,7 @@ class IctController extends Controller
         return Auth::user()->teacher?->school;
     }
 
-    /** Teacher IDs (role=teacher only) — excludes teacher_leader, ict, admin, and system accounts. */
+    /** Teacher IDs (role=teacher only) — excludes grade_leader, ict, admin, and system accounts. */
     private function schoolTeacherIds(int $schoolId): \Illuminate\Support\Collection
     {
         return Teacher::where('school_id', $schoolId)
@@ -55,12 +55,12 @@ class IctController extends Controller
             ->pluck('id');
     }
 
-    /** User IDs for teachers + teacher_leaders only (not ict, not admin, not system) — used for account management table. */
+    /** User IDs for teachers + grade_leaders only (not ict, not admin, not system) — used for account management table. */
     private function schoolUserIds(int $schoolId): \Illuminate\Support\Collection
     {
         return Teacher::where('school_id', $schoolId)
             ->whereHas('user', fn ($q) => $q
-                ->whereIn('role', ['teacher', 'teacher_leader'])
+                ->whereIn('role', ['teacher', 'grade_leader'])
                 ->where('is_system', false)
             )
             ->pluck('user_id');
@@ -87,18 +87,18 @@ class IctController extends Controller
         $schoolId  = $this->schoolId();
         $school    = $this->school();
         $allUserIds = $this->allSchoolUserIds($schoolId);  // all roles — for adoption metrics
-        $userIds    = $this->schoolUserIds($schoolId);      // teachers+teacher_leaders only — for account mgmt
+        $userIds    = $this->schoolUserIds($schoolId);      // teachers+grade_leaders only — for account mgmt
         $studentIds = $this->schoolStudentIds($schoolId);
 
         // ── KPI counts ───────────────────────────────────────────────────────
         $totalTeachers       = User::whereIn('id', $allUserIds)->where('role', 'teacher')->count();
-        $totalTeacherLeaders = User::whereIn('id', $allUserIds)->where('role', 'teacher_leader')->count();
+        $totalTeacherLeaders = User::whereIn('id', $allUserIds)->where('role', 'grade_leader')->count();
         $totalIct            = User::whereIn('id', $allUserIds)->where('role', 'ict')->count();
         $totalStudents       = $studentIds->count();
 
         // Active users (last 7 days): teachers active = updated_at proxy
         $activeTeachers = User::whereIn('id', $allUserIds)
-            ->whereIn('role', ['teacher', 'teacher_leader', 'ict'])
+            ->whereIn('role', ['teacher', 'grade_leader', 'ict'])
             ->where('updated_at', '>=', Carbon::now()->subDays(7))
             ->count();
         $activeStudents = Student::whereIn('student_id', $studentIds)
@@ -112,7 +112,7 @@ class IctController extends Controller
             $usageTrend[] = [
                 'label'    => Carbon::now()->subDays($i)->format('M j'),
                 'teachers' => User::whereIn('id', $allUserIds)
-                    ->whereIn('role', ['teacher', 'teacher_leader', 'ict'])
+                    ->whereIn('role', ['teacher', 'grade_leader', 'ict'])
                     ->whereDate('updated_at', $date)
                     ->count(),
                 'students' => Student::whereIn('student_id', $studentIds)
@@ -130,7 +130,7 @@ class IctController extends Controller
             $date = $day->toDateString();
             $sparkDates[]    = ['short' => $day->format('M j'), 'day' => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')), 'date' => $day->format('M j, Y')];
             $sparkTeachers[] = User::whereIn('id', $allUserIds)
-                ->whereIn('role', ['teacher', 'teacher_leader', 'ict'])
+                ->whereIn('role', ['teacher', 'grade_leader', 'ict'])
                 ->whereDate('updated_at', $date)->count();
             $sparkStudents[] = Student::whereIn('student_id', $studentIds)
                 ->whereDate('last_activity_date', $date)->count();
@@ -147,9 +147,9 @@ class IctController extends Controller
             ->where('status', 'completed')
             ->count();
 
-        // ── Recently active staff (teachers + teacher_leaders only) ──────
+        // ── Recently active staff (teachers + grade_leaders only) ──────
         $recentTeachers = User::whereIn('id', $allUserIds)
-            ->whereIn('role', ['teacher', 'teacher_leader'])
+            ->whereIn('role', ['teacher', 'grade_leader'])
             ->with('teacher')
             ->latest('updated_at')
             ->limit(6)
@@ -166,7 +166,7 @@ class IctController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 2. ACCOUNT MANAGEMENT — School-scoped teachers + teacher_leaders
+    // 2. ACCOUNT MANAGEMENT — School-scoped teachers + grade_leaders
     // ─────────────────────────────────────────────────────────────────────────
 
     public function accounts(Request $request)
@@ -181,7 +181,7 @@ class IctController extends Controller
 
         $query = User::with('teacher.school')
             ->whereIn('id', $userIds)
-            ->whereIn('role', ['teacher', 'teacher_leader']);
+            ->whereIn('role', ['teacher', 'grade_leader']);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -202,11 +202,11 @@ class IctController extends Controller
         $accounts = $query->latest()->paginate(15)->withQueryString();
 
         // Stats (school-scoped)
-        $totalAccounts       = User::whereIn('id', $userIds)->whereIn('role', ['teacher', 'teacher_leader'])->count();
+        $totalAccounts       = User::whereIn('id', $userIds)->whereIn('role', ['teacher', 'grade_leader'])->count();
         $teacherCount        = User::whereIn('id', $userIds)->where('role', 'teacher')->count();
-        $teacherLeaderCount  = User::whereIn('id', $userIds)->where('role', 'teacher_leader')->count();
-        $activeCount         = User::whereIn('id', $userIds)->whereIn('role', ['teacher', 'teacher_leader'])->where('status', 'active')->count();
-        $inactiveCount       = User::whereIn('id', $userIds)->whereIn('role', ['teacher', 'teacher_leader'])->where('status', 'inactive')->count();
+        $teacherLeaderCount  = User::whereIn('id', $userIds)->where('role', 'grade_leader')->count();
+        $activeCount         = User::whereIn('id', $userIds)->whereIn('role', ['teacher', 'grade_leader'])->where('status', 'active')->count();
+        $inactiveCount       = User::whereIn('id', $userIds)->whereIn('role', ['teacher', 'grade_leader'])->where('status', 'inactive')->count();
 
         return view('ict.accounts', compact(
             'school', 'accounts',
@@ -218,7 +218,7 @@ class IctController extends Controller
 
     /**
      * POST /ict/accounts/add
-     * Create a new teacher or teacher_leader in this school.
+     * Create a new teacher or grade_leader in this school.
      */
     public function addAccount(Request $request)
     {
@@ -228,7 +228,7 @@ class IctController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name'  => 'required|string|max:100',
             'email'      => 'required|email|unique:users,email',
-            'role'       => 'required|in:teacher,teacher_leader',
+            'role'       => 'required|in:teacher,grade_leader',
             'password'   => 'required|string|min:8|confirmed',
         ]);
 
@@ -305,7 +305,7 @@ class IctController extends Controller
 
         $user = $this->findScopedUser($id);
 
-        $validated = $request->validate(['role' => 'required|in:teacher,teacher_leader']);
+        $validated = $request->validate(['role' => 'required|in:teacher,grade_leader']);
 
         $old = $user->role;
         $user->update(['role' => $validated['role']]);
@@ -368,8 +368,8 @@ class IctController extends Controller
         }
 
         // Extra guard: never touch admins or ict/system accounts
-        if (! in_array($user->role, ['teacher', 'teacher_leader'])) {
-            abort(403, 'You can only manage teacher and teacher leader accounts.');
+        if (! in_array($user->role, ['teacher', 'grade_leader'])) {
+            abort(403, 'You can only manage teacher and Grade Leader accounts.');
         }
 
         return $user;
@@ -495,3 +495,4 @@ class IctController extends Controller
         return back()->with('success', 'Password updated successfully.');
     }
 }
+

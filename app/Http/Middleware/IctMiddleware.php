@@ -30,8 +30,8 @@ class IctMiddleware
             return redirect()->route('admin.dashboard');
         }
 
-        if ($role === 'teacher_leader') {
-            return redirect()->route('teacher-leader.dashboard');
+        if ($role === 'grade_leader') {
+            return redirect()->route('grade-leader.dashboard');
         }
 
         if ($role === 'teacher') {

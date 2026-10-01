@@ -1,4 +1,4 @@
-@extends('layouts.teacher-leader')
+@extends('layouts.grade-leader')
 @section('title', 'School Analytics')
 @section('content')
 
@@ -126,7 +126,7 @@ foreach ($completionFunnel as $idx => $seg) {
             <p class="text-[15px] font-black text-[#0d326b]">School Analytics</p>
             <p class="text-[11px] text-slate-400 mt-0.5">Scoped to <span class="font-semibold text-slate-600">{{ $school->name ?? 'your school' }}</span></p>
         </div>
-        <form method="POST" action="{{ route('teacher-leader.analytics.filter') }}" class="flex items-center gap-2 flex-wrap">
+        <form method="POST" action="{{ route('grade-leader.analytics.filter') }}" class="flex items-center gap-2 flex-wrap">
             @csrf
             <div class="filter-wrap">
                 <select name="period" class="filter-select" onchange="this.form.submit()">
@@ -472,3 +472,5 @@ foreach ($completionFunnel as $idx => $seg) {
 
 </div>{{-- /skeleton-hide --}}
 @endsection
+
+

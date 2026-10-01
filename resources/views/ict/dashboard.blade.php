@@ -103,10 +103,10 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             <p class="text-[12px] text-white/70 font-medium">registered in school</p>
         </div>
 
-        {{-- Teacher Leaders --}}
+        {{-- Grade Leaders --}}
         <div style="border-radius:24px;padding:22px 24px;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Teacher Leaders</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Grade Leaders</span>
                 <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[20px]">verified</span>
                 </div>
@@ -304,3 +304,4 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
 
 </div>{{-- /skeleton-hide --}}
 @endsection
+

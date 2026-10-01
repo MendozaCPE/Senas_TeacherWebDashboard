@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\TeacherLeader;
+namespace App\Http\Controllers\GradeLeader;
 
 use App\Http\Controllers\Controller;
 use App\Models\CheckpointExam;
@@ -20,18 +20,18 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
- * TeacherLeaderController
+ * GradeLeaderController
  *
- * Handles all four tabs of the Teacher Leader portal:
+ * Handles all tabs of the Grade Leader portal:
  *   - dashboard  : school-wide KPIs + performance widgets
  *   - lessons    : read-only view of default curriculum templates
  *   - media      : read-only view of system gesture media
  *   - analytics  : school-scoped academic charts & breakdowns
  *
- * All data is strictly filtered by the Teacher Leader's assigned school_id.
+ * All data is strictly filtered by the Grade Leader's assigned school_id.
  * No create / edit / delete actions are exposed.
  */
-class TeacherLeaderController extends Controller
+class GradeLeaderController extends Controller
 {
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
@@ -301,7 +301,7 @@ class TeacherLeaderController extends Controller
             ]);
         });
 
-        return view('teacher-leader.dashboard', compact(
+        return view('grade-leader.dashboard', compact(
             'school', 'schoolId',
             'totalTeachers', 'totalStudents',
             'completionRate', 'totalAssigned', 'totalCompleted',
@@ -338,7 +338,7 @@ class TeacherLeaderController extends Controller
         $totalLessons  = $modules->sum(fn ($m) => $m->lessons->count());
         $totalModules  = $modules->count();
 
-        return view('teacher-leader.lessons', compact('modules', 'totalLessons', 'totalModules'));
+        return view('grade-leader.lessons', compact('modules', 'totalLessons', 'totalModules'));
     }
 
     /**
@@ -436,7 +436,7 @@ class TeacherLeaderController extends Controller
 
     /**
      * Read-only view for a default checkpoint exam.
-     * GET /teacher-leader/checkpoint-exam/{id}
+     * GET /grade-leader/checkpoint-exam/{id}
      */
     public function showCheckpointExam($id)
     {
@@ -545,7 +545,7 @@ class TeacherLeaderController extends Controller
             ];
         })->values()->toArray();
 
-        return view('teacher-leader.media', compact('allMedia', 'stats', 'mediaJs'));
+        return view('grade-leader.media', compact('allMedia', 'stats', 'mediaJs'));
     }
 
     private function resolveMediaType(?string $mimeType, string $dbType): string
@@ -734,7 +734,7 @@ class TeacherLeaderController extends Controller
                 ];
             });
 
-        return view('teacher-leader.analytics', compact(
+        return view('grade-leader.analytics', compact(
             'school', 'period', 'year', 'month',
             'startDate', 'endDate',
             'avgQuizScore', 'quizPassRate', 'completionRate', 'activeStudentsCount',
@@ -744,7 +744,7 @@ class TeacherLeaderController extends Controller
     }
 
     /**
-     * POST /teacher-leader/analytics/filter
+     * POST /grade-leader/analytics/filter
      * Store filters in session → redirect (PRG pattern).
      */
     public function analyticsFilter(Request $request)
@@ -761,7 +761,7 @@ class TeacherLeaderController extends Controller
             session(['tl_analytics_filters' => $validated]);
         }
 
-        return redirect()->route('teacher-leader.analytics');
+        return redirect()->route('grade-leader.analytics');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -995,7 +995,7 @@ class TeacherLeaderController extends Controller
             }
         }
 
-        return view('teacher-leader.reports', compact(
+        return view('grade-leader.reports', compact(
             'school', 'teachers',
             'filterTeacherId', 'selectedTeacher',
             'studentReports', 'lessons', 'checkpointExams'
