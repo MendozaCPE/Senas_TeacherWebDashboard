@@ -168,11 +168,30 @@ $plotW = $W - $pL - $pR; $plotH = $H - $pT - $pB; $bot = $pT + $plotH;
 $n = count($activityTrend);
 $peak = max(1, collect($activityTrend)->max(fn($d) => max($d['completions'], $d['students'])));
 
+$rawMax = max($peak, 10);
+if ($rawMax <= 10) {
+    $maxVal = 10;
+    $ticks = [0, 2, 5, 8, 10];
+} elseif ($rawMax <= 25) {
+    $maxVal = 25;
+    $ticks = [0, 5, 10, 15, 20, 25];
+} elseif ($rawMax <= 50) {
+    $maxVal = 50;
+    $ticks = [0, 10, 20, 30, 40, 50];
+} elseif ($rawMax <= 100) {
+    $maxVal = 100;
+    $ticks = [0, 25, 50, 75, 100];
+} else {
+    $step = (int) ceil($rawMax / 4 / 10) * 10;
+    $maxVal = $step * 4;
+    $ticks = range(0, $maxVal, $step);
+}
+
 $cPts = []; $sPts = [];
 foreach ($activityTrend as $i => $d) {
     $x = $n > 1 ? $pL + ($i / ($n - 1)) * $plotW : $pL + $plotW / 2;
-    $cPts[] = ['x' => round($x,2), 'y' => round($pT + $plotH - ($d['completions'] / $peak) * $plotH, 2)];
-    $sPts[] = ['x' => round($x,2), 'y' => round($pT + $plotH - ($d['students']    / $peak) * $plotH, 2)];
+    $cPts[] = ['x' => round($x,2), 'y' => round($pT + $plotH - ($d['completions'] / $maxVal) * $plotH, 2)];
+    $sPts[] = ['x' => round($x,2), 'y' => round($pT + $plotH - ($d['students']    / $maxVal) * $plotH, 2)];
 }
 $cLine = $bezier($cPts, $bot); $cArea = $bezier($cPts, $bot, true);
 $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
@@ -189,7 +208,7 @@ $leaderFirstName = Auth::user()->teacher->first_name ?? explode(' ', Auth::user(
 
 /* ── Senya Decision-making Insights (School-wide) ── */
 $activeRate = $totalStudents > 0 ? round(($activeStudents / $totalStudents) * 100) : 0;
-$supportCount = count($needsSupport->filter(fn($c) => $c['avg_score'] < 60)->all());
+$supportCount = $moreDataNeeded->count();
 
 $insights = [];
 
@@ -267,14 +286,16 @@ if ($topClasses->isNotEmpty() && $topClasses->first()['avg_score'] > 0) {
     ];
 }
 
-// 5. Classes Needing Support
-if ($supportCount > 0) {
-    $lowTeacher = $needsSupport->first()['teacher'];
-    $lowScore = $needsSupport->first()['avg_score'];
+// 5. FSL Mastery Insight
+$advCount = (int) ($fslMasteryData->firstWhere('label', 'Advanced')['count'] ?? 0);
+$intCount = (int) ($fslMasteryData->firstWhere('label', 'Intermediate')['count'] ?? 0);
+$progressedCount = $advCount + $intCount;
+if ($progressedCount > 0) {
+    $progressedPct = $totalStudents > 0 ? round(($progressedCount / $totalStudents) * 100) : 0;
     $insights[] = [
-        'category' => 'SUPPORT RECOMMENDATION',
-        'icon'     => 'school',
-        'text'     => ($supportCount === 1 ? "1 class is" : "{$supportCount} classes are")." averaging below 60% (e.g. Teacher <strong>{$lowTeacher->first_name} {$lowTeacher->last_name}</strong> at <strong>{$lowScore}%</strong>). Check in with support strategies."
+        'category' => 'SIGN LANGUAGE MASTERY',
+        'icon'     => 'sign_language',
+        'text'     => "<strong>{$progressedCount}</strong> students ({$progressedPct}%) have advanced beyond Beginner in Filipino Sign Language proficiency!"
     ];
 }
 
@@ -368,70 +389,62 @@ if (empty($insights)) {
 
             </div>
 
-            <!-- Stats Row: 4 KPI Cards (matches Teacher Dashboard) -->
+            <!-- Stats Row: 4 KPI Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
                 {{-- Total Teachers --}}
-                <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-9 h-9 rounded-full bg-[#0d326b] flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-white text-[18px]">supervisor_account</span>
                         </div>
                         <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Teachers</h3>
                     </div>
-                    <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalTeachers }}</p>
-                    <p class="text-[12px] font-medium text-[#1a6fd4] mt-2 mb-4">in {{ $school->name ?? 'your school' }}</p>
-                    <div class="mt-auto -mx-1">
-                        {!! $kpiSparkline($sparkTeachers ?: array_fill(0, 7, 0), '#0d326b', 'teachers') !!}
+                    <div>
+                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalTeachers }}</p>
+                        <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">in {{ $school->name ?? 'your school' }}</p>
                     </div>
                 </div>
 
                 {{-- Total Students --}}
-                <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-white text-[18px]">group</span>
                         </div>
                         <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Students</h3>
                     </div>
-                    <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalStudents }}</p>
-                    <p class="text-[12px] font-medium text-[#1a6fd4] mt-2 mb-4">{{ $activeStudents }} active this week</p>
-                    <div class="mt-auto -mx-1">
-                        {!! $kpiSparkline($sparkStudents ?: array_fill(0, 7, 0), '#1e4b8f', 'students') !!}
+                    <div>
+                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalStudents }}</p>
+                        <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">{{ $activeStudents }} active this week</p>
                     </div>
                 </div>
 
                 {{-- Lesson Completion Rate --}}
-                <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <div class="w-9 h-9 rounded-full bg-[#1a6fd4] flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-white text-[18px]">task_alt</span>
                         </div>
                         <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Completion Rate</h3>
                     </div>
-                    <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $completionRate }}%</p>
-                    <p class="text-[12px] font-medium text-emerald-600 mt-2 mb-4">{{ number_format($totalCompleted) }} / {{ number_format($totalAssigned) }} lessons</p>
-                    <div class="mt-auto -mx-1">
-                        {!! $kpiSparkline($sparkLessons ?: array_fill(0, 7, 0), '#22c55e', 'lessons') !!}
+                    <div>
+                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $completionRate }}%</p>
+                        <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">{{ number_format($totalCompleted) }} / {{ number_format($totalAssigned) }} lessons</p>
                     </div>
                 </div>
 
                 {{-- Avg Quiz Score --}}
-                <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
+                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                        <div class="w-9 h-9 rounded-full bg-[#3b82f6] flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-white text-[18px]">insights</span>
                         </div>
                         <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Avg Quiz Score</h3>
                     </div>
-                    <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $avgQuizScore }}%</p>
-                    <p class="text-[12px] font-medium text-amber-600 mt-2 mb-4">school-wide average</p>
-                    <div class="mt-auto -mx-1">
-                        @php
-                        $quizProxy = array_map(fn($v) => $v > 0 ? min(100, $avgQuizScore + rand(-8, 8)) : 0, $sparkStudents ?: array_fill(0, 7, 0));
-                        if (!empty($quizProxy)) $quizProxy[count($quizProxy)-1] = $avgQuizScore;
-                        @endphp
-                        {!! $kpiSparkline($quizProxy, '#f59e0b', 'quizscore') !!}
+                    <div>
+                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $avgQuizScore }}%</p>
+                        <p class="text-[12px] font-medium text-[#3b82f6] mt-2">school-wide average</p>
                     </div>
                 </div>
 
@@ -455,9 +468,35 @@ if (empty($insights)) {
                     </div>
                 </div>
 
-                <div class="bg-[#fafcff] rounded-2xl w-full relative" style="padding-bottom:38%">
-                    <svg viewBox="0 0 {{ $W }} {{ $H }}" class="absolute inset-0 w-full h-full"
-                         preserveAspectRatio="none" overflow="visible">
+                <div class="bg-[#fafcff] rounded-2xl w-full relative z-10" id="actChartWrap" style="padding-bottom:38%">
+                    <!-- Floating Tooltip (matching Teacher Dashboard style) -->
+                    <div id="actChartTooltip"
+                         class="pointer-events-none absolute z-30 opacity-0 scale-95 transition-all duration-150 -translate-x-1/2 -translate-y-full bg-[#0d326b] text-white text-[11px] rounded-xl shadow-xl px-3.5 py-2.5 whitespace-nowrap border border-blue-400/20 mb-2">
+                        <div class="flex items-center justify-between gap-3 text-[11px] leading-tight pb-1.5 border-b border-white/10">
+                            <span class="font-extrabold text-white text-[11.5px] tracking-wide" id="actTipDate">Oct 1</span>
+                            <span class="text-blue-200/80 text-[10px] font-medium" id="actTipDay">Today</span>
+                        </div>
+                        <div class="mt-1.5 flex flex-col gap-1.5">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="flex items-center gap-1.5 text-blue-200 text-[10.5px]">
+                                    <span class="w-2 h-2 rounded-full bg-white"></span>
+                                    Lessons Completed
+                                </span>
+                                <span class="text-[12px] font-black text-white" id="actTipCompletions">0</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="flex items-center gap-1.5 text-blue-200 text-[10.5px]">
+                                    <span class="w-2 h-2 rounded-full bg-[#60a5fa]"></span>
+                                    Active Students
+                                </span>
+                                <span class="text-[12px] font-black text-[#93c5fd]" id="actTipStudents">0</span>
+                            </div>
+                        </div>
+                        <div class="act-tip-arrow absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45 border-r border-b border-blue-400/20"></div>
+                    </div>
+
+                    <svg id="activityChartSvg" viewBox="0 0 {{ $W }} {{ $H }}" class="absolute inset-0 w-full h-full overflow-visible"
+                         preserveAspectRatio="none">
                         <defs>
                             <linearGradient id="tlGCFill" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="0%" stop-color="#0d326b" stop-opacity=".20"/>
@@ -468,122 +507,98 @@ if (empty($insights)) {
                                 <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0"/>
                             </linearGradient>
                         </defs>
-                        {{-- Grid lines --}}
-                        @foreach([0,25,50,75,100] as $gv)
-                            @php $gy = round($pT + $plotH - ($gv/100)*$plotH, 1); @endphp
-                            <line x1="{{ $pL }}" y1="{{ $gy }}" x2="{{ $pL+$plotW }}" y2="{{ $gy }}"
+                        {{-- Grid lines & Y-axis labels --}}
+                        @foreach($ticks as $gv)
+                            @php $gy = round($pT + $plotH - ($gv / $maxVal) * $plotH, 1); @endphp
+                            <line x1="{{ $pL }}" y1="{{ $gy }}" x2="{{ $pL + $plotW }}" y2="{{ $gy }}"
                                   stroke="#e8ecf2" stroke-width="1" stroke-dasharray="4,4"/>
-                            <text x="{{ $pL - 4 }}" y="{{ $gy + 4 }}" font-size="9" fill="#94a3b8" text-anchor="end">{{ $gv }}</text>
+                            <text x="{{ $pL - 6 }}" y="{{ $gy + 3.5 }}" font-size="9" fill="#94a3b8" text-anchor="end" font-weight="500">{{ $gv }}</text>
                         @endforeach
+
                         {{-- Area fills --}}
                         <path d="{{ $cArea }}" fill="url(#tlGCFill)"/>
                         <path d="{{ $sArea }}" fill="url(#tlGSFill)"/>
+
                         {{-- Lines --}}
                         <path d="{{ $cLine }}" fill="none" stroke="#0d326b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="{{ $sLine }}" fill="none" stroke="#1a6fd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>
-                        {{-- Dots --}}
-                        @foreach($cPts as $i => $p)
-                            <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}"
-                                    r="{{ $i===count($cPts)-1 ? 4.5 : 3 }}"
-                                    fill="{{ $i===count($cPts)-1 ? '#0d326b' : '#1e4b8f' }}"
-                                    stroke="white" stroke-width="2"/>
+
+                        {{-- Interactive crosshairs & glowing halos --}}
+                        @foreach($activityTrend as $i => $d)
+                            {{-- Vertical Crosshair Line --}}
+                            <line class="act-crosshair act-ch-{{ $i }}" data-idx="{{ $i }}"
+                                  x1="{{ $cPts[$i]['x'] }}" y1="{{ $pT }}"
+                                  x2="{{ $cPts[$i]['x'] }}" y2="{{ $pT + $plotH }}"
+                                  stroke="#0d326b" stroke-width="1.2" stroke-dasharray="3,3" stroke-opacity="0"
+                                  style="transition: stroke-opacity 0.15s ease; pointer-events: none;"/>
+
+                            {{-- Active Students Halo --}}
+                            <circle class="act-s-halo act-s-halo-{{ $i }}" data-idx="{{ $i }}"
+                                    cx="{{ $sPts[$i]['x'] }}" cy="{{ $sPts[$i]['y'] }}"
+                                    r="8" fill="#1a6fd4" fill-opacity="0"
+                                    style="transition: fill-opacity 0.18s ease, r 0.18s ease; pointer-events: none;"/>
+
+                            {{-- Lessons Completed Halo --}}
+                            <circle class="act-c-halo act-c-halo-{{ $i }}" data-idx="{{ $i }}"
+                                    cx="{{ $cPts[$i]['x'] }}" cy="{{ $cPts[$i]['y'] }}"
+                                    r="9" fill="#0d326b" fill-opacity="0"
+                                    style="transition: fill-opacity 0.18s ease, r 0.18s ease; pointer-events: none;"/>
+
+                            {{-- Active Students Dot --}}
+                            <circle class="act-s-dot act-s-dot-{{ $i }}" data-idx="{{ $i }}"
+                                    data-is-last="{{ $i === count($sPts) - 1 ? '1' : '0' }}"
+                                    cx="{{ $sPts[$i]['x'] }}" cy="{{ $sPts[$i]['y'] }}"
+                                    r="{{ $i === count($sPts) - 1 ? 4 : 2.5 }}"
+                                    fill="#1a6fd4" stroke="white" stroke-width="1.8"
+                                    style="transition: r 0.18s ease, stroke-width 0.18s ease; pointer-events: none;"/>
+
+                            {{-- Lessons Completed Dot --}}
+                            <circle class="act-c-dot act-c-dot-{{ $i }}" data-idx="{{ $i }}"
+                                    data-is-last="{{ $i === count($cPts) - 1 ? '1' : '0' }}"
+                                    cx="{{ $cPts[$i]['x'] }}" cy="{{ $cPts[$i]['y'] }}"
+                                    r="{{ $i === count($cPts) - 1 ? 4.5 : 3 }}"
+                                    fill="{{ $i === count($cPts) - 1 ? '#0d326b' : '#1e4b8f' }}"
+                                    stroke="white" stroke-width="2"
+                                    style="transition: r 0.18s ease, stroke-width 0.18s ease; pointer-events: none;"/>
                         @endforeach
-                        {{-- X labels --}}
+
+                        {{-- X-axis labels --}}
                         @foreach($activityTrend as $i => $d)
                             @if($i % 2 === 0 || $i === count($activityTrend)-1)
-                                <text x="{{ $cPts[$i]['x'] }}" y="{{ $H - 10 }}"
+                                <text x="{{ $cPts[$i]['x'] }}" y="{{ $H - 8 }}"
                                       font-size="10" fill="#94a3b8" font-weight="500" text-anchor="middle">{{ $d['label'] }}</text>
                             @endif
+                        @endforeach
+
+                        {{-- Interactive Hit Columns (transparent click/hover overlays) --}}
+                        @foreach($activityTrend as $i => $d)
+                            @php
+                                $colW = $n > 1 ? $plotW / ($n - 1) : $plotW;
+                                $hitX = $n > 1 ? max(0, $cPts[$i]['x'] - $colW / 2) : $pL;
+                                $hitW = $colW;
+                            @endphp
+                            <rect class="act-point-hit cursor-pointer" data-idx="{{ $i }}"
+                                  x="{{ $hitX }}" y="0" width="{{ $hitW }}" height="{{ $H }}"
+                                  fill="transparent"
+                                  data-label="{{ $d['label'] }}"
+                                  data-day="{{ $d['day'] ?? '' }}"
+                                  data-date="{{ $d['date'] ?? $d['label'] }}"
+                                  data-completions="{{ $d['completions'] }}"
+                                  data-students="{{ $d['students'] }}"
+                                  data-cx="{{ $cPts[$i]['x'] }}"
+                                  data-cy-completions="{{ $cPts[$i]['y'] }}"
+                                  data-cy-students="{{ $sPts[$i]['y'] }}"/>
                         @endforeach
                     </svg>
                 </div>
             </div>
-
-            {{-- Bottom two cards: Top Classes + Needs Support --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                {{-- Top Classes --}}
-                <div class="bg-white rounded-[22px] shadow-sm border border-slate-100 overflow-hidden">
-                    <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center justify-between">
-                        <div>
-                            <h3 class="text-[15px] font-black text-[#0d326b]">Top Performing Classes</h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">By avg quiz score</p>
-                        </div>
-                        <span class="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">TOP 5</span>
-                    </div>
-                    <div class="divide-y divide-slate-50">
-                        @forelse($topClasses as $idx => $class)
-                        <div class="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/50 transition-colors">
-                            <div class="w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center flex-shrink-0
-                                {{ $idx===0?'bg-[#facc15] text-[#0d326b]':($idx===1?'bg-slate-200 text-slate-600':($idx===2?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-400')) }}">
-                                {{ $idx + 1 }}
-                            </div>
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black text-white bg-[#0d326b]">
-                                {{ strtoupper(substr($class['teacher']->first_name,0,1).substr($class['teacher']->last_name,0,1)) }}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-[13px] font-bold text-slate-800 truncate">
-                                    {{ $class['teacher']->first_name }} {{ $class['teacher']->last_name }}
-                                </p>
-                                <p class="text-[11px] text-slate-400">{{ $class['student_count'] }} student{{ $class['student_count']==1?'':'s' }}</p>
-                            </div>
-                            <span class="text-[14px] font-black flex-shrink-0 {{ $class['avg_score']>=75?'text-emerald-600':($class['avg_score']>=50?'text-amber-600':'text-red-500') }}">
-                                {{ $class['avg_score'] }}%
-                            </span>
-                        </div>
-                        @empty
-                        <div class="px-6 py-8 text-center">
-                            <span class="material-symbols-outlined text-slate-200 text-[36px]">school</span>
-                            <p class="text-[13px] text-slate-400 mt-2">No class data yet</p>
-                        </div>
-                        @endforelse
-                    </div>
-                </div>
-
-                {{-- Classes Needing Support --}}
-                <div class="bg-white rounded-[22px] shadow-sm border border-slate-100 overflow-hidden">
-                    <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-amber-500 text-[20px]">warning</span>
-                        <div>
-                            <h3 class="text-[15px] font-black text-[#0d326b]">Needs Support</h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Lowest performing classes</p>
-                        </div>
-                    </div>
-                    <div class="divide-y divide-slate-50">
-                        @forelse($needsSupport as $class)
-                        <div class="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/50 transition-colors">
-                            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-50">
-                                <span class="material-symbols-outlined text-red-400 text-[18px]">person</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-[13px] font-bold text-slate-800 truncate">
-                                    {{ $class['teacher']->first_name }} {{ $class['teacher']->last_name }}
-                                </p>
-                                <p class="text-[11px] text-slate-400">{{ $class['student_count'] }} students</p>
-                            </div>
-                            <div class="text-right flex-shrink-0">
-                                <span class="text-[14px] font-black text-red-500">{{ $class['avg_score'] }}%</span>
-                                <p class="text-[10px] text-slate-400">avg score</p>
-                            </div>
-                        </div>
-                        @empty
-                        <div class="px-6 py-8 text-center">
-                            <span class="material-symbols-outlined text-emerald-300 text-[40px]">check_circle</span>
-                            <p class="text-[13px] text-slate-400 mt-2">All classes performing well!</p>
-                        </div>
-                        @endforelse
-                    </div>
-                </div>
-
-            </div>
-
         </div>
 
         <!-- ── Right Sidebar Column (matches Teacher Dashboard) ───────────── -->
         <div class="w-full lg:w-[340px] flex-shrink-0 flex flex-col space-y-4 lg:pl-2">
 
             <!-- ── Senya Insights Widget (Gold/amber gradient) ────────────── -->
-            <div class="rounded-[28px] overflow-hidden shadow-sm"
+            <div class="rounded-[28px] overflow-hidden shadow-sm flex-shrink-0"
                  style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 60%, #fbbf24 100%);">
 
                 <!-- Header bar -->
@@ -627,32 +642,28 @@ if (empty($insights)) {
             </div>
 
             <!-- ── Teachers in School (styled like My Students panel) ─────── -->
-            <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+            <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden flex-1">
                 <!-- Header -->
                 <div class="px-7 pt-7 pb-4 flex items-center justify-between flex-shrink-0">
                     <div>
                         <h4 class="text-[15px] font-black text-[#0d326b]">Teachers</h4>
                         <p class="text-[11px] text-slate-400 font-medium mt-0.5">{{ $totalTeachers }} in {{ $school->name ?? 'your school' }}</p>
                     </div>
-                    <a href="{{ route('teacher-leader.analytics') }}"
-                       class="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-[#0d326b] hover:bg-[#e8eef8] transition-colors">
-                        Analytics
-                    </a>
                 </div>
 
                 <div class="mx-7 border-t border-slate-100 flex-shrink-0"></div>
 
-                <!-- Scrollable teacher list -->
-                <div class="overflow-y-auto divide-y divide-slate-50 flex-shrink-0" style="max-height: 460px">
+                <!-- Scrollable teacher list (flex-1 expands to bottom of row) -->
+                <div class="overflow-y-auto divide-y divide-slate-50 flex-1 min-h-0">
                     @forelse($recentTeachers as $row)
                     @php
                         $t    = $row['teacher'];
                         $u    = $row['user'];
                         $avg  = $row['avg_score'];
-                        $scoreColor = $avg >= 75 ? '#16a34a' : ($avg >= 50 ? '#d97706' : ($avg > 0 ? '#ef4444' : '#94a3b8'));
-                        $scoreBg    = $avg >= 75 ? '#f0fdf4' : ($avg >= 50 ? '#fffbeb' : ($avg > 0 ? '#fef2f2' : '#f8fafc'));
-                        $statusColor = ($u?->status === 'active') ? '#16a34a' : '#94a3b8';
-                        $statusBg    = ($u?->status === 'active') ? '#f0fdf4' : '#f8fafc';
+                        $scoreColor = $avg >= 75 ? '#1a6fd4' : ($avg >= 50 ? '#1e4b8f' : ($avg > 0 ? '#0d326b' : '#94a3b8'));
+                        $scoreBg    = $avg >= 75 ? '#eff6ff' : ($avg >= 50 ? '#dbeafe' : ($avg > 0 ? '#bfdbfe' : '#f8fafc'));
+                        $statusColor = ($u?->status === 'active') ? '#1a6fd4' : '#94a3b8';
+                        $statusBg    = ($u?->status === 'active') ? '#eff6ff' : '#f8fafc';
                     @endphp
                     <div class="flex items-center gap-4 px-7 py-4 hover:bg-slate-50 transition-colors">
 
@@ -703,7 +714,7 @@ if (empty($insights)) {
                                     {{ $row['lessons_done'] }} done
                                 </span>
                                 @if($row['active_students'] > 0)
-                                <span class="flex items-center gap-1 text-emerald-500 font-semibold">
+                                <span class="flex items-center gap-1 text-[#1a6fd4] font-semibold">
                                     <span class="material-symbols-outlined text-[11px]">bolt</span>
                                     {{ $row['active_students'] }} active
                                 </span>
@@ -712,7 +723,7 @@ if (empty($insights)) {
                         </div>
                     </div>
                     @empty
-                    <div class="px-6 py-8 text-center">
+                    <div class="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
                         <span class="material-symbols-outlined text-slate-200 text-[36px]">school</span>
                         <p class="text-[13px] text-slate-400 mt-2">No teachers yet</p>
                     </div>
@@ -720,15 +731,223 @@ if (empty($insights)) {
                 </div>
 
                 <!-- Footer link -->
-                <div class="px-7 py-3 border-t border-slate-100 flex-shrink-0">
-                    <a href="{{ route('teacher-leader.analytics') }}"
+                <div class="px-7 py-3 border-t border-slate-100 flex-shrink-0 mt-auto">
+                    <a href="{{ route('teacher-leader.reports') }}"
                        class="block w-full py-3 rounded-xl text-center text-[12px] font-black uppercase tracking-wider text-white transition-all hover:opacity-90 shadow-sm"
                        style="background:linear-gradient(135deg,#0d326b 0%,#1a6fd4 100%)">
-                        View Full Analytics
+                        View Full Reports
                     </a>
                 </div>
             </div>
 
+        </div>
+
+    </div>
+
+    <!-- Bottom Row: Top Performing Classes | More Data Needed | Student Program Type (full width across the row, matching Teacher Dashboard) -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-4">
+
+        <!-- Top Performing Classes -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-base font-bold text-[#0d326b]">Top Performing Classes</h3>
+                        <p class="text-[11px] font-semibold text-slate-400 mt-0.5">By avg quiz score</p>
+                    </div>
+                    <span class="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#eff6ff] text-[#0d326b]">TOP 5</span>
+                </div>
+                <div class="divide-y divide-slate-50 mt-1">
+                    @forelse($topClasses as $idx => $class)
+                    <div class="flex items-center gap-3 py-3 hover:bg-slate-50/50 transition-colors">
+                        <div class="w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center flex-shrink-0
+                            {{ $idx===0?'bg-[#0d326b] text-white':($idx===1?'bg-[#1e4b8f] text-white':($idx===2?'bg-[#1a6fd4] text-white':'bg-[#eff6ff] text-[#0d326b]')) }}">
+                            {{ $idx + 1 }}
+                        </div>
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black text-white bg-[#0d326b]">
+                            {{ strtoupper(substr($class['teacher']->first_name,0,1).substr($class['teacher']->last_name,0,1)) }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[13px] font-bold text-slate-800 truncate">
+                                {{ $class['teacher']->first_name }} {{ $class['teacher']->last_name }}
+                            </p>
+                            <p class="text-[11px] text-slate-400">{{ $class['student_count'] }} student{{ $class['student_count']==1?'':'s' }}</p>
+                        </div>
+                        <span class="text-[14px] font-black flex-shrink-0 {{ $class['avg_score']>=75?'text-[#1a6fd4]':($class['avg_score']>=50?'text-[#1e4b8f]':'text-[#0d326b]') }}">
+                            {{ $class['avg_score'] }}%
+                        </span>
+                    </div>
+                    @empty
+                    <div class="py-8 text-center">
+                        <span class="material-symbols-outlined text-slate-200 text-[36px]">school</span>
+                        <p class="text-[13px] text-slate-400 mt-2">No quiz data yet</p>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <!-- FSL Mastery Distribution -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-36 h-36 bg-blue-50/50 rounded-full opacity-60 pointer-events-none"></div>
+
+            <div>
+                <!-- Header -->
+                <div class="flex items-start justify-between pb-4 border-b border-slate-100 relative z-10">
+                    <div>
+                        <h3 class="text-base font-bold text-[#0d326b]">FSL Mastery Distribution</h3>
+                        <p class="text-[11px] font-semibold text-slate-400 mt-0.5">School-wide proficiency breakdown</p>
+                    </div>
+                    <span class="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#eff6ff] text-[#0d326b] flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[13px] text-[#1a6fd4]">sign_language</span>
+                        {{ $totalStudents }} STUDENTS
+                    </span>
+                </div>
+
+                <!-- Individual Tier Rows -->
+                <div class="mt-4 space-y-3 relative z-10">
+                    @foreach($fslMasteryData as $tier)
+                    <div class="p-2.5 rounded-2xl hover:bg-slate-50/80 transition-colors border border-slate-50">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                                     style="background: {{ $tier['badge_bg'] }}; color: {{ $tier['badge_text'] }};">
+                                    <span class="material-symbols-outlined text-[14px]">{{ $tier['icon'] }}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-[12.5px] font-bold text-slate-800 leading-none truncate">{{ $tier['label'] }}</p>
+                                    <p class="text-[10px] text-slate-400 font-medium mt-0.5 truncate">{{ $tier['sublabel'] }}</p>
+                                </div>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <span class="text-[13px] font-black text-[#0d326b]">{{ $tier['count'] }}</span>
+                                <span class="text-[10px] font-bold text-slate-400">({{ $tier['pct'] }}%)</span>
+                            </div>
+                        </div>
+                        <!-- Individual Progress Track -->
+                        <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-700"
+                                 style="width: {{ $tier['pct'] }}%; background: linear-gradient(90deg, {{ $tier['bar_from'] }} 0%, {{ $tier['bar_to'] }} 100%);"></div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <!-- Bottom Insight Pill -->
+            @php
+                $mTotal = $fslMasteryData->sum('count');
+                $advIntCount = ($fslMasteryData->firstWhere('label', 'Advanced')['count'] ?? 0) + ($fslMasteryData->firstWhere('label', 'Intermediate')['count'] ?? 0);
+                $advIntPct   = $mTotal > 0 ? round(($advIntCount / $mTotal) * 100) : 0;
+            @endphp
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium relative z-10">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-[#1a6fd4]"></span>
+                    Progression beyond Beginner:
+                </span>
+                <span class="font-extrabold text-[#0d326b]">{{ $advIntCount }} students ({{ $advIntPct }}%)</span>
+            </div>
+        </div>
+
+        <!-- Student Program Type -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden flex flex-col justify-between">
+            <div class="absolute -top-10 -right-10 w-36 h-36 bg-blue-50/50 rounded-full opacity-60 pointer-events-none"></div>
+
+            <div class="mb-4 relative z-10">
+                <h3 class="text-base font-bold text-[#0d326b]">Student Program Type</h3>
+                <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Breakdown across all enrolled students</p>
+            </div>
+
+            @php
+                $ptTotal  = $programDonut->sum('count');
+                $ptActive = $programDonut->count();
+                $ptGap    = $ptActive > 1 ? 0.08 : 0;
+                $ptCurAngle = -M_PI / 2;
+                $ptCx = 80; $ptCy = 80; $ptInnerR = 40;
+                $ptMaxCount = $ptActive > 0 ? max(1, $programDonut->max('count')) : 1;
+                $ptPaths = [];
+                foreach ($programDonut as $seg) {
+                    $fraction  = $ptTotal > 0 ? $seg['count'] / $ptTotal : 0;
+                    $angleSpan = $fraction * 2 * M_PI;
+                    $outerR    = round(56 + 18 * ($seg['count'] / $ptMaxCount), 1);
+                    if ($ptActive === 1) {
+                        $segStart = $ptCurAngle;
+                        $segEnd   = $ptCurAngle + 2 * M_PI - 0.001;
+                    } else {
+                        $segStart = $ptCurAngle + $ptGap / 2;
+                        $segEnd   = $ptCurAngle + $angleSpan - $ptGap / 2;
+                        if ($segEnd <= $segStart) { $segStart = $ptCurAngle; $segEnd = $ptCurAngle + $angleSpan; }
+                    }
+                    $x1 = round($ptCx + $outerR * cos($segStart), 2);
+                    $y1 = round($ptCy + $outerR * sin($segStart), 2);
+                    $x2 = round($ptCx + $outerR * cos($segEnd), 2);
+                    $y2 = round($ptCy + $outerR * sin($segEnd), 2);
+                    $x3 = round($ptCx + $ptInnerR * cos($segEnd), 2);
+                    $y3 = round($ptCy + $ptInnerR * sin($segEnd), 2);
+                    $x4 = round($ptCx + $ptInnerR * cos($segStart), 2);
+                    $y4 = round($ptCy + $ptInnerR * sin($segStart), 2);
+                    $largeArc = ($segEnd - $segStart > M_PI) ? 1 : 0;
+                    $ptPaths[] = array_merge((array) $seg, [
+                        'd'      => "M {$x1} {$y1} A {$outerR} {$outerR} 0 {$largeArc} 1 {$x2} {$y2} L {$x3} {$y3} A {$ptInnerR} {$ptInnerR} 0 {$largeArc} 0 {$x4} {$y4} Z",
+                        'outerR' => $outerR,
+                    ]);
+                    $ptCurAngle += $angleSpan;
+                }
+            @endphp
+
+            @if($ptTotal === 0)
+                <div class="flex-1 flex items-center justify-center text-sm text-slate-400 italic py-12 relative z-10">No students enrolled yet</div>
+            @else
+            <div class="flex items-center gap-6 relative z-10 my-auto">
+                {{-- Donut --}}
+                <div class="relative w-36 h-36 flex-shrink-0 flex items-center justify-center">
+                    <div id="ptDonutTooltip" class="pointer-events-none absolute z-30 opacity-0 transition-opacity duration-150 left-1/2 top-0 -translate-x-1/2 -translate-y-[110%] bg-[#0d326b] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                        <span id="ptDonutLabel"></span>: <span id="ptDonutValue"></span>
+                        <div class="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45"></div>
+                    </div>
+                    <svg class="w-full h-full overflow-visible" viewBox="0 0 160 160">
+                        <defs>
+                            <filter id="ptSliceShadow" x="-10%" y="-10%" width="120%" height="120%">
+                                <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/>
+                            </filter>
+                            @foreach($ptPaths as $seg)
+                            <linearGradient id="{{ $seg['grad_id'] }}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="{{ $seg['grad_from'] }}"/>
+                                <stop offset="100%" stop-color="{{ $seg['grad_to'] }}"/>
+                            </linearGradient>
+                            @endforeach
+                        </defs>
+                        <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity="0.6"/>
+                        @foreach($ptPaths as $seg)
+                        <path class="pt-donut-seg cursor-pointer transition-all duration-200 hover:opacity-90 hover:brightness-110"
+                              d="{{ $seg['d'] }}"
+                              fill="url(#{{ $seg['grad_id'] }})"
+                              stroke="#ffffff" stroke-width="2" stroke-linejoin="round"
+                              filter="url(#ptSliceShadow)"
+                              data-label="{{ $seg['label'] }}"
+                              data-value="{{ $seg['count'] }} students ({{ $seg['pct'] }}%)"></path>
+                        @endforeach
+                        <circle cx="80" cy="80" r="39" fill="#ffffff" filter="url(#ptSliceShadow)"/>
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                        <span class="text-2xl font-black text-[#0d326b] leading-none">{{ $ptTotal }}</span>
+                        <span class="text-[8.5px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">Students</span>
+                    </div>
+                </div>
+                {{-- Legend --}}
+                <div class="space-y-3 flex-1 min-w-0">
+                    @foreach($ptPaths as $seg)
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{{ $seg['color'] }}"></div>
+                            <span class="text-[12px] font-semibold text-slate-600 truncate">{{ $seg['label'] }}</span>
+                        </div>
+                        <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $seg['count'] }} <span class="text-[10px] font-semibold text-slate-400">({{ $seg['pct'] }}%)</span></span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
 
     </div>
@@ -886,6 +1105,177 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (Math.abs(dx) > 40) pickRandom();
             }, { passive: true });
         }
+    })();
+
+    // ── Program Type Donut Tooltip ────────────────────────────────────────────
+    (function () {
+        const tip   = document.getElementById('ptDonutTooltip');
+        const label = document.getElementById('ptDonutLabel');
+        const value = document.getElementById('ptDonutValue');
+        if (!tip) return;
+        document.querySelectorAll('.pt-donut-seg').forEach(function (seg) {
+            seg.addEventListener('mouseenter', function () {
+                if (label) label.textContent = seg.dataset.label;
+                if (value) value.textContent = seg.dataset.value;
+                tip.classList.remove('opacity-0');
+                tip.classList.add('opacity-100');
+            });
+            seg.addEventListener('mouseleave', function () {
+                tip.classList.add('opacity-0');
+                tip.classList.remove('opacity-100');
+            });
+        });
+    })();
+
+    // ── School Activity 14-Day Line Chart Hover Tooltip ────────────────────────
+    (function () {
+        const wrap = document.getElementById('actChartWrap');
+        const tip  = document.getElementById('actChartTooltip');
+        const svg  = document.getElementById('activityChartSvg');
+        if (!wrap || !tip || !svg) return;
+
+        const tipDate        = document.getElementById('actTipDate');
+        const tipDay         = document.getElementById('actTipDay');
+        const tipCompletions = document.getElementById('actTipCompletions');
+        const tipStudents    = document.getElementById('actTipStudents');
+        const tipArrow       = tip.querySelector('.act-tip-arrow');
+
+        const svgW = {{ $W }};
+        const svgH = {{ $H }};
+        let hideTimer = null;
+
+        const hits = wrap.querySelectorAll('.act-point-hit');
+        hits.forEach(function (hit) {
+            const idx       = hit.dataset.idx;
+            const crosshair = wrap.querySelector('.act-ch-' + idx);
+            const cHalo     = wrap.querySelector('.act-c-halo-' + idx);
+            const sHalo     = wrap.querySelector('.act-s-halo-' + idx);
+            const cDot      = wrap.querySelector('.act-c-dot-' + idx);
+            const sDot      = wrap.querySelector('.act-s-dot-' + idx);
+
+            function activate() {
+                if (hideTimer) {
+                    clearTimeout(hideTimer);
+                    hideTimer = null;
+                }
+
+                // Deactivate any other active indicators
+                wrap.querySelectorAll('.act-crosshair').forEach(function (c) {
+                    if (c !== crosshair) c.setAttribute('stroke-opacity', '0');
+                });
+                wrap.querySelectorAll('.act-c-halo, .act-s-halo').forEach(function (h) {
+                    if (h !== cHalo && h !== sHalo) h.setAttribute('fill-opacity', '0');
+                });
+                wrap.querySelectorAll('.act-c-dot').forEach(function (d) {
+                    if (d !== cDot) {
+                        const isL = d.dataset.isLast === '1';
+                        d.setAttribute('r', isL ? '4.5' : '3');
+                        d.setAttribute('stroke-width', '2');
+                    }
+                });
+                wrap.querySelectorAll('.act-s-dot').forEach(function (d) {
+                    if (d !== sDot) {
+                        const isL = d.dataset.isLast === '1';
+                        d.setAttribute('r', isL ? '4' : '2.5');
+                        d.setAttribute('stroke-width', '1.8');
+                    }
+                });
+
+                // Update tooltip content
+                if (tipDate)        tipDate.textContent        = hit.dataset.date || hit.dataset.label;
+                if (tipDay)         tipDay.textContent         = hit.dataset.day || '';
+                if (tipCompletions) tipCompletions.textContent = hit.dataset.completions || '0';
+                if (tipStudents)    tipStudents.textContent    = hit.dataset.students || '0';
+
+                // Highlight hovered point elements
+                if (crosshair) crosshair.setAttribute('stroke-opacity', '0.4');
+                if (cHalo) {
+                    cHalo.setAttribute('r', '11');
+                    cHalo.setAttribute('fill-opacity', '0.22');
+                }
+                if (sHalo) {
+                    sHalo.setAttribute('r', '10');
+                    sHalo.setAttribute('fill-opacity', '0.22');
+                }
+                if (cDot) {
+                    cDot.setAttribute('r', '5.5');
+                    cDot.setAttribute('stroke-width', '2.5');
+                }
+                if (sDot) {
+                    sDot.setAttribute('r', '5');
+                    sDot.setAttribute('stroke-width', '2.5');
+                }
+
+                // Calculate tooltip position
+                const wrapRect = wrap.getBoundingClientRect();
+                const tipW     = tip.offsetWidth || 150;
+                const cxSvg    = parseFloat(hit.dataset.cx);
+                const cyComp   = parseFloat(hit.dataset.cyCompletions);
+                const cyStud   = parseFloat(hit.dataset.cyStudents);
+                const minCy    = Math.min(cyComp, cyStud);
+
+                const pointCenterX = (cxSvg / svgW) * wrapRect.width;
+                const pointCenterY = (minCy / svgH) * wrapRect.height;
+
+                // Clamp horizontally so tooltip stays neatly inside card bounds
+                const minLeft    = (tipW / 2) + 8;
+                const maxLeft    = wrapRect.width - (tipW / 2) - 8;
+                const clampedLeft = Math.max(minLeft, Math.min(maxLeft, pointCenterX));
+
+                tip.style.left = clampedLeft + 'px';
+                tip.style.top  = Math.max(12, pointCenterY - 10) + 'px';
+
+                // Position arrow directly over the point
+                if (tipArrow) {
+                    const arrowOffset = pointCenterX - clampedLeft;
+                    tipArrow.style.transform = 'translateX(calc(-50% + ' + arrowOffset + 'px)) rotate(45deg)';
+                }
+
+                tip.classList.remove('opacity-0', 'scale-95');
+                tip.classList.add('opacity-100', 'scale-100');
+            }
+
+            function deactivate() {
+                if (crosshair) crosshair.setAttribute('stroke-opacity', '0');
+                if (cHalo) {
+                    cHalo.setAttribute('r', '9');
+                    cHalo.setAttribute('fill-opacity', '0');
+                }
+                if (sHalo) {
+                    sHalo.setAttribute('r', '8');
+                    sHalo.setAttribute('fill-opacity', '0');
+                }
+                if (cDot) {
+                    const isL = cDot.dataset.isLast === '1';
+                    cDot.setAttribute('r', isL ? '4.5' : '3');
+                    cDot.setAttribute('stroke-width', '2');
+                }
+                if (sDot) {
+                    const isL = sDot.dataset.isLast === '1';
+                    sDot.setAttribute('r', isL ? '4' : '2.5');
+                    sDot.setAttribute('stroke-width', '1.8');
+                }
+
+                hideTimer = setTimeout(function () {
+                    tip.classList.remove('opacity-100', 'scale-100');
+                    tip.classList.add('opacity-0', 'scale-95');
+                }, 50);
+            }
+
+            hit.addEventListener('mouseenter', activate);
+            hit.addEventListener('mouseleave', deactivate);
+            hit.addEventListener('touchstart', function () {
+                activate();
+            }, { passive: true });
+        });
+
+        // Hide when tapping elsewhere on touch devices
+        document.addEventListener('touchstart', function (e) {
+            if (!wrap.contains(e.target)) {
+                tip.classList.remove('opacity-100', 'scale-100');
+                tip.classList.add('opacity-0', 'scale-95');
+            }
+        }, { passive: true });
     })();
 });
 </script>

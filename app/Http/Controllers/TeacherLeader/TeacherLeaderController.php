@@ -106,16 +106,24 @@ class TeacherLeaderController extends Controller
         $activityTrend = [];
         for ($i = 13; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i)->toDateString();
+            $completionsCount = DB::table('lesson_assignments')
+                ->whereIn('student_id', $studentIds)
+                ->where('status', 'completed')
+                ->whereDate('updated_at', $date)
+                ->count();
+
+            $activeStudentsOnDay = DB::table('lesson_assignments')
+                ->whereIn('student_id', $studentIds)
+                ->whereDate('updated_at', $date)
+                ->distinct()
+                ->count('student_id');
+
             $activityTrend[] = [
                 'label'       => Carbon::now()->subDays($i)->format('M j'),
-                'completions' => DB::table('lesson_assignments')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('status', 'completed')
-                    ->whereDate('updated_at', $date)
-                    ->count(),
-                'students'    => Student::whereIn('student_id', $studentIds)
-                    ->whereDate('last_activity_date', $date)
-                    ->count(),
+                'day'         => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : Carbon::now()->subDays($i)->format('l')),
+                'date'        => Carbon::now()->subDays($i)->format('M j, Y'),
+                'completions' => $completionsCount,
+                'students'    => $activeStudentsOnDay,
             ];
         }
 
@@ -140,27 +148,31 @@ class TeacherLeaderController extends Controller
             ->values()
             ->take(5);
 
-        // ── Classes Needing Support (lowest avg score) ────────────────────────
-        $needsSupport = Teacher::whereIn('id', $teacherIds)
+        // ── More Data Needed (teachers with no quiz attempts yet) ────────────
+        $moreDataNeeded = Teacher::whereIn('id', $teacherIds)
             ->with('user')
             ->withCount('students')
             ->get()
             ->map(function ($teacher) {
-                $studentIds = $teacher->students()->pluck('student_id');
-                $avg = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $studentIds)
+                $tStudentIds = $teacher->students()->pluck('student_id');
+                $attemptCount = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $tStudentIds)
                     ->where('status', 'completed')
-                    ->avg('percentage') ?? 0;
+                    ->count();
+                $assignedCount = DB::table('lesson_assignments')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->count();
                 return [
-                    'teacher'       => $teacher,
-                    'avg_score'     => round((float) $avg, 1),
-                    'student_count' => $teacher->students_count,
+                    'teacher'        => $teacher,
+                    'student_count'  => $teacher->students_count,
+                    'attempt_count'  => $attemptCount,
+                    'assigned_count' => $assignedCount,
                 ];
             })
-            ->filter(fn ($c) => $c['student_count'] > 0)
-            ->sortBy('avg_score')
+            ->filter(fn ($c) => $c['student_count'] > 0 && $c['attempt_count'] === 0)
+            ->sortByDesc('student_count')
             ->values()
-            ->take(3);
+            ->take(5);
 
         // ── Recently active teachers in the school ───────────────────────────
         $recentTeachers = Teacher::whereIn('id', $teacherIds)
@@ -192,29 +204,110 @@ class TeacherLeaderController extends Controller
             })
             ->sortByDesc('last_active')
             ->values()
-            ->take(8);
+            ->take(12);
 
         // ── Sparklines (7 days) ───────────────────────────────────────────────
         $sparkDates      = [];
         $sparkStudents   = [];
         $sparkLessons    = [];
         $sparkTeachers   = [];
+        $sparkQuizScores = [];
         for ($i = 6; $i >= 0; $i--) {
             $day  = Carbon::now()->subDays($i);
             $date = $day->toDateString();
             $sparkDates[]    = ['short' => $day->format('M j'), 'day' => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')), 'date' => $day->format('M j, Y')];
-            $sparkStudents[] = Student::whereIn('student_id', $studentIds)->whereDate('last_activity_date', $date)->count();
+            $sparkStudents[] = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->whereDate('updated_at', $date)->distinct()->count('student_id');
             $sparkLessons[]  = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->where('status', 'completed')->whereDate('updated_at', $date)->count();
             $sparkTeachers[] = User::whereIn('id', Teacher::whereIn('id', $teacherIds)->pluck('user_id'))->whereDate('updated_at', '<=', $date)->count();
+            $dayAvg = DB::table('quiz_attempts')
+                ->whereIn('student_id', $studentIds)
+                ->where('status', 'completed')
+                ->whereDate('updated_at', $date)
+                ->avg('percentage');
+            $sparkQuizScores[] = $dayAvg !== null ? (int) round($dayAvg) : 0;
         }
+
+        // ── Program Type Breakdown (for donut chart) ─────────────────────────
+        $programTypes = [
+            ['label' => 'Regular',       'color' => '#0d326b', 'grad_from' => '#1e4b8f', 'grad_to' => '#071c3f', 'grad_id' => 'ptGradRegular'],
+            ['label' => 'Inclusion',     'color' => '#1a6fd4', 'grad_from' => '#3b82f6', 'grad_to' => '#1a6fd4', 'grad_id' => 'ptGradInclusion'],
+            ['label' => 'Transition',    'color' => '#3b82f6', 'grad_from' => '#60a5fa', 'grad_to' => '#3b82f6', 'grad_id' => 'ptGradTransition'],
+            ['label' => 'Self-contained','color' => '#93c5fd', 'grad_from' => '#bfdbfe', 'grad_to' => '#93c5fd', 'grad_id' => 'ptGradSelf'],
+        ];
+        $programTypeCounts = Student::whereIn('student_id', $studentIds)
+            ->selectRaw('program_type, COUNT(*) as count')
+            ->groupBy('program_type')
+            ->pluck('count', 'program_type');
+
+        $programDonut = collect($programTypes)->map(function ($pt) use ($programTypeCounts, $totalStudents) {
+            $count = (int) ($programTypeCounts[$pt['label']] ?? 0);
+            return array_merge($pt, [
+                'count' => $count,
+                'pct'   => $totalStudents > 0 ? round($count / $totalStudents * 100) : 0,
+            ]);
+        })->filter(fn ($pt) => $pt['count'] > 0)->values();
+
+        // ── FSL Mastery Distribution (School-wide) ───────────────────────────
+        $masteryCounts = Student::whereIn('student_id', $studentIds)
+            ->selectRaw('fsl_mastery_level, COUNT(*) as count')
+            ->groupBy('fsl_mastery_level')
+            ->pluck('count', 'fsl_mastery_level');
+
+        $fslMasteryTiers = [
+            [
+                'key'         => 'beginner',
+                'label'       => 'Beginner',
+                'sublabel'    => 'Alphabet, Greetings & Basic Gestures',
+                'color'       => '#3b82f6',
+                'bar_from'    => '#60a5fa',
+                'bar_to'      => '#3b82f6',
+                'badge_bg'    => '#eff6ff',
+                'badge_text'  => '#1a6fd4',
+                'dot'         => '#3b82f6',
+                'icon'        => 'school',
+            ],
+            [
+                'key'         => 'intermediate',
+                'label'       => 'Intermediate',
+                'sublabel'    => 'Numbers, Common Signs & Phrases',
+                'color'       => '#1a6fd4',
+                'bar_from'    => '#3b82f6',
+                'bar_to'      => '#1a6fd4',
+                'badge_bg'    => '#dbeafe',
+                'badge_text'  => '#1e4b8f',
+                'dot'         => '#1a6fd4',
+                'icon'        => 'psychology',
+            ],
+            [
+                'key'         => 'advanced',
+                'label'       => 'Advanced',
+                'sublabel'    => 'Expressive & Conversational FSL',
+                'color'       => '#0d326b',
+                'bar_from'    => '#1e4b8f',
+                'bar_to'      => '#0d326b',
+                'badge_bg'    => '#0d326b',
+                'badge_text'  => '#ffffff',
+                'dot'         => '#0d326b',
+                'icon'        => 'verified',
+            ],
+        ];
+
+        $fslMasteryData = collect($fslMasteryTiers)->map(function ($tier) use ($masteryCounts, $totalStudents) {
+            $cnt = (int) ($masteryCounts[$tier['label']] ?? 0);
+            return array_merge($tier, [
+                'count' => $cnt,
+                'pct'   => $totalStudents > 0 ? round(($cnt / $totalStudents) * 100) : 0,
+            ]);
+        });
 
         return view('teacher-leader.dashboard', compact(
             'school', 'schoolId',
             'totalTeachers', 'totalStudents',
             'completionRate', 'totalAssigned', 'totalCompleted',
             'avgQuizScore', 'activeStudents',
-            'activityTrend', 'topClasses', 'needsSupport', 'recentTeachers',
-            'sparkDates', 'sparkStudents', 'sparkLessons', 'sparkTeachers'
+            'activityTrend', 'topClasses', 'moreDataNeeded', 'recentTeachers',
+            'sparkDates', 'sparkStudents', 'sparkLessons', 'sparkTeachers', 'sparkQuizScores',
+            'programDonut', 'fslMasteryData'
         ));
     }
 
