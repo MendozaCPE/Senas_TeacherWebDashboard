@@ -11,6 +11,7 @@ use App\Models\Module;
 use App\Models\Student;
 use App\Models\StudentLessonProgress;
 use App\Models\Teacher;
+use App\Models\TeacherMedia;
 use App\Models\User;
 use App\Services\LessonTemplateService;
 use Carbon\Carbon;
@@ -319,103 +320,240 @@ class TeacherLeaderController extends Controller
     {
         $systemTeacherId = app(LessonTemplateService::class)->templateTeacherId();
 
-        $search = trim($request->input('search', ''));
-
-        $query = Module::where('teacher_id', $systemTeacherId)
+        $modules = Module::where('teacher_id', $systemTeacherId)
             ->where('is_template', true)
             ->with([
-                'lessons' => function ($q) use ($search) {
+                'lessons' => function ($q) {
                     $q->whereNull('deleted_at')
                       ->orderBy('module_order')
-                      ->with('quiz.questions', 'contents');
-                    if ($search) {
-                        $q->where('title', 'like', "%{$search}%");
-                    }
+                      ->with('quiz.questions.options', 'contents');
+                },
+                'checkpointExams' => function ($q) {
+                    $q->with('questions')->orderBy('created_at', 'desc');
                 },
             ])
-            ->orderBy('module_order');
+            ->orderBy('module_order')
+            ->get();
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhereHas('lessons', fn ($l) =>
-                      $l->where('title', 'like', "%{$search}%")->whereNull('deleted_at')
-                  );
-            });
-        }
-
-        $modules = $query->get();
-
-        // Flatten lesson count for summary
         $totalLessons  = $modules->sum(fn ($m) => $m->lessons->count());
         $totalModules  = $modules->count();
 
-        return view('teacher-leader.lessons', compact('modules', 'totalLessons', 'totalModules', 'search'));
+        return view('teacher-leader.lessons', compact('modules', 'totalLessons', 'totalModules'));
     }
 
     /**
-     * AJAX — return lesson detail for the preview modal.
+     * Return the rendered lessons.preview partial for the fullscreen overlay modal
+     * — same data shape as LessonsController::previewModal so the same blade view is reused.
      */
-    public function lessonPreview(int $lessonId)
+    public function lessonPreviewPage(int $lessonId)
     {
         $systemTeacherId = app(LessonTemplateService::class)->templateTeacherId();
 
-        $lesson = \App\Models\Lesson::with(['contents', 'quiz.questions', 'module'])
+        $lesson = \App\Models\Lesson::with(['contents', 'quiz.questions.options'])
             ->where('teacher_id', $systemTeacherId)
             ->where('is_template', true)
             ->whereNull('deleted_at')
             ->findOrFail($lessonId);
 
-        return response()->json([
-            'lesson'    => $lesson,
-            'module'    => $lesson->module ? ['title' => $lesson->module->title] : null,
-            'contents'  => $lesson->contents,
-            'quiz'      => $lesson->quiz ? [
-                'question_count' => $lesson->quiz->questions->count(),
-            ] : null,
-        ]);
+        $lessonData = [
+            'title'       => $lesson->title,
+            'description' => $lesson->description,
+            'lesson_type' => $lesson->lesson_type,
+            'difficulty'  => $lesson->difficulty,
+            'contents'    => $lesson->contents->map(function ($content) {
+                return [
+                    'content_type' => $content->content_type,
+                    'title'        => $content->title,
+                    'content_text' => $content->content_text,
+                    'media'        => $content->media_url,
+                    'gesture_name' => $content->gesture_name,
+                ];
+            })->toArray(),
+            'quiz' => [],
+        ];
+
+        if ($lesson->quiz) {
+            foreach ($lesson->quiz->questions as $question) {
+                $gestureData = $question->gesture_data;
+                if (is_string($gestureData)) {
+                    $gestureData = json_decode($gestureData, true) ?? [];
+                }
+                $gestureIds       = $gestureData['gesture_ids']        ?? [];
+                $isFingerspelling = $gestureData['is_fingerspelling']   ?? false;
+                $words            = $gestureData['words']               ?? [];
+
+                // Normalize drag-drop pairs
+                $pairs = $question->drag_drop_pairs ?? [];
+                if (is_string($pairs)) { $pairs = json_decode($pairs, true) ?? []; }
+                $normalizedPairs = [];
+                foreach (array_values((array) $pairs) as $idx => $pair) {
+                    if (!is_array($pair)) { continue; }
+                    $lt = $pair['left_text']  ?? $pair['left']  ?? '';
+                    $rt = $pair['right_text'] ?? $pair['right'] ?? '';
+                    $li = $pair['left_image']  ?? '';
+                    $ri = $pair['right_image'] ?? '';
+                    if (trim((string)$lt) === '' && trim((string)$rt) === '' && empty($li) && empty($ri)) { continue; }
+                    $normalizedPairs[] = ['left_text'=>$lt,'right_text'=>$rt,'left_image'=>$li?:null,'right_image'=>$ri?:null,'match_id'=>$pair['match_id']??$idx];
+                }
+
+                // Gesture details
+                $gestureDetails = [];
+                $filteredIds = array_values(array_filter($gestureIds, fn($id) => $id !== null && $id !== ''));
+                if (!empty($filteredIds)) {
+                    $gestureDetails = \App\Models\Gesture::whereIn('gesture_id', $filteredIds)
+                        ->get()
+                        ->map(fn($g) => [
+                            'id'        => $g->gesture_id,
+                            'name'      => $g->display_name ?? $g->name,
+                            'image_url' => $g->image_url,
+                            'video_url' => $g->video_url,
+                        ])
+                        ->values()
+                        ->toArray();
+                }
+
+                $lessonData['quiz'][] = [
+                    'question'             => $question->question_text,
+                    'type'                 => $question->question_type,
+                    'media'                => $question->media_url,
+                    'options'              => $question->options->map(fn($opt) => [
+                        'text'  => $opt->option_text,
+                        'image' => $opt->option_media_url,
+                    ])->toArray(),
+                    'correct'              => $question->options->search(fn($opt) => $opt->is_correct),
+                    'drag_drop_pairs'      => $normalizedPairs,
+                    'gesture_module_id'    => $gestureData['module_id'] ?? null,
+                    'gesture_details'      => $gestureDetails,
+                    'is_fingerspelling'    => $isFingerspelling,
+                    'fingerspelling_words' => $words,
+                ];
+            }
+        }
+
+        $totalSlides = count($lessonData['contents']) + count($lessonData['quiz']);
+
+    }
+
+    /**
+     * Read-only view for a default checkpoint exam.
+     * GET /teacher-leader/checkpoint-exam/{id}
+     */
+    public function showCheckpointExam($id)
+    {
+        $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+        $exam = CheckpointExam::with(['questions', 'module'])
+            ->findOrFail($realId);
+
+        // Format questions for display
+        $questions = $exam->questions->map(function ($question) {
+            $dragDropPairs = $question->drag_drop_pairs;
+            if (is_string($dragDropPairs)) {
+                $dragDropPairs = json_decode($dragDropPairs, true) ?? [];
+            }
+            if (!is_array($dragDropPairs)) {
+                $dragDropPairs = [];
+            }
+
+            $gestureData = $question->gesture_data;
+            if (is_string($gestureData)) {
+                $gestureData = json_decode($gestureData, true) ?? [];
+            }
+            if (!is_array($gestureData)) {
+                $gestureData = [];
+            }
+
+            $optionsData = $question->options_data;
+            if (is_string($optionsData)) {
+                $optionsData = json_decode($optionsData, true) ?? [];
+            }
+            if (!is_array($optionsData)) {
+                $optionsData = [];
+            }
+
+            return [
+                'question_id'     => $question->question_id,
+                'question_number' => $question->question_number,
+                'question_text'   => $question->question_text,
+                'question_type'   => $question->question_type,
+                'media_url'       => $question->media_url,
+                'points'          => $question->points,
+                'options'         => $optionsData,
+                'drag_drop_pairs' => $dragDropPairs,
+                'gesture_data'    => $gestureData,
+                'correct_answer'  => $question->correct_answer,
+            ];
+        });
+
+        return view('lessons.checkpoint-exam.show', compact('exam', 'questions'));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 3. SYSTEM MEDIA — Read-only gallery
+    // 3. SYSTEM MEDIA — Read-only gallery (System Media only, no teacher uploads)
     // ─────────────────────────────────────────────────────────────────────────
 
     public function media(Request $request)
     {
-        $search    = trim($request->input('search', ''));
-        $typeFilter = $request->input('type', '');
-
-        $query = GestureMedia::with(['gesture.module', 'module'])
+        // 1. Strictly system media from gesture_media table (no teacher uploads)
+        $systemMedia = GestureMedia::with(['gesture', 'module'])
             ->orderBy('order')
-            ->orderBy('media_id');
+            ->orderBy('media_id')
+            ->get();
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('file_name', 'like', "%{$search}%")
-                  ->orWhere('display_name', 'like', "%{$search}%")
-                  ->orWhereHas('gesture', fn ($g) =>
-                      $g->where('display_name', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                  )
-                  ->orWhereHas('module', fn ($m) =>
-                      $m->where('display_name', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                  );
-            });
+        // Build unified collection
+        $allMedia = $systemMedia->map(function ($item) {
+            return [
+                'id'         => 'sys_' . $item->media_id,
+                'source'     => 'system',
+                'title'      => $item->gesture ? ($item->gesture->display_name ?? $item->gesture->name) : ($item->display_name ?: $item->file_name),
+                'file_name'  => $item->file_name,
+                'file_path'  => $item->file_path,
+                'url'        => asset('storage/' . $item->file_path),
+                'media_type' => $this->resolveMediaType($item->mime_type, $item->media_type),
+                'mime_type'  => $item->mime_type,
+                'file_size'  => $item->file_size,
+                'module'     => $item->module ? ($item->module->display_name ?? $item->module->name) : ($item->gesture?->module?->display_name ?? null),
+                'owner'      => 'System',
+                'created_at' => $item->created_at,
+            ];
+        });
+
+        // Stats
+        $stats = [
+            'total'    => $allMedia->count(),
+            'images'   => $allMedia->where('media_type', 'image')->count(),
+            'videos'   => $allMedia->where('media_type', 'video')->count(),
+            'gifs'     => $allMedia->where('media_type', 'gif')->count(),
+        ];
+
+        // Build JS-safe data for instant client-side filtering & preview
+        $mediaJs = $allMedia->values()->map(function ($item, $index) {
+            return [
+                'index'       => $index,
+                'id'          => $item['id'],
+                'source'      => 'system',
+                'title'       => $item['title'],
+                'file_name'   => $item['file_name'],
+                'url'         => $item['url'],
+                'media_type'  => $item['media_type'],
+                'mime_type'   => $item['mime_type'],
+                'module'      => $item['module'],
+                'owner'       => 'System',
+                'created_at'  => $item['created_at']
+                                    ? \Carbon\Carbon::parse($item['created_at'])->format('M j, Y')
+                                    : null,
+                'file_size'   => $item['file_size'] ? round($item['file_size'] / 1024, 1) . ' KB' : null,
+            ];
+        })->values()->toArray();
+
+        return view('teacher-leader.media', compact('allMedia', 'stats', 'mediaJs'));
+    }
+
+    private function resolveMediaType(?string $mimeType, string $dbType): string
+    {
+        if ($mimeType === 'image/gif') {
+            return 'gif';
         }
-
-        if ($typeFilter) {
-            $query->where('media_type', $typeFilter);
-        }
-
-        $media = $query->paginate(30)->withQueryString();
-
-        // Counts for filter badges
-        $typeCounts = GestureMedia::selectRaw('media_type, COUNT(*) as count')
-            ->groupBy('media_type')
-            ->pluck('count', 'media_type');
-
-        return view('teacher-leader.media', compact('media', 'search', 'typeFilter', 'typeCounts'));
+        return $dbType;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

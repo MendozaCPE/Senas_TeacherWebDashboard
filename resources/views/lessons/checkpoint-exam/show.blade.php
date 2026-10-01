@@ -1,4 +1,9 @@
-@php $layout = request()->routeIs('admin.*') ? 'layouts.admin' : 'layouts.app'; @endphp
+@php
+    $isAdmin = request()->routeIs('admin.*');
+    $isTL    = request()->routeIs('teacher-leader.*');
+    $layout  = $isAdmin ? 'layouts.admin' : ($isTL ? 'layouts.teacher-leader' : 'layouts.app');
+    $backUrl = $isAdmin ? route('admin.lesson-templates.index') : ($isTL ? route('teacher-leader.lessons') : route('lessons.index'));
+@endphp
 @extends($layout)
 @section('title', 'Checkpoint Exam Details')
 
@@ -81,9 +86,9 @@
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
-        <a href="{{ route('lessons.index') }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0d326b] transition mb-2">
+        <a href="{{ $backUrl }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0d326b] transition mb-2">
             <span class="material-symbols-outlined text-[16px]">arrow_back</span>
-            Back to Lessons
+            Back to {{ $isTL || $isAdmin ? 'Default Lessons' : 'Lessons' }}
         </a>
         <div class="flex items-center gap-3">
             <h1 class="text-2xl font-bold text-[#0d326b]">{{ $exam->title }}</h1>
@@ -95,21 +100,28 @@
     </div>
 
     <div class="flex items-center gap-3">
-        @if($exam->status === 'draft')
-        <button onclick="openPublishModal()" class="py-2.5 px-5 rounded-xl bg-[#8b5cf6] text-white font-bold text-xs shadow-md hover:bg-[#7c3aed] transition flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[18px]">send</span>
-            Publish Exam
-        </button>
-        @endif
-
-        <form action="{{ route('lessons.checkpoint-exam.destroy', $exam->hash_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this checkpoint exam?');">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="py-2.5 px-4 rounded-xl border border-red-200 bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[18px]">delete</span>
-                Delete
+        @if($isTL)
+        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 shadow-sm">
+            <span class="material-symbols-outlined text-[16px] text-amber-600">visibility</span>
+            View Only
+        </span>
+        @else
+            @if($exam->status === 'draft')
+            <button onclick="openPublishModal()" class="py-2.5 px-5 rounded-xl bg-[#8b5cf6] text-white font-bold text-xs shadow-md hover:bg-[#7c3aed] transition flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px]">send</span>
+                Publish Exam
             </button>
-        </form>
+            @endif
+
+            <form action="{{ $isAdmin ? route('admin.lesson-templates.checkpoint-exam.destroy', $exam->hash_id) : route('lessons.checkpoint-exam.destroy', $exam->hash_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this checkpoint exam?');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="py-2.5 px-4 rounded-xl border border-red-200 bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                    Delete
+                </button>
+            </form>
+        @endif
     </div>
 </div>
 
@@ -198,7 +210,7 @@
 </div>
 
 <!-- Publish Modal -->
-@if($exam->status === 'draft')
+@if(!$isTL && $exam->status === 'draft')
 <div id="publishModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">

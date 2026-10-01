@@ -437,8 +437,11 @@ Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher_leader'])
     // Default Lessons — read-only curriculum catalog
     Route::get('/lessons', [TeacherLeaderController::class, 'lessons'])->name('lessons');
 
-    // AJAX: lesson preview detail for modal
-    Route::get('/lessons/{lessonId}/preview', [TeacherLeaderController::class, 'lessonPreview'])->name('lessons.preview');
+    // Lesson preview page — returns rendered HTML partial for the fullscreen overlay modal
+    Route::get('/lessons/{lessonId}/preview-page', [TeacherLeaderController::class, 'lessonPreviewPage'])->name('lessons.preview-page');
+
+    // Checkpoint Exam — read-only view
+    Route::get('/checkpoint-exam/{id}', [TeacherLeaderController::class, 'showCheckpointExam'])->name('checkpoint-exam.show');
 
     // System Media — read-only gallery
     Route::get('/media', [TeacherLeaderController::class, 'media'])->name('media');
