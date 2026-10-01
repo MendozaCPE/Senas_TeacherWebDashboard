@@ -432,6 +432,7 @@ class GradeLeaderController extends Controller
 
         $totalSlides = count($lessonData['contents']) + count($lessonData['quiz']);
 
+        return response()->view('lessons.preview', compact('lessonData', 'totalSlides'));
     }
 
     /**
@@ -734,12 +735,118 @@ class GradeLeaderController extends Controller
                 ];
             });
 
+        // ── CLASS PERFORMANCE: active students, quiz pass rate, checkpoint pass rate per teacher ──
+        $classPerformance = Teacher::whereIn('id', $teacherIds)
+            ->with('user')
+            ->get()
+            ->map(function ($teacher) use ($startDate, $endDate) {
+                $tStudentIds = $teacher->students()->pluck('student_id');
+                $total       = $tStudentIds->count();
+
+                // Active: last_activity_date within period
+                $active = Student::whereIn('student_id', $tStudentIds)
+                    ->whereBetween('last_activity_date', [$startDate->toDateString(), $endDate->toDateString()])
+                    ->count();
+
+                // Quiz: total completed attempts & those that passed (≥75%)
+                $quizTotal  = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where('status', 'completed')
+                    ->whereBetween('completed_at', [$startDate, $endDate])
+                    ->count();
+                $quizPassed = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where('status', 'completed')
+                    ->where('percentage', '>=', 75)
+                    ->whereBetween('completed_at', [$startDate, $endDate])
+                    ->count();
+
+                // Checkpoint exam: completed attempts & those that passed (≥75%)
+                $ckTotal  = DB::table('checkpoint_exam_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->whereIn('status', ['completed', 'failed'])
+                    ->whereBetween('completed_at', [$startDate, $endDate])
+                    ->count();
+                $ckPassed = DB::table('checkpoint_exam_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where('status', 'completed')
+                    ->where('percentage', '>=', 75)
+                    ->whereBetween('completed_at', [$startDate, $endDate])
+                    ->count();
+
+                $avgScore = round((float) (DB::table('quiz_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where('status', 'completed')
+                    ->whereBetween('completed_at', [$startDate, $endDate])
+                    ->avg('percentage') ?? 0), 1);
+
+                return [
+                    'teacher_id'      => $teacher->id,
+                    'name'            => trim($teacher->first_name . ' ' . $teacher->last_name),
+                    'avatar'          => $teacher->user?->avatarUrl() ?? '',
+                    'total_students'  => $total,
+                    'active_students' => $active,
+                    'inactive_students' => max(0, $total - $active),
+                    'active_pct'      => $total > 0 ? round($active / $total * 100, 1) : 0,
+                    'avg_quiz_score'  => $avgScore,
+                    'quiz_total'      => $quizTotal,
+                    'quiz_passed'     => $quizPassed,
+                    'quiz_pass_rate'  => $quizTotal > 0 ? round($quizPassed / $quizTotal * 100, 1) : 0,
+                    'ck_total'        => $ckTotal,
+                    'ck_passed'       => $ckPassed,
+                    'ck_pass_rate'    => $ckTotal > 0 ? round($ckPassed / $ckTotal * 100, 1) : 0,
+                    'status'          => $avgScore >= 75 ? 'on_track' : ($avgScore >= 50 ? 'needs_attention' : 'needs_support'),
+                ];
+            })
+            ->sortByDesc('avg_quiz_score')
+            ->values();
+
+        // ── ACTIVE vs INACTIVE per classroom (stacked bar data) ──────────────
+        $activeVsInactive = $classPerformance->map(fn ($c) => [
+            'name'     => $c['name'],
+            'active'   => $c['active_students'],
+            'inactive' => $c['inactive_students'],
+            'total'    => $c['total_students'],
+        ])->values();
+
+        // ── ENROLLMENT TREND: students enrolled per year, per teacher ─────────
+        // Years range: from earliest student created_at up to current year
+        $earliestYear = (int) (DB::table('students')
+            ->whereIn('student_id', $studentIds)
+            ->min(DB::raw('YEAR(created_at)')) ?? date('Y'));
+        $currentYear  = (int) date('Y');
+        $enrollYears  = range($earliestYear, $currentYear);
+
+        $enrollmentTrend = Teacher::whereIn('id', $teacherIds)
+            ->with('user')
+            ->get()
+            ->map(function ($teacher) use ($enrollYears) {
+                $yearCounts = [];
+                foreach ($enrollYears as $yr) {
+                    $yearCounts[$yr] = DB::table('students')
+                        ->where('teacher_id', $teacher->id)
+                        ->whereYear('created_at', $yr)
+                        ->count();
+                }
+                return [
+                    'teacher_id' => $teacher->id,
+                    'name'       => trim($teacher->first_name . ' ' . $teacher->last_name),
+                    'avatar'     => $teacher->user?->avatarUrl() ?? '',
+                    'years'      => $yearCounts,
+                    'total'      => array_sum($yearCounts),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
         return view('grade-leader.analytics', compact(
             'school', 'period', 'year', 'month',
             'startDate', 'endDate',
             'avgQuizScore', 'quizPassRate', 'completionRate', 'activeStudentsCount',
             'scoreBuckets', 'completionTrend', 'classBreakdown',
-            'gestureMastery', 'completionFunnel', 'gradeLevelBreakdown'
+            'gestureMastery', 'completionFunnel', 'gradeLevelBreakdown',
+            'classPerformance', 'activeVsInactive',
+            'enrollmentTrend', 'enrollYears'
         ));
     }
 
