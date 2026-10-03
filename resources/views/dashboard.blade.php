@@ -113,7 +113,7 @@
 
 <div class="flex flex-col gap-2 w-full skeleton-hide">
 
-    <div class="flex flex-col lg:flex-row gap-4 w-full">
+    <div class="flex flex-col lg:flex-row gap-4 w-full items-stretch">
                 
     <!-- Left/Center Content -->
     <div class="flex-1 min-w-0 flex flex-col space-y-4">
@@ -715,7 +715,7 @@
     </div>
 
     <!-- Right Sidebar Column -->
-    <div class="w-[340px] flex-shrink-0 flex flex-col space-y-4 pl-4">
+    <div class="w-[340px] flex-shrink-0 flex flex-col space-y-4 pl-4 self-stretch">
 
         <!-- ── Senya Insights Widget ─────────────────────────────────────────── -->
         @php $insights = $senyaInsights ?? []; $insightCount = count($insights); @endphp
@@ -764,7 +764,7 @@
         <!-- ── End Senya Insights ─────────────────────────────────────────────── -->
 
         <!-- My Students List -->
-        <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+        <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden flex-1">
             <!-- Header -->
             <div class="px-7 pt-7 pb-4 flex items-center justify-between flex-shrink-0">
                 <div>
@@ -780,8 +780,8 @@
             <!-- Divider -->
             <div class="mx-7 border-t border-slate-100 flex-shrink-0"></div>
 
-            <!-- Scrollable list — fixed height shows 6 rows, scrolls for more -->
-            <div class="overflow-y-auto divide-y divide-slate-50 flex-shrink-0" style="max-height: 490px">
+            <!-- Scrollable list — shows ~8 students, scrolls for more -->
+            <div class="overflow-y-auto divide-y divide-slate-50" style="max-height: 608px;">
                 @forelse($allStudents as $s)
                 @php
                     $mastery = $s->fsl_mastery_level ?? 'Beginner';

@@ -206,7 +206,7 @@
     {{-- ══════════ STAT CARDS ══════════ --}}
     @php
         $allStudents   = $students->getCollection();        // current page (for table context)
-        $sbStudents    = $sidebarStudents ?? collect();     // all active students (for sidebar stats)
+        $sbStudents    = $chartStudents ?? collect();        // filter-scoped students for sidebar charts
         $beginnerCnt   = $sbStudents->where('fsl_mastery_level','Beginner')->count();
         $intermCnt     = $sbStudents->where('fsl_mastery_level','Intermediate')->count();
         $advancedCnt   = $sbStudents->where('fsl_mastery_level','Advanced')->count();
@@ -218,7 +218,7 @@
             : (isset($promotionReadyCounts) ? array_sum($promotionReadyCounts) : 0);
     @endphp
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5" id="stat-cards">
 
         {{-- Card 1: Total Students — navy gradient hero --}}
         <div class="stat-kpi-card text-white" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
@@ -282,11 +282,32 @@
                     $sf = session('students_filters', []);
                     // Effective school year: session value OR active school year as default
                     $sfSchoolYear = $sf['school_year'] ?? ($activeSchoolYear?->name ?? '');
-                    $sfStatus     = $sf['status'] ?? '';   // '' = no status filter (show all)
+                    $sfStatus     = $sf['status'] ?? '';   // '' = no explicit override
+
+                    // Determine if the selected year is the active one
+                    $sfIsActiveSy = empty($sfSchoolYear)
+                        || $sfSchoolYear === ($activeSchoolYear?->name ?? '');
+                    $sfSyRecord = !empty($sfSchoolYear)
+                        ? ($availableSchoolYears->firstWhere(fn($n) => $n === $sfSchoolYear) ? \App\Models\SchoolYear::where('name',$sfSchoolYear)->first() : null)
+                        : $activeSchoolYear;
+                    $sfIsArchivedSy = $sfSyRecord && $sfSyRecord->status === 'archived';
+
+                    // Effective displayed status: if no explicit override and on active year,
+                    // the system defaults to "active" — reflect that in the dropdown.
+                    $sfStatusDisplay = $sfStatus;
+                    if (($sfStatus === '' || $sfStatus === 'all') && $sfIsActiveSy && !$sfIsArchivedSy) {
+                        $sfStatusDisplay = 'active';
+                    }
+
                     $hasActiveFilters = false;
                     foreach ($sf as $k => $v) {
                         if ($k === 'status') {
-                            if ($v !== '' && $v !== 'all') $hasActiveFilters = true;
+                            // On active year, "all" or "" overrides the default — that IS an active filter
+                            if ($sfIsActiveSy && !$sfIsArchivedSy) {
+                                if ($v === 'all' || $v === 'inactive') $hasActiveFilters = true;
+                            } else {
+                                if ($v !== '' && $v !== 'all') $hasActiveFilters = true;
+                            }
                         } else {
                             if (!empty($v)) $hasActiveFilters = true;
                         }
@@ -344,9 +365,9 @@
                 {{-- Status --}}
                 <div class="filter-wrap shrink-0">
                     <select id="filter-status" class="filter-select">
-                        <option value=""       {{ $sfStatus === ''         ? 'selected' : '' }}>All Statuses</option>
-                        <option value="active" {{ $sfStatus === 'active'   ? 'selected' : '' }}>Enrolled</option>
-                        <option value="inactive" {{ $sfStatus === 'inactive' ? 'selected' : '' }}>Unenrolled</option>
+                        <option value=""       {{ $sfStatusDisplay === ''         ? 'selected' : '' }}>All Statuses</option>
+                        <option value="active" {{ $sfStatusDisplay === 'active'   ? 'selected' : '' }}>Enrolled</option>
+                        <option value="inactive" {{ $sfStatusDisplay === 'inactive' ? 'selected' : '' }}>Unenrolled</option>
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
@@ -565,30 +586,125 @@
                             @empty
                             <tr id="empty-state-row">
                                 <td colspan="5">
-                                    <div class="flex flex-col items-center justify-center py-16 text-center">
-                                        <div class="w-16 h-16 rounded-2xl bg-[#e8eef8] flex items-center justify-center mb-4">
-                                            <span class="material-symbols-outlined text-[#0d326b] text-[32px]">
-                                                @if(!empty($activePromotableLevel)) school @else group_off @endif
-                                            </span>
-                                        </div>
-                                        <p class="text-[16px] font-bold text-[#0d326b] mb-1">
-                                            @if(!empty($activePromotableLevel))
-                                                No students ready for {{ $activePromotableLevel }} → {{ $promotionMap[$activePromotableLevel] ?? '' }}
-                                            @else
-                                                No students yet
-                                            @endif
-                                        </p>
-                                        <p class="text-[13px] text-slate-400 font-medium mb-5">
-                                            @if(!empty($activePromotableLevel))
-                                                Students will appear here once they complete all assigned lessons at the {{ $activePromotableLevel }} level.
-                                            @else
-                                                Add your first student to get started.
-                                            @endif
-                                        </p>
+                                    <div class="flex flex-col items-center justify-center py-16 text-center px-6">
                                         @if(!empty($activePromotableLevel))
+                                            {{-- Promotion filter empty state --}}
+                                            <div class="w-16 h-16 rounded-2xl bg-[#e8eef8] flex items-center justify-center mb-4">
+                                                <span class="material-symbols-outlined text-[#0d326b] text-[32px]">school</span>
+                                            </div>
+                                            <p class="text-[16px] font-bold text-[#0d326b] mb-1">No students ready for {{ $activePromotableLevel }} → {{ $promotionMap[$activePromotableLevel] ?? '' }}</p>
+                                            <p class="text-[13px] text-slate-400 font-medium mb-5">Students will appear here once they complete all assigned lessons at the {{ $activePromotableLevel }} level.</p>
                                             <button type="button" onclick="clearPromoFilter()" class="bg-[#0d326b] hover:bg-[#154188] text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors">Clear Promotion Filter</button>
+
+                                        @elseif($sfIsActiveSy && !$sfIsArchivedSy)
+                                            {{-- Active year, no enrolled students → guide to re-enroll from past year --}}
+                                            <div class="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
+                                                <span class="material-symbols-outlined text-indigo-600 text-[32px]">group_add</span>
+                                            </div>
+                                            <p class="text-[16px] font-black text-[#0d326b] mb-1">No students enrolled yet for S.Y. {{ $activeSchoolYear?->name ?? 'this year' }}</p>
+                                            <p class="text-[13px] text-slate-500 font-medium mb-4 max-w-sm leading-relaxed">
+                                                You can re-enroll your students from a previous school year. Use the <strong>School Year</strong> filter to find them, then click <strong>Enroll</strong> on each student.
+                                            </p>
+
+                                            {{-- Step hint --}}
+                                            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-5 text-left max-w-sm w-full space-y-2.5">
+                                                <p class="text-[11px] font-black text-indigo-700 uppercase tracking-wider mb-1">How to re-enroll</p>
+                                                <div class="flex items-start gap-2.5">
+                                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                                                    <p class="text-[12px] text-slate-600">Select a <strong>past school year</strong> from the School Year filter above.</p>
+                                                </div>
+                                                <div class="flex items-start gap-2.5">
+                                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                                                    <p class="text-[12px] text-slate-600">Your old students will appear in the list.</p>
+                                                </div>
+                                                <div class="flex items-start gap-2.5">
+                                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                                                    <p class="text-[12px] text-slate-600">Click <strong>Enroll</strong> on each student to add them to S.Y. {{ $activeSchoolYear?->name ?? 'the current year' }}.</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex items-center gap-3">
+                                                {{-- Quick shortcut: switch to the most recent past year --}}
+                                                @php
+                                                    $pastYears = $availableSchoolYears->filter(fn($y) => $y !== ($activeSchoolYear?->name ?? ''))->values();
+                                                @endphp
+                                                @if($pastYears->count())
+                                                <button type="button"
+                                                        onclick="document.getElementById('filter-school-year').value='{{ $pastYears->first() }}'; document.getElementById('filter-school-year').dispatchEvent(new Event('change'));"
+                                                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold text-white transition-all hover:opacity-90"
+                                                        style="background: linear-gradient(135deg, #0d326b 0%, #1a6fd4 100%)">
+                                                    <span class="material-symbols-outlined text-[15px]">history</span>
+                                                    View S.Y. {{ $pastYears->first() }} Students
+                                                </button>
+                                                @endif
+                                                <button onclick="document.getElementById('open-modal-btn').click()" class="px-4 py-2 rounded-xl text-[12px] font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
+                                                    Add New Student
+                                                </button>
+                                            </div>
+
+                                            {{-- Active-year students list at the bottom --}}
+                                            @if(($activeYearStudents ?? collect())->count())
+                                            <div class="mt-8 w-full max-w-sm text-left">
+                                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                    <span class="material-symbols-outlined text-[14px]">person_check</span>
+                                                    Your Students on S.Y. {{ $activeSchoolYear?->name }} ({{ ($activeYearStudents ?? collect())->count() }} enrolled)
+                                                </p>
+                                                <div class="space-y-2">
+                                                    @foreach(($activeYearStudents ?? collect())->take(5) as $ays)
+                                                    <div class="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-3 py-2 shadow-sm">
+                                                        <img src="{{ $ays->avatarUrl() }}"
+                                                             alt="{{ $ays->first_name }}"
+                                                             class="w-8 h-8 rounded-full object-cover bg-[#0d326b] flex-shrink-0"
+                                                             onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($ays->initials) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'" />
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-[12px] font-bold text-slate-800 truncate">{{ $ays->first_name }} {{ $ays->last_name }}</p>
+                                                            <p class="text-[10px] text-slate-400 font-medium">{{ $ays->fsl_mastery_level }} · {{ number_format($ays->total_xp) }} XP</p>
+                                                        </div>
+                                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex-shrink-0">Enrolled</span>
+                                                    </div>
+                                                    @endforeach
+                                                    @if(($activeYearStudents ?? collect())->count() > 5)
+                                                    <p class="text-[11px] text-slate-400 text-center font-medium pt-1">+{{ ($activeYearStudents ?? collect())->count() - 5 }} more enrolled students</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            @endif
+
                                         @else
-                                            <button onclick="document.getElementById('open-modal-btn').click()" class="bg-[#0d326b] hover:bg-[#154188] text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors">Add Student</button>
+                                            {{-- Generic empty state (archived year with no matches, or filtered with no results) --}}
+                                            <div class="w-16 h-16 rounded-2xl bg-[#e8eef8] flex items-center justify-center mb-4">
+                                                <span class="material-symbols-outlined text-[#0d326b] text-[32px]">group_off</span>
+                                            </div>
+                                            <p class="text-[16px] font-bold text-[#0d326b] mb-1">No students found</p>
+                                            <p class="text-[13px] text-slate-400 font-medium mb-5">Try adjusting the school year or other filters above.</p>
+
+                                            {{-- Show currently enrolled students as a reference --}}
+                                            @if(($activeYearStudents ?? collect())->count())
+                                            <div class="mt-2 w-full max-w-sm text-left">
+                                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                    <span class="material-symbols-outlined text-[14px]">person_check</span>
+                                                    Your Students on S.Y. {{ $activeSchoolYear?->name }} ({{ ($activeYearStudents ?? collect())->count() }} enrolled)
+                                                </p>
+                                                <div class="space-y-2">
+                                                    @foreach(($activeYearStudents ?? collect())->take(5) as $ays)
+                                                    <div class="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-3 py-2 shadow-sm">
+                                                        <img src="{{ $ays->avatarUrl() }}"
+                                                             alt="{{ $ays->first_name }}"
+                                                             class="w-8 h-8 rounded-full object-cover bg-[#0d326b] flex-shrink-0"
+                                                             onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($ays->initials) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'" />
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-[12px] font-bold text-slate-800 truncate">{{ $ays->first_name }} {{ $ays->last_name }}</p>
+                                                            <p class="text-[10px] text-slate-400 font-medium">{{ $ays->fsl_mastery_level }} · {{ number_format($ays->total_xp) }} XP</p>
+                                                        </div>
+                                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex-shrink-0">Enrolled</span>
+                                                    </div>
+                                                    @endforeach
+                                                    @if(($activeYearStudents ?? collect())->count() > 5)
+                                                    <p class="text-[11px] text-slate-400 text-center font-medium pt-1">+{{ ($activeYearStudents ?? collect())->count() - 5 }} more enrolled students</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            @endif
                                         @endif
                                     </div>
                                 </td>
@@ -612,7 +728,7 @@
         </div>
 
         {{-- ── RIGHT SIDEBAR ── --}}
-        <div class="w-full lg:w-[260px] shrink-0 space-y-4">
+        <div class="w-full lg:w-[260px] shrink-0 space-y-4" id="sidebar-charts">
 
             {{-- FSL Mastery Donut (variable-radius rose doughnut — matches analytics chart) --}}
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -809,7 +925,7 @@
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Top Students</p>
                 <p class="text-[9px] text-slate-400 font-medium mb-3 truncate">By global XP</p>
                 @php
-                    $topStudents = ($sidebarStudents ?? collect())
+                    $topStudents = ($chartStudents ?? collect())
                         ->filter(fn($s) => ($s->total_xp ?? 0) > 0)
                         ->sortByDesc('total_xp')
                         ->values()
@@ -2068,6 +2184,20 @@ function fetchStudentsResults(url, fetchOptions) {
             const oldPromoWidget = document.getElementById('promo-thresholds-widget');
             if (newPromoWidget && oldPromoWidget) {
                 oldPromoWidget.replaceWith(newPromoWidget);
+            }
+
+            // Swap the right-side charts (FSL donut, promotion boxes, top students)
+            const newSidebar = doc.getElementById('sidebar-charts');
+            const oldSidebar = document.getElementById('sidebar-charts');
+            if (newSidebar && oldSidebar) {
+                oldSidebar.replaceWith(newSidebar);
+            }
+
+            // Swap the top stat cards (total students, avg XP, ready to promote)
+            const newStatCards = doc.getElementById('stat-cards');
+            const oldStatCards = document.getElementById('stat-cards');
+            if (newStatCards && oldStatCards) {
+                oldStatCards.replaceWith(newStatCards);
             }
 
             updateClearButtonVisibility();

@@ -149,31 +149,54 @@ class SchoolYearTransitionService
                 );
 
                 // ── Step 5: Make teacher's students inactive for new school year ──
-                // We do NOT delete or reset students. We mark them inactive so the
-                // teacher must manually re-enroll them via Student Management.
-                // Their permanent data (XP, achievements, LRN) is untouched.
+                // Marks students inactive so the teacher must manually re-enroll them.
+                // XP and level reset to 0/1 for the fresh school year start.
+                // fsl_mastery_level is preserved — students keep their mastery rank.
                 $studentIds = Student::where('teacher_id', $teacher->id)
                     ->where('status', 'active')
                     ->pluck('student_id');
 
                 if ($studentIds->isNotEmpty()) {
+                    // Log each student's XP before resetting for the audit trail.
+                    $oldXpValues = Student::whereIn('student_id', $studentIds)
+                        ->pluck('total_xp', 'student_id');
+
                     Student::whereIn('student_id', $studentIds)
                         ->update([
                             'status'      => 'inactive',
                             'school_year' => $newSyName,
+                            'total_xp'    => 0,
+                            'level'       => 1,
                         ]);
+
+                    // Log the XP reset to xp_log for each student
+                    foreach ($studentIds as $sid) {
+                        $oldXp = (int) ($oldXpValues[$sid] ?? 0);
+                        if ($oldXp > 0) {
+                            try {
+                                \Illuminate\Support\Facades\DB::table('xp_log')->insert([
+                                    'student_id'      => $sid,
+                                    'action'          => 'SCHOOL_YEAR_RESET',
+                                    'xp_amount'       => -$oldXp,
+                                    'reason'          => "School year transition to {$newSyName}. XP reset to 0. Mastery level preserved.",
+                                    'created_at'      => now(),
+                                    'updated_at'      => now(),
+                                ]);
+                            } catch (\Throwable) { /* xp_log table may not exist in all envs */ }
+                        }
+                    }
 
                     AuditLog::record(
                         action:      'STUDENTS_UNENROLLED_FOR_NEW_SCHOOL_YEAR',
                         module:      'school_year',
-                        description: "{$studentIds->count()} student(s) set to inactive for new school year {$newSyName} under teacher {$actorName}.",
+                        description: "{$studentIds->count()} student(s) set to inactive for new school year {$newSyName} under teacher {$actorName}. XP reset to 0. Mastery levels preserved.",
                         userId:      Auth::id(),
                         userName:    $actorName,
                         userRole:    $actorRole,
                         subjectType: Teacher::class,
                         subjectId:   $teacher->id,
-                        oldValues:   ['school_year' => $archivedYearName, 'status' => 'active'],
-                        newValues:   ['school_year' => $newSyName, 'status' => 'inactive'],
+                        oldValues:   ['school_year' => $archivedYearName, 'status' => 'active', 'total_xp' => 'preserved per student'],
+                        newValues:   ['school_year' => $newSyName, 'status' => 'inactive', 'total_xp' => 0, 'level' => 1],
                     );
                 }
 

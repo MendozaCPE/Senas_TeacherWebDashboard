@@ -32,6 +32,8 @@ class StudentsController extends Controller
 
         $availableSchoolYears     = collect();
         $sidebarStudents          = collect();
+        $chartStudents            = collect();
+        $activeYearStudents       = collect();
         $teacherLessons           = collect();
         $promotionReadyCounts     = ['Beginner' => 0, 'Intermediate' => 0, 'Advanced' => 0];
         $promotionReadyStudentIds = ['Beginner' => [], 'Intermediate' => [], 'Advanced' => []];
@@ -61,8 +63,27 @@ class StudentsController extends Controller
                 ->orderByDesc('school_year')
                 ->pluck('school_year')
                 ->toArray();
+
+            // Also pull years from lesson_assignments scoped to THIS teacher's own lessons
+            // so historical years appear in the dropdown even after students.school_year
+            // has been updated to a newer year.
+            // Scoping to teacher's own lesson IDs prevents cross-teacher year leakage.
+            $teacherStudentIds   = Student::where('teacher_id', $teacher->id)->pluck('student_id');
+            $teacherOwnLessonIds = \App\Models\Lesson::where('teacher_id', $teacher->id)
+                ->whereNull('deleted_at')
+                ->pluck('lesson_id');
+
+            $syNamesFromAssignments = \App\Models\SchoolYear::whereIn('id',
+                DB::table('lesson_assignments')
+                    ->whereIn('student_id', $teacherStudentIds)
+                    ->whereIn('lesson_id', $teacherOwnLessonIds)
+                    ->whereNotNull('school_year_id')
+                    ->distinct()
+                    ->pluck('school_year_id')
+            )->pluck('name')->toArray();
+
             $availableSchoolYears = collect(array_unique(
-                array_merge($syNamesFromTable, $syNamesFromStudents)
+                array_merge($syNamesFromTable, $syNamesFromStudents, $syNamesFromAssignments)
             ))->sortDesc()->values();
 
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
@@ -143,16 +164,79 @@ class StudentsController extends Controller
                 $query->where('program_type', $program);
             }
 
-            // Status filter: when viewing a specific school year default to 'all'
-            // (show both enrolled and unenrolled) so teachers can see every student
-            // from that year regardless of their current enrolment status.
-            // Only apply a status filter when the user explicitly chose one.
+            // ── Auto-status rule ──────────────────────────────────────────────────
+            // Active/current year (or no year selected = defaults to active year):
+            //   → show only enrolled (status = active) unless teacher explicitly chose otherwise
+            // Archived/past year:
+            //   → show all statuses by default so teachers can see who was in that class
+            // "All School Years":
+            //   → show all
+            $isActiveSySelected = empty($schoolYear)
+                || $schoolYear === ($activeSchoolYear?->name ?? '');
+            $selectedSyRecord = !empty($schoolYear)
+                ? $syFromTable->firstWhere('name', $schoolYear)
+                : $activeSchoolYear;
+            $isArchivedSy = $selectedSyRecord && $selectedSyRecord->status === 'archived';
+
             if (!empty($status) && $status !== 'all') {
-                $query->where('status', $status);
+                // Teacher explicitly chose a status — always honour it,
+                // UNLESS we're on an archived year where "active" was just
+                // the implicit default carried over from the active-year view.
+                // In that case, treat an explicit 'active' as "no override" for
+                // archived years so all historical students are visible.
+                if ($isArchivedSy && $status === 'active') {
+                    // Don't apply — archived years show all by default
+                } else {
+                    $query->where('status', $status);
+                }
+            } elseif ($isActiveSySelected && !$isArchivedSy) {
+                // Default for active/current year: hide unenrolled students
+                $query->where('status', 'active');
             }
+            // else: archived year or "all years" with no explicit status → no filter
 
             if (!empty($schoolYear)) {
-                $query->where('school_year', $schoolYear);
+                $syRecord = $syFromTable->firstWhere('name', $schoolYear);
+                $isThisAnArchivedYear = $syRecord && $syRecord->status === 'archived';
+
+                if ($isThisAnArchivedYear) {
+                    // ── Archived year ────────────────────────────────────────────
+                    // The student's school_year column has likely been updated to a
+                    // newer year since they were last in this class. Use EXISTS on
+                    // lesson_assignments / progress scoped to this teacher's lessons
+                    // to find them historically. Also keep the direct string match
+                    // for students who were never assigned lessons.
+                    $syId = $syRecord->id;
+                    $teacherLessonIds = \App\Models\Lesson::where('teacher_id', $teacher->id)
+                        ->whereNull('deleted_at')
+                        ->pluck('lesson_id');
+
+                    $query->where(function ($q) use ($syId, $schoolYear, $teacherLessonIds) {
+                        $q->where('school_year', $schoolYear)
+                          ->orWhereExists(function ($sub) use ($syId, $teacherLessonIds) {
+                              $sub->select(DB::raw(1))
+                                  ->from('lesson_assignments')
+                                  ->whereColumn('lesson_assignments.student_id', 'students.student_id')
+                                  ->where('lesson_assignments.school_year_id', $syId)
+                                  ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds);
+                          })
+                          ->orWhereExists(function ($sub) use ($syId, $teacherLessonIds) {
+                              $sub->select(DB::raw(1))
+                                  ->from('student_lesson_progress')
+                                  ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
+                                  ->where('student_lesson_progress.school_year_id', $syId)
+                                  ->whereIn('student_lesson_progress.lesson_id', $teacherLessonIds);
+                          });
+                    });
+                } else {
+                    // ── Active / current year (or unrecognised year string) ───────
+                    // students.school_year is the authoritative column for the current
+                    // year. Use a simple direct match — no EXISTS fallback — so that
+                    // students whose school_year has already been updated to THIS year
+                    // (but who have past assignments with old school_year_ids) are not
+                    // accidentally surfaced.
+                    $query->where('school_year', $schoolYear);
+                }
             }
 
             // Filter by promotable level if selected via sidebar boxes
@@ -166,13 +250,79 @@ class StudentsController extends Controller
             }
 
             $students = $query->orderBy('created_at', 'desc')->paginate(10);
+
+            // ── Chart students: same school-year + status scope as the main query
+            // but WITHOUT search / level / program / promo filters — the 3 right-side
+            // charts show distribution across the entire filtered year, not just the
+            // searched subset. We reuse the resolved $syRecord from above if available.
+            $chartQuery = Student::where('teacher_id', $teacher->id);
+
+            if (!empty($status) && $status !== 'all') {
+                if ($isArchivedSy && $status === 'active') {
+                    // Don't apply on archived year — show all historical students
+                } else {
+                    $chartQuery->where('status', $status);
+                }
+            } elseif ($isActiveSySelected && !$isArchivedSy) {
+                // Mirror the main query rule: active year defaults to enrolled only
+                $chartQuery->where('status', 'active');
+            }
+
+            if (!empty($schoolYear)) {
+                $syRecord = $syFromTable->firstWhere('name', $schoolYear);
+                $isThisAnArchivedYear = $syRecord && $syRecord->status === 'archived';
+
+                if ($isThisAnArchivedYear) {
+                    $syId = $syRecord->id;
+                    $chartQuery->where(function ($q) use ($syId, $schoolYear, $teacherOwnLessonIds) {
+                        $q->where('school_year', $schoolYear)
+                          ->orWhereExists(function ($sub) use ($syId, $teacherOwnLessonIds) {
+                              $sub->select(DB::raw(1))
+                                  ->from('lesson_assignments')
+                                  ->whereColumn('lesson_assignments.student_id', 'students.student_id')
+                                  ->where('lesson_assignments.school_year_id', $syId)
+                                  ->whereIn('lesson_assignments.lesson_id', $teacherOwnLessonIds);
+                          })
+                          ->orWhereExists(function ($sub) use ($syId, $teacherOwnLessonIds) {
+                              $sub->select(DB::raw(1))
+                                  ->from('student_lesson_progress')
+                                  ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
+                                  ->where('student_lesson_progress.school_year_id', $syId)
+                                  ->whereIn('student_lesson_progress.lesson_id', $teacherOwnLessonIds);
+                          });
+                    });
+                } else {
+                    // Active/current year: simple direct match only
+                    $chartQuery->where('school_year', $schoolYear);
+                }
+            }
+
+            $chartStudents = $chartQuery
+                ->with(['assignments' => fn($q) => $q->select('student_id', 'lesson_id', 'score', 'status')])
+                ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp', 'status']);
+
+            // ── Stat card counts — reflect the active filter scope ────────────────
+            $totalStudents = $chartStudents->count();
+            $newThisWeek   = Student::where('teacher_id', $teacher->id)
+                ->where('created_at', '>=', Carbon::now()->subWeek())
+                ->when(!empty($schoolYear), fn($q) => $q->where('school_year', $schoolYear))
+                ->count();
+
+            // ── Active-year students for the empty-state hint ─────────────────────
+            // Used to show "your enrolled students this year" when viewing a past year
+            // with no results or when the active year has nobody enrolled yet.
+            $activeYearStudents = Student::where('teacher_id', $teacher->id)
+                ->where('school_year', $activeSchoolYear?->name ?? '')
+                ->where('status', 'active')
+                ->orderBy('first_name')
+                ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
         }
 
         return view('students', compact(
             'totalStudents', 'newThisWeek', 'students', 'availableSchoolYears',
-            'sidebarStudents', 'teacherLessons', 'promotionReadyCounts',
-            'promotionReadyStudentIds', 'allReadyStudentIds', 'activePromotableLevel',
-            'activeSchoolYear'
+            'sidebarStudents', 'chartStudents', 'activeYearStudents', 'teacherLessons',
+            'promotionReadyCounts', 'promotionReadyStudentIds', 'allReadyStudentIds',
+            'activePromotableLevel', 'activeSchoolYear'
         ));
     }
 
@@ -191,9 +341,17 @@ class StudentsController extends Controller
             'promotable_level' => ['nullable', 'string', 'in:Beginner,Intermediate,Advanced,all,'],
         ]);
 
+        // If teacher switches to an archived year, reset the status filter
+        // so a stale 'active' from the active-year view doesn't hide old students.
+        $newSchoolYear = $validated['school_year'] ?? '';
+        if (!empty($newSchoolYear)) {
+            $syRec = \App\Models\SchoolYear::where('name', $newSchoolYear)->first();
+            if ($syRec && $syRec->status === 'archived') {
+                $validated['status'] = '';
+            }
+        }
+
         // Clear filter if user submitted an empty/reset form.
-        // Note: empty status ('') is the new default (means "all students in that year"),
-        // so a reset clears the session entirely and lets index() apply its own defaults.
         if (($validated['search'] ?? '') === ''
             && ($validated['level'] ?? '') === ''
             && ($validated['program'] ?? '') === ''

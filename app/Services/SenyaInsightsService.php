@@ -20,14 +20,16 @@ class SenyaInsightsService
     private int   $teacherId;
     private Collection $studentIds;
     private Collection $lessonIds;
+    private ?int  $schoolYearId;
 
-    public function __construct(int $teacherId)
+    public function __construct(int $teacherId, ?int $schoolYearId = null)
     {
-        $this->teacherId  = $teacherId;
-        $this->studentIds = Student::where('teacher_id', $teacherId)
+        $this->teacherId    = $teacherId;
+        $this->schoolYearId = $schoolYearId;
+        $this->studentIds   = Student::where('teacher_id', $teacherId)
             ->where('status', 'active')
             ->pluck('student_id');
-        $this->lessonIds  = Lesson::where('teacher_id', $teacherId)
+        $this->lessonIds    = Lesson::where('teacher_id', $teacherId)
             ->where('status', 'published')
             ->whereNull('deleted_at')
             ->pluck('lesson_id');
@@ -63,6 +65,7 @@ class SenyaInsightsService
     {
         $results = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->whereNotNull('quiz_score')
             ->select('student_id',
                 DB::raw('ROUND(AVG(quiz_score),1) as avg_score'),
@@ -97,6 +100,7 @@ class SenyaInsightsService
         // By lessons completed
         $top = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->where('lesson_completed', 1)
             ->select('student_id', DB::raw('COUNT(*) as completed'))
             ->groupBy('student_id')
@@ -139,6 +143,7 @@ class SenyaInsightsService
         // Students with no activity in last 14 days
         $inactiveIds = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->select('student_id', DB::raw('MAX(last_accessed_at) as last_seen'))
             ->groupBy('student_id')
             ->get()
@@ -159,7 +164,9 @@ class SenyaInsightsService
         // Students who have never completed a lesson
         $neverCompleted = Student::whereIn('student_id', $this->studentIds)
             ->whereDoesntHave('progress', function ($q) {
-                $q->whereIn('lesson_id', $this->lessonIds)->where('lesson_completed', 1);
+                $q->whereIn('lesson_id', $this->lessonIds)
+                  ->when($this->schoolYearId, fn($q2) => $q2->where('school_year_id', $this->schoolYearId))
+                  ->where('lesson_completed', 1);
             })
             ->count();
 
@@ -181,6 +188,7 @@ class SenyaInsightsService
         // Declining performance: avg quiz score < 60%
         $struggling = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->whereNotNull('quiz_score')
             ->select('student_id', DB::raw('ROUND(AVG(quiz_score),1) as avg_score'), DB::raw('COUNT(*) as cnt'))
             ->groupBy('student_id')
@@ -202,6 +210,7 @@ class SenyaInsightsService
         // Most consecutive wrong gesture attempts
         try {
             $consec = GesturePerformance::whereIn('student_id', $this->studentIds)
+                ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
                 ->where('consecutive_wrong', '>=', 5)
                 ->orderByDesc('consecutive_wrong')
                 ->with(['student', 'gesture'])
@@ -225,6 +234,7 @@ class SenyaInsightsService
     {
         $perfect = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->where('quiz_score', 100)
             ->select('student_id', DB::raw('COUNT(*) as perfect_count'))
             ->groupBy('student_id')
@@ -275,6 +285,7 @@ class SenyaInsightsService
         try {
             $failed = DB::table('quiz_attempts')
                 ->whereIn('student_id', $this->studentIds)
+                ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
                 ->where('status', 'failed')
                 ->select('student_id', DB::raw('COUNT(*) as fail_count'))
                 ->groupBy('student_id')
@@ -297,6 +308,7 @@ class SenyaInsightsService
         // Gestures with highest wrong attempts
         try {
             $hardGestures = GesturePerformance::whereIn('student_id', $this->studentIds)
+                ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
                 ->where('wrong_attempts', '>', 0)
                 ->select('gesture_id',
                     DB::raw('SUM(wrong_attempts) as total_wrong'),
@@ -333,6 +345,7 @@ class SenyaInsightsService
         try {
             $studentScores = DB::table('quiz_attempts')
                 ->whereIn('student_id', $this->studentIds)
+                ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
                 ->where('status', 'completed')
                 ->select('student_id', 'percentage', 'completed_at')
                 ->orderBy('student_id')
@@ -371,6 +384,7 @@ class SenyaInsightsService
         try {
             // Top gesture where mastery_level = 'needs_practice' across most students
             $unmastered = GesturePerformance::whereIn('student_id', $this->studentIds)
+                ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
                 ->where('mastery_level', 'needs_practice')
                 ->where('attempts', '>=', 3)
                 ->select('gesture_id', DB::raw('COUNT(DISTINCT student_id) as struggling_count'))
@@ -391,6 +405,7 @@ class SenyaInsightsService
 
             // Most mastered gesture (positive insight)
             $mastered = GesturePerformance::whereIn('student_id', $this->studentIds)
+                ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
                 ->where('is_mastered', true)
                 ->select('gesture_id', DB::raw('COUNT(DISTINCT student_id) as mastered_count'))
                 ->groupBy('gesture_id')
@@ -419,6 +434,7 @@ class SenyaInsightsService
 
         $weak = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->whereNotNull('quiz_score')
             ->select('lesson_id',
                 DB::raw('ROUND(AVG(quiz_score),1) as avg_score'),
@@ -442,6 +458,7 @@ class SenyaInsightsService
         // Best lesson (positive)
         $best = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->whereNotNull('quiz_score')
             ->select('lesson_id',
                 DB::raw('ROUND(AVG(quiz_score),1) as avg_score'),
@@ -471,12 +488,14 @@ class SenyaInsightsService
     {
         $thisWeek = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->whereNotNull('quiz_score')
             ->where('updated_at', '>=', Carbon::now()->subDays(7))
             ->avg('quiz_score');
 
         $lastWeek = StudentLessonProgress::whereIn('student_id', $this->studentIds)
             ->whereIn('lesson_id', $this->lessonIds)
+            ->when($this->schoolYearId, fn($q) => $q->where('school_year_id', $this->schoolYearId))
             ->whereNotNull('quiz_score')
             ->whereBetween('updated_at', [Carbon::now()->subDays(14), Carbon::now()->subDays(7)])
             ->avg('quiz_score');
