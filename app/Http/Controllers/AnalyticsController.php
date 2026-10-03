@@ -44,9 +44,10 @@ class AnalyticsController extends Controller
     public function applyFilter(\Illuminate\Http\Request $request)
     {
         $validated = $request->validate([
-            'period' => ['nullable', 'string', 'in:weekly,monthly,quarterly,yearly'],
-            'year'   => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'month'  => ['nullable', 'integer', 'min:1', 'max:12'],
+            'period'      => ['nullable', 'string', 'in:weekly,monthly,quarterly,yearly'],
+            'year'        => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month'       => ['nullable', 'integer', 'min:1', 'max:12'],
+            'school_year' => ['nullable', 'string'],
         ]);
 
         if (empty(array_filter($validated))) {
@@ -81,19 +82,45 @@ class AnalyticsController extends Controller
 
     /**
      * Builds every value the analytics view (web or PDF) needs, given a
-     * teacher and the current request's filters (period/year/month).
+     * teacher and the current request's filters (period/year/month/school_year).
      * Both index() and exportPdf() call this so the two outputs can
      * never show different numbers.
      */
     public function buildAnalyticsData($teacher, \Illuminate\Http\Request $request): array
     {
-        $teacherId  = $teacher->id;
-        $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
+        $teacherId = $teacher->id;
+        $schoolId  = (int) ($teacher->school_id ?? 0);
+
+        $availableSchoolYears = \App\Models\SchoolYear::where('school_id', $schoolId ?: null)
+            ->orderByDesc('name')
+            ->get();
+
+        $activeSchoolYear = $availableSchoolYears->firstWhere('status', 'active')
+            ?? $availableSchoolYears->first();
+
+        $selectedYear = $request->get('school_year');
+        if (!$selectedYear && $activeSchoolYear) {
+            $selectedYear = $activeSchoolYear->name;
+        }
+
+        $selectedSchoolYear = ($selectedYear && $selectedYear !== 'all')
+            ? $availableSchoolYears->firstWhere('name', $selectedYear)
+            : null;
+
+        $studentQuery = Student::where('teacher_id', $teacherId);
+        if ($selectedSchoolYear) {
+            $studentQuery->where('school_year', $selectedSchoolYear->name);
+        }
+        $studentIds = $studentQuery->pluck('student_id');
         $lessonIds  = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->whereNull('deleted_at')->pluck('lesson_id');
         $totalStudents = $studentIds->count();
 
         if ($totalStudents === 0) {
-            return $this->emptyTeacherData($teacher->user ?? Auth::user());
+            $emptyData = $this->emptyTeacherData($teacher->user ?? Auth::user());
+            $emptyData['availableSchoolYears'] = $availableSchoolYears;
+            $emptyData['activeSchoolYear']     = $activeSchoolYear;
+            $emptyData['selectedSchoolYear']   = $selectedSchoolYear;
+            return $emptyData;
         }
 
         // Filter parameters
@@ -168,13 +195,14 @@ class AnalyticsController extends Controller
             ? round(($assignmentTotals->completed / $assignmentTotals->total) * 100, 1)
             : 0;
 
-        $avgStreakDays = Student::where('teacher_id', $teacherId)
-            ->where('status', 'active')
+        // Streak days and active-in-period are scoped to $studentIds (already filtered
+        // by school year above), so inactive/archived students are correctly included
+        // when viewing a historical school year.
+        $avgStreakDays = Student::whereIn('student_id', $studentIds)
             ->avg('streak_days') ?? 0;
         $avgStreakDays = round($avgStreakDays);
 
-        $activeInPeriod = Student::where('teacher_id', $teacherId)
-            ->where('status', 'active')
+        $activeInPeriod = Student::whereIn('student_id', $studentIds)
             ->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('last_activity_date', [$startDate, $endDate])
                   ->orWhereExists(function ($sub) use ($startDate, $endDate) {
@@ -962,12 +990,18 @@ class AnalyticsController extends Controller
             'topPerformingGestures'      => $topPerformingGestures,
             'lowestPerformingGestures'   => $lowestPerformingGestures,
             'studentGesturePerformance'  => collect(),
+            'availableSchoolYears'       => $availableSchoolYears,
+            'activeSchoolYear'           => $activeSchoolYear,
+            'selectedSchoolYear'         => $selectedSchoolYear,
         ];
     }
 
     private function emptyTeacherData($user): array
     {
         return [
+            'availableSchoolYears'       => collect(),
+            'activeSchoolYear'           => null,
+            'selectedSchoolYear'         => null,
             'totalStudents'              => 0,
             'avgQuizScore'               => 0,
             'avgMastery'                 => 0,

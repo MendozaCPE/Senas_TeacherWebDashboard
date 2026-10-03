@@ -12,6 +12,7 @@ use App\Models\CheckpointExam;
 use App\Models\Module;  // ✅ ADD THIS LINE
 use App\Models\LessonAssignment; 
 use App\Models\Lesson;
+use App\Models\SchoolYear;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -36,8 +37,34 @@ class StudentsController extends Controller
         $promotionReadyStudentIds = ['Beginner' => [], 'Intermediate' => [], 'Advanced' => []];
         $allReadyStudentIds       = [];
         $activePromotableLevel    = '';
+        $activeSchoolYear         = null;
 
         if ($teacher) {
+            $schoolId = (int) ($teacher->school_id ?? 0);
+
+            // ── School year list from school_years table (authoritative) ──────────
+            // Falls back to distinct values on students if no school_years records exist.
+            $syFromTable = \App\Models\SchoolYear::where('school_id', $schoolId ?: null)
+                ->orderByDesc('name')
+                ->get();
+
+            $activeSchoolYear = $syFromTable->firstWhere('status', 'active')
+                ?? $syFromTable->first();
+
+            // Build the dropdown list: prefer school_years table; supplement with
+            // any year strings on students that don't have a matching table record.
+            $syNamesFromTable    = $syFromTable->pluck('name')->toArray();
+            $syNamesFromStudents = Student::where('teacher_id', $teacher->id)
+                ->whereNotNull('school_year')
+                ->where('school_year', '!=', '')
+                ->distinct()
+                ->orderByDesc('school_year')
+                ->pluck('school_year')
+                ->toArray();
+            $availableSchoolYears = collect(array_unique(
+                array_merge($syNamesFromTable, $syNamesFromStudents)
+            ))->sortDesc()->values();
+
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
             $newThisWeek   = Student::where('teacher_id', $teacher->id)
                                     ->where('created_at', '>=', Carbon::now()->subWeek())
@@ -51,9 +78,7 @@ class StudentsController extends Controller
                                       }])
                                       ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
 
-            // ── Sidebar: Promotion Thresholds — how many active students at
-            // each level have completed all lessons assigned to them at that
-            // level (same rule as the individual student "Promotion" card).
+            // ── Sidebar: Promotion Thresholds ────────────────────────────────────
             $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
             foreach ($sidebarStudents as $sbStudent) {
                 $sbLevel = $sbStudent->fsl_mastery_level;
@@ -88,16 +113,16 @@ class StudentsController extends Controller
                 $filters = session('students_filters', []);
                 $level   = $filters['level']   ?? '';
                 $program = $filters['program'] ?? '';
-                $status  = $filters['status']  ?? 'active';
-                $schoolYear = $filters['school_year'] ?? '';
+                $status  = $filters['status']  ?? '';
+                $schoolYear = $filters['school_year'] ?? ($activeSchoolYear?->name ?? '');
                 $activePromotableLevel = $filters['promotable_level'] ?? '';
             } else {
                 $filters = session('students_filters', []);
                 $search  = $filters['search']  ?? '';
                 $level   = $filters['level']   ?? '';
                 $program = $filters['program'] ?? '';
-                $status  = $filters['status']  ?? 'active';
-                $schoolYear = $filters['school_year'] ?? '';
+                $status  = $filters['status']  ?? '';
+                $schoolYear = $filters['school_year'] ?? ($activeSchoolYear?->name ?? '');
                 $activePromotableLevel = $filters['promotable_level'] ?? '';
             }
 
@@ -118,6 +143,10 @@ class StudentsController extends Controller
                 $query->where('program_type', $program);
             }
 
+            // Status filter: when viewing a specific school year default to 'all'
+            // (show both enrolled and unenrolled) so teachers can see every student
+            // from that year regardless of their current enrolment status.
+            // Only apply a status filter when the user explicitly chose one.
             if (!empty($status) && $status !== 'all') {
                 $query->where('status', $status);
             }
@@ -137,20 +166,13 @@ class StudentsController extends Controller
             }
 
             $students = $query->orderBy('created_at', 'desc')->paginate(10);
-
-            $availableSchoolYears = Student::where('teacher_id', $teacher->id)
-                                           ->whereNotNull('school_year')
-                                           ->where('school_year', '!=', '')
-                                           ->select('school_year')
-                                           ->distinct()
-                                           ->orderBy('school_year', 'desc')
-                                           ->pluck('school_year');
         }
 
         return view('students', compact(
             'totalStudents', 'newThisWeek', 'students', 'availableSchoolYears',
             'sidebarStudents', 'teacherLessons', 'promotionReadyCounts',
-            'promotionReadyStudentIds', 'allReadyStudentIds', 'activePromotableLevel'
+            'promotionReadyStudentIds', 'allReadyStudentIds', 'activePromotableLevel',
+            'activeSchoolYear'
         ));
     }
 
@@ -169,13 +191,15 @@ class StudentsController extends Controller
             'promotable_level' => ['nullable', 'string', 'in:Beginner,Intermediate,Advanced,all,'],
         ]);
 
-        // Clear filter if user submitted an empty/reset form
+        // Clear filter if user submitted an empty/reset form.
+        // Note: empty status ('') is the new default (means "all students in that year"),
+        // so a reset clears the session entirely and lets index() apply its own defaults.
         if (($validated['search'] ?? '') === ''
             && ($validated['level'] ?? '') === ''
             && ($validated['program'] ?? '') === ''
             && ($validated['school_year'] ?? '') === ''
             && ($validated['promotable_level'] ?? '') === ''
-            && (($validated['status'] ?? 'active') === 'active')
+            && (($validated['status'] ?? '') === '' || ($validated['status'] ?? '') === 'all')
         ) {
             session()->forget('students_filters');
         } else {
@@ -402,12 +426,13 @@ if (!empty($lessonIdsOnly)) {
                     }
 
                     LessonAssignment::create([
-                        'lesson_id' => $lessonId,
-                        'student_id' => $student->student_id,
-                        'assigned_at' => now(),
-                        'status' => 'pending',
-                        'is_locked' => $isLocked,
-                        'notified' => false,
+                        'lesson_id'      => $lessonId,
+                        'student_id'     => $student->student_id,
+                        'assigned_at'    => now(),
+                        'status'         => 'pending',
+                        'is_locked'      => $isLocked,
+                        'notified'       => false,
+                        'school_year_id' => SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id,
                     ]);
                 }
             }
@@ -425,12 +450,12 @@ if (!empty($examIdsOnly)) {
 
         if (!$exists) {
             CheckpointExamAssignment::create([
-                'exam_id' => $examId,
+                'exam_id'    => $examId,
                 'student_id' => $student->student_id,
-                'assigned_at' => now(),
-                'status' => 'pending',
-                'is_locked' => true,
-                'notified' => false,
+                'assigned_at'=> now(),
+                'status'     => 'pending',
+                'is_locked'  => true,
+                'notified'   => false,
             ]);
         }
     }
@@ -653,8 +678,9 @@ if (!empty($examIdsOnly)) {
                     ? trim((string) ($data['section'] ?? ''))
                     : (trim((string) ($data['section'] ?? '')) ?: null);
 
-                // Default blank school_year to the active school year 2025-2026
-                $schoolYear = trim((string) ($data['school_year'] ?? '')) ?: '2025-2026';
+                // Default blank school_year to the active school year for this teacher's school.
+                $activeSyForImport = SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0));
+                $schoolYear = trim((string) ($data['school_year'] ?? '')) ?: ($activeSyForImport?->name ?? SchoolYear::currentDepEdLabel());
 
                 // ── 7. Create User + Student ──────────────────────────────────
                 $username = $this->generateUniqueUsername($firstName, $lastName);
@@ -1499,12 +1525,13 @@ public function assignLessons(Request $request, $id)
             }
 
             LessonAssignment::create([
-                'lesson_id' => $lessonId,
-                'student_id' => $student->student_id,
-                'assigned_at' => now(),
-                'status' => 'pending',
-                'is_locked' => $isLocked,
-                'notified' => false,
+                'lesson_id'      => $lessonId,
+                'student_id'     => $student->student_id,
+                'assigned_at'    => now(),
+                'status'         => 'pending',
+                'is_locked'      => $isLocked,
+                'notified'       => false,
+                'school_year_id' => SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id,
             ]);
         }
 
@@ -1637,7 +1664,15 @@ public function enroll($id)
         return response()->json(['success' => false, 'message' => 'Student is already enrolled.'], 422);
     }
 
-    $student->update(['status' => 'active']);
+    // Resolve the active school year for this teacher's school and stamp it
+    // on the student record so they are properly scoped to the new year.
+    $activeSy = SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0));
+    $activeSyName = $activeSy ? $activeSy->name : SchoolYear::currentDepEdLabel();
+
+    $student->update([
+        'status'      => 'active',
+        'school_year' => $activeSyName,
+    ]);
 
     // Return the student data with a flag that assignments need to be managed
     return response()->json([

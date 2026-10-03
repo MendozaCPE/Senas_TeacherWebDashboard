@@ -15,6 +15,7 @@ class GesturePerformance extends Model
         'student_id',
         'gesture_id',
         'module_id',
+        'school_year_id',
         'attempts',
         'successful_attempts',
         'wrong_attempts',
@@ -49,16 +50,53 @@ class GesturePerformance extends Model
         return $this->belongsTo(GestureModule::class, 'module_id', 'module_id');
     }
 
+    public function schoolYear()
+    {
+        return $this->belongsTo(SchoolYear::class, 'school_year_id');
+    }
+
 public static function updateOrCreatePerformance(
     int $studentId,
     int $gestureId,
     int $moduleId,
-    array $data
+    array $data,
+    ?int $schoolYearId = null
 ) {
-    $performance = self::firstOrNew([
+    // Resolve the active school year ID if not supplied.
+    // This ensures each school year gets its own gesture-performance row
+    // (the DB unique key is now student_id + gesture_id + school_year_id).
+    if ($schoolYearId === null) {
+        // Attempt to derive it from the student's school record.
+        $student = \App\Models\Student::find($studentId);
+        if ($student && $student->school_id) {
+            $sy = \App\Models\SchoolYear::activeForSchool((int) $student->school_id);
+            $schoolYearId = $sy?->id;
+        }
+        // Final fallback: pick the globally latest active year.
+        if ($schoolYearId === null) {
+            $schoolYearId = \App\Models\SchoolYear::where('status', 'active')
+                ->latest('id')
+                ->value('id');
+        }
+    }
+
+    $lookup = [
         'student_id' => $studentId,
         'gesture_id' => $gestureId,
-    ]);
+    ];
+
+    // Include school_year_id in the lookup only when we have one so that
+    // the firstOrNew matches the correct per-year row (DB unique: student+gesture+year).
+    if ($schoolYearId !== null) {
+        $lookup['school_year_id'] = $schoolYearId;
+    }
+
+    $performance = self::firstOrNew($lookup);
+
+    // Stamp the school year on new records.
+    if (!$performance->school_year_id && $schoolYearId !== null) {
+        $performance->school_year_id = $schoolYearId;
+    }
 
     if (!$performance->module_id) {
         $performance->module_id = $moduleId;

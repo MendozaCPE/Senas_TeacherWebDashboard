@@ -127,6 +127,64 @@
                $weekDays[] = $startOfWeek->copy()->addDays($i);
            }
         @endphp
+        <!-- School Year Context & Switcher -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+                </span>
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Academic Session</span>
+                    <span class="text-[13.5px] font-black text-slate-800">
+                        School Year {{ $selectedSchoolYear?->name ?? ($activeSchoolYear?->name ?? 'Current') }}
+                        @if($isArchivedView)
+                            <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Archived View</span>
+                        @else
+                            <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
+                        @endif
+                    </span>
+                </div>
+            </div>
+
+            <form method="GET" action="{{ route('dashboard') }}" class="flex items-center gap-2">
+                <div class="relative flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-1.5 shadow-sm">
+                    <span class="material-symbols-outlined text-[#0d326b] text-[16px] flex-shrink-0">calendar_month</span>
+                    <label for="sy_select" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">School Year</label>
+                    <select id="sy_select" name="school_year" onchange="this.form.submit()"
+                            class="appearance-none bg-transparent text-slate-700 text-[12.5px] font-black pr-6 focus:outline-none cursor-pointer border-none">
+                        <option value="all" {{ request('school_year') === 'all' ? 'selected' : '' }}>All Years</option>
+                        @foreach($availableSchoolYears ?? [] as $sy)
+                        <option value="{{ $sy->name }}"
+                                {{ ($selectedSchoolYear?->name ?? ($activeSchoolYear?->name ?? '')) === $sy->name && request('school_year') !== 'all' ? 'selected' : '' }}>
+                            S.Y. {{ $sy->name }}{{ $sy->status === 'active' ? ' ★' : '' }}
+                        </option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[15px]">expand_more</span>
+                </div>
+            </form>
+        </div>
+
+        @if($totalStudents === 0 && !$isArchivedView)
+        <!-- New School Year Clean Slate Banner -->
+        <div class="bg-gradient-to-r from-indigo-500/10 via-blue-500/10 to-transparent p-5 rounded-2xl border border-indigo-200/60 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-indigo-600/30">
+                    <span class="material-symbols-outlined text-[22px]">school</span>
+                </div>
+                <div>
+                    <h4 class="text-[14px] font-black text-slate-800">Welcome to School Year {{ $selectedSchoolYear?->name ?? 'New Year' }}!</h4>
+                    <p class="text-[12px] text-slate-500 font-medium">Your classroom is set up for the new school year. Enroll or re-enroll students to get started.</p>
+                </div>
+            </div>
+            <a href="{{ route('students') }}"
+               class="px-4 py-2 rounded-xl text-[12px] font-black uppercase tracking-wider text-white shadow-sm hover:opacity-95 transition-all whitespace-nowrap"
+               style="background: linear-gradient(135deg, #0d326b 0%, #1a6fd4 100%)">
+                Enroll Students
+            </a>
+        </div>
+        @endif
+
         <div class="flex gap-5">
            <!-- Welcome Banner -->
            <div class="flex-1 rounded-[28px] relative overflow-hidden min-h-[160px] flex items-center"

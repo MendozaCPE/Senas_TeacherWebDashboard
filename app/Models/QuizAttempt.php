@@ -13,6 +13,7 @@ class QuizAttempt extends Model
     protected $fillable = [
         'student_id',
         'quiz_id',
+        'school_year_id',
         'score',
         'total_points',
         'percentage',

@@ -34,13 +34,32 @@ class ReportsController extends Controller
         $studentReports  = collect();
 
         if ($teacher) {
-            $teacherId  = $teacher->id;
-            $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
+            $teacherId = $teacher->id;
+            $schoolId  = (int) ($teacher->school_id ?? 0);
 
-            $students = Student::where('teacher_id', $teacherId)
-                ->where('status', 'active')
-                ->orderBy('first_name')
+            $availableSchoolYears = \App\Models\SchoolYear::where('school_id', $schoolId ?: null)
+                ->orderByDesc('name')
                 ->get();
+
+            $activeSchoolYear = $availableSchoolYears->firstWhere('status', 'active')
+                ?? $availableSchoolYears->first();
+
+            // Read filters from session (set via POST, never from URL)
+            $filters          = session('reports_filters', []);
+            $filterStudent    = $filters['student_id'] ?? 'all';
+            $filterLesson     = $filters['lesson_id']  ?? 'all';
+            $filterSchoolYear = $filters['school_year'] ?? ($activeSchoolYear?->name ?? 'all');
+
+            $selectedSchoolYear = ($filterSchoolYear && $filterSchoolYear !== 'all')
+                ? $availableSchoolYears->firstWhere('name', $filterSchoolYear)
+                : null;
+
+            $studentQuery = Student::where('teacher_id', $teacherId);
+            if ($selectedSchoolYear) {
+                $studentQuery->where('school_year', $selectedSchoolYear->name);
+            }
+            $students   = $studentQuery->orderBy('first_name')->get();
+            $studentIds = $students->pluck('student_id');
 
             $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
             $teacherModuleIds = $modules->pluck('module_id');
@@ -376,7 +395,10 @@ class ReportsController extends Controller
             'checkpointExams',
             'studentReports',
             'studentGesturePerformance',
-            'teacher'
+            'teacher',
+            'availableSchoolYears',
+            'activeSchoolYear',
+            'selectedSchoolYear'
         ));
     }
 
@@ -387,20 +409,23 @@ class ReportsController extends Controller
     public function applyFilter(Request $request)
     {
         $validated = $request->validate([
-            'student_id' => ['nullable', 'string'],
-            'lesson_id'  => ['nullable', 'string'],
+            'student_id'  => ['nullable', 'string'],
+            'lesson_id'   => ['nullable', 'string'],
+            'school_year' => ['nullable', 'string', 'max:20'],
         ]);
 
         // Normalise 'all' as empty
-        $studentId = ($validated['student_id'] ?? 'all') === 'all' ? 'all' : (int) $validated['student_id'];
-        $lessonId  = ($validated['lesson_id']  ?? 'all') === 'all' ? 'all' : $validated['lesson_id'];
+        $studentId  = ($validated['student_id']  ?? 'all') === 'all' ? 'all' : (int) $validated['student_id'];
+        $lessonId   = ($validated['lesson_id']   ?? 'all') === 'all' ? 'all' : $validated['lesson_id'];
+        $schoolYear = ($validated['school_year'] ?? 'all') ?: 'all';
 
-        if ($studentId === 'all' && $lessonId === 'all') {
+        if ($studentId === 'all' && $lessonId === 'all' && $schoolYear === 'all') {
             session()->forget('reports_filters');
         } else {
             session(['reports_filters' => [
-                'student_id' => $studentId,
-                'lesson_id'  => $lessonId,
+                'student_id'  => $studentId,
+                'lesson_id'   => $lessonId,
+                'school_year' => $schoolYear,
             ]]);
         }
 
@@ -422,8 +447,36 @@ class ReportsController extends Controller
         }
 
         $teacherId  = $teacher->id;
-        $studentIds = Student::where('teacher_id', $teacherId)->where('status', 'active')->pluck('student_id');
-        $students   = Student::where('teacher_id', $teacherId)->where('status', 'active')->orderBy('first_name')->get();
+        $schoolId   = (int) ($teacher->school_id ?? 0);
+
+        // ── Resolve school year for the export ──────────────────────────────
+        $availableSchoolYears = \App\Models\SchoolYear::where('school_id', $schoolId ?: null)
+            ->orderByDesc('name')
+            ->get();
+
+        $activeSchoolYear = $availableSchoolYears->firstWhere('status', 'active')
+            ?? $availableSchoolYears->first();
+
+        // Honour the session filter if one is set, otherwise default to active year.
+        // Also accept a direct request param (sent from the PDF modal form).
+        $filters          = session('reports_filters', []);
+        $filterSchoolYear = $request->input('school_year')
+            ?? $filters['school_year']
+            ?? ($activeSchoolYear?->name ?? 'all');
+
+        $selectedSchoolYear = ($filterSchoolYear && $filterSchoolYear !== 'all')
+            ? $availableSchoolYears->firstWhere('name', $filterSchoolYear)
+            : null;
+
+        // ── Students scoped to the selected school year ─────────────────────
+        $studentQuery = Student::where('teacher_id', $teacherId);
+        if ($selectedSchoolYear) {
+            $studentQuery->where('school_year', $selectedSchoolYear->name);
+        }
+        // No status filter here — matches index() behaviour exactly.
+        // Inactive (unenrolled) students must still appear in historical PDFs.
+        $studentIds = $studentQuery->pluck('student_id');
+        $students   = $studentQuery->orderBy('first_name')->get();
         
         $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
         $teacherModuleIds = $modules->pluck('module_id');

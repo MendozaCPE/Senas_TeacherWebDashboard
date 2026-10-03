@@ -153,6 +153,7 @@
                 'module_completed'        => ['bg' => '#F0FDF4', 'ring' => '#BBF7D0', 'text' => '#15803D'],
                 'challenge_completed'     => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9'],
                 'fingerspelling_completed'=> ['bg' => '#F0FDFA', 'ring' => '#99F6E4', 'text' => '#0D9488'],
+                'new_school_year'         => ['bg' => '#EEF2FF', 'ring' => '#C7D2FE', 'text' => '#4338CA'],
             ];
             $c = $colorMap[$notif->type] ?? ['bg' => '#F8FAFC', 'ring' => '#E2E8F0', 'text' => '#475569'];
 
@@ -323,7 +324,22 @@
                 </div>
 
                 {{-- Primary Action Button --}}
-                @if($actionUrl)
+                @if($notif->type === 'new_school_year')
+                    @if($notif->action_status === 'completed')
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Transition Done
+                        </span>
+                    @else
+                        <button type="button"
+                                onclick="openTransitionModal({{ $notif->id }}, '{{ addslashes($notif->data['from_school_year'] ?? 'Previous') }}', '{{ addslashes($notif->data['target_school_year'] ?? 'New') }}')"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[12px] font-black uppercase tracking-wider text-white shadow-md hover:opacity-95 transition-all whitespace-nowrap"
+                                style="background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);">
+                            <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                            Start S.Y. {{ $notif->data['target_school_year'] ?? '' }}
+                        </button>
+                    @endif
+                @elseif($actionUrl)
                 <a href="{{ $actionUrl }}"
                    onclick="markOneRead({{ $notif->id }})"
                    class="px-3.5 py-1.5 rounded-xl text-[12px] font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-[#0d326b] border border-slate-200/90 shadow-sm transition-all duration-150 whitespace-nowrap">
@@ -592,5 +608,144 @@ function updateCounts() {
 document.getElementById('clear-modal').addEventListener('click', function(e) {
     if (e.target === this) closeClearModal();
 });
+
+// ── Transition Modal Handlers ────────────────────────────────────────────────
+let currentTransitionNotifId = null;
+
+function openTransitionModal(notifId, fromSy, targetSy) {
+    currentTransitionNotifId = notifId;
+    const modal = document.getElementById('transition-modal');
+    const box   = document.getElementById('transition-modal-box');
+    const targetEl = document.getElementById('modalTargetSy');
+    const fromEl   = document.getElementById('modalFromSy');
+
+    if (targetEl) targetEl.textContent = targetSy || 'New';
+    if (fromEl) fromEl.textContent = fromSy || 'Current';
+
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        modal.classList.remove('opacity-0');
+        box.classList.remove('scale-95');
+    });
+}
+
+function closeTransitionModal() {
+    const modal = document.getElementById('transition-modal');
+    const box   = document.getElementById('transition-modal-box');
+    if (!modal) return;
+    modal.classList.add('opacity-0');
+    box.classList.add('scale-95');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        currentTransitionNotifId = null;
+    }, 200);
+}
+
+async function doConfirmTransition() {
+    if (!currentTransitionNotifId) return;
+
+    const btn = document.getElementById('btnConfirmTransition');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-1.5">⏳</span> Archiving & Starting New Year...';
+    }
+
+    try {
+        const response = await fetch(`/notifications/${currentTransitionNotifId}/confirm-transition`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': CSRF,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            alert(data.message || 'School year transition completed successfully!');
+            window.location.href = '{{ route("dashboard") }}';
+        } else {
+            alert(data.message || 'The transition could not be completed. Please try again.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    } catch (err) {
+        alert('A network error occurred. Please check your connection and try again.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+
+document.getElementById('transition-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeTransitionModal();
+});
 </script>
+
+{{-- ── School Year Transition Confirmation Modal ────────────────────────────── --}}
+<div id="transition-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[999] hidden flex items-center justify-center opacity-0 transition-opacity duration-200 p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 transform scale-95 transition-transform duration-200" id="transition-modal-box">
+        <!-- Header -->
+        <div class="p-6 bg-gradient-to-br from-indigo-50 to-blue-50 border-b border-indigo-100 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 flex-shrink-0">
+                <span class="material-symbols-outlined text-[26px]">calendar_month</span>
+            </div>
+            <div>
+                <h3 class="text-[18px] font-black text-slate-800">Start New School Year</h3>
+                <p class="text-[12px] text-slate-500 font-medium">Transition your classroom to School Year <span id="modalTargetSy" class="font-bold text-indigo-700">2026-2027</span></p>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6 space-y-4">
+            <div class="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 text-[13px] text-indigo-900 space-y-2">
+                <p class="font-bold text-[13.5px]">What happens when you confirm:</p>
+                <div class="space-y-2 mt-2 text-[12.5px] text-slate-700">
+                    <div class="flex items-start gap-2.5">
+                        <span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 flex-shrink-0">inventory_2</span>
+                        <span>Your classroom data for S.Y. <span id="modalFromSy" class="font-bold text-slate-900">Current</span> will be safely <strong>archived</strong>.</span>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 flex-shrink-0">group_remove</span>
+                        <span>Current students will be set to <strong>inactive</strong> in your classroom so you can re-enroll them or enroll new students for the new school year.</span>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 flex-shrink-0">verified_user</span>
+                        <span><strong>Permanent student accounts, XP, levels, and achievements are NOT deleted.</strong></span>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 flex-shrink-0">history_edu</span>
+                        <span>Curriculum lessons, activities, and past performance remain accessible via the School Year filter.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3.5 bg-amber-50 rounded-2xl border border-amber-200/80 flex items-start gap-2.5 text-[12px] text-amber-800">
+                <span class="material-symbols-outlined text-[18px] text-amber-600 flex-shrink-0 mt-0.5">warning</span>
+                <span>This action will transition your active classroom to the new school year. Confirm when you are ready to conclude the current school year.</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button type="button"
+                    onclick="closeTransitionModal()"
+                    class="px-5 py-2.5 rounded-xl text-[12px] font-bold text-slate-600 hover:bg-slate-200/70 transition-colors">
+                Cancel
+            </button>
+            <button type="button"
+                    id="btnConfirmTransition"
+                    onclick="doConfirmTransition()"
+                    class="px-5 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-wider text-white shadow-md hover:opacity-95 transition-all"
+                    style="background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);">
+                Confirm & Start New School Year
+            </button>
+        </div>
+    </div>
+</div>
 @endsection

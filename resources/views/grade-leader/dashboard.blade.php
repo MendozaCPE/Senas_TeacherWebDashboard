@@ -644,11 +644,20 @@ if (empty($insights)) {
             <!-- ── Teachers in School (styled like My Students panel) ─────── -->
             <div class="bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden flex-1">
                 <!-- Header -->
-                <div class="px-7 pt-7 pb-4 flex items-center justify-between flex-shrink-0">
+                <div class="px-7 pt-7 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
                     <div>
                         <h4 class="text-[15px] font-black text-[#0d326b]">Teachers</h4>
-                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">{{ $totalTeachers }} in {{ $school->name ?? 'your school' }}</p>
+                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">{{ $totalTeachers }} in {{ $school->name ?? 'your school' }} • Active S.Y. <span class="font-bold text-slate-700">{{ $activeSyName ?? '2025-2026' }}</span></p>
                     </div>
+                    @if($totalTeachers > 0)
+                    <button type="button"
+                            onclick="openNotifyTransitionModal(null, 'All Teachers')"
+                            class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider text-white shadow-sm hover:opacity-95 transition-all"
+                            style="background:linear-gradient(135deg,#4F46E5 0%,#3730A3 100%)">
+                        <span class="material-symbols-outlined text-[14px]">calendar_month</span>
+                        <span>Notify for S.Y. {{ $targetSyName }}</span>
+                    </button>
+                    @endif
                 </div>
 
                 <div class="mx-7 border-t border-slate-100 flex-shrink-0"></div>
@@ -664,6 +673,7 @@ if (empty($insights)) {
                         $scoreBg    = $avg >= 75 ? '#eff6ff' : ($avg >= 50 ? '#dbeafe' : ($avg > 0 ? '#bfdbfe' : '#f8fafc'));
                         $statusColor = ($u?->status === 'active') ? '#1a6fd4' : '#94a3b8';
                         $statusBg    = ($u?->status === 'active') ? '#eff6ff' : '#f8fafc';
+                        $transStatus = $row['transition_status'] ?? 'none';
                     @endphp
                     <div class="flex items-center gap-4 px-7 py-4 hover:bg-slate-50 transition-colors">
 
@@ -684,16 +694,33 @@ if (empty($insights)) {
                                 <p class="text-[13px] font-bold text-slate-800 truncate">
                                     {{ $t->first_name }} {{ $t->last_name }}
                                 </p>
-                                @if($avg > 0)
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black flex-shrink-0"
-                                      style="background:{{ $scoreBg }};color:{{ $scoreColor }}">
-                                    {{ $avg }}%
-                                </span>
-                                @else
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 bg-slate-100 text-slate-400">
-                                    No data
-                                </span>
-                                @endif
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    @if($transStatus === 'completed')
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <span class="material-symbols-outlined text-[12px]">check_circle</span>
+                                            S.Y. {{ $targetSyName }} Active
+                                        </span>
+                                    @elseif($transStatus === 'pending')
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                            <span class="material-symbols-outlined text-[12px]">schedule</span>
+                                            Notified (Pending)
+                                        </span>
+                                    @else
+                                        <button type="button"
+                                                onclick="openNotifyTransitionModal({{ $t->id }}, '{{ addslashes($t->first_name . ' ' . $t->last_name) }}')"
+                                                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200/60">
+                                            <span class="material-symbols-outlined text-[11px]">send</span>
+                                            Notify S.Y.
+                                        </button>
+                                    @endif
+
+                                    @if($avg > 0)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black"
+                                          style="background:{{ $scoreBg }};color:{{ $scoreColor }}">
+                                        {{ $avg }}%
+                                    </span>
+                                    @endif
+                                </div>
                             </div>
 
                             <!-- Progress bar = avg quiz score -->
@@ -1278,7 +1305,137 @@ document.addEventListener('DOMContentLoaded', function () {
         }, { passive: true });
     })();
 });
+
+// ── School Year Transition Notification Modal ────────────────────────────────
+let notifyTransitionTeacherId = null;
+
+function openNotifyTransitionModal(teacherId, teacherName) {
+    notifyTransitionTeacherId = teacherId;
+    const modal = document.getElementById('notifyTransitionModal');
+    const targetLabel = document.getElementById('notifyTargetTeacherName');
+    if (targetLabel) {
+        targetLabel.textContent = teacherName || 'All Eligible Teachers';
+    }
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeNotifyTransitionModal() {
+    const modal = document.getElementById('notifyTransitionModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    notifyTransitionTeacherId = null;
+}
+
+function submitNotifyTransition() {
+    const btn = document.getElementById('btnSubmitNotifyTransition');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> Sending...';
+    }
+
+    const payload = {
+        _token: '{{ csrf_token() }}',
+        all: notifyTransitionTeacherId === null,
+        teacher_id: notifyTransitionTeacherId,
+    };
+
+    fetch('{{ route("grade-leader.notify-transition") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        closeNotifyTransitionModal();
+        if (data.success) {
+            alert(data.message || 'Notification sent successfully!');
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to send notification.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    })
+    .catch(err => {
+        closeNotifyTransitionModal();
+        alert('A network error occurred. Please try again.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    });
+}
 </script>
+
+<!-- ── Notify School Year Transition Modal ─────────────────────────────────── -->
+<div id="notifyTransitionModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+        <div class="p-6 bg-gradient-to-br from-indigo-50 to-blue-50 border-b border-indigo-100 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 flex-shrink-0">
+                <span class="material-symbols-outlined text-[26px]">calendar_month</span>
+            </div>
+            <div>
+                <h3 class="text-[17px] font-black text-slate-800">School Year Transition</h3>
+                <p class="text-[12px] text-slate-500 font-medium">Initiate transition for School Year <span class="font-bold text-indigo-700">{{ $targetSyName ?? 'New S.Y.' }}</span></p>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[13px] text-slate-600 space-y-2">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200/60 font-semibold text-slate-700">
+                    <span>Target Recipient:</span>
+                    <span id="notifyTargetTeacherName" class="font-bold text-indigo-700">All Teachers</span>
+                </div>
+                <div class="flex items-center justify-between font-semibold text-slate-700">
+                    <span>New School Year:</span>
+                    <span class="font-bold text-slate-800">{{ $targetSyName ?? 'Next Year' }}</span>
+                </div>
+            </div>
+
+            <div class="text-[12.5px] text-slate-500 leading-relaxed space-y-1.5">
+                <p class="flex items-start gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 flex-shrink-0">check_circle</span>
+                    <span>Teacher(s) will receive an actionable transition notification in their portal.</span>
+                </p>
+                <p class="flex items-start gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 flex-shrink-0">check_circle</span>
+                    <span>No data is erased. Historical records remain fully accessible in Reports and Analytics.</span>
+                </p>
+                <p class="flex items-start gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 flex-shrink-0">check_circle</span>
+                    <span>Duplicate pending notifications are automatically prevented.</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button type="button"
+                    onclick="closeNotifyTransitionModal()"
+                    class="px-5 py-2.5 rounded-xl text-[12px] font-bold text-slate-600 hover:bg-slate-200/70 transition-colors">
+                Cancel
+            </button>
+            <button type="button"
+                    id="btnSubmitNotifyTransition"
+                    onclick="submitNotifyTransition()"
+                    class="px-5 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-wider text-white shadow-md hover:opacity-95 transition-all"
+                    style="background:linear-gradient(135deg,#4F46E5 0%,#3730A3 100%)">
+                Send Notification
+            </button>
+        </div>
+    </div>
+</div>
 @endsection
 
 

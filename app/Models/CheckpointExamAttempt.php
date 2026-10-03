@@ -12,6 +12,7 @@ class CheckpointExamAttempt extends Model
     protected $fillable = [
         'student_id',
         'exam_id',
+        'school_year_id',
         'score',
         'total_points',
         'percentage',

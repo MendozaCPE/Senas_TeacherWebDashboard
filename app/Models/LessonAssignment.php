@@ -12,6 +12,7 @@ class LessonAssignment extends Model
     protected $fillable = [
         'lesson_id',
         'student_id',
+        'school_year_id',
         'assigned_at',
         'status',
         'notified',

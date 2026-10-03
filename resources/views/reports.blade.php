@@ -754,13 +754,17 @@
                 }
             }
         }
+
+        // School year filter
+        $currentSchoolYear = $rf['school_year'] ?? ($activeSchoolYear?->name ?? 'all');
     @endphp
 
     <form method="POST" action="{{ route('reports.filter') }}" id="filterForm">
         @csrf
         {{-- Hidden real values submitted to server --}}
-        <input type="hidden" name="student_id" id="studentIdHidden" value="{{ $currentStudentId }}">
-        <input type="hidden" name="lesson_id"  id="lessonIdHidden"  value="{{ $currentLessonId }}">
+        <input type="hidden" name="student_id"  id="studentIdHidden"  value="{{ $currentStudentId }}">
+        <input type="hidden" name="lesson_id"   id="lessonIdHidden"   value="{{ $currentLessonId }}">
+        <input type="hidden" name="school_year" id="schoolYearHidden" value="{{ $currentSchoolYear }}">
 
         <div class="filter-container">
             <div class="filter-group">
@@ -839,8 +843,29 @@
                     </div>
                 </div>
 
+                {{-- ── School Year filter ── --}}
+                @if(!empty($availableSchoolYears) && $availableSchoolYears->count() > 1)
+                <div class="relative">
+                    <select id="schoolYearSelect"
+                            onchange="document.getElementById('schoolYearHidden').value = this.value"
+                            class="pl-8 pr-8 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm appearance-none cursor-pointer hover:border-[#0d326b] focus:outline-none focus:ring-2 focus:ring-[#0d326b]/20 focus:border-[#0d326b] transition-colors"
+                            style="min-width:160px">
+                        <option value="all" {{ $currentSchoolYear === 'all' ? 'selected' : '' }}>All School Years</option>
+                        @foreach($availableSchoolYears as $sy)
+                            <option value="{{ $sy->name }}"
+                                    {{ $currentSchoolYear === $sy->name ? 'selected' : '' }}>
+                                S.Y. {{ $sy->name }}
+                                @if($sy->status === 'active') (Active) @endif
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[#0d326b] pointer-events-none text-[16px]">calendar_month</span>
+                    <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[15px]">expand_more</span>
+                </div>
+                @endif
+
                 <a href="{{ route('reports') }}"
-                   onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all'})}).then(()=>window.location.href='{{ route('reports') }}')"
+                   onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all',school_year:'all'})}).then(()=>window.location.href='{{ route('reports') }}')"
                    class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">refresh</span>
@@ -1127,8 +1152,9 @@
 {{-- ═══════════ EXPORT PDF MODAL ═══════════ --}}
 @php
     $rf = session('reports_filters', []);
-    $activeStudent = 'All Students';
-    $activeLesson  = 'All Lessons';
+    $activeStudent  = 'All Students';
+    $activeLesson   = 'All Lessons';
+    $activeSyLabel  = 'All School Years';
     if (!empty($rf['student_id']) && $rf['student_id'] !== 'all') {
         $fs = $students->firstWhere('student_id', $rf['student_id']);
         if ($fs) $activeStudent = $fs->first_name . ' ' . $fs->last_name;
@@ -1136,6 +1162,11 @@
     if (!empty($rf['lesson_id']) && $rf['lesson_id'] !== 'all') {
         $fl = $lessons->firstWhere('lesson_id', $rf['lesson_id']);
         if ($fl) $activeLesson = $fl->title;
+    }
+    if (!empty($rf['school_year']) && $rf['school_year'] !== 'all') {
+        $activeSyLabel = 'S.Y. ' . $rf['school_year'];
+    } elseif (!empty($activeSchoolYear)) {
+        $activeSyLabel = 'S.Y. ' . $activeSchoolYear->name . ' (Active)';
     }
     $exportBaseUrl = route('reports.export-pdf.post');
     $hiddenStudent = ($rf['student_id'] ?? 'all') !== 'all' ? $rf['student_id'] : null;
@@ -1170,6 +1201,10 @@
                 </div>
                 <div class="pdf-preview-row">
                     <div class="pdf-preview-dot"></div>
+                    <div class="pdf-preview-text">School Year: <span>{{ $activeSyLabel }}</span></div>
+                </div>
+                <div class="pdf-preview-row">
+                    <div class="pdf-preview-dot"></div>
                     <div class="pdf-preview-text">Records: <span>{{ $studentReports->total() }} student{{ $studentReports->total() !== 1 ? 's' : '' }}</span></div>
                 </div>
                 <div class="pdf-preview-row">
@@ -1187,6 +1222,8 @@
                 @if($hiddenLesson)
                     <input type="hidden" name="lesson_id" value="{{ $hiddenLesson }}">
                 @endif
+                {{-- Always pass the currently selected school year to the PDF export --}}
+                <input type="hidden" name="school_year" value="{{ $rf['school_year'] ?? ($activeSchoolYear?->name ?? 'all') }}">
 
                 <div class="pdf-options">
                     <div class="pdf-options-title">Document Settings</div>
@@ -2900,4 +2937,4 @@ document.addEventListener('keydown', function(e) {
 })();
 </script>
 
-@endsection
+@endsection

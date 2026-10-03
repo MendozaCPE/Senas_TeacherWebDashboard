@@ -436,6 +436,18 @@
                 </div>
 
                 <div class="filter-wrap">
+                    <select name="school_year" class="filter-select">
+                        <option value="all" {{ ($af['school_year'] ?? '') === 'all' ? 'selected' : '' }}>All School Years</option>
+                        @foreach($availableSchoolYears ?? [] as $sy)
+                        <option value="{{ $sy->name }}" {{ ($af['school_year'] ?? ($activeSchoolYear?->name ?? '')) === $sy->name ? 'selected' : '' }}>
+                            S.Y. {{ $sy->name }} {{ $sy->status === 'active' ? '(Current)' : '(Archived)' }}
+                        </option>
+                        @endforeach
+                    </select>
+                    <span class="material-symbols-outlined">expand_more</span>
+                </div>
+
+                <div class="filter-wrap">
                     <select name="period" id="periodSelect" class="filter-select">
                         <option value="weekly" {{ ($af['period'] ?? 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly Trend</option>
                         <option value="monthly" {{ ($af['period'] ?? '') === 'monthly' ? 'selected' : '' }}>Monthly</option>

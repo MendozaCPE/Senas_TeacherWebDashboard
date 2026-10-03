@@ -263,4 +263,57 @@ class NotificationsController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Confirm school year transition triggered from teacher notification.
+     */
+    public function confirmTransition(Request $request, $id)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+            }
+            return redirect()->back()->with('error', 'Unauthorized action.');
+        }
+
+        $notif = TeacherNotification::where('teacher_id', $teacher->id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$notif) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Notification not found.'], 404);
+            }
+            return redirect()->back()->with('error', 'Notification not found.');
+        }
+
+        if ($notif->type !== 'new_school_year') {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Invalid notification type.'], 400);
+            }
+            return redirect()->back()->with('error', 'Invalid notification type.');
+        }
+
+        if ($notif->action_status === 'completed') {
+            $msg = 'You have already confirmed the transition for this school year.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $msg], 400);
+            }
+            return redirect()->back()->with('info', $msg);
+        }
+
+        $service = app(\App\Services\SchoolYearTransitionService::class);
+        $result = $service->transition($teacher, (int) $id);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json($result, $result['success'] ? 200 : 422);
+        }
+
+        if ($result['success']) {
+            return redirect()->route('dashboard')->with('success', $result['message']);
+        }
+
+        return redirect()->back()->with('error', $result['message']);
+    }
 }

@@ -280,10 +280,13 @@
             <div class="filter-container mb-4">
                 @php
                     $sf = session('students_filters', []);
+                    // Effective school year: session value OR active school year as default
+                    $sfSchoolYear = $sf['school_year'] ?? ($activeSchoolYear?->name ?? '');
+                    $sfStatus     = $sf['status'] ?? '';   // '' = no status filter (show all)
                     $hasActiveFilters = false;
                     foreach ($sf as $k => $v) {
                         if ($k === 'status') {
-                            if ($v !== 'active') $hasActiveFilters = true;
+                            if ($v !== '' && $v !== 'all') $hasActiveFilters = true;
                         } else {
                             if (!empty($v)) $hasActiveFilters = true;
                         }
@@ -304,9 +307,11 @@
                 {{-- School Year --}}
                 <div class="filter-wrap shrink-0">
                     <select id="filter-school-year" class="filter-select">
-                        <option value="">School Year</option>
+                        <option value="">All School Years</option>
                         @foreach($availableSchoolYears as $sy)
-                        <option value="{{ $sy }}" {{ ($sf['school_year'] ?? '') === $sy ? 'selected' : '' }}>{{ $sy }}</option>
+                        <option value="{{ $sy }}" {{ $sfSchoolYear === $sy ? 'selected' : '' }}>
+                            S.Y. {{ $sy }}{{ ($activeSchoolYear && $activeSchoolYear->name === $sy) ? ' (Active)' : '' }}
+                        </option>
                         @endforeach
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
@@ -339,9 +344,9 @@
                 {{-- Status --}}
                 <div class="filter-wrap shrink-0">
                     <select id="filter-status" class="filter-select">
-                        <option value="active"   {{ ($sf['status'] ?? 'active') === 'active'   ? 'selected' : '' }}>Enrolled</option>
-                        <option value="inactive" {{ ($sf['status'] ?? 'active') === 'inactive' ? 'selected' : '' }}>Unenrolled</option>
-                        <option value="all"      {{ ($sf['status'] ?? 'active') === 'all'      ? 'selected' : '' }}>All Statuses</option>
+                        <option value=""       {{ $sfStatus === ''         ? 'selected' : '' }}>All Statuses</option>
+                        <option value="active" {{ $sfStatus === 'active'   ? 'selected' : '' }}>Enrolled</option>
+                        <option value="inactive" {{ $sfStatus === 'inactive' ? 'selected' : '' }}>Unenrolled</option>
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
@@ -1595,7 +1600,7 @@ function mapExcelData(rows) {
             }
 
             // Default blank school_year to the current active school year
-            const DEFAULT_SCHOOL_YEAR = '2025-2026';
+            const DEFAULT_SCHOOL_YEAR = '{{ $activeSchoolYear?->name ?? \App\Models\SchoolYear::currentDepEdLabel() }}';
             const rawSy = syIdx !== -1 ? String(row[syIdx] ?? '').trim() : '';
             const school_year = rawSy || DEFAULT_SCHOOL_YEAR;
 
@@ -2027,7 +2032,7 @@ function updateClearButtonVisibility() {
     const program = document.getElementById('filter-program').value;
     const schoolYear = document.getElementById('filter-school-year').value;
     const status  = document.getElementById('filter-status').value;
-    const hasFilters = !!(search || level || program || schoolYear || currentPromotableLevel || (status && status !== 'active'));
+    const hasFilters = !!(search || level || program || schoolYear || currentPromotableLevel || (status && status !== '' && status !== 'all'));
     const wrap = document.getElementById('clear-filters-wrap');
     if (wrap) wrap.classList.toggle('hidden', !hasFilters);
 }
@@ -2138,10 +2143,10 @@ document.addEventListener('click', function (e) {
         document.getElementById('student-search').value = '';
         document.getElementById('filter-level').value = '';
         document.getElementById('filter-program').value = '';
-        document.getElementById('filter-school-year').value = '';
-        document.getElementById('filter-status').value = 'active';
+        document.getElementById('filter-school-year').value = '{{ $activeSchoolYear?->name ?? '' }}';
+        document.getElementById('filter-status').value = '';
         currentPromotableLevel = '';
-        applyServerFilters({ search: '', level: '', program: '', school_year: '', status: 'active', promotable_level: '' });
+        applyServerFilters({ search: '', level: '', program: '', school_year: '{{ $activeSchoolYear?->name ?? '' }}', status: '', promotable_level: '' });
         return;
     }
 

@@ -22,6 +22,8 @@ class TeacherNotification extends Model
         'action_url',
         'is_read',
         'read_at',
+        'action_status',
+        'related_school_year_id',
     ];
 
     protected $casts = [
@@ -37,6 +39,11 @@ class TeacherNotification extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    public function relatedSchoolYear(): BelongsTo
+    {
+        return $this->belongsTo(SchoolYear::class, 'related_school_year_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────────────────────
@@ -93,8 +100,14 @@ class TeacherNotification extends Model
             'module_completed'   => ['icon' => 'book',             'color' => '#15803D'],
            'challenge_completed' => ['icon' => 'emoji_events', 'color' => '#8B5CF6'],
         'fingerspelling_completed' => ['icon' => 'hand', 'color' => '#14B8A6'],
+            'new_school_year'    => ['icon' => 'calendar_month',   'color' => '#4F46E5'],
             default              => ['icon' => 'notifications',    'color' => '#6B7280'],
         };
+    }
+
+    public function isPendingTransition(): bool
+    {
+        return $this->type === 'new_school_year' && $this->action_status === 'pending';
     }
 
     public static function createForTeacher(

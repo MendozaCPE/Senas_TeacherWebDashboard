@@ -242,6 +242,7 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
     Route::post('/notifications/{id}/unread', [NotificationsController::class, 'markUnread'])->name('notifications.unread');
     Route::post('/notifications/read-all', [NotificationsController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/clear-read', [NotificationsController::class, 'clearRead'])->name('notifications.clear-read');
+    Route::post('/notifications/{id}/confirm-transition', [NotificationsController::class, 'confirmTransition'])->name('notifications.confirm-transition');
     Route::delete('/notifications/{id}', [NotificationsController::class, 'destroy'])->name('notifications.destroy');
 
     // Global Search Auto-complete API
@@ -433,6 +434,7 @@ Route::middleware(['auth', 'auth.session', 'no.cache', 'grade_leader'])
 
     // Dashboard — School Academic Performance
     Route::get('/dashboard', [GradeLeaderController::class, 'dashboard'])->name('dashboard');
+    Route::post('/notify-school-year-transition', [GradeLeaderController::class, 'notifyTransition'])->name('notify-transition');
 
     // Default Lessons — read-only curriculum catalog
     Route::get('/lessons', [GradeLeaderController::class, 'lessons'])->name('lessons');

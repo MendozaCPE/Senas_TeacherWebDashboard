@@ -3,15 +3,18 @@
 namespace App\Http\Controllers\GradeLeader;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\CheckpointExam;
 use App\Models\CheckpointExamAssignment;
 use App\Models\GestureMedia;
 use App\Models\Lesson;
 use App\Models\Module;
+use App\Models\SchoolYear;
 use App\Models\Student;
 use App\Models\StudentLessonProgress;
 use App\Models\Teacher;
 use App\Models\TeacherMedia;
+use App\Models\TeacherNotification;
 use App\Models\User;
 use App\Services\LessonTemplateService;
 use Carbon\Carbon;
@@ -175,11 +178,23 @@ class GradeLeaderController extends Controller
             ->values()
             ->take(5);
 
+        // ── School Year Transition Context ──────────────────────────────────
+        $activeSy = SchoolYear::activeForSchool($schoolId);
+        $activeSyName = $activeSy ? $activeSy->name : SchoolYear::currentDepEdLabel();
+        [$startY, $endY] = explode('-', $activeSyName);
+        $targetSyName = ((int)$endY) . '-' . (((int)$endY) + 1);
+
+        $transitionNotifs = TeacherNotification::whereIn('teacher_id', $teacherIds)
+            ->where('type', 'new_school_year')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('teacher_id');
+
         // ── Recently active teachers in the school ───────────────────────────
         $recentTeachers = Teacher::whereIn('id', $teacherIds)
             ->with(['user', 'students'])
             ->get()
-            ->map(function ($teacher) use ($studentIds) {
+            ->map(function ($teacher) use ($studentIds, $transitionNotifs) {
                 // Per-teacher stats
                 $tStudentIds = $teacher->students()->pluck('student_id');
                 $avgScore = DB::table('quiz_attempts')
@@ -193,14 +208,23 @@ class GradeLeaderController extends Controller
                 $activeStudentsCount = Student::whereIn('student_id', $tStudentIds)
                     ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
                     ->count();
+
+                $tNotif = $transitionNotifs->get($teacher->id)?->first();
+                $transitionStatus = 'none';
+                if ($tNotif) {
+                    $transitionStatus = $tNotif->action_status ?: 'pending';
+                }
+
                 return [
-                    'teacher'        => $teacher,
-                    'user'           => $teacher->user,
-                    'student_count'  => $tStudentIds->count(),
-                    'avg_score'      => round((float) $avgScore, 1),
-                    'lessons_done'   => $completedLessons,
-                    'active_students'=> $activeStudentsCount,
-                    'last_active'    => $teacher->user?->updated_at,
+                    'teacher'           => $teacher,
+                    'user'              => $teacher->user,
+                    'student_count'     => $tStudentIds->count(),
+                    'avg_score'         => round((float) $avgScore, 1),
+                    'lessons_done'      => $completedLessons,
+                    'active_students'   => $activeStudentsCount,
+                    'last_active'       => $teacher->user?->updated_at,
+                    'transition_status' => $transitionStatus,
+                    'transition_notif'  => $tNotif,
                 ];
             })
             ->sortByDesc('last_active')
@@ -308,8 +332,114 @@ class GradeLeaderController extends Controller
             'avgQuizScore', 'activeStudents',
             'activityTrend', 'topClasses', 'moreDataNeeded', 'recentTeachers',
             'sparkDates', 'sparkStudents', 'sparkLessons', 'sparkTeachers', 'sparkQuizScores',
-            'programDonut', 'fslMasteryData'
+            'programDonut', 'fslMasteryData',
+            'activeSyName', 'targetSyName'
         ));
+    }
+
+    /**
+     * Notify teachers in the Grade Leader's assigned school to transition to the new school year.
+     * Prevents duplicate pending transition notifications for the same teacher & target school year.
+     */
+    public function notifyTransition(Request $request)
+    {
+        $schoolId = $this->schoolId();
+        if (!$schoolId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not linked to any school.',
+            ], 403);
+        }
+
+        $activeSy = SchoolYear::activeForSchool($schoolId);
+        $activeSyName = $activeSy ? $activeSy->name : SchoolYear::currentDepEdLabel();
+        [$startY, $endY] = explode('-', $activeSyName);
+        $targetSy = ((int)$endY) . '-' . (((int)$endY) + 1);
+
+        $all = $request->boolean('all');
+        $teacherId = $request->input('teacher_id');
+
+        $teacherQuery = Teacher::where('school_id', $schoolId)
+            ->whereHas('user', fn ($q) => $q->where('role', 'teacher')->where('is_system', false));
+
+        if (!$all && $teacherId) {
+            $teacherQuery->where('id', $teacherId);
+        }
+
+        $teachers = $teacherQuery->get();
+
+        if ($teachers->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No eligible teachers found in your school.',
+            ], 404);
+        }
+
+        $notifiedCount = 0;
+        $alreadyPendingCount = 0;
+        $currentUser = Auth::user();
+        $leaderName  = $currentUser ? ($currentUser->teacher?->first_name . ' ' . $currentUser->teacher?->last_name) : 'Grade Leader';
+
+        foreach ($teachers as $teacher) {
+            // Check for existing pending notification for this teacher & target school year
+            $existingPending = TeacherNotification::where('teacher_id', $teacher->id)
+                ->where('type', 'new_school_year')
+                ->where('action_status', 'pending')
+                ->whereJsonContains('data->target_school_year', $targetSy)
+                ->exists();
+
+            if ($existingPending) {
+                $alreadyPendingCount++;
+                continue;
+            }
+
+            TeacherNotification::create([
+                'teacher_id'    => $teacher->id,
+                'type'          => 'new_school_year',
+                'title'         => 'New School Year Transition: ' . $targetSy,
+                'message'       => 'Grade Leader ' . $leaderName . ' has notified your school to begin transition to School Year ' . $targetSy . '. Please review and confirm your classroom transition.',
+                'action_status' => 'pending',
+                'action_url'    => route('notifications.index'),
+                'data'          => [
+                    'from_school_year'   => $activeSyName,
+                    'target_school_year' => $targetSy,
+                    'initiated_by_user'  => Auth::id(),
+                    'initiated_by_name'  => $leaderName,
+                ],
+                'icon'          => 'calendar_month',
+                'color'         => '#4F46E5',
+                'is_read'       => false,
+            ]);
+
+            AuditLog::record(
+                action:      'SCHOOL_YEAR_TRANSITION_NOTIFIED',
+                module:      'school_year',
+                description: "Grade Leader {$leaderName} notified teacher {$teacher->first_name} {$teacher->last_name} to transition to School Year {$targetSy}.",
+                userId:      Auth::id(),
+                userName:    $leaderName,
+                userRole:    'grade_leader',
+                subjectType: Teacher::class,
+                subjectId:   $teacher->id,
+                newValues:   [
+                    'target_school_year' => $targetSy,
+                    'from_school_year'   => $activeSyName,
+                ]
+            );
+
+            $notifiedCount++;
+        }
+
+        $message = $notifiedCount > 0
+            ? "Successfully notified {$notifiedCount} teacher(s) for School Year {$targetSy}."
+            : "The selected teacher(s) already have a pending transition notification for School Year {$targetSy}.";
+
+        return response()->json([
+            'success'         => true,
+            'notified_count'  => $notifiedCount,
+            'skipped_count'   => $alreadyPendingCount,
+            'target_year'     => $targetSy,
+            'message'         => $message,
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -575,11 +705,6 @@ class GradeLeaderController extends Controller
         // ── Date window ───────────────────────────────────────────────────────
         [$startDate, $endDate] = $this->buildDateWindow($period, $year, $month);
 
-        $lessonIds = \App\Models\Lesson::whereIn('teacher_id', $teacherIds)
-            ->where('status', 'published')
-            ->whereNull('deleted_at')
-            ->pluck('lesson_id');
-
         // ── Top-level KPIs ────────────────────────────────────────────────────
         $avgQuizScore = round((float) DB::table('quiz_attempts')
             ->whereIn('student_id', $studentIds)
@@ -601,139 +726,11 @@ class GradeLeaderController extends Controller
                 ->count()) * 100, 1)
             : 0;
 
-        $assignmentTotals = DB::table('lesson_assignments')
-            ->whereIn('student_id', $studentIds)
-            ->whereIn('lesson_id', $lessonIds)
-            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
-            ->first();
-
-        $completionRate = ($assignmentTotals && $assignmentTotals->total > 0)
-            ? round(($assignmentTotals->completed / $assignmentTotals->total) * 100, 1)
-            : 0;
+        $completionRate = 0; // not used in new analytics layout
 
         $activeStudentsCount = Student::whereIn('student_id', $studentIds)
             ->whereBetween('last_activity_date', [$startDate->toDateString(), $endDate->toDateString()])
             ->count();
-
-        // ── Quiz Score Distribution (5 bands) ────────────────────────────────
-        $scoreBands = [
-            '0–20%'  => [0, 20],
-            '21–40%' => [21, 40],
-            '41–60%' => [41, 60],
-            '61–80%' => [61, 80],
-            '81–100%'=> [81, 100],
-        ];
-        $scoreBuckets = [];
-        foreach ($scoreBands as $label => [$lo, $hi]) {
-            $scoreBuckets[] = [
-                'label' => $label,
-                'count' => DB::table('quiz_attempts')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$startDate, $endDate])
-                    ->whereBetween('percentage', [$lo, $hi])
-                    ->count(),
-            ];
-        }
-
-        // ── Lesson Completion Trend over time ─────────────────────────────────
-        $completionTrend = $this->buildCompletionTrend($period, $year, $month, $studentIds, $startDate, $endDate);
-
-        // ── Per-teacher / class performance ──────────────────────────────────
-        $classBreakdown = Teacher::whereIn('id', $teacherIds)
-            ->with('user')
-            ->get()
-            ->map(function ($teacher) use ($startDate, $endDate) {
-                $tStudentIds = $teacher->students()->pluck('student_id');
-                $tLessonIds  = \App\Models\Lesson::where('teacher_id', $teacher->id)
-                    ->where('status', 'published')
-                    ->whereNull('deleted_at')
-                    ->pluck('lesson_id');
-
-                $avg = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$startDate, $endDate])
-                    ->avg('percentage') ?? 0;
-
-                $assigned  = DB::table('lesson_assignments')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->whereIn('lesson_id', $tLessonIds)
-                    ->count();
-                $completed = DB::table('lesson_assignments')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->whereIn('lesson_id', $tLessonIds)
-                    ->where('status', 'completed')
-                    ->count();
-
-                return [
-                    'name'            => trim($teacher->first_name . ' ' . $teacher->last_name),
-                    'student_count'   => $tStudentIds->count(),
-                    'avg_quiz_score'  => round((float) $avg, 1),
-                    'completion_rate' => $assigned > 0 ? round($completed / $assigned * 100, 1) : 0,
-                ];
-            })
-            ->sortByDesc('avg_quiz_score')
-            ->values();
-
-        // ── Gesture Mastery per competency ────────────────────────────────────
-        $gestureMastery = DB::table('gesture_performances')
-            ->join('gestures', 'gesture_performances.gesture_id', '=', 'gestures.gesture_id')
-            ->whereIn('gesture_performances.student_id', $studentIds)
-            ->where('gesture_performances.attempts', '>', 0)
-            ->selectRaw('gestures.display_name as gesture_name,
-                COUNT(*) as total_attempts,
-                SUM(CASE WHEN gesture_performances.is_mastered = 1 THEN 1 ELSE 0 END) as mastered_count')
-            ->groupBy('gestures.gesture_id', 'gestures.display_name')
-            ->orderByRaw('mastered_count / total_attempts DESC')
-            ->limit(12)
-            ->get()
-            ->map(function ($row) {
-                $rate = $row->total_attempts > 0
-                    ? round($row->mastered_count / $row->total_attempts * 100, 1)
-                    : 0;
-                return [
-                    'name' => $row->gesture_name,
-                    'rate' => $rate,
-                    'color' => $rate >= 80 ? '#22c55e' : ($rate >= 50 ? '#f59e0b' : '#ef4444'),
-                ];
-            });
-
-        // ── Completion Funnel ─────────────────────────────────────────────────
-        $funnelStatuses = ['pending', 'in_progress', 'completed', 'failed'];
-        $completionFunnel = [];
-        foreach ($funnelStatuses as $status) {
-            $completionFunnel[] = [
-                'status' => ucfirst(str_replace('_', ' ', $status)),
-                'count'  => DB::table('lesson_assignments')
-                    ->whereIn('student_id', $studentIds)
-                    ->whereIn('lesson_id', $lessonIds)
-                    ->where('status', $status)
-                    ->count(),
-            ];
-        }
-
-        // ── Grade-level breakdown ─────────────────────────────────────────────
-        $gradeLevelBreakdown = Student::whereIn('student_id', $studentIds)
-            ->selectRaw('grade_level, COUNT(*) as student_count')
-            ->groupBy('grade_level')
-            ->orderBy('grade_level')
-            ->get()
-            ->map(function ($row) use ($studentIds, $startDate, $endDate) {
-                $gStudentIds = Student::whereIn('student_id', $studentIds)
-                    ->where('grade_level', $row->grade_level)
-                    ->pluck('student_id');
-                $avg = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $gStudentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$startDate, $endDate])
-                    ->avg('percentage') ?? 0;
-                return [
-                    'grade'         => 'Grade ' . $row->grade_level,
-                    'student_count' => $row->student_count,
-                    'avg_score'     => round((float) $avg, 1),
-                ];
-            });
 
         // ── CLASS PERFORMANCE: active students, quiz pass rate, checkpoint pass rate per teacher ──
         $classPerformance = Teacher::whereIn('id', $teacherIds)
@@ -781,72 +778,92 @@ class GradeLeaderController extends Controller
                     ->avg('percentage') ?? 0), 1);
 
                 return [
-                    'teacher_id'      => $teacher->id,
-                    'name'            => trim($teacher->first_name . ' ' . $teacher->last_name),
-                    'avatar'          => $teacher->user?->avatarUrl() ?? '',
-                    'total_students'  => $total,
-                    'active_students' => $active,
+                    'teacher_id'        => $teacher->id,
+                    'name'              => trim($teacher->first_name . ' ' . $teacher->last_name),
+                    'avatar'            => $teacher->user?->avatarUrl() ?? '',
+                    'total_students'    => $total,
+                    'active_students'   => $active,
                     'inactive_students' => max(0, $total - $active),
-                    'active_pct'      => $total > 0 ? round($active / $total * 100, 1) : 0,
-                    'avg_quiz_score'  => $avgScore,
-                    'quiz_total'      => $quizTotal,
-                    'quiz_passed'     => $quizPassed,
-                    'quiz_pass_rate'  => $quizTotal > 0 ? round($quizPassed / $quizTotal * 100, 1) : 0,
-                    'ck_total'        => $ckTotal,
-                    'ck_passed'       => $ckPassed,
-                    'ck_pass_rate'    => $ckTotal > 0 ? round($ckPassed / $ckTotal * 100, 1) : 0,
-                    'status'          => $avgScore >= 75 ? 'on_track' : ($avgScore >= 50 ? 'needs_attention' : 'needs_support'),
+                    'active_pct'        => $total > 0 ? round($active / $total * 100, 1) : 0,
+                    'avg_quiz_score'    => $avgScore,
+                    'quiz_total'        => $quizTotal,
+                    'quiz_passed'       => $quizPassed,
+                    'quiz_pass_rate'    => $quizTotal > 0 ? round($quizPassed / $quizTotal * 100, 1) : 0,
+                    'ck_total'          => $ckTotal,
+                    'ck_passed'         => $ckPassed,
+                    'ck_pass_rate'      => $ckTotal > 0 ? round($ckPassed / $ckTotal * 100, 1) : 0,
+                    'status'            => $avgScore >= 75 ? 'on_track' : ($avgScore >= 50 ? 'needs_attention' : 'needs_support'),
                 ];
             })
             ->sortByDesc('avg_quiz_score')
             ->values();
 
-        // ── ACTIVE vs INACTIVE per classroom (stacked bar data) ──────────────
-        $activeVsInactive = $classPerformance->map(fn ($c) => [
-            'name'     => $c['name'],
-            'active'   => $c['active_students'],
-            'inactive' => $c['inactive_students'],
-            'total'    => $c['total_students'],
-        ])->values();
+        // ── ENROLLMENT BY DEPED SCHOOL YEAR ──────────────────────────────────
+        // DepEd SY: July (month 7) of year Y to June (month 6) of year Y+1
+        // e.g. July 2024 → June 2025 = "2024-2025"
+        // Determine current DepEd school year based on today's month
+        $nowMonth       = (int) Carbon::now()->format('n');
+        $nowYear        = (int) Carbon::now()->format('Y');
+        $currentDepEdSY = $nowMonth >= 7
+            ? $nowYear . '-' . ($nowYear + 1)
+            : ($nowYear - 1) . '-' . $nowYear;
 
-        // ── ENROLLMENT TREND: students enrolled per year, per teacher ─────────
-        // Years range: from earliest student created_at up to current year
-        $earliestYear = (int) (DB::table('students')
-            ->whereIn('student_id', $studentIds)
-            ->min(DB::raw('YEAR(created_at)')) ?? date('Y'));
-        $currentYear  = (int) date('Y');
-        $enrollYears  = range($earliestYear, $currentYear);
+        // Always show exactly 5 years ending at the current SY
+        [$curStart] = explode('-', $currentDepEdSY);
+        $curStart   = (int) $curStart;
+        $allDepEdSYs = [];
+        for ($offset = 4; $offset >= 0; $offset--) {
+            $allDepEdSYs[] = ($curStart - $offset) . '-' . ($curStart - $offset + 1);
+        }
 
-        $enrollmentTrend = Teacher::whereIn('id', $teacherIds)
-            ->with('user')
-            ->get()
-            ->map(function ($teacher) use ($enrollYears) {
-                $yearCounts = [];
-                foreach ($enrollYears as $yr) {
-                    $yearCounts[$yr] = DB::table('students')
-                        ->where('teacher_id', $teacher->id)
-                        ->whereYear('created_at', $yr)
-                        ->count();
-                }
-                return [
-                    'teacher_id' => $teacher->id,
-                    'name'       => trim($teacher->first_name . ' ' . $teacher->last_name),
-                    'avatar'     => $teacher->user?->avatarUrl() ?? '',
-                    'years'      => $yearCounts,
-                    'total'      => array_sum($yearCounts),
-                ];
-            })
-            ->sortByDesc('total')
-            ->values();
+        // Program types (canonical order)
+        $programTypes = ['Regular', 'Inclusion', 'Transition', 'Self-contained'];
+
+        // Count students per DepEd school year by program type.
+        // Only use the explicit school_year field — no created_at fallback.
+        // A student is counted in whichever year their school_year field says,
+        // so re-enrolling (updating school_year) moves them to the new year only.
+        $enrollmentBySY = [];
+        foreach ($allDepEdSYs as $sy) {
+            $byProgram = [];
+            $total     = 0;
+            foreach ($programTypes as $pt) {
+                $cnt = DB::table('students')
+                    ->whereIn('student_id', $studentIds)
+                    ->where('school_year', $sy)
+                    ->where('program_type', $pt)
+                    ->count();
+                $byProgram[$pt] = $cnt;
+                $total += $cnt;
+            }
+            $enrollmentBySY[$sy] = [
+                'total'    => $total,
+                'programs' => $byProgram,
+            ];
+        }
+
+        // ── ACTIVE vs INACTIVE for current DepEd school year (pie chart) ─────
+        // Only counts students whose school_year field is exactly the current SY.
+        $activeInactivePie = [
+            'school_year' => $currentDepEdSY,
+            'active'      => Student::whereIn('student_id', $studentIds)
+                ->where('school_year', $currentDepEdSY)
+                ->where('status', 'active')
+                ->count(),
+            'inactive'    => Student::whereIn('student_id', $studentIds)
+                ->where('school_year', $currentDepEdSY)
+                ->whereIn('status', ['inactive', 'archived'])
+                ->count(),
+        ];
+        $activeInactivePie['total'] = $activeInactivePie['active'] + $activeInactivePie['inactive'];
 
         return view('grade-leader.analytics', compact(
             'school', 'period', 'year', 'month',
             'startDate', 'endDate',
             'avgQuizScore', 'quizPassRate', 'completionRate', 'activeStudentsCount',
-            'scoreBuckets', 'completionTrend', 'classBreakdown',
-            'gestureMastery', 'completionFunnel', 'gradeLevelBreakdown',
-            'classPerformance', 'activeVsInactive',
-            'enrollmentTrend', 'enrollYears'
+            'classPerformance',
+            'enrollmentBySY', 'allDepEdSYs', 'currentDepEdSY', 'programTypes',
+            'activeInactivePie'
         ));
     }
 

@@ -15,6 +15,7 @@ class StudentLessonProgress extends Model
     protected $fillable = [
         'student_id',
         'lesson_id',
+        'school_year_id',
         'current_step',
         'lesson_completed',
         'quiz_completed',
