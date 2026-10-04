@@ -1327,10 +1327,13 @@
             </button>
         </div>
 
-        {{-- Required-next-step banner (queue mode only) --}}
-        <div id="assignment-queue-banner" class="hidden shrink-0 mx-7 mt-4 px-4 py-2.5 rounded-xl text-[11px] font-semibold flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800">
-            <span class="material-symbols-outlined text-[16px] shrink-0">priority_high</span>
-            <span>This is the next required step. If you cancel, this student will be added with no lessons assigned.</span>
+        {{-- Warning banner - shown for all enrollment flows --}}
+        <div id="assignment-warning-banner" class="hidden shrink-0 mx-7 mt-4 px-4 py-3 rounded-xl text-[11px] font-semibold flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800">
+            <span class="material-symbols-outlined text-[18px] shrink-0">info</span>
+            <div>
+                <p class="font-bold mb-0.5">Assign lessons to help your student start learning</p>
+                <p class="font-medium text-[10px] text-blue-700">You can skip this step and assign lessons later from the student management page.</p>
+            </div>
         </div>
 
         {{-- Loading — shimmer skeleton --}}
@@ -1402,6 +1405,43 @@
 
         {{-- Notification --}}
         <div id="assignment-notif" class="hidden shrink-0 mx-7 mb-4 px-4 py-3 rounded-xl text-[12px] font-semibold flex items-center gap-2 border"></div>
+    </div>
+</div>
+
+{{-- ══════════ LESSON ASSIGNMENT WARNING MODAL ══════════ --}}
+<div id="assignment-warning-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+    <div id="assignment-warning-card" class="bg-white rounded-[24px] w-[500px] max-w-[90vw] mx-4 shadow-2xl transform scale-95 transition-transform duration-200 overflow-hidden">
+        <div class="px-6 py-5 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-200">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-white text-[22px]">warning</span>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-[16px] font-bold text-amber-900">Previous Assignment Detected</h3>
+                    <p class="text-[11px] text-amber-700 font-medium mt-1">Some lessons were already assigned in a previous school year</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="px-6 py-5">
+            <p class="text-[12px] text-slate-600 font-medium mb-3">The following lessons were already assigned to <span id="assignment-warning-student-name" class="font-bold text-[#0d326b]"></span>:</p>
+            
+            <div id="assignment-warning-list" class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 max-h-[200px] overflow-y-auto">
+                <!-- Dynamically filled -->
+            </div>
+            
+            <p class="text-[12px] text-slate-700 font-semibold">Do you want to assign them again for the current school year?</p>
+        </div>
+        
+        <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+            <button id="assignment-warning-cancel" class="px-5 py-2.5 rounded-xl text-[13px] font-semibold text-slate-600 hover:bg-slate-200 transition-colors">
+                Cancel
+            </button>
+            <button id="assignment-warning-confirm" class="px-6 py-2.5 rounded-xl text-[13px] font-bold bg-amber-600 hover:bg-amber-700 text-white transition-all flex items-center gap-2 shadow-sm">
+                <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                Yes, Proceed
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1855,18 +1895,29 @@ async function submitSingleStudent(event) {
     const [lastPart, firstPart] = nameVal.split(',');
     const displayName = (firstPart ? firstPart.trim() + ' ' + lastPart.trim() : nameVal).trim();
 
-    // ✅ FIX: Force close the Add Student modal immediately
-    modal.classList.add('opacity-0');
-    modalCard.classList.add('scale-95');
-    
-    // ✅ FIX: Wait for the modal to fully close before opening the assignment modal
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        resetModal();
-        console.log('📖 Opening assignment modal for new student:', displayName);
-        openAssignmentModal(null, displayName, payload);
-    }, 400);
+    // ✅ Show enrollment confirmation dialog
+    sdcConfirm({
+        title: 'Enroll Student?',
+        body: `Are you sure you want to enroll <strong>${displayName}</strong>? You'll be able to assign lessons in the next step.`,
+        okLabel: 'Yes, Enroll Student',
+        cancelLabel: 'Cancel',
+        okClass: 'bg-[#0d326b] hover:bg-[#154188]',
+        onConfirm: () => {
+            // ✅ FIX: Force close the Add Student modal immediately
+            modal.classList.add('opacity-0');
+            modalCard.classList.add('scale-95');
+            
+            // ✅ FIX: Wait for the modal to fully close before opening the assignment modal
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                resetModal();
+                console.log('📖 Opening assignment modal for new student:', displayName);
+                openAssignmentModal(null, displayName, payload);
+            }, 400);
+        }
+    });
 }
+
 // ─── Step 2: "Review & Import" button → show editable table ──────────────────
 // Wired via onclick on the button itself (see renderDataTable call in handleExcelFile)
 
@@ -2822,7 +2873,7 @@ function sdcConfirm({ title, body, okLabel, okClass, onConfirm }) {
     const canEl = document.getElementById('sdc-confirm-cancel');
 
     tEl.textContent  = title;
-    bEl.textContent  = body;
+    bEl.innerHTML    = body; // Changed to innerHTML to render HTML tags
     okEl.textContent = okLabel;
     okEl.className   = 'flex-1 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all ' + (okClass || 'bg-[#0d326b] hover:bg-[#154188]');
 
@@ -3038,6 +3089,7 @@ const assignQueueBadge = document.getElementById('assignment-queue-badge');
 const assignQueueBanner = document.getElementById('assignment-queue-banner');
 const assignApplyAllBtn = document.getElementById('assignment-apply-all');
 const assignApplyAllLabel = document.getElementById('assignment-apply-all-label');
+const assignWarningBanner = document.getElementById('assignment-warning-banner');
 
 // Kick off the post-import queue: opens the assign-lessons modal for the first
 // newly-created student, then automatically advances to the next one after
@@ -3081,13 +3133,18 @@ function openAssignmentModal(studentId, studentName, pendingPayload) {
 
     // ── Queue-mode UI (post-bulk-import) ────────────────────────────────────
     const inQueue = _assignQueue.length > 0 && _assignQueue[0].student_id === studentId;
+    
+    // Show warning banner for ALL enrollment flows
+    if (assignWarningBanner) {
+        assignWarningBanner.classList.remove('hidden');
+    }
+    
     if (inQueue) {
         const position = _assignQueueDone + 1;
         if (assignQueueBadge) {
             assignQueueBadge.textContent = 'Student ' + position + ' of ' + _assignQueueTotal;
             assignQueueBadge.classList.remove('hidden');
         }
-        if (assignQueueBanner) assignQueueBanner.classList.remove('hidden');
         if (assignApplyAllBtn) {
             const remaining = _assignQueue.length - 1; // students after this one
             if (remaining > 0) {
@@ -3099,7 +3156,6 @@ function openAssignmentModal(studentId, studentName, pendingPayload) {
         }
     } else {
         if (assignQueueBadge) assignQueueBadge.classList.add('hidden');
-        if (assignQueueBanner) assignQueueBanner.classList.add('hidden');
         if (assignApplyAllBtn) assignApplyAllBtn.classList.add('hidden');
     }
 
@@ -3253,20 +3309,66 @@ function advanceAssignmentQueue() {
     }, 300);
 }
 
-// Cancel/close: during the post-import queue, warn the teacher that skipping
-// leaves this student with no lessons, since this is meant to be a required step.
+// Cancel/close: Allow closing for all flows, but show informative confirmation
 function handleAssignmentCancelClick() {
-    if (isAssignmentQueueActive()) {
-        const name = _assignQueue[0].full_name;
+    const studentName = _assignPendingPayload 
+        ? _assignPendingPayload.full_name || 'this student'
+        : (_assignQueue.length > 0 ? _assignQueue[0].full_name : 'this student');
+    
+    // Show confirmation for ANY enrollment flow (manual, Excel, re-enroll)
+    if (_assignPendingPayload || isAssignmentQueueActive()) {
         sdcConfirm({
             title: 'Skip lesson assignment?',
-            body: name + ' will be added to your class with no lessons assigned. You can assign lessons later from their student profile.',
-            okLabel: 'Skip Anyway',
-            okClass: 'bg-amber-500 hover:bg-amber-600',
-            onConfirm: () => advanceAssignmentQueue()
+            body: studentName + ' will be enrolled without any lessons assigned. You can assign lessons later from the student management page.',
+            okLabel: 'Skip & Enroll',
+            okClass: 'bg-blue-500 hover:bg-blue-600',
+            onConfirm: () => {
+                if (isAssignmentQueueActive()) {
+                    advanceAssignmentQueue();
+                } else if (_assignPendingPayload) {
+                    // Create student without lessons
+                    createStudentWithoutLessons();
+                } else {
+                    closeAssignmentModal();
+                }
+            }
         });
     } else {
+        // Just close modal for existing students (not during enrollment)
         closeAssignmentModal();
+    }
+}
+
+// Helper function to create student without lessons
+async function createStudentWithoutLessons() {
+    const token = document.querySelector('#studentFilterForm input[name="_token"]').value;
+    try {
+        const payload = {
+            ..._assignPendingPayload,
+            lesson_ids: [] // Empty lessons
+        };
+        const res = await axios.post("{{ route('students.store') }}", payload, {
+            headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+        });
+        
+        if (res.data.success) {
+            closeAssignmentModal();
+            resetModal();
+            applyServerFilters();
+            // Show success message in the main page
+            setTimeout(() => {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'fixed top-4 right-4 z-50 bg-emerald-50 border border-emerald-200 text-emerald-800 px-6 py-4 rounded-xl shadow-lg flex items-center gap-3';
+                alertDiv.innerHTML = `
+                    <span class="material-symbols-outlined text-emerald-600">check_circle</span>
+                    <span class="font-semibold text-[13px]">${res.data.message || 'Student enrolled successfully'}</span>
+                `;
+                document.body.appendChild(alertDiv);
+                setTimeout(() => alertDiv.remove(), 3000);
+            }, 400);
+        }
+    } catch (err) {
+        assignNotifShow(err.response?.data?.message || 'Failed to enroll student.', 'error');
     }
 }
 
@@ -3518,6 +3620,94 @@ document.getElementById('assignment-save').addEventListener('click', async funct
                 }
                 applyServerFilters();
             }, 1200);
+        } else if (res.data.requires_confirmation && res.data.warnings) {
+            // Show warning modal for previous school year assignments
+            saveBtn.innerHTML = origHtml;
+            saveBtn.disabled = false;
+            
+            const warnings = res.data.warnings;
+            const studentName = document.getElementById('assignment-student-name').textContent;
+            
+            // Show modal
+            const warningModal = document.getElementById('assignment-warning-modal');
+            const warningCard = document.getElementById('assignment-warning-card');
+            const warningList = document.getElementById('assignment-warning-list');
+            const warningStudentName = document.getElementById('assignment-warning-student-name');
+            
+            warningStudentName.textContent = studentName;
+            
+            const warningHtml = warnings.map(w => 
+                `<div class="flex items-start gap-2 mb-2 last:mb-0">
+                    <span class="material-symbols-outlined text-amber-600 text-[16px] shrink-0 mt-0.5">warning</span>
+                    <div class="flex-1">
+                        <p class="text-[12px] font-bold text-amber-900">${w.lesson_title}</p>
+                        <p class="text-[10px] text-amber-700 font-medium">Previously assigned in ${w.school_year}</p>
+                    </div>
+                </div>`
+            ).join('');
+            
+            warningList.innerHTML = warningHtml;
+            
+            warningModal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                warningModal.classList.remove('opacity-0');
+                warningCard.classList.remove('scale-95');
+            });
+            
+            // Cancel button
+            document.getElementById('assignment-warning-cancel').onclick = () => {
+                warningModal.classList.add('opacity-0');
+                warningCard.classList.add('scale-95');
+                setTimeout(() => warningModal.classList.add('hidden'), 200);
+            };
+            
+            // Confirm button
+            document.getElementById('assignment-warning-confirm').onclick = async () => {
+                warningModal.classList.add('opacity-0');
+                warningCard.classList.add('scale-95');
+                setTimeout(() => warningModal.classList.add('hidden'), 200);
+                
+                saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Saving...';
+                saveBtn.disabled = true;
+                
+                try {
+                    // Retry with force=true
+                    const retryRes = await axios.post('/students/' + _assignStudentId + '/assign-lessons', {
+                        lesson_ids: lessonIds,
+                        force: true
+                    }, {
+                        headers: {
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    if (retryRes.data.success) {
+                        assignNotifShow(retryRes.data.message, 'success');
+                        const wasInQueue = isAssignmentQueueActive();
+                        setTimeout(() => {
+                            saveBtn.innerHTML = origHtml;
+                            saveBtn.disabled = false;
+                            if (wasInQueue) {
+                                advanceAssignmentQueue();
+                            } else {
+                                closeAssignmentModal();
+                            }
+                            applyServerFilters();
+                        }, 1200);
+                    } else {
+                        assignNotifShow(retryRes.data.message || 'Failed to save.', 'error');
+                        saveBtn.innerHTML = origHtml;
+                        saveBtn.disabled = false;
+                    }
+                } catch (err) {
+                    let msg = 'Failed to save.';
+                    if (err.response?.data?.message) msg = err.response.data.message;
+                    assignNotifShow(msg, 'error');
+                    saveBtn.innerHTML = origHtml;
+                    saveBtn.disabled = false;
+                }
+            };
         } else {
             assignNotifShow(res.data.message || 'Failed to save.', 'error');
             saveBtn.innerHTML = origHtml;
@@ -3554,50 +3744,123 @@ document.getElementById('assignment-apply-all').addEventListener('click', async 
     const saveBtn = document.getElementById('assignment-save');
     const origApplyHtml = applyBtn.innerHTML;
 
-    applyBtn.disabled = true;
-    saveBtn.disabled = true;
-    applyBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Applying to ' + targets.length + ' students...';
+    // Helper function to apply lessons with optional force flag
+    const applyToAllStudents = async (forceAssign = false) => {
+        applyBtn.disabled = true;
+        saveBtn.disabled = true;
+        applyBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Applying to ' + targets.length + ' students...';
 
-    let succeeded = 0;
-    let failed = [];
-    for (const student of targets) {
-        try {
-            const res = await axios.post('/students/' + student.student_id + '/assign-lessons', {
-                lesson_ids: lessonIds
-            }, {
-                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
-            });
-            if (res.data.success) {
-                succeeded++;
-            } else {
+        let succeeded = 0;
+        let failed = [];
+        let hasWarnings = false;
+        let warningDetails = [];
+        
+        for (const student of targets) {
+            try {
+                const res = await axios.post('/students/' + student.student_id + '/assign-lessons', {
+                    lesson_ids: lessonIds,
+                    force: forceAssign
+                }, {
+                    headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+                });
+                
+                if (res.data.success) {
+                    succeeded++;
+                } else if (res.data.requires_confirmation && res.data.warnings && !forceAssign) {
+                    hasWarnings = true;
+                    warningDetails.push({
+                        student: student,
+                        warnings: res.data.warnings
+                    });
+                } else {
+                    failed.push(student.full_name);
+                }
+            } catch (err) {
                 failed.push(student.full_name);
             }
-        } catch (err) {
-            failed.push(student.full_name);
         }
-    }
 
-    _assignQueue = [];
-    _assignQueueDone = _assignQueueTotal;
+        applyBtn.innerHTML = origApplyHtml;
+        applyBtn.disabled = false;
+        saveBtn.disabled = false;
 
-    applyBtn.innerHTML = origApplyHtml;
-    applyBtn.disabled = false;
-    saveBtn.disabled = false;
+        // If warnings were detected and we haven't forced yet, show confirmation
+        if (hasWarnings && !forceAssign) {
+            const uniqueStudents = [...new Set(warningDetails.map(w => w.student.full_name))];
+            const studentList = uniqueStudents.slice(0, 3).join(', ') + (uniqueStudents.length > 3 ? '...' : '');
+            
+            // Show modal
+            const warningModal = document.getElementById('assignment-warning-modal');
+            const warningCard = document.getElementById('assignment-warning-card');
+            const warningList = document.getElementById('assignment-warning-list');
+            const warningStudentName = document.getElementById('assignment-warning-student-name');
+            
+            warningStudentName.textContent = uniqueStudents.length + ' student(s)';
+            
+            const warningHtml = `
+                <div class="mb-3">
+                    <p class="text-[11px] font-bold text-amber-900 mb-2">Affected Students:</p>
+                    <p class="text-[11px] text-amber-800">${studentList}</p>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-amber-900 mb-2">Lessons with previous assignments:</p>
+                    ${[...new Set(warningDetails.flatMap(w => w.warnings.map(warn => warn.lesson_title)))].slice(0, 5).map(title => 
+                        `<div class="flex items-start gap-2 mb-1.5">
+                            <span class="material-symbols-outlined text-amber-600 text-[14px] shrink-0">warning</span>
+                            <p class="text-[11px] text-amber-800 font-medium">${title}</p>
+                        </div>`
+                    ).join('')}
+                </div>
+            `;
+            
+            warningList.innerHTML = warningHtml;
+            
+            warningModal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                warningModal.classList.remove('opacity-0');
+                warningCard.classList.remove('scale-95');
+            });
+            
+            // Cancel button
+            document.getElementById('assignment-warning-cancel').onclick = () => {
+                warningModal.classList.add('opacity-0');
+                warningCard.classList.add('scale-95');
+                setTimeout(() => warningModal.classList.add('hidden'), 200);
+            };
+            
+            // Confirm button
+            document.getElementById('assignment-warning-confirm').onclick = async () => {
+                warningModal.classList.add('opacity-0');
+                warningCard.classList.add('scale-95');
+                setTimeout(() => warningModal.classList.add('hidden'), 200);
+                await applyToAllStudents(true); // Retry with force=true
+            };
+            
+            return;
+        }
 
-    if (failed.length) {
-        assignNotifShow(succeeded + ' of ' + targets.length + ' students updated. Failed: ' + failed.join(', '), 'warning');
-        setTimeout(() => { openNextInAssignmentQueue(); }, 1800);
-    } else {
-        assignNotifShow('Lessons applied to all ' + targets.length + ' new students.', 'success');
-        setTimeout(() => {
-            assignModal.classList.add('opacity-0');
-            assignCard.classList.add('scale-95');
+        // Clear queue and show results
+        _assignQueue = [];
+        _assignQueueDone = _assignQueueTotal;
+
+        if (failed.length) {
+            assignNotifShow(succeeded + ' of ' + targets.length + ' students updated. Failed: ' + failed.join(', '), 'warning');
+            setTimeout(() => { openNextInAssignmentQueue(); }, 1800);
+        } else {
+            assignNotifShow('Lessons applied to all ' + targets.length + ' new students.', 'success');
             setTimeout(() => {
-                assignModal.classList.add('hidden');
-                openNextInAssignmentQueue();
-            }, 300);
-        }, 1200);
-    }
+                assignModal.classList.add('opacity-0');
+                assignCard.classList.add('scale-95');
+                setTimeout(() => {
+                    assignModal.classList.add('hidden');
+                    openNextInAssignmentQueue();
+                }, 300);
+            }, 1200);
+        }
+    };
+    
+    // Start the process
+    await applyToAllStudents(false);
 });
 
 // ── Manage Lessons button in Student Details ─────────────────────────────

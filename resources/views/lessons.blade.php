@@ -1266,11 +1266,50 @@ function deselectAllVisible() {
     updateAssignedCount();
 }
 
+// ── Confirm dialog helper ─────────────────────────────────────────────────────
+function sdcConfirm({ title, body, okLabel, okClass, onConfirm }) {
+    const cm   = document.getElementById('sdc-confirm-modal');
+    const cc   = document.getElementById('sdc-confirm-card');
+    const iw   = document.getElementById('sdc-confirm-icon-wrap');
+    const ico  = document.getElementById('sdc-confirm-icon');
+    const tEl  = document.getElementById('sdc-confirm-title');
+    const bEl  = document.getElementById('sdc-confirm-body');
+    const okEl = document.getElementById('sdc-confirm-ok');
+    const canEl = document.getElementById('sdc-confirm-cancel');
+
+    tEl.textContent  = title;
+    bEl.innerHTML    = body;
+    okEl.textContent = okLabel;
+    okEl.className   = 'flex-1 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all ' + (okClass || 'bg-[#0d326b] hover:bg-[#154188]');
+
+    cm.classList.remove('hidden');
+    requestAnimationFrame(() => { cm.classList.remove('opacity-0'); cc.classList.remove('scale-95'); });
+
+    function closeConfirm() { cm.classList.add('opacity-0'); cc.classList.add('scale-95'); setTimeout(() => cm.classList.add('hidden'), 200); }
+    canEl.onclick = closeConfirm;
+    cm.onclick = e => { if (e.target === cm) closeConfirm(); };
+    okEl.onclick = () => { closeConfirm(); onConfirm(); };
+}
+
 function saveStudentAccess() {
     const btn = document.getElementById('saveStudentsBtn');
     const checked = Array.from(document.querySelectorAll('.student-checkbox:checked'))
                          .map(cb => parseInt(cb.dataset.id));
+    
+    const lessonTitle = document.getElementById('studentsModalSubtitle').textContent;
+    const studentCount = checked.length;
+    
+    // Show custom confirmation dialog
+    sdcConfirm({
+        title: 'Assign Lesson',
+        body: `Assign this lesson to <strong>${studentCount}</strong> student(s)?<br><br><strong>Lesson:</strong> ${lessonTitle}<br><br>Students will be able to access and complete this lesson.`,
+        okLabel: 'Assign',
+        okClass: 'bg-[#0d326b] hover:bg-[#154188]',
+        onConfirm: () => performAssignment(btn, checked)
+    });
+}
 
+function performAssignment(btn, checked) {
     btn.disabled = true;
     btn.textContent = 'Saving…';
 
@@ -1287,9 +1326,92 @@ function saveStudentAccess() {
     })
     .then(r => r.json())
     .then(data => {
-        closeStudentsModal();
-        // Reload to clean URL (no ?updated=1 param visible)
-        window.location.replace(window.location.pathname);
+        if (data.success) {
+            closeStudentsModal();
+            // Reload to clean URL (no ?updated=1 param visible)
+            window.location.replace(window.location.pathname);
+        } else if (data.requires_confirmation && data.warnings) {
+            // Show warning modal for previous school year assignments
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Save Changes';
+            
+            const warnings = data.warnings;
+            
+            // Show modal
+            const warningModal = document.getElementById('lesson-warning-modal');
+            const warningCard = document.getElementById('lesson-warning-card');
+            const warningList = document.getElementById('lesson-warning-list');
+            
+            const warningHtml = warnings.map(w => 
+                `<div class="flex items-start gap-2 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                    <span class="material-symbols-outlined text-amber-600 text-[16px] shrink-0 mt-0.5">warning</span>
+                    <div class="flex-1">
+                        <p class="text-[13px] font-bold text-amber-900">${w.student_name}</p>
+                        <p class="text-[11px] text-amber-700 font-medium">Previously assigned in ${w.school_year}</p>
+                    </div>
+                </div>`
+            ).join('');
+            
+            warningList.innerHTML = warningHtml;
+            
+            warningModal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                warningModal.classList.remove('opacity-0');
+                warningCard.classList.remove('scale-95');
+            });
+            
+            // Cancel button
+            document.getElementById('lesson-warning-cancel').onclick = () => {
+                warningModal.classList.add('opacity-0');
+                warningCard.classList.add('scale-95');
+                setTimeout(() => warningModal.classList.add('hidden'), 200);
+            };
+            
+            // Confirm button - retry with force=true
+            document.getElementById('lesson-warning-confirm').onclick = async () => {
+                warningModal.classList.add('opacity-0');
+                warningCard.classList.add('scale-95');
+                setTimeout(() => warningModal.classList.add('hidden'), 200);
+                
+                btn.disabled = true;
+                btn.textContent = 'Saving…';
+                
+                try {
+                    const retryRes = await fetch('/lessons/' + _currentLessonId + '/students', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            student_ids: checked,
+                            force: true 
+                        }),
+                    });
+                    
+                    const retryData = await retryRes.json();
+                    
+                    if (retryData.success) {
+                        closeStudentsModal();
+                        window.location.replace(window.location.pathname);
+                    } else {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Save Changes';
+                        alert(retryData.message || 'Failed to save. Please try again.');
+                    }
+                } catch (err) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Save Changes';
+                    alert('Something went wrong. Please try again.');
+                }
+            };
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Save Changes';
+            alert(data.message || 'Failed to save. Please try again.');
+        }
     })
     .catch(() => {
         btn.disabled = false;
@@ -1526,6 +1648,68 @@ function restoreLesson(lessonId, lessonTitle) {
                     class="px-8 py-2.5 bg-[#0d326b] hover:bg-[#154188] text-white font-semibold text-sm rounded-xl transition-colors flex items-center gap-2">
                 <span class="material-symbols-outlined text-[16px]">save</span>
                 Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- ── PREVIOUS SCHOOL YEAR WARNING MODAL ───────────────────────────────────── --}}
+<div id="lesson-warning-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] hidden opacity-0 transition-opacity duration-200 flex items-center justify-center">
+    <div id="lesson-warning-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 transform scale-95 transition-transform duration-200">
+        <div class="px-8 py-6 border-b border-slate-100">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-amber-600 text-[20px]">warning</span>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-[#0d326b]">Previous Assignment Detected</h3>
+                    <p class="text-sm text-slate-500 mt-1">Some students were already assigned this lesson in a previous school year.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-5 max-h-[300px] overflow-y-auto">
+            <div id="lesson-warning-list" class="space-y-2">
+                <!-- Warning items will be inserted here -->
+            </div>
+        </div>
+
+        <div class="px-8 py-5 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button type="button" id="lesson-warning-cancel"
+                    class="px-6 py-2.5 border border-slate-200 rounded-xl text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+                Cancel
+            </button>
+            <button type="button" id="lesson-warning-confirm"
+                    class="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-xl transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                Assign Anyway
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- ── CONFIRMATION MODAL ─────────────────────────────────────────────────── --}}
+<div id="sdc-confirm-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] hidden opacity-0 transition-opacity duration-200 flex items-center justify-center">
+    <div id="sdc-confirm-card" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 transform scale-95 transition-transform duration-200">
+        <div class="px-8 py-6">
+            <div class="flex items-start gap-4">
+                <div id="sdc-confirm-icon-wrap" class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span id="sdc-confirm-icon" class="material-symbols-outlined text-[#0d326b] text-[24px]">help</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 id="sdc-confirm-title" class="text-lg font-bold text-[#0d326b] mb-2"></h3>
+                    <p id="sdc-confirm-body" class="text-sm text-slate-600 leading-relaxed"></p>
+                </div>
+            </div>
+        </div>
+        <div class="px-8 py-5 border-t border-slate-100 flex items-center gap-3">
+            <button type="button" id="sdc-confirm-cancel"
+                    class="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-[13px] font-bold hover:bg-slate-50 transition-all">
+                Cancel
+            </button>
+            <button type="button" id="sdc-confirm-ok"
+                    class="flex-1 py-2.5 rounded-xl text-white text-[13px] font-bold transition-all bg-[#0d326b] hover:bg-[#154188]">
+                Confirm
             </button>
         </div>
     </div>

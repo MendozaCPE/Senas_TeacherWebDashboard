@@ -1432,13 +1432,62 @@ public function manageStudents($id)
         $validated = $request->validate([
             'student_ids'   => 'nullable|array',
             'student_ids.*' => 'integer|exists:students,student_id',
+            'force'         => 'nullable|boolean',
         ]);
 
         $newIds = $validated['student_ids'] ?? [];
+        $force = $request->input('force', false);
+        
+        $activeSyId = SchoolYear::activeForSchool((int) ($lesson->teacher?->school_id ?? 0))?->id;
 
-        DB::transaction(function () use ($lesson, $newIds) {
-            $activeSyId = SchoolYear::activeForSchool((int) ($lesson->teacher?->school_id ?? 0))?->id;
+        // Check for previous assignments in other school years (if not forcing)
+        if (!$force && !empty($newIds)) {
+            $warnings = [];
+            
+            // Get existing assignments in ACTIVE year only
+            $existingActiveIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
+                ->pluck('student_id')
+                ->map(fn ($v) => (int) $v)
+                ->toArray();
+            
+            // Find NEW students being added (not already in active year)
+            $newStudentIds = array_diff($newIds, $existingActiveIds);
+            
+            if (!empty($newStudentIds)) {
+                // Check if these NEW students had this lesson in previous years
+                $previousAssignments = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+                    ->whereIn('student_id', $newStudentIds)
+                    ->when($activeSyId, function($q) use ($activeSyId) {
+                        return $q->where('school_year_id', '!=', $activeSyId)
+                                 ->orWhereNull('school_year_id');
+                    })
+                    ->with(['student', 'schoolYear'])
+                    ->get();
+                
+                foreach ($previousAssignments as $assignment) {
+                    $schoolYearName = $assignment->schoolYear?->name ?? 'previous school year';
+                    $studentName = ($assignment->student->first_name ?? '') . ' ' . ($assignment->student->last_name ?? '');
+                    $warnings[] = [
+                        'student_id' => $assignment->student_id,
+                        'student_name' => trim($studentName),
+                        'school_year' => $schoolYearName,
+                        'message' => trim($studentName) . " was already assigned this lesson in {$schoolYearName}.",
+                    ];
+                }
+            }
+            
+            if (!empty($warnings)) {
+                return response()->json([
+                    'success' => false,
+                    'requires_confirmation' => true,
+                    'warnings' => $warnings,
+                    'message' => count($warnings) . ' student(s) were previously assigned this lesson in another school year.',
+                ]);
+            }
+        }
 
+        DB::transaction(function () use ($lesson, $newIds, $activeSyId) {
             // Only consider assignments belonging to the ACTIVE school year.
             // Archived-year records must never be touched by current-year edits.
             $existingIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)

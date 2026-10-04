@@ -1744,8 +1744,9 @@ public function assignLessons(Request $request, $id)
         ->firstOrFail();
 
     $validator = Validator::make($request->all(), [
-        'lesson_ids' => 'required|array',
+        'lesson_ids' => 'nullable|array', // Changed from required to nullable
         'lesson_ids.*' => 'string',
+        'force' => 'nullable|boolean', // Add force flag to bypass warnings
     ]);
 
     if ($validator->fails()) {
@@ -1755,8 +1756,18 @@ public function assignLessons(Request $request, $id)
         ], 422);
     }
 
+    $force = $request->input('force', false);
+
+    // Handle nullable lesson_ids
+    $lessonIds = $request->input('lesson_ids', []);
+    
+    // 🔥 FIX: If lesson_ids is null or not an array, treat as empty
+    if (!is_array($lessonIds)) {
+        $lessonIds = [];
+    }
+
     // 🔥 FIX: Filter out invalid IDs and convert to strings
-    $lessonIds = array_filter($request->lesson_ids, function($id) {
+    $lessonIds = array_filter($lessonIds, function($id) {
         // Filter out empty, null, NaN, or '0' values
         return $id !== null && $id !== '' && $id !== '0' && $id !== 0 && $id !== 'NaN';
     });
@@ -1764,13 +1775,63 @@ public function assignLessons(Request $request, $id)
     // Convert all valid lesson_ids to strings
     $lessonIds = array_map('strval', $lessonIds);
 
-    // 🔥 FIX: If no valid lesson IDs, return early
+    // 🔥 If no valid lesson IDs, return success with message
     if (empty($lessonIds)) {
         return response()->json([
             'success' => true,
-            'message' => 'No valid lessons selected.',
+            'message' => 'Student updated without lesson assignments.',
             'assigned_count' => 0,
         ]);
+    }
+
+    // Get active school year
+    $activeSchoolYear = SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0));
+    
+    // Check for previous assignments in other school years (if not forcing)
+    if (!$force) {
+        $warnings = [];
+        
+        // Separate lesson IDs from exam IDs for checking
+        $lessonIdsToCheck = [];
+        foreach ($lessonIds as $id) {
+            if (empty($id) || $id === 'NaN' || $id === '0') continue;
+            if (strpos($id, 'exam_') !== 0) {
+                $lessonId = (int) $id;
+                if ($lessonId > 0) {
+                    $lessonIdsToCheck[] = $lessonId;
+                }
+            }
+        }
+        
+        if (!empty($lessonIdsToCheck)) {
+            $previousAssignments = LessonAssignment::where('student_id', $student->student_id)
+                ->whereIn('lesson_id', $lessonIdsToCheck)
+                ->when($activeSchoolYear, function($q) use ($activeSchoolYear) {
+                    return $q->where('school_year_id', '!=', $activeSchoolYear->id)
+                             ->orWhereNull('school_year_id');
+                })
+                ->with('lesson')
+                ->get();
+            
+            foreach ($previousAssignments as $assignment) {
+                $schoolYearName = $assignment->schoolYear?->name ?? 'previous school year';
+                $warnings[] = [
+                    'lesson_id' => $assignment->lesson_id,
+                    'lesson_title' => $assignment->lesson?->title ?? 'Unknown Lesson',
+                    'school_year' => $schoolYearName,
+                    'message' => "This lesson was already assigned to {$student->first_name} {$student->last_name} in {$schoolYearName}.",
+                ];
+            }
+        }
+        
+        if (!empty($warnings)) {
+            return response()->json([
+                'success' => false,
+                'requires_confirmation' => true,
+                'warnings' => $warnings,
+                'message' => count($warnings) . ' lesson(s) were previously assigned to this student in another school year.',
+            ]);
+        }
     }
 
     $currentLessonAssignments = LessonAssignment::where('student_id', $student->student_id)
