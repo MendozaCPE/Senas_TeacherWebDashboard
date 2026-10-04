@@ -12,6 +12,7 @@ use App\Models\Module;
 use App\Models\SchoolYear;
 use App\Models\Student;
 use App\Models\StudentLessonProgress;
+use App\Models\StudentYearEnrollment;
 use App\Models\Teacher;
 use App\Models\TeacherMedia;
 use App\Models\TeacherNotification;
@@ -820,17 +821,16 @@ class GradeLeaderController extends Controller
         $programTypes = ['Regular', 'Inclusion', 'Transition', 'Self-contained'];
 
         // Count students per DepEd school year by program type.
-        // Only use the explicit school_year field — no created_at fallback.
-        // A student is counted in whichever year their school_year field says,
-        // so re-enrolling (updating school_year) moves them to the new year only.
+        // Queries student_year_enrollments — an immutable log written at enrollment
+        // time — so past-year counts are never lost when students.school_year is
+        // overwritten during a school-year transition.
         $enrollmentBySY = [];
         foreach ($allDepEdSYs as $sy) {
             $byProgram = [];
             $total     = 0;
             foreach ($programTypes as $pt) {
-                $cnt = DB::table('students')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('school_year', $sy)
+                $cnt = StudentYearEnrollment::whereIn('student_id', $studentIds)
+                    ->where('school_year_name', $sy)
                     ->where('program_type', $pt)
                     ->count();
                 $byProgram[$pt] = $cnt;

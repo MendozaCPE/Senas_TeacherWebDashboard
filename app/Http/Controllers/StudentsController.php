@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Student;
 use App\Models\StudentPromotion;
+use App\Models\StudentYearEnrollment;
 use App\Models\TeacherNotification;
 use App\Models\StudentNotification;
 use App\Models\CheckpointExamAssignment;
@@ -87,17 +88,84 @@ class StudentsController extends Controller
             ))->sortDesc()->values();
 
             $totalStudents = Student::where('teacher_id', $teacher->id)->count();
-            $newThisWeek   = Student::where('teacher_id', $teacher->id)
-                                    ->where('created_at', '>=', Carbon::now()->subWeek())
-                                    ->count();
 
-            // ── Sidebar: all active students with lesson scores (not paginated) ──
-            $sidebarStudents = Student::where('teacher_id', $teacher->id)
-                                      ->where('status', 'active')
-                                      ->with(['assignments' => function ($q) {
-                                          $q->select('student_id', 'lesson_id', 'score', 'status');
-                                      }])
-                                      ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
+            // Year-over-year delta: current S.Y. vs previous S.Y. (from enrollment log)
+            $activeSyNameForDelta = $activeSchoolYear?->name ?? '';
+            $prevSyNameForDelta   = '';
+            if ($activeSyNameForDelta && preg_match('/^(\d{4})-(\d{4})$/', $activeSyNameForDelta, $syM)) {
+                $prevSyNameForDelta = ($syM[1] - 1) . '-' . ($syM[2] - 1);
+            }
+            $currentSyEnrollCount  = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
+                ->where('school_year_name', $activeSyNameForDelta)
+                ->count();
+            $previousSyEnrollCount = $prevSyNameForDelta
+                ? \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
+                    ->where('school_year_name', $prevSyNameForDelta)
+                    ->count()
+                : 0;
+            $newThisWeek = $currentSyEnrollCount - $previousSyEnrollCount;
+
+            // ── Resolve filters early — needed by sidebar, main query, and chart ──
+            // On a real browser page load/refresh (GET, not an AJAX fetch), reset
+            // filters to defaults so the page always starts on the current year.
+            // AJAX requests (from fetchStudentsResults) carry X-Requested-With header
+            // so we can distinguish them from true browser navigations.
+            $isAjax = $request->header('X-Requested-With') === 'XMLHttpRequest';
+            if (!$isAjax && $request->isMethod('GET')) {
+                session()->forget('students_filters');
+            }
+
+            if ($request->has('search')) {
+                $search = trim($request->input('search'));
+                session(['students_filters' => array_merge(session('students_filters', []), ['search' => $search])]);
+                $filters = session('students_filters', []);
+            } else {
+                $filters = session('students_filters', []);
+                $search  = $filters['search']  ?? '';
+            }
+            $level   = $filters['level']   ?? '';
+            $program = $filters['program'] ?? '';
+            $status  = $filters['status']  ?? '';
+            $schoolYear = $filters['school_year'] ?? ($activeSchoolYear?->name ?? '');
+            $activePromotableLevel = $filters['promotable_level'] ?? '';
+
+            // Treat the sentinel 'all' as empty (no year filter).
+            if ($schoolYear === 'all') {
+                $schoolYear = '';
+            }
+
+            $isAllYears       = empty($schoolYear);
+            $isActiveSySelected = !$isAllYears && $schoolYear === ($activeSchoolYear?->name ?? '');
+            $selectedSyRecord   = !empty($schoolYear)
+                ? $syFromTable->firstWhere('name', $schoolYear)
+                : $activeSchoolYear;
+            $isArchivedSy = $selectedSyRecord && $selectedSyRecord->status === 'archived';
+
+            // ── Sidebar: students in scope for promotion thresholds and top students ──
+            // Follows the same filter as the main query so widgets are affected by
+            // the school year / enrollment filter the teacher has selected.
+            $sidebarQuery = Student::where('teacher_id', $teacher->id);
+
+            if (!$isAllYears) {
+                if ($isArchivedSy && !empty($schoolYear)) {
+                    $archivedSyIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
+                        ->where('school_year_name', $schoolYear)
+                        ->pluck('student_id');
+                    $sidebarQuery->whereIn('student_id', $archivedSyIds->isEmpty() ? [-1] : $archivedSyIds);
+                } else {
+                    $sidebarQuery->where('is_enrolled', true);
+                    if (!empty($schoolYear)) {
+                        $sidebarQuery->where('school_year', $schoolYear);
+                    }
+                }
+            }
+            // All years: no filter — every student under this teacher
+
+            $sidebarStudents = $sidebarQuery
+                ->with(['assignments' => function ($q) {
+                    $q->select('student_id', 'lesson_id', 'score', 'status');
+                }])
+                ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
 
             // ── Sidebar: Promotion Thresholds ────────────────────────────────────
             $promotionMap = ['Beginner' => 'Intermediate', 'Intermediate' => 'Advanced', 'Advanced' => 'Completed'];
@@ -127,26 +195,6 @@ class StudentsController extends Controller
 
             $query = Student::where('teacher_id', $teacher->id)->with('promotions');
 
-            // Read filters from GET query or session fallback
-            if ($request->has('search')) {
-                $search = trim($request->input('search'));
-                session(['students_filters' => array_merge(session('students_filters', []), ['search' => $search])]);
-                $filters = session('students_filters', []);
-                $level   = $filters['level']   ?? '';
-                $program = $filters['program'] ?? '';
-                $status  = $filters['status']  ?? '';
-                $schoolYear = $filters['school_year'] ?? ($activeSchoolYear?->name ?? '');
-                $activePromotableLevel = $filters['promotable_level'] ?? '';
-            } else {
-                $filters = session('students_filters', []);
-                $search  = $filters['search']  ?? '';
-                $level   = $filters['level']   ?? '';
-                $program = $filters['program'] ?? '';
-                $status  = $filters['status']  ?? '';
-                $schoolYear = $filters['school_year'] ?? ($activeSchoolYear?->name ?? '');
-                $activePromotableLevel = $filters['promotable_level'] ?? '';
-            }
-
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
@@ -164,70 +212,41 @@ class StudentsController extends Controller
                 $query->where('program_type', $program);
             }
 
-            // ── Auto-status rule ──────────────────────────────────────────────────
-            // Active/current year (or no year selected = defaults to active year):
-            //   → show only enrolled (status = active) unless teacher explicitly chose otherwise
-            // Archived/past year:
-            //   → show all statuses by default so teachers can see who was in that class
-            // "All School Years":
-            //   → show all
-            $isActiveSySelected = empty($schoolYear)
-                || $schoolYear === ($activeSchoolYear?->name ?? '');
-            $selectedSyRecord = !empty($schoolYear)
-                ? $syFromTable->firstWhere('name', $schoolYear)
-                : $activeSchoolYear;
-            $isArchivedSy = $selectedSyRecord && $selectedSyRecord->status === 'archived';
-
-            if (!empty($status) && $status !== 'all') {
-                // Teacher explicitly chose a status — always honour it,
-                // UNLESS we're on an archived year where "active" was just
-                // the implicit default carried over from the active-year view.
-                // In that case, treat an explicit 'active' as "no override" for
-                // archived years so all historical students are visible.
-                if ($isArchivedSy && $status === 'active') {
-                    // Don't apply — archived years show all by default
+            // ── Auto-enrollment filter rule ─────────────────────────────────────────
+            // Active/current year: show only enrolled (is_enrolled = true)
+            // Archived/past year: show all who were enrolled that year
+            // "All School Years": show all students regardless of enrollment
+            if (!empty($status) && $status !== 'all' && !$isAllYears) {
+                if ($status === 'active' || $status === 'enrolled') {
+                    if (!$isArchivedSy) {
+                        $query->where('is_enrolled', true);
+                    }
+                } elseif ($status === 'inactive' || $status === 'unenrolled') {
+                    $query->where('is_enrolled', false);
                 } else {
                     $query->where('status', $status);
                 }
-            } elseif ($isActiveSySelected && !$isArchivedSy) {
-                // Default for active/current year: hide unenrolled students
-                $query->where('status', 'active');
+            } elseif ($isActiveSySelected && !$isArchivedSy && !$isAllYears) {
+                // Default for active/current year: show only currently enrolled students
+                $query->where('is_enrolled', true);
             }
-            // else: archived year or "all years" with no explicit status → no filter
+            // else: archived year OR all years → no enrollment filter
 
             if (!empty($schoolYear)) {
                 $syRecord = $syFromTable->firstWhere('name', $schoolYear);
                 $isThisAnArchivedYear = $syRecord && $syRecord->status === 'archived';
 
                 if ($isThisAnArchivedYear) {
-                    // ── Archived year ────────────────────────────────────────────
-                    // The student's school_year column has likely been updated to a
-                    // newer year since they were last in this class. Use EXISTS on
-                    // lesson_assignments / progress scoped to this teacher's lessons
-                    // to find them historically. Also keep the direct string match
-                    // for students who were never assigned lessons.
-                    $syId = $syRecord->id;
-                    $teacherLessonIds = \App\Models\Lesson::where('teacher_id', $teacher->id)
-                        ->whereNull('deleted_at')
-                        ->pluck('lesson_id');
+                    // ── Archived year ─────────────────────────────────────────
+                    // student_year_enrollments is the authoritative, immutable log
+                    // of who was enrolled in each year. Use it to get the student
+                    // IDs for this archived year — the students.school_year string
+                    // is unreliable because it gets overwritten on transition.
+                    $archivedStudentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
+                        ->where('school_year_name', $schoolYear)
+                        ->pluck('student_id');
 
-                    $query->where(function ($q) use ($syId, $schoolYear, $teacherLessonIds) {
-                        $q->where('school_year', $schoolYear)
-                          ->orWhereExists(function ($sub) use ($syId, $teacherLessonIds) {
-                              $sub->select(DB::raw(1))
-                                  ->from('lesson_assignments')
-                                  ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                                  ->where('lesson_assignments.school_year_id', $syId)
-                                  ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds);
-                          })
-                          ->orWhereExists(function ($sub) use ($syId, $teacherLessonIds) {
-                              $sub->select(DB::raw(1))
-                                  ->from('student_lesson_progress')
-                                  ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
-                                  ->where('student_lesson_progress.school_year_id', $syId)
-                                  ->whereIn('student_lesson_progress.lesson_id', $teacherLessonIds);
-                          });
-                    });
+                    $query->whereIn('student_id', $archivedStudentIds->isEmpty() ? [-1] : $archivedStudentIds);
                 } else {
                     // ── Active / current year (or unrecognised year string) ───────
                     // students.school_year is the authoritative column for the current
@@ -257,15 +276,19 @@ class StudentsController extends Controller
             // searched subset. We reuse the resolved $syRecord from above if available.
             $chartQuery = Student::where('teacher_id', $teacher->id);
 
-            if (!empty($status) && $status !== 'all') {
-                if ($isArchivedSy && $status === 'active') {
-                    // Don't apply on archived year — show all historical students
+            if (!empty($status) && $status !== 'all' && !$isAllYears) {
+                if ($status === 'active' || $status === 'enrolled') {
+                    if (!$isArchivedSy) {
+                        $chartQuery->where('is_enrolled', true);
+                    }
+                } elseif ($status === 'inactive' || $status === 'unenrolled') {
+                    $chartQuery->where('is_enrolled', false);
                 } else {
                     $chartQuery->where('status', $status);
                 }
-            } elseif ($isActiveSySelected && !$isArchivedSy) {
+            } elseif ($isActiveSySelected && !$isArchivedSy && !$isAllYears) {
                 // Mirror the main query rule: active year defaults to enrolled only
-                $chartQuery->where('status', 'active');
+                $chartQuery->where('is_enrolled', true);
             }
 
             if (!empty($schoolYear)) {
@@ -273,24 +296,11 @@ class StudentsController extends Controller
                 $isThisAnArchivedYear = $syRecord && $syRecord->status === 'archived';
 
                 if ($isThisAnArchivedYear) {
-                    $syId = $syRecord->id;
-                    $chartQuery->where(function ($q) use ($syId, $schoolYear, $teacherOwnLessonIds) {
-                        $q->where('school_year', $schoolYear)
-                          ->orWhereExists(function ($sub) use ($syId, $teacherOwnLessonIds) {
-                              $sub->select(DB::raw(1))
-                                  ->from('lesson_assignments')
-                                  ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                                  ->where('lesson_assignments.school_year_id', $syId)
-                                  ->whereIn('lesson_assignments.lesson_id', $teacherOwnLessonIds);
-                          })
-                          ->orWhereExists(function ($sub) use ($syId, $teacherOwnLessonIds) {
-                              $sub->select(DB::raw(1))
-                                  ->from('student_lesson_progress')
-                                  ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
-                                  ->where('student_lesson_progress.school_year_id', $syId)
-                                  ->whereIn('student_lesson_progress.lesson_id', $teacherOwnLessonIds);
-                          });
-                    });
+                    $archivedStudentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
+                        ->where('school_year_name', $schoolYear)
+                        ->pluck('student_id');
+
+                    $chartQuery->whereIn('student_id', $archivedStudentIds->isEmpty() ? [-1] : $archivedStudentIds);
                 } else {
                     // Active/current year: simple direct match only
                     $chartQuery->where('school_year', $schoolYear);
@@ -301,19 +311,50 @@ class StudentsController extends Controller
                 ->with(['assignments' => fn($q) => $q->select('student_id', 'lesson_id', 'score', 'status')])
                 ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp', 'status']);
 
-            // ── Stat card counts — reflect the active filter scope ────────────────
-            $totalStudents = $chartStudents->count();
-            $newThisWeek   = Student::where('teacher_id', $teacher->id)
-                ->where('created_at', '>=', Carbon::now()->subWeek())
-                ->when(!empty($schoolYear), fn($q) => $q->where('school_year', $schoolYear))
+            // ── Stat card counts — ALWAYS reflect ONLY active S.Y., NEVER affected by filters ──
+            // These KPIs should remain constant regardless of what filters the user applies
+            $totalStudents = Student::where('teacher_id', $teacher->id)
+                ->where('school_year', $activeSchoolYear?->name)
+                ->where('is_enrolled', true)
                 ->count();
+            
+            // KPI-specific students for active year only (for avg XP and ready to promote)
+            $kpiStudents = Student::where('teacher_id', $teacher->id)
+                ->where('school_year', $activeSchoolYear?->name)
+                ->where('is_enrolled', true)
+                ->with(['assignments' => fn($q) => $q->select('student_id', 'lesson_id', 'score', 'status')])
+                ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
+            
+            // Calculate KPI metrics from active year students only
+            $kpiAvgXp = $kpiStudents->count() ? round($kpiStudents->avg('total_xp')) : 0;
+            $kpiProgressPct = min(100, round($kpiAvgXp / 1000 * 100));
+            
+            // Ready to promote - active year only
+            $kpiPromotionReadyCounts = ['Beginner' => 0, 'Intermediate' => 0, 'Advanced' => 0];
+            $kpiAllReadyStudentIds = [];
+            foreach ($kpiStudents as $kpiStudent) {
+                $kpiLevel = $kpiStudent->fsl_mastery_level;
+                if (!array_key_exists($kpiLevel, $kpiPromotionReadyCounts)) {
+                    continue;
+                }
+                $readiness = $this->computeLessonReadiness(
+                    $kpiStudent->student_id,
+                    $kpiLevel,
+                    $promotionMap[$kpiLevel] ?? null
+                );
+                if ($readiness['ready']) {
+                    $kpiPromotionReadyCounts[$kpiLevel]++;
+                    $kpiAllReadyStudentIds[] = $kpiStudent->student_id;
+                }
+            }
+            $kpiReadyToPromote = count($kpiAllReadyStudentIds);
 
             // ── Active-year students for the empty-state hint ─────────────────────
             // Used to show "your enrolled students this year" when viewing a past year
             // with no results or when the active year has nobody enrolled yet.
             $activeYearStudents = Student::where('teacher_id', $teacher->id)
                 ->where('school_year', $activeSchoolYear?->name ?? '')
-                ->where('status', 'active')
+                ->where('is_enrolled', true)
                 ->orderBy('first_name')
                 ->get(['student_id', 'first_name', 'last_name', 'fsl_mastery_level', 'total_xp']);
         }
@@ -322,7 +363,8 @@ class StudentsController extends Controller
             'totalStudents', 'newThisWeek', 'students', 'availableSchoolYears',
             'sidebarStudents', 'chartStudents', 'activeYearStudents', 'teacherLessons',
             'promotionReadyCounts', 'promotionReadyStudentIds', 'allReadyStudentIds',
-            'activePromotableLevel', 'activeSchoolYear'
+            'activePromotableLevel', 'activeSchoolYear',
+            'kpiAvgXp', 'kpiProgressPct', 'kpiReadyToPromote'
         ));
     }
 
@@ -351,8 +393,13 @@ class StudentsController extends Controller
             }
         }
 
-        // Clear filter if user submitted an empty/reset form.
-        if (($validated['search'] ?? '') === ''
+        // Clear filter only if the user truly reset everything AND did not
+        // explicitly choose "All School Years" (school_year key present but empty).
+        $schoolYearExplicitlySubmitted = array_key_exists('school_year', $request->all());
+        $schoolYearIsAll = ($validated['school_year'] ?? '') === '';
+
+        if (!($schoolYearExplicitlySubmitted && $schoolYearIsAll)
+            && ($validated['search'] ?? '') === ''
             && ($validated['level'] ?? '') === ''
             && ($validated['program'] ?? '') === ''
             && ($validated['school_year'] ?? '') === ''
@@ -361,6 +408,12 @@ class StudentsController extends Controller
         ) {
             session()->forget('students_filters');
         } else {
+            // If school_year is explicitly empty (teacher chose "All School Years"),
+            // store 'all' as a sentinel so the session key exists and the index()
+            // fallback to active year name is not triggered.
+            if (array_key_exists('school_year', $validated) && ($validated['school_year'] ?? '') === '') {
+                $validated['school_year'] = 'all';
+            }
             session(['students_filters' => $validated]);
         }
 
@@ -384,7 +437,7 @@ class StudentsController extends Controller
                 return response()->json(['exists' => true, 'status' => 'own']);
             }
 
-            if ($student->status === 'inactive') {
+            if (!$student->is_enrolled) {
                 return response()->json(['exists' => true, 'status' => 'inactive']);
             }
 
@@ -477,7 +530,7 @@ class StudentsController extends Controller
                 ]
             ], 422);
         } else {
-            if ($existingStudent->status !== 'inactive') {
+            if ($existingStudent->is_enrolled) {
                 $otherTeacher = $existingStudent->teacher;
                 $teacherName = $otherTeacher
                     ? trim($otherTeacher->first_name . ' ' . $otherTeacher->last_name)
@@ -493,7 +546,7 @@ class StudentsController extends Controller
 
             $existingStudent->teacher_id = $teacher->id;
             $existingStudent->school_id = $teacher->school_id;
-            $existingStudent->status = 'active';
+            $existingStudent->is_enrolled = true;
             $existingStudent->save();
 
             return response()->json([
@@ -518,6 +571,10 @@ class StudentsController extends Controller
             'status' => 'active',
         ]);
 
+        // ✅ FIX: Use active school year if not provided
+        $activeSchoolYear = SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0));
+        $schoolYearToUse = $request->school_year ?: ($activeSchoolYear?->name ?? SchoolYear::currentDepEdLabel());
+
         $student = Student::create([
             'user_id' => $user->id,
             'teacher_id' => $teacher->id,
@@ -529,11 +586,30 @@ class StudentsController extends Controller
             'age' => $request->age,
             'grade_level' => $showGradeSection ? $request->grade_level : null,
             'section' => $showGradeSection ? $request->section : null,
-            'school_year' => $request->school_year,
+            'school_year' => $schoolYearToUse,
             'fsl_mastery_level' => $request->fsl_mastery_level,
             'program_type' => $programType,
             'status' => 'active',
+            'is_enrolled' => true,
         ]);
+
+        // ── Record the enrollment for trend tracking ───────────────────────
+        // Resolve the school_year_name: prefer what the teacher submitted;
+        // fall back to the active school year for this school.
+        $syNameForRecord = $student->school_year;
+
+        $activeSyForRecord = $activeSchoolYear;
+
+        StudentYearEnrollment::record(
+            studentId:      $student->student_id,
+            teacherId:      $teacher->id,
+            schoolId:       $teacher->school_id ? (int) $teacher->school_id : null,
+            schoolYearId:   $activeSyForRecord?->id,
+            schoolYearName: $syNameForRecord,
+            programType:    $programType,
+            gradeLevel:     $showGradeSection ? $request->grade_level : null,
+            section:        $showGradeSection ? $request->section : null,
+        );
 
  // 🔥 FIX: Filter out invalid IDs
     $lessonIds = $request->input('lesson_ids', []);
@@ -648,6 +724,21 @@ if (!empty($examIdsOnly)) {
      * Optional fields: age, grade_level, section, school_year
      *   (grade_level and section are required when program_type is Regular or Inclusion)
      */
+    
+    /**
+     * Download Excel template for student import
+     */
+    public function downloadTemplate()
+    {
+        $filePath = public_path('templates/SEÑAS_Excel_Student_Import.xlsx');
+        
+        if (!file_exists($filePath)) {
+            abort(404, 'Template file not found.');
+        }
+        
+        return response()->download($filePath, 'SEÑAS_Excel_Student_Import.xlsx');
+    }
+    
     public function import(Request $request)
     {
         $teacher = Auth::user()->teacher;
@@ -788,7 +879,7 @@ if (!empty($examIdsOnly)) {
                             'missing' => [],
                             'reason'  => 'Student already exists in your class.',
                         ];
-                    } elseif ($existingStudent->status !== 'inactive') {
+                    } elseif ($existingStudent->is_enrolled) {
                         // Blocked — still enrolled under another teacher
                         $otherTeacher = $existingStudent->teacher;
                         $teacherName  = $otherTeacher
@@ -805,7 +896,7 @@ if (!empty($examIdsOnly)) {
                         // Student is unenrolled — transfer to this teacher's class
                         $existingStudent->teacher_id = $teacher->id;
                         $existingStudent->school_id  = $teacher->school_id;
-                        $existingStudent->status     = 'active';
+                        $existingStudent->is_enrolled = true;
                         $existingStudent->save();
                         $imported++;
                         $transfers[] = $displayName;
@@ -867,7 +958,20 @@ if (!empty($examIdsOnly)) {
                     'fsl_mastery_level'=> $masteryLevel,
                     'program_type'     => $programType,
                     'status'           => 'active',
+                    'is_enrolled'      => true,
                 ]);
+
+                // ✅ Record enrollment for trend tracking
+                StudentYearEnrollment::record(
+                    studentId:      $newStudent->student_id,
+                    teacherId:      $teacher->id,
+                    schoolId:       $teacher->school_id ? (int) $teacher->school_id : null,
+                    schoolYearId:   $activeSyForImport?->id,
+                    schoolYearName: $schoolYear,
+                    programType:    $programType,
+                    gradeLevel:     in_array($programType, $needGradeSection) ? $gradeLevel : null,
+                    section:        in_array($programType, $needGradeSection) ? $section : null,
+                );
 
                 $imported++;
                 $createdStudents[] = [
@@ -1108,10 +1212,14 @@ if (!empty($examIdsOnly)) {
         'age'               => $student->age,
         'grade_level'       => $student->grade_level,
         'section'           => $student->section,
-        'school_year'       => $student->school_year,
+        'school_year'       => \App\Models\StudentYearEnrollment::where('student_id', $student->student_id)
+                                ->orderByDesc('created_at')
+                                ->value('school_year_name')
+                                ?? $student->school_year,
         'program_type'      => $student->program_type,
         'fsl_mastery_level' => $lvl,
         'status'            => $student->status,
+        'is_enrolled'       => (bool) $student->is_enrolled,
         'total_xp'          => $xp,
         'level'             => $student->level ?? 1,
         'streak_days'       => $student->streak_days ?? 0,
@@ -1155,11 +1263,11 @@ if (!empty($examIdsOnly)) {
                           ->where('teacher_id', $teacher->id)
                           ->firstOrFail();
 
-        if ($student->status === 'inactive') {
+        if (!$student->is_enrolled) {
             return response()->json(['success' => false, 'message' => 'Student is already unenrolled.'], 422);
         }
 
-        $student->update(['status' => 'inactive']);
+        $student->update(['is_enrolled' => false]);
 
         return response()->json([
             'success' => true,
@@ -1522,19 +1630,42 @@ public function getAvailableLessons($id)
         ->get()
         ->groupBy('module_id');  // ← Changed from keyBy to groupBy
 
-    // Get currently assigned lesson IDs
+    // Get currently assigned lesson IDs — scoped to the active school year only.
+    // Without this scope, old-year assignment rows bleed through after a transition
+    // and appear pre-checked in the modal even though the student hasn't been
+    // re-enrolled or re-assigned for the new year.
+    $activeSyId = \App\Models\SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id;
+    $activeSyName = \App\Models\SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->name;
+
     $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
+        ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
         ->pluck('lesson_id')
         ->toArray();
 
-    // Get currently assigned checkpoint exam IDs
+    // Get currently assigned checkpoint exam IDs — same school year scope.
     $assignedExamIds = CheckpointExamAssignment::where('student_id', $student->student_id)
         ->pluck('exam_id')
         ->toArray();
 
-    $modulesData = $modules->map(function($module) use ($assignedLessonIds, $assignedExamIds, $checkpointExams) {
-        $lessons = $module->lessons->map(function($lesson) use ($assignedLessonIds) {
+    // ✅ NEW: Get previous year assignments (any school year that's NOT the active one)
+    $previousYearLessons = LessonAssignment::where('student_id', $student->student_id)
+        ->when($activeSyId, fn($q) => $q->where('school_year_id', '!=', $activeSyId))
+        ->with('schoolYear')
+        ->get()
+        ->groupBy('lesson_id')
+        ->map(function($assignments) {
+            // Get the most recent assignment and its school year
+            $latest = $assignments->sortByDesc('assigned_at')->first();
             return [
+                'school_year_name' => $latest->schoolYear?->name ?? 'Previous Year',
+                'status' => $latest->status,
+                'assigned_at' => $latest->assigned_at,
+            ];
+        });
+
+    $modulesData = $modules->map(function($module) use ($assignedLessonIds, $assignedExamIds, $checkpointExams, $previousYearLessons) {
+        $lessons = $module->lessons->map(function($lesson) use ($assignedLessonIds, $previousYearLessons) {
+            $lessonData = [
                 'lesson_id' => $lesson->lesson_id,
                 'title' => $lesson->title,
                 'description' => $lesson->description,
@@ -1542,6 +1673,15 @@ public function getAvailableLessons($id)
                 'is_assigned' => in_array($lesson->lesson_id, $assignedLessonIds),
                 'type' => 'lesson',
             ];
+
+            // Add previous year info if exists
+            if (isset($previousYearLessons[$lesson->lesson_id])) {
+                $lessonData['previously_assigned'] = true;
+                $lessonData['previous_school_year'] = $previousYearLessons[$lesson->lesson_id]['school_year_name'];
+                $lessonData['previous_status'] = $previousYearLessons[$lesson->lesson_id]['status'];
+            }
+
+            return $lessonData;
         })->toArray();
 
         // 🔥 FIX: Add ALL checkpoint exams for this module
@@ -1571,6 +1711,12 @@ public function getAvailableLessons($id)
         return !empty($module['lessons']);
     })->values();
 
+    // Count how many lessons have previous year assignments
+    $previouslyAssignedCount = collect($modulesData)
+        ->flatMap(fn($m) => $m['lessons'])
+        ->filter(fn($l) => isset($l['previously_assigned']) && $l['previously_assigned'])
+        ->count();
+
     return response()->json([
         'success' => true,
         'student' => [
@@ -1579,6 +1725,7 @@ public function getAvailableLessons($id)
         ],
         'modules' => $modulesData,
         'assigned_count' => count($assignedLessonIds) + count($assignedExamIds),
+        'previously_assigned_count' => $previouslyAssignedCount,
     ]);
 }
 /**
@@ -1818,7 +1965,7 @@ public function enroll($id)
         ->where('teacher_id', $teacher->id)
         ->firstOrFail();
 
-    if ($student->status === 'active') {
+    if ($student->is_enrolled) {
         return response()->json(['success' => false, 'message' => 'Student is already enrolled.'], 422);
     }
 
@@ -1828,9 +1975,21 @@ public function enroll($id)
     $activeSyName = $activeSy ? $activeSy->name : SchoolYear::currentDepEdLabel();
 
     $student->update([
-        'status'      => 'active',
+        'is_enrolled' => true,
         'school_year' => $activeSyName,
     ]);
+
+    // ── Record the enrollment for trend tracking ─────────────────────────
+    StudentYearEnrollment::record(
+        studentId:      $student->student_id,
+        teacherId:      $teacher->id,
+        schoolId:       $teacher->school_id ? (int) $teacher->school_id : null,
+        schoolYearId:   $activeSy?->id,
+        schoolYearName: $activeSyName,
+        programType:    $student->program_type,
+        gradeLevel:     $student->grade_level,
+        section:        $student->section,
+    );
 
     // Return the student data with a flag that assignments need to be managed
     return response()->json([

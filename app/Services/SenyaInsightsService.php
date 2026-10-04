@@ -26,10 +26,20 @@ class SenyaInsightsService
     {
         $this->teacherId    = $teacherId;
         $this->schoolYearId = $schoolYearId;
-        $this->studentIds   = Student::where('teacher_id', $teacherId)
-            ->where('status', 'active')
+
+        // Scope to currently enrolled students in the active school year only.
+        // Resolve the active SY name from the ID when provided, otherwise fall
+        // back to all enrolled students so the service still works without a year.
+        $activeSyName = $schoolYearId
+            ? \App\Models\SchoolYear::where('id', $schoolYearId)->value('name')
+            : null;
+
+        $this->studentIds = Student::where('teacher_id', $teacherId)
+            ->where('is_enrolled', true)
+            ->when($activeSyName, fn($q) => $q->where('school_year', $activeSyName))
             ->pluck('student_id');
-        $this->lessonIds    = Lesson::where('teacher_id', $teacherId)
+
+        $this->lessonIds = Lesson::where('teacher_id', $teacherId)
             ->where('status', 'published')
             ->whereNull('deleted_at')
             ->pluck('lesson_id');

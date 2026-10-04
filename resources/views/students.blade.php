@@ -211,25 +211,25 @@
         $intermCnt     = $sbStudents->where('fsl_mastery_level','Intermediate')->count();
         $advancedCnt   = $sbStudents->where('fsl_mastery_level','Advanced')->count();
         $completedCnt  = $sbStudents->where('fsl_mastery_level','Completed')->count();
-        $avgXp         = $sbStudents->count() ? round($sbStudents->avg('total_xp')) : 0;
-        $progressPct   = min(100, round($avgXp / 1000 * 100));
-        $readyToPromote = !empty($allReadyStudentIds)
-            ? count($allReadyStudentIds)
-            : (isset($promotionReadyCounts) ? array_sum($promotionReadyCounts) : 0);
+        
+        // KPIs always use the values from the controller (active year only, never filter-affected)
+        $avgXp         = $kpiAvgXp ?? 0;
+        $progressPct   = $kpiProgressPct ?? 0;
+        $readyToPromote = $kpiReadyToPromote ?? 0;
     @endphp
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5" id="stat-cards">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5" id="stat-cards-fixed">
 
-        {{-- Card 1: Total Students — navy gradient hero --}}
+        {{-- Card 1: Enrolled Students — navy gradient hero --}}
         <div class="stat-kpi-card text-white" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Total Students</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Enrolled Students</span>
                 <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
                     <span class="material-symbols-outlined text-[20px] text-white">school</span>
                 </div>
             </div>
             <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $totalStudents }}</p>
-            <p class="text-[12px] font-semibold mt-1" style="color:rgba(250,204,21,0.9)">+{{ $newThisWeek }} this month</p>
+            <p class="text-[12px] font-semibold mt-1" style="color:rgba(250,204,21,0.9)">{{ $newThisWeek >= 0 ? '+' : '' }}{{ $newThisWeek }} vs last S.Y.</p>
         </div>
 
         {{-- Card 2: Avg. XP per Student — white card with XP bar --}}
@@ -285,23 +285,40 @@
                     $sfStatus     = $sf['status'] ?? '';   // '' = no explicit override
 
                     // Determine if the selected year is the active one
-                    $sfIsActiveSy = empty($sfSchoolYear)
-                        || $sfSchoolYear === ($activeSchoolYear?->name ?? '');
-                    $sfSyRecord = !empty($sfSchoolYear)
-                        ? ($availableSchoolYears->firstWhere(fn($n) => $n === $sfSchoolYear) ? \App\Models\SchoolYear::where('name',$sfSchoolYear)->first() : null)
+                    // Treat 'all' sentinel same as empty (no year selected)
+                    $sfSchoolYearResolved = ($sfSchoolYear === 'all') ? '' : $sfSchoolYear;
+                    $sfIsActiveSy = empty($sfSchoolYearResolved)
+                        || $sfSchoolYearResolved === ($activeSchoolYear?->name ?? '');
+                    $sfIsAllYears = empty($sfSchoolYearResolved);
+                    $sfSyRecord = !empty($sfSchoolYearResolved)
+                        ? ($availableSchoolYears->firstWhere(fn($n) => $n === $sfSchoolYearResolved) ? \App\Models\SchoolYear::where('name',$sfSchoolYearResolved)->first() : null)
                         : $activeSchoolYear;
                     $sfIsArchivedSy = $sfSyRecord && $sfSyRecord->status === 'archived';
 
                     // Effective displayed status: if no explicit override and on active year,
                     // the system defaults to "active" — reflect that in the dropdown.
                     $sfStatusDisplay = $sfStatus;
-                    if (($sfStatus === '' || $sfStatus === 'all') && $sfIsActiveSy && !$sfIsArchivedSy) {
+                    if (($sfStatus === '' || $sfStatus === 'all') && $sfIsActiveSy && !$sfIsArchivedSy && !$sfIsAllYears) {
                         $sfStatusDisplay = 'active';
                     }
 
+                    // Clear button logic:
+                    // - When viewing the CURRENT/ACTIVE school year (default): button is gray/disabled
+                    // - When viewing "All School Years" or a different year: button is blue/enabled
+                    // - When any other filter is applied (search, level, program, promo): button is blue/enabled
+                    
                     $hasActiveFilters = false;
+                    
+                    // Check if viewing a non-default school year
+                    if ($sfIsAllYears || (!empty($sfSchoolYearResolved) && $sfSchoolYearResolved !== ($activeSchoolYear?->name ?? ''))) {
+                        $hasActiveFilters = true;
+                    }
+                    
+                    // Check other filters
                     foreach ($sf as $k => $v) {
-                        if ($k === 'status') {
+                        if ($k === 'school_year') {
+                            continue; // Already handled above
+                        } elseif ($k === 'status') {
                             // On active year, "all" or "" overrides the default — that IS an active filter
                             if ($sfIsActiveSy && !$sfIsArchivedSy) {
                                 if ($v === 'all' || $v === 'inactive') $hasActiveFilters = true;
@@ -362,23 +379,16 @@
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
 
-                {{-- Status --}}
-                <div class="filter-wrap shrink-0">
-                    <select id="filter-status" class="filter-select">
-                        <option value=""       {{ $sfStatusDisplay === ''         ? 'selected' : '' }}>All Statuses</option>
-                        <option value="active" {{ $sfStatusDisplay === 'active'   ? 'selected' : '' }}>Enrolled</option>
-                        <option value="inactive" {{ $sfStatusDisplay === 'inactive' ? 'selected' : '' }}>Unenrolled</option>
-                    </select>
-                    <span class="material-symbols-outlined">expand_more</span>
-                </div>
+
+
 
                 {{-- Clear filters --}}
-                <span id="clear-filters-wrap" class="{{ !$hasActiveFilters ? 'hidden' : '' }}">
-                    <button type="button" id="clear-filters-btn"
-                        class="px-4 py-2 rounded-[14px] border border-slate-200 bg-white text-slate-500 text-[13px] font-semibold transition-all hover:bg-slate-50 hover:border-slate-300">
-                        Clear
-                    </button>
-                </span>
+                <button type="button" id="clear-filters-btn"
+                    class="px-4 py-2 rounded-[14px] text-[13px] font-semibold transition-all duration-200 {{ $hasActiveFilters ? 'text-white cursor-pointer' : 'bg-slate-100 text-slate-400 cursor-not-allowed' }}"
+                    {{ !$hasActiveFilters ? 'disabled' : '' }}
+                    style="{{ $hasActiveFilters ? 'background: linear-gradient(135deg, #1e4b8f 0%, #1a6fd4 100%); box-shadow: 0 2px 8px rgba(26,111,212,0.3);' : '' }}">
+                    Clear
+                </button>
 
                 {{-- Add Student --}}
                 <button id="open-modal-btn" title="Add Student"
@@ -434,7 +444,7 @@
                         <thead>
                             <tr class="border-b border-slate-100 bg-slate-50/60">
                                 <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">Student</th>
-                                <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">Level & Status</th>
+                                <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">Mastery</th>
                                 <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">XP Progress</th>
                                 <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase truncate">Enrolled</th>
                                 <th class="py-4 px-3 md:px-5 text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase text-right truncate">Action</th>
@@ -460,12 +470,10 @@
                                     default => null
                                 };
 
-                                // Bar calculations (relative to next threshold)
-                                if      ($lvl==='Beginner')     { $barMax=$m1; $barXp=min($xp,$m1); }
-                                elseif  ($lvl==='Intermediate') { $barMax=$m2; $barXp=min($xp,$m2); }
-                                elseif  ($lvl==='Advanced')     { $barMax=$m3; $barXp=min($xp,$m3); }
-                                else                            { $barMax=$m3; $barXp=$m3; }
-                                $barPct = $barMax>0 ? min(100,round($barXp/$barMax*100)) : 100;
+                                // Bar calculations — always 0 to max XP (1000), no per-level reset
+                                $barMax = $m3; // 1000 is the absolute max
+                                $barXp  = min($xp, $barMax);
+                                $barPct = $barMax > 0 ? min(100, round($barXp / $barMax * 100)) : 0;
 
                                 $levelMeta = match($lvl) {
                                     'Intermediate' => ['barColor'=>'#3b82f6','class'=>'intermediate','icon'=>'bolt'],
@@ -551,8 +559,8 @@
                                         </div>
                                         <div class="flex justify-between mt-1">
                                             <span class="text-[9px] text-slate-300">0</span>
-                                            <span class="text-[9px] font-bold whitespace-nowrap {{ $enoughXp ? 'text-emerald-500' : 'text-slate-300' }}">
-                                                @if($promoteTo) {{ number_format($promoteXp) }} XP @else MAX @endif
+                                            <span class="text-[9px] font-bold whitespace-nowrap text-slate-300">
+                                                {{ number_format($m3) }} XP
                                             </span>
                                         </div>
                                     </div>
@@ -1487,8 +1495,18 @@
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">School Year</label>
-                    <input type="text" name="school_year" id="single-school-year" value="2025-2026" placeholder="e.g. 2025-2026" maxlength="9" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
-                    <p id="single-sy-error" class="hidden text-[12px] font-medium text-red-600"></p>
+                    <div class="relative">
+                        <input type="text" 
+                               name="school_year" 
+                               id="single-school-year" 
+                               value="{{ $activeSchoolYear?->name ?? \App\Models\SchoolYear::currentDepEdLabel() }}" 
+                               readonly
+                               class="bg-slate-100 text-slate-600 text-[14px] font-bold py-3.5 px-4 rounded-xl outline-none border border-slate-200 cursor-not-allowed" />
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[16px] text-blue-600">lock</span>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-medium">Students are automatically enrolled in the current active school year.</p>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">FSL Mastery Level</label>
@@ -1523,6 +1541,24 @@
 
             {{-- ── STEP 1: Upload zone ── --}}
             <div id="bulk-step-upload">
+                {{-- Download Template Section --}}
+                <div class="mb-6 bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] rounded-[20px] p-5 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[24px] text-white">description</span>
+                        </div>
+                        <div>
+                            <p class="text-[14px] font-bold text-white">Need a template?</p>
+                            <p class="text-[11px] text-white/80 font-medium mt-0.5">Download our Excel template with proper formatting and instructions</p>
+                        </div>
+                    </div>
+                    <a href="{{ route('students.download-template') }}" 
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-white/90 rounded-xl text-[13px] font-bold text-[#0d326b] transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-[18px]">download</span>
+                        Download Template
+                    </a>
+                </div>
+
                 <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-[#0d326b] rounded-[24px] p-10 flex flex-col items-center justify-center space-y-4 mb-5 transition-all cursor-pointer relative bg-slate-50/50">
                     <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                     <div id="upload-icon-container" class="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-sm">
@@ -1534,6 +1570,8 @@
                     </div>
                     <button type="button" class="border border-[#0d326b] text-[#0d326b] hover:bg-[#0d326b]/5 font-bold text-[13px] px-6 py-2.5 rounded-xl transition-colors pointer-events-none">Browse Files</button>
                 </div>
+                
+
                 <div class="bg-[#f1f5f9] p-4 rounded-[20px] flex items-center justify-between shadow-sm">
                     <div class="flex items-center space-x-4">
                         <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#0d326b] shadow-sm"><span class="material-symbols-outlined text-[20px]">lock</span></div>
@@ -1585,7 +1623,7 @@ function closeModal(){
 }
 closeModalBtn.addEventListener('click', closeModal);
 cancelBtns.forEach(btn => btn.addEventListener('click', closeModal));
-modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+// Removed click-outside-to-close behavior - modal only closes via X button or Cancel button
 const AT='text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all',IT='text-slate-400 border-b-2 border-transparent hover:text-slate-600 outline-none transition-all';
 tabSingle.addEventListener('click',()=>{tabSingle.className=AT;tabBulk.className=IT;formSingle.classList.remove('hidden');containerBulk.classList.add('hidden');});
 tabBulk.addEventListener('click',()=>{tabBulk.className=AT;tabSingle.className=IT;containerBulk.classList.remove('hidden');formSingle.classList.add('hidden');});
@@ -1788,19 +1826,7 @@ async function submitSingleStudent(event) {
         return; 
     }
     
-    // School year validation
-    const syInput = document.getElementById('single-school-year');
-    const syVal = syInput ? syInput.value.trim() : '';
-    const syErr = sdcValidateSchoolYear(syVal);
-    if (syErr) {
-        const errEl = document.getElementById('single-sy-error');
-        if (errEl) { 
-            errEl.textContent = syErr; 
-            errEl.classList.remove('hidden'); 
-        }
-        showAlert('School year: ' + syErr);
-        return;
-    }
+    // ✅ School year is now read-only - no validation needed
     
     const orig = btn.innerText;
     btn.innerText = 'Checking...'; 
@@ -1844,14 +1870,33 @@ async function submitSingleStudent(event) {
 // ─── Step 2: "Review & Import" button → show editable table ──────────────────
 // Wired via onclick on the button itself (see renderDataTable call in handleExcelFile)
 
-function renderDataTable() {
+async function renderDataTable() {
     hideAlert();
     document.getElementById('bulk-step-upload').classList.add('hidden');
     const stepTable = document.getElementById('bulk-step-table');
     stepTable.classList.remove('hidden');
     stepTable.innerHTML = '';
 
+    // Check all LRNs for existing students
+    const lrnChecks = {};
+    for (const student of parsedStudents) {
+        if (student.lrn && /^\d{12}$/.test(student.lrn)) {
+            try {
+                const res = await axios.get("{{ route('students.check-lrn') }}", { params: { lrn: student.lrn } });
+                lrnChecks[student.lrn] = res.data;
+            } catch (err) {
+                console.error('LRN check failed:', err);
+            }
+        }
+    }
+    
+    // Attach LRN check results to students
+    parsedStudents.forEach(s => {
+        s._lrnCheck = lrnChecks[s.lrn] || null;
+    });
+
     const errCount   = parsedStudents.filter(s => !isValid(s)).length;
+    const warningCount = parsedStudents.filter(s => s._lrnCheck?.exists).length;
     const validCount = parsedStudents.length - errCount;
 
     // Header bar
@@ -1865,6 +1910,7 @@ function renderDataTable() {
         '<p class="text-[11px] text-slate-400 font-medium">' + parsedStudents.length + ' students &nbsp;·&nbsp; ' +
         '<span class="text-emerald-600 font-semibold">' + validCount + ' valid</span>' +
         (errCount > 0 ? ' &nbsp;·&nbsp; <span class="text-red-500 font-semibold">' + errCount + ' errors</span>' : '') +
+        (warningCount > 0 ? ' &nbsp;·&nbsp; <span class="text-amber-600 font-semibold">' + warningCount + ' warnings</span>' : '') +
         '</p></div></div>' +
         '<div class="flex items-center gap-2">' +
         '<span id="tbl-err-badge" class="' + (errCount > 0 ? '' : 'hidden ') +
@@ -1873,12 +1919,19 @@ function renderDataTable() {
         '<span class="material-symbols-outlined text-[16px]">upload</span>Confirm Import</button></div>';
     stepTable.appendChild(hdr);
 
-    // Legend (only when errors exist)
-    if (errCount > 0) {
+    // Legend
+    if (errCount > 0 || warningCount > 0) {
         const leg = document.createElement('div');
-        leg.className = 'flex items-center gap-5 mb-3 text-[11px] text-slate-500 font-medium';
-        leg.innerHTML = '<span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-red-100 border border-red-300 shrink-0"></span>Cell has error — edit to fix</span>' +
-            '<span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-white border border-slate-200 shrink-0"></span>Valid — still editable</span>';
+        leg.className = 'flex items-center gap-5 mb-3 text-[11px] text-slate-500 font-medium flex-wrap';
+        let legendHtml = '';
+        if (errCount > 0) {
+            legendHtml += '<span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-red-100 border border-red-300 shrink-0"></span>Cell has error — edit to fix</span>';
+        }
+        if (warningCount > 0) {
+            legendHtml += '<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-amber-500 text-[14px]">warning</span>Student already exists</span>';
+        }
+        legendHtml += '<span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-white border border-slate-200 shrink-0"></span>Valid — still editable</span>';
+        leg.innerHTML = legendHtml;
         stepTable.appendChild(leg);
     }
 
@@ -1897,7 +1950,7 @@ function renderDataTable() {
         { key:'section',           label:'Section',     w:'105px', edit:true, type:'text'   },
         { key:'age',               label:'Age',         w:'64px',  edit:true, type:'text'   },
         { key:'fsl_mastery_level', label:'FSL Mastery', w:'128px', edit:true, type:'select', opts:['', ...VALID_MASTERY] },
-        { key:'school_year',       label:'School Year', w:'115px', edit:true, type:'text'   },
+        { key:'school_year',       label:'School Year', w:'115px', edit:false, type:'text'   },
     ];
 
     const tbl = document.createElement('table');
@@ -1937,6 +1990,7 @@ function renderDataTable() {
 function buildTblRow(s, ri, COLS) {
     const errs     = validateStudent(s);
     const hasError = Object.keys(errs).length > 0;
+    const hasWarning = s._lrnCheck?.exists;
     const tr       = document.createElement('tr');
     tr.dataset.idx = ri;
     tr.className   = (hasError ? 'bg-red-50/30' : 'bg-white') + ' border-b border-slate-100 hover:brightness-[.98] transition-colors';
@@ -1944,9 +1998,30 @@ function buildTblRow(s, ri, COLS) {
         const td    = document.createElement('td');
         td.className = 'px-2 py-1.5 align-top';
         const cellErr = errs[col.key];
-        if (!col.edit) {
-            td.innerHTML = '<span class="text-[11px] font-bold text-slate-400">' + s._row + '</span>';
-        } else if (col.type === 'select') {
+        
+        // Row number column with warning indicator
+        if (col.key === '_row') {
+            const rowContent = '<span class="text-[11px] font-bold text-slate-400">' + s._row + '</span>';
+            if (hasWarning) {
+                const warningMsg = s._lrnCheck.status === 'own' 
+                    ? 'Already in your class' 
+                    : s._lrnCheck.status === 'inactive'
+                    ? 'Unenrolled - will be transferred'
+                    : 'Enrolled with another teacher';
+                td.innerHTML = '<div class="flex items-center gap-1.5">' + 
+                    rowContent + 
+                    '<span class="material-symbols-outlined text-amber-500 text-[16px] cursor-help" title="' + warningMsg + '">warning</span>' +
+                    '</div>';
+            } else {
+                td.innerHTML = rowContent;
+            }
+        }
+        // School year - read-only text display
+        else if (col.key === 'school_year') {
+            td.innerHTML = '<span class="text-[12px] font-medium text-slate-500 px-2 py-1.5">' + (s[col.key] || '') + '</span>';
+        }
+        // Editable select fields
+        else if (col.edit && col.type === 'select') {
             const sel = document.createElement('select');
             sel.dataset.field = col.key; sel.dataset.idx = ri;
             sel.className = 'tbl-cell w-full text-[12px] font-medium py-1.5 px-2 rounded-lg outline-none border transition-all appearance-none cursor-pointer ' +
@@ -1954,7 +2029,9 @@ function buildTblRow(s, ri, COLS) {
             col.opts.forEach(o => { const opt = document.createElement('option'); opt.value = o; opt.textContent = o || '— Select —'; if (String(s[col.key]||'') === o) opt.selected = true; sel.appendChild(opt); });
             td.appendChild(sel);
             if (cellErr) { const e = document.createElement('p'); e.className = 'text-[10px] text-red-500 font-semibold mt-0.5 pl-1 leading-none'; e.textContent = cellErr; td.appendChild(e); }
-        } else {
+        }
+        // Editable text fields
+        else if (col.edit) {
             const inp = document.createElement('input'); inp.type = 'text';
             inp.dataset.field = col.key; inp.dataset.idx = ri;
             inp.value = String(s[col.key] ?? ''); inp.placeholder = col.label;
@@ -2072,9 +2149,9 @@ async function runImport() {
             let nextStepHtml = '';
             let footerButtonHtml;
             if (needsLessons) {
-                nextStepHtml = '<div class="mt-4 px-4 py-3 rounded-xl text-[11px] font-semibold flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800">' +
-                    '<span class="material-symbols-outlined text-[16px] shrink-0">priority_high</span>' +
-                    '<span>Next step: assign lessons to your ' + createdStudents.length + ' new student' + (createdStudents.length > 1 ? 's' : '') + ' so they can start learning.</span></div>';
+                nextStepHtml = '<div class="mt-4 px-4 py-3 rounded-xl text-[11px] font-semibold flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800">' +
+                    '<span class="material-symbols-outlined text-[16px] shrink-0">info</span>' +
+                    '<span><strong>' + createdStudents.length + ' new student' + (createdStudents.length > 1 ? 's' : '') + ' imported successfully.</strong> Click below to assign lessons so they can start learning.</span></div>';
                 footerButtonHtml =
                     '<button type="button" id="btn-start-assignment-queue" class="mt-5 w-full bg-[#0d326b] hover:bg-[#154188] text-white py-3.5 rounded-xl text-[13px] font-bold transition-all shadow-sm flex items-center justify-center gap-2">' +
                     '<span class="material-symbols-outlined text-[16px]">assignment</span>Continue — Assign Lessons (' + createdStudents.length + ')</button>';
@@ -2097,9 +2174,7 @@ async function runImport() {
             if (needsLessons) {
                 const startBtn = document.getElementById('btn-start-assignment-queue');
                 if (startBtn) startBtn.addEventListener('click', () => startAssignmentQueue(createdStudents));
-                // Launch automatically too, so the teacher doesn't skip past the required step —
-                // the button above still lets them re-open it if they close the modal early.
-                setTimeout(() => startAssignmentQueue(createdStudents), 700);
+                // Removed automatic launch - teacher must click the button to continue
             }
         } else {
             showAlert(res.data.message || 'Import error.', 'error');
@@ -2147,10 +2222,33 @@ function updateClearButtonVisibility() {
     const level   = document.getElementById('filter-level').value;
     const program = document.getElementById('filter-program').value;
     const schoolYear = document.getElementById('filter-school-year').value;
-    const status  = document.getElementById('filter-status').value;
-    const hasFilters = !!(search || level || program || schoolYear || currentPromotableLevel || (status && status !== '' && status !== 'all'));
-    const wrap = document.getElementById('clear-filters-wrap');
-    if (wrap) wrap.classList.toggle('hidden', !hasFilters);
+    const activeSchoolYearName = '{{ $activeSchoolYear?->name ?? '' }}';
+    
+    // Clear button should be enabled when:
+    // 1. Viewing "All School Years" (schoolYear is empty)
+    // 2. Viewing a different year (not the active/current year)
+    // 3. Any other filter is applied (search, level, program, promo)
+    
+    const isViewingDefaultYear = (schoolYear === activeSchoolYearName) || (!schoolYear && !search && !level && !program && !currentPromotableLevel);
+    const hasNonYearFilters = !!(search || level || program || currentPromotableLevel);
+    const hasActiveFilters = (schoolYear !== activeSchoolYearName) || hasNonYearFilters;
+    
+    const btn = document.getElementById('clear-filters-btn');
+    if (btn) {
+        if (hasActiveFilters) {
+            btn.disabled = false;
+            btn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+            btn.classList.add('text-white', 'cursor-pointer');
+            btn.style.background = 'linear-gradient(135deg, #1e4b8f 0%, #1a6fd4 100%)';
+            btn.style.boxShadow  = '0 2px 8px rgba(26,111,212,0.3)';
+        } else {
+            btn.disabled = true;
+            btn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+            btn.classList.remove('text-white', 'cursor-pointer');
+            btn.style.background = '';
+            btn.style.boxShadow  = '';
+        }
+    }
 }
 
 function fetchStudentsResults(url, fetchOptions) {
@@ -2182,23 +2280,23 @@ function fetchStudentsResults(url, fetchOptions) {
 
             const newPromoWidget = doc.getElementById('promo-thresholds-widget');
             const oldPromoWidget = document.getElementById('promo-thresholds-widget');
-            if (newPromoWidget && oldPromoWidget) {
-                oldPromoWidget.replaceWith(newPromoWidget);
-            }
 
             // Swap the right-side charts (FSL donut, promotion boxes, top students)
+            // This swap covers the entire sidebar including the promo widget,
+            // so we only do ONE swap — not two. A separate promo-widget swap
+            // would move the element out of the parsed doc, leaving the new
+            // sidebar without it when the sidebar swap runs.
             const newSidebar = doc.getElementById('sidebar-charts');
             const oldSidebar = document.getElementById('sidebar-charts');
             if (newSidebar && oldSidebar) {
                 oldSidebar.replaceWith(newSidebar);
+            } else if (newPromoWidget && oldPromoWidget) {
+                // Fallback: sidebar not found, swap just the promo widget
+                oldPromoWidget.replaceWith(newPromoWidget);
             }
 
-            // Swap the top stat cards (total students, avg XP, ready to promote)
-            const newStatCards = doc.getElementById('stat-cards');
-            const oldStatCards = document.getElementById('stat-cards');
-            if (newStatCards && oldStatCards) {
-                oldStatCards.replaceWith(newStatCards);
-            }
+            // ✅ DO NOT swap stat cards — they should always show current year data only
+            // The stat cards are fixed and never change based on filters
 
             updateClearButtonVisibility();
         })
@@ -2215,7 +2313,7 @@ function applyServerFilters(overrides) {
     const levelVal   = overrides.hasOwnProperty('level')   ? overrides.level   : document.getElementById('filter-level').value;
     const programVal = overrides.hasOwnProperty('program') ? overrides.program : document.getElementById('filter-program').value;
     const schoolYearVal = overrides.hasOwnProperty('school_year') ? overrides.school_year : document.getElementById('filter-school-year').value;
-    const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : document.getElementById('filter-status').value;
+    const statusVal  = overrides.hasOwnProperty('status')  ? overrides.status  : '';
     const promoVal   = overrides.hasOwnProperty('promotable_level') ? overrides.promotable_level : currentPromotableLevel;
 
     if (overrides.hasOwnProperty('promotable_level')) {
@@ -2259,9 +2357,9 @@ document.addEventListener('keydown', function (e) {
     }
 });
 
-// Level / Program / School Year / Status dropdowns
+// Level / Program / School Year dropdowns
 document.addEventListener('change', function (e) {
-    if (e.target && (e.target.id === 'filter-level' || e.target.id === 'filter-program' || e.target.id === 'filter-school-year' || e.target.id === 'filter-status')) {
+    if (e.target && (e.target.id === 'filter-level' || e.target.id === 'filter-program' || e.target.id === 'filter-school-year')) {
         applyServerFilters();
     }
 });
@@ -2269,12 +2367,11 @@ document.addEventListener('change', function (e) {
 // Delegated clicks: clear button, pagination links, promote/demote
 document.addEventListener('click', function (e) {
     const clearBtn = e.target.closest('#clear-filters-btn');
-    if (clearBtn) {
+    if (clearBtn && !clearBtn.disabled) {
         document.getElementById('student-search').value = '';
         document.getElementById('filter-level').value = '';
         document.getElementById('filter-program').value = '';
         document.getElementById('filter-school-year').value = '{{ $activeSchoolYear?->name ?? '' }}';
-        document.getElementById('filter-status').value = '';
         currentPromotableLevel = '';
         applyServerFilters({ search: '', level: '', program: '', school_year: '{{ $activeSchoolYear?->name ?? '' }}', status: '', promotable_level: '' });
         return;
@@ -2626,14 +2723,14 @@ if (assignmentHint && s) {
     // You could fetch the count from s if available, or keep it generic
     assignmentHint.textContent = 'Manage which lessons this student has access to.';
 }
-    const isActive = s.status === 'active';
-    statusText.textContent = isActive ? 'Student is currently enrolled and active.' : 'Student is currently unenrolled.';
-    enrollBtn.disabled   = isActive;
-    unenrollBtn.disabled = !isActive;
+    const isEnrolled = s.is_enrolled !== undefined ? !!s.is_enrolled : (s.status === 'active');
+    statusText.textContent = isEnrolled ? 'Student is currently enrolled.' : 'Student is currently unenrolled.';
+    enrollBtn.disabled   = isEnrolled;
+    unenrollBtn.disabled = !isEnrolled;
     enrollBtn.className  = 'flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 ' +
-        (isActive ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer');
+        (isEnrolled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer');
     unenrollBtn.className = 'flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 ' +
-        (isActive ? 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer' : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-transparent');
+        (isEnrolled ? 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer' : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-transparent');
 
     // Promote
     if (s.promote_to) {
@@ -2740,7 +2837,7 @@ function sdcConfirm({ title, body, okLabel, okClass, onConfirm }) {
 
 // ── Enroll / Unenroll ─────────────────────────────────────────────────────────
 document.getElementById('sdc-enroll-btn').addEventListener('click', () => {
-    if (!_sdCurrent || _sdCurrent.status === 'active') return;
+    if (!_sdCurrent || _sdCurrent.is_enrolled) return;
     sdcConfirm({
         title: 'Enroll Student',
         body: 'Are you sure you want to enroll ' + _sdCurrent.full_name + '? They will have full access to lessons and progress tracking.',
@@ -2749,7 +2846,7 @@ document.getElementById('sdc-enroll-btn').addEventListener('click', () => {
     });
 });
 document.getElementById('sdc-unenroll-btn').addEventListener('click', () => {
-    if (!_sdCurrent || _sdCurrent.status !== 'active') return;
+    if (!_sdCurrent || !_sdCurrent.is_enrolled) return;
     sdcConfirm({
         title: 'Unenroll Student',
         body: 'Are you sure you want to unenroll ' + _sdCurrent.full_name + '? This action can be reversed by enrolling them again.',
@@ -2843,15 +2940,9 @@ async function sdcAction(url, data, type) {
                 _sdCurrent = studentData;
                 populateStudentDetails(studentData);
 
-                // Keep the student visible in the dashboard after an enroll/unenroll,
-                // even if the status change would otherwise filter it out of the
-                // currently selected view (e.g. unenrolling while viewing "Enrolled").
-                const statusFilterEl = document.getElementById('filter-status');
-                const currentStatusFilter = statusFilterEl ? statusFilterEl.value : 'active';
-                const newStatus = studentData.status === 'active' ? 'active' : 'inactive';
-                if ((type === 'enroll' || type === 'unenroll') && currentStatusFilter !== 'all' && currentStatusFilter !== newStatus) {
-                    if (statusFilterEl) statusFilterEl.value = 'all';
-                    applyServerFilters({ status: 'all' });
+                // Keep the student visible after an enroll/unenroll action.
+                if (type === 'enroll' || type === 'unenroll') {
+                    applyServerFilters({ status: '' });
                 } else {
                     applyServerFilters();
                 }
@@ -3067,6 +3158,10 @@ function openAssignmentModal(studentId, studentName, pendingPayload) {
         _assignSelectedIds = new Set();
         _assignOriginalIds = new Set();
         
+        // Count previously assigned lessons
+        let previouslyAssignedCount = 0;
+        let previousYears = new Set();
+        
         // For new students, NOTHING should be pre-selected
         // For existing students, pre-select already assigned lessons
 if (!_assignPendingPayload) {
@@ -3079,9 +3174,37 @@ if (!_assignPendingPayload) {
                     _assignOriginalIds.add(id);
                 }
             }
+            // Track previously assigned lessons
+            if (lesson.previously_assigned) {
+                previouslyAssignedCount++;
+                if (lesson.previous_school_year) {
+                    previousYears.add(lesson.previous_school_year);
+                }
+            }
         });
     });
 }
+
+        // Show warning if there are previously assigned lessons
+        const assignmentHint = document.getElementById('sdc-assignment-hint');
+        if (previouslyAssignedCount > 0 && assignmentHint) {
+            const yearsList = Array.from(previousYears).join(', ');
+            assignmentHint.innerHTML = `
+                <div class="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <span class="material-symbols-outlined text-amber-600 text-[16px] flex-shrink-0 mt-0.5">info</span>
+                    <div class="flex-1">
+                        <p class="text-[11px] font-bold text-amber-900 leading-tight mb-1">⚠️ Previous Assignment Detected</p>
+                        <p class="text-[10px] text-amber-800 leading-relaxed">
+                            <strong>${previouslyAssignedCount} lesson${previouslyAssignedCount > 1 ? 's were' : ' was'}</strong> previously assigned to this student in <strong>${yearsList}</strong>.
+                            These lessons are marked with a warning badge below. You can re-assign them for review/practice.
+                        </p>
+                    </div>
+                </div>
+            `;
+        } else if (assignmentHint) {
+            assignmentHint.textContent = 'Select lessons to assign to this student for the current school year.';
+        }
+        
         renderAssignmentList();
         updateAssignmentStats();
         assignContent.classList.remove('hidden');
@@ -3190,17 +3313,30 @@ function renderAssignmentList() {
     lessonCounter++;
     const checked = _assignSelectedIds.has(lesson.lesson_id) ? 'checked' : '';
     const isExam = lesson.type === 'checkpoint_exam';
-    const badge = isExam 
-        ? '<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full ml-2">📝 Exam</span>'
-        : (lesson.is_assigned ? '<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Assigned</span>' : '');
+    
+    // Build badges
+    let badges = '';
+    if (isExam) {
+        badges = '<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full ml-2">📝 Exam</span>';
+    } else if (lesson.is_assigned) {
+        badges = '<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full ml-2">Current Year</span>';
+    }
+    
+    // Add warning badge for previously assigned lessons
+    if (lesson.previously_assigned) {
+        badges += `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full ml-2 border border-amber-200" title="Previously assigned in ${lesson.previous_school_year}">⚠️ ${lesson.previous_school_year}</span>`;
+    }
+    
     return `
-        <label class="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors select-none group">
+        <label class="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors select-none group ${lesson.previously_assigned ? 'bg-amber-50/30' : ''}">
             <input type="checkbox" class="lesson-checkbox w-4 h-4 rounded border-slate-300 text-[#0d326b] focus:ring-[#0d326b] focus:ring-offset-0 cursor-pointer" 
                    data-lesson-id="${lesson.lesson_id}" 
+                   data-previously-assigned="${lesson.previously_assigned ? 'true' : 'false'}"
+                   data-previous-year="${lesson.previous_school_year || ''}"
                    ${checked}>
             <span class="text-[13px] font-medium text-slate-700 group-hover:text-[#0d326b] transition-colors flex-1">
                 ${lesson.title}
-                ${badge}
+                ${badges}
             </span>
         </label>
     `;

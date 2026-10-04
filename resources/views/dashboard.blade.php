@@ -127,45 +127,29 @@
                $weekDays[] = $startOfWeek->copy()->addDays($i);
            }
         @endphp
-        <!-- School Year Context & Switcher -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
-            <div class="flex items-center gap-3">
-                <span class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                    <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+        <!-- Academic Session -->
+        <div class="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
+            <span class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+            </span>
+            <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Academic Session</span>
+                <span class="text-[13.5px] font-black text-slate-800">
+                    School Year {{ $activeSchoolYear?->name ?? 'Current' }}
+                    <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
                 </span>
-                <div>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Academic Session</span>
-                    <span class="text-[13.5px] font-black text-slate-800">
-                        School Year {{ $selectedSchoolYear?->name ?? ($activeSchoolYear?->name ?? 'Current') }}
-                        @if($isArchivedView)
-                            <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Archived View</span>
-                        @else
-                            <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
-                        @endif
-                    </span>
-                </div>
+                @php
+                    $displaySyStart = $syStartDate ? \Carbon\Carbon::parse($syStartDate)->format('M d, Y') : null;
+                @endphp
+                @if($displaySyStart)
+                <span class="text-[10.5px] font-medium text-slate-400 block mt-0.5">
+                    {{ $displaySyStart }} – Present
+                </span>
+                @endif
             </div>
-
-            <form method="GET" action="{{ route('dashboard') }}" class="flex items-center gap-2">
-                <div class="relative flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-1.5 shadow-sm">
-                    <span class="material-symbols-outlined text-[#0d326b] text-[16px] flex-shrink-0">calendar_month</span>
-                    <label for="sy_select" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">School Year</label>
-                    <select id="sy_select" name="school_year" onchange="this.form.submit()"
-                            class="appearance-none bg-transparent text-slate-700 text-[12.5px] font-black pr-6 focus:outline-none cursor-pointer border-none">
-                        <option value="all" {{ request('school_year') === 'all' ? 'selected' : '' }}>All Years</option>
-                        @foreach($availableSchoolYears ?? [] as $sy)
-                        <option value="{{ $sy->name }}"
-                                {{ ($selectedSchoolYear?->name ?? ($activeSchoolYear?->name ?? '')) === $sy->name && request('school_year') !== 'all' ? 'selected' : '' }}>
-                            S.Y. {{ $sy->name }}{{ $sy->status === 'active' ? ' ★' : '' }}
-                        </option>
-                        @endforeach
-                    </select>
-                    <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[15px]">expand_more</span>
-                </div>
-            </form>
         </div>
 
-        @if($totalStudents === 0 && !$isArchivedView)
+        @if($totalStudents === 0)
         <!-- New School Year Clean Slate Banner -->
         <div class="bg-gradient-to-r from-indigo-500/10 via-blue-500/10 to-transparent p-5 rounded-2xl border border-indigo-200/60 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3.5">
@@ -173,7 +157,7 @@
                     <span class="material-symbols-outlined text-[22px]">school</span>
                 </div>
                 <div>
-                    <h4 class="text-[14px] font-black text-slate-800">Welcome to School Year {{ $selectedSchoolYear?->name ?? 'New Year' }}!</h4>
+                    <h4 class="text-[14px] font-black text-slate-800">Welcome to School Year {{ $activeSchoolYear?->name ?? 'New Year' }}!</h4>
                     <p class="text-[12px] text-slate-500 font-medium">Your classroom is set up for the new school year. Enroll or re-enroll students to get started.</p>
                 </div>
             </div>
@@ -435,13 +419,12 @@
                     <div class="w-9 h-9 rounded-full bg-[#0d326b] flex items-center justify-center flex-shrink-0">
                         <span class="material-symbols-outlined text-white text-[18px]">group</span>
                     </div>
-                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Students</h3>
+                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Enrolled Students</h3>
                 </div>
                 <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalStudents }}</p>
-                <p class="text-[12px] font-medium text-[#1a6fd4] mt-2 mb-4">↑ {{ $newStudentsThisWeek }} this week</p>
-                <div class="mt-auto -mx-1 kpi-sparkline-wrap relative">
-                    {!! $kpiSparkline($sparklineTotalStudents ?: array_fill(0, 7, 0), '#0d326b', 'Total Students', 'Students', $sparklineDates ?? [], 'students') !!}
-                </div>
+                <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">
+                    {{ $newStudentsThisWeek >= 0 ? '+' : '' }}{{ $newStudentsThisWeek }} vs last S.Y.
+                </p>
             </div>
 
             {{-- Active Today --}}
@@ -831,7 +814,7 @@
                                 <div class="h-full rounded-full bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] transition-all duration-500"
                                      style="width: {{ $xpPct }}%"></div>
                             </div>
-                            <span class="text-[9px] font-bold text-slate-400 flex-shrink-0">{{ $xp }} XP</span>
+                            <span class="text-[9px] font-bold text-amber-500 flex-shrink-0">{{ $xp }} XP</span>
                         </div>
                     </div>
                 </div>
@@ -856,22 +839,23 @@
 
     </div>{{-- closes outer flex row --}}
 
-    <!-- Bottom Row: Mastery / Lesson Progress / Student Performance (full width, ignores sidebar column) -->
+    <!-- Bottom Row: Enrollment Trend / Lesson Progress / Student Performance -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-4">
 
-            <!-- Enrollment Trend per School Year (5 Years) -->
+
+            <!-- Enrollment Trend per School Year -->
+
             <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden flex flex-col justify-between">
                 <div class="absolute -top-8 -right-8 w-32 h-32 bg-indigo-50/70 rounded-full pointer-events-none"></div>
 
                 <div class="flex items-start justify-between mb-5 relative z-10">
                     <div>
                         <h3 class="text-base font-bold text-[#0d326b]">Enrollment Trend</h3>
-                        <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Per School Year (June 8 – April 8)</p>
+                        <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Students enrolled per school year</p>
                     </div>
                     @php
                         $trendData = $enrollmentTrend ?? [];
-                        $currentSyData = end($trendData) ?: ['school_year' => '2026-2027', 'count' => 0];
-                        $totalEnrolledInTrend = array_sum(array_column($trendData, 'count'));
+                        $currentSyData = end($trendData) ?: ['school_year' => ($activeSchoolYear?->name ?? '—'), 'count' => 0];
                     @endphp
                     <div class="bg-[#eff6ff] border border-blue-100 rounded-2xl px-3 py-1.5 flex items-center gap-2 shadow-xs">
                         <span class="w-2 h-2 rounded-full bg-[#1a6fd4]"></span>
@@ -882,6 +866,8 @@
                     </div>
                 </div>
 
+                @php $totalEnrolledInTrend = array_sum(array_column($trendData, 'count')); @endphp
+
                 @if(empty($trendData) || $totalEnrolledInTrend === 0)
                     <div class="text-center text-sm text-slate-400 py-12 italic relative z-10">No enrollment records found</div>
                 @else
@@ -890,59 +876,40 @@
                     $padL = 26; $padR = 24; $padT = 24; $padB = 30;
                     $plotW = $chartW - $padL - $padR;
                     $plotH = $chartH - $padT - $padB;
-                    
-                    $counts = array_column($trendData, 'count');
-                    $rawMax = max($counts);
-                    if ($rawMax <= 4) {
-                        $maxVal = 4;
-                        $ticks = [0, 1, 2, 3, 4];
-                    } elseif ($rawMax <= 8) {
-                        $maxVal = 8;
-                        $ticks = [0, 2, 4, 6, 8];
-                    } elseif ($rawMax <= 12) {
-                        $maxVal = 12;
-                        $ticks = [0, 3, 6, 9, 12];
-                    } elseif ($rawMax <= 20) {
-                        $maxVal = 20;
-                        $ticks = [0, 5, 10, 15, 20];
-                    } else {
-                        $step = (int) ceil($rawMax / 4);
-                        $maxVal = $step * 4;
-                        $ticks = range(0, $maxVal, $step);
-                    }
+
+                    $counts  = array_column($trendData, 'count');
+                    $rawMax  = max($counts);
+                    if ($rawMax <= 4)       { $maxVal = 4;  $ticks = [0,1,2,3,4]; }
+                    elseif ($rawMax <= 8)   { $maxVal = 8;  $ticks = [0,2,4,6,8]; }
+                    elseif ($rawMax <= 12)  { $maxVal = 12; $ticks = [0,3,6,9,12]; }
+                    elseif ($rawMax <= 20)  { $maxVal = 20; $ticks = [0,5,10,15,20]; }
+                    else { $step = (int)ceil($rawMax/4); $maxVal = $step*4; $ticks = range(0,$maxVal,$step); }
 
                     $n = count($trendData);
                     $pts = [];
                     foreach ($trendData as $i => $item) {
-                        $val = $item['count'];
-                        $x = $padL + ($n > 1 ? ($i / ($n - 1)) * $plotW : $plotW / 2);
-                        $y = $padT + $plotH - ($maxVal > 0 ? ($val / $maxVal) * $plotH : 0);
-                        $pts[] = [round($x, 1), round($y, 1)];
+                        $x = $padL + ($n > 1 ? ($i / ($n-1)) * $plotW : $plotW/2);
+                        $y = $padT + $plotH - ($maxVal > 0 ? ($item['count'] / $maxVal) * $plotH : 0);
+                        $pts[] = [round($x,1), round($y,1)];
                     }
 
-                    // Build smooth cubic-bezier curve
-                    $curvePath = '';
-                    $areaPath  = '';
+                    $curvePath = ''; $areaPath = '';
                     if (count($pts) > 0) {
                         $curvePath = "M {$pts[0][0]},{$pts[0][1]}";
-                        for ($i = 0; $i < count($pts) - 1; $i++) {
-                            $p0 = $pts[$i];
-                            $p1 = $pts[$i + 1];
-                            $dx = ($p1[0] - $p0[0]) / 2;
-                            $c1x = $p0[0] + $dx; $c1y = $p0[1];
-                            $c2x = $p1[0] - $dx; $c2y = $p1[1];
-                            $curvePath .= " C {$c1x},{$c1y} {$c2x},{$c2y} {$p1[0]},{$p1[1]}";
+                        for ($i = 0; $i < count($pts)-1; $i++) {
+                            $dx = ($pts[$i+1][0] - $pts[$i][0]) / 2;
+                            $curvePath .= " C ".($pts[$i][0]+$dx).",{$pts[$i][1]} ".($pts[$i+1][0]-$dx).",{$pts[$i+1][1]} {$pts[$i+1][0]},{$pts[$i+1][1]}";
                         }
-                        $areaPath = $curvePath . " L " . ($padL + $plotW) . "," . ($padT + $plotH) . " L " . $padL . "," . ($padT + $plotH) . " Z";
+                        $areaPath = $curvePath . " L ".($padL+$plotW).",".($padT+$plotH)." L {$padL},".($padT+$plotH)." Z";
                     }
                 @endphp
                 <div class="relative z-10">
                     <div id="enrollmentTooltip" class="pointer-events-none absolute z-30 opacity-0 transition-all duration-150 -translate-x-1/2 -translate-y-full bg-[#0d326b] text-white text-[11px] rounded-xl shadow-xl px-3 py-2 whitespace-nowrap border border-blue-400/20 mb-2">
-                        <div class="font-extrabold text-white text-[11px] tracking-wide" id="enrollmentTooltipSy">S.Y. 2026-2027</div>
-                        <div class="text-[9.5px] text-blue-200" id="enrollmentTooltipRange">June 8, 2026 – April 8, 2027</div>
+                        <div class="font-extrabold text-white text-[11px] tracking-wide" id="enrollmentTooltipSy">S.Y. —</div>
+                        <div class="text-[9.5px] text-blue-200" id="enrollmentTooltipRange"></div>
                         <div class="text-[12px] font-black text-amber-300 mt-1 flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                            <span id="enrollmentTooltipCount">10</span> <span class="font-bold text-white text-[10px]">Students Enrolled</span>
+                            <span id="enrollmentTooltipCount">0</span> <span class="font-bold text-white text-[10px]">Students Enrolled</span>
                         </div>
                         <div class="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45"></div>
                     </div>
@@ -959,45 +926,24 @@
                                 <stop offset="100%" stop-color="#0d326b"/>
                             </linearGradient>
                         </defs>
-
-                        <!-- Gridlines + Y labels -->
                         @foreach($ticks as $gv)
                         @php $gy = round($padT + $plotH - ($gv / $maxVal) * $plotH, 1); @endphp
                         <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $padL + $plotW }}" y2="{{ $gy }}" stroke="#f1f5f9" stroke-width="1"/>
                         <text x="2" y="{{ $gy + 3.5 }}" font-size="9.5" fill="#94a3b8" font-weight="600">{{ $gv }}</text>
                         @endforeach
-
-                        <!-- Area fill (smooth) -->
                         <path d="{{ $areaPath }}" fill="url(#enrollmentAreaFill)"/>
-
-                        <!-- Line (smooth curve) -->
                         <path d="{{ $curvePath }}" fill="none" stroke="url(#enrollmentLineStroke)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-
-                        <!-- Points -->
                         @foreach($pts as $i => $p)
-                        @php
-                            $isLast = ($i === count($pts) - 1);
-                            $val = $trendData[$i]['count'];
-                        @endphp
-                        <!-- Outer pulse ring for current year point -->
-                        @if($isLast)
-                        <circle cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="8" fill="#1a6fd4" fill-opacity="0.2"/>
-                        @endif
-
+                        @php $isLast = ($i === count($pts)-1); $val = $trendData[$i]['count']; @endphp
+                        @if($isLast)<circle cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="8" fill="#1a6fd4" fill-opacity="0.2"/>@endif
                         <circle cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="{{ $isLast ? 5.5 : 4 }}" fill="{{ $isLast ? '#1a6fd4' : ($val > 0 ? '#0d326b' : '#94a3b8') }}" stroke="white" stroke-width="2.5"/>
-
-                        <!-- Hit Area for hover -->
                         <circle class="enrollment-point-hit" cx="{{ $p[0] }}" cy="{{ $p[1] }}" r="16" fill="transparent" style="cursor:pointer"
                                 data-sy="S.Y. {{ $trendData[$i]['school_year'] }}"
                                 data-range="{{ $trendData[$i]['date_range'] }}"
                                 data-count="{{ $trendData[$i]['count'] }}"></circle>
                         @endforeach
-
-                        <!-- X labels (School Years) -->
                         @foreach($trendData as $i => $item)
-                        @php
-                            $isLast = ($i === count($trendData) - 1);
-                        @endphp
+                        @php $isLast = ($i === count($trendData)-1); @endphp
                         <text x="{{ $pts[$i][0] }}" y="{{ $chartH - 6 }}" font-size="8.5" fill="{{ $isLast ? '#0d326b' : '#64748b' }}" font-weight="{{ $isLast ? '800' : '700' }}" text-anchor="middle">{{ $item['school_year'] }}</text>
                         @endforeach
                     </svg>
@@ -1005,7 +951,7 @@
                 @endif
             </div>
 
-            <!-- Lesson Progress (donut chart) -->
+
             <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden flex flex-col">
                 <div class="absolute -top-10 -right-10 w-36 h-36 bg-blue-50/50 rounded-full opacity-60 pointer-events-none"></div>
 
@@ -1139,7 +1085,7 @@
                     </div>
                     @empty
                     <div class="text-center text-sm text-slate-400 py-8 italic">
-                        No record — no students added yet.
+                        No performance data for this school year.
                     </div>
                     @endforelse
                 </div>
@@ -1150,22 +1096,58 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // \u2500\u2500 Monthly Activity Chart: hover tooltip \u2500\u2500
+    (function () {
+        const svg  = document.getElementById('maChartSvg');
+        const tip  = document.getElementById('maTooltip');
+        if (!svg || !tip) return;
+        const tipMonth  = document.getElementById('maTooltipMonth');
+        const tipActive = document.getElementById('maTooltipActive');
+        const tipDone   = document.getElementById('maTooltipDone');
+        const wrap = svg.closest('.relative.z-10');
+
+        svg.querySelectorAll('.ma-hit-area').forEach(function (hit) {
+            hit.addEventListener('mouseenter', function () {
+                if (tipMonth) tipMonth.textContent = hit.dataset.month;
+                if (tipActive) tipActive.textContent = hit.dataset.active;
+                if (tipDone)   tipDone.textContent   = hit.dataset.done;
+
+                const svgRect  = svg.getBoundingClientRect();
+                const wrapRect = wrap ? wrap.getBoundingClientRect() : svgRect;
+                // cx is in SVG units; map to element pixels proportionally
+                const svgW   = svg.viewBox.baseVal.width  || 340;
+                const cx     = parseFloat(hit.dataset.cx);
+                const cy     = parseFloat(hit.dataset.cy);
+                const scaleX = svgRect.width  / svgW;
+                const scaleY = svgRect.height / (svg.viewBox.baseVal.height || 170);
+                tip.style.left = ((svgRect.left - wrapRect.left) + cx * scaleX) + 'px';
+                tip.style.top  = ((svgRect.top  - wrapRect.top)  + cy * scaleY) + 'px';
+                tip.classList.remove('opacity-0');
+                tip.classList.add('opacity-100');
+            });
+            hit.addEventListener('mouseleave', function () {
+                tip.classList.remove('opacity-100');
+                tip.classList.add('opacity-0');
+            });
+        });
+    })();
+
     // ── Enrollment Trend: hover tooltip on line points ──
     (function () {
         const wrap = document.getElementById('enrollmentChartSvg')?.closest('.relative.z-10');
-        const tip = document.getElementById('enrollmentTooltip');
+        const tip  = document.getElementById('enrollmentTooltip');
         if (!wrap || !tip) return;
-        const tipSy = document.getElementById('enrollmentTooltipSy');
+        const tipSy    = document.getElementById('enrollmentTooltipSy');
         const tipRange = document.getElementById('enrollmentTooltipRange');
         const tipCount = document.getElementById('enrollmentTooltipCount');
 
         wrap.querySelectorAll('.enrollment-point-hit').forEach(function (hit) {
             hit.addEventListener('mouseenter', function () {
-                const rect = hit.getBoundingClientRect();
+                const rect     = hit.getBoundingClientRect();
                 const wrapRect = wrap.getBoundingClientRect();
                 tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
-                tip.style.top = (rect.top - wrapRect.top) + 'px';
-                if (tipSy) tipSy.textContent = hit.dataset.sy;
+                tip.style.top  = (rect.top  - wrapRect.top) + 'px';
+                if (tipSy)    tipSy.textContent    = hit.dataset.sy;
                 if (tipRange) tipRange.textContent = hit.dataset.range;
                 if (tipCount) tipCount.textContent = hit.dataset.count;
                 tip.classList.remove('opacity-0');

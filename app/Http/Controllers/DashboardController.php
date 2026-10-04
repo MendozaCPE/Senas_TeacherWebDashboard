@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Student;
+use App\Models\StudentYearEnrollment;
 use App\Models\LessonAssignment;
 use App\Models\StudentLessonProgress;
 use App\Models\Gesture;
 use App\Models\GesturePerformance;
+use App\Models\CheckpointExamAttempt;
+use App\Models\DailyChallenge;
 use App\Models\SchoolYear;
 use App\Services\SenyaInsightsService;
 use Illuminate\Http\Request;
@@ -76,88 +79,148 @@ class DashboardController extends Controller
             $teacherId = $teacher->id;
             $schoolId  = (int) ($teacher->school_id ?? 0);
 
-            $availableSchoolYears = \App\Models\SchoolYear::where('school_id', $schoolId ?: null)
+            // Always use the active school year — no user-selectable filter on the dashboard.
+            $activeSchoolYear = \App\Models\SchoolYear::where('school_id', $schoolId ?: null)
                 ->orderByDesc('name')
-                ->get();
+                ->get()
+                ->firstWhere('status', 'active')
+                ?? \App\Models\SchoolYear::where('school_id', $schoolId ?: null)
+                    ->orderByDesc('name')
+                    ->first();
 
-            $activeSchoolYear = $availableSchoolYears->firstWhere('status', 'active')
-                ?? $availableSchoolYears->first();
+            // The active year's ID — used to scope progress/assignment queries.
+            $activeSyId = $activeSchoolYear?->id;
 
-            $selectedYearName = $request->query('school_year');
-            if (!$selectedYearName && $activeSchoolYear) {
-                $selectedYearName = $activeSchoolYear->name;
+            // ── School Year Date Boundaries ──────────────────────────────────────
+            $syStartDate = null;
+            $syEndDate   = Carbon::now()->endOfDay();
+            if ($activeSchoolYear) {
+                $syStartDate = $activeSchoolYear->start_date
+                    ? Carbon::parse($activeSchoolYear->start_date)->startOfDay()
+                    : null;
+                $syEndDate = $activeSchoolYear->end_date
+                    ? Carbon::parse($activeSchoolYear->end_date)->endOfDay()
+                    : Carbon::now()->endOfDay();
+            }
+            // Fall back to DepEd default start (July 1) when no real date is stored yet
+            if (!$syStartDate && $activeSchoolYear) {
+                [$syY] = explode('-', $activeSchoolYear->name);
+                $syStartDate = Carbon::create((int)$syY, 7, 1)->startOfDay();
             }
 
-            $selectedSchoolYear = ($selectedYearName && $selectedYearName !== 'all')
-                ? $availableSchoolYears->firstWhere('name', $selectedYearName)
-                : null;
+            // ── Month Filter Options (active-year-scoped) ────────────────────────
+            // Build Month-Year options from the active school year start to today.
+            $syMonthOptions = [];
+            $cursor = $syStartDate ? $syStartDate->copy()->startOfMonth() : Carbon::now()->startOfMonth();
+            $monthCap = Carbon::now()->startOfMonth();
+            while ($cursor->lte($monthCap)) {
+                $syMonthOptions[] = [
+                    'value' => $cursor->format('Y-m'),
+                    'label' => $cursor->format('M Y'),
+                ];
+                $cursor->addMonth();
+            }
 
-            $isArchivedView = $selectedSchoolYear && $selectedSchoolYear->status === 'archived';
+            // Selected month from query string (default: current month)
+            $selectedMonthParam = $request->query('month');
+            $validMonths = array_column($syMonthOptions, 'value');
+            if (!$selectedMonthParam || !in_array($selectedMonthParam, $validMonths)) {
+                $selectedMonthParam = $monthCap->format('Y-m');
+            }
+            try {
+                $selectedMonthDate = Carbon::createFromFormat('Y-m', $selectedMonthParam)->startOfMonth();
+            } catch (\Exception) {
+                $selectedMonthDate = Carbon::now()->startOfMonth();
+            }
 
-            // Resolve the school_year_id to filter progress/assignment records.
-            // When null (all years), no school_year_id filter is applied.
-            $selectedSyId = $selectedSchoolYear?->id;
+            // $monthlyActivity is built below, after $studentIds is resolved.
 
-            // ── Student query — same logic as Student Management tab ─────────────
-            // Active year  : direct school_year string match + status=active
-            // Archived year: direct match OR EXISTS on lesson_assignments/progress
-            //                (student's school_year column may have moved on)
-            // All years    : no year or status filter
+            // ── Student query — active year, currently enrolled ──────────────────
             $teacherLessonIds = Lesson::where('teacher_id', $teacherId)
                 ->whereNull('deleted_at')
                 ->pluck('lesson_id');
 
-            $studentQuery = Student::where('teacher_id', $teacherId);
+            $studentIds = Student::where('teacher_id', $teacherId)
+                ->where('school_year', $activeSchoolYear?->name)
+                ->where('is_enrolled', true)
+                ->pluck('student_id');
 
-            if ($selectedSchoolYear) {
-                if ($isArchivedView) {
-                    // Archived: find by direct string OR historical assignment records
-                    $syId = $selectedSchoolYear->id;
-                    $studentQuery->where(function ($q) use ($selectedSchoolYear, $syId, $teacherLessonIds) {
-                        $q->where('school_year', $selectedSchoolYear->name)
-                          ->orWhereExists(function ($sub) use ($syId, $teacherLessonIds) {
-                              $sub->select(\Illuminate\Support\Facades\DB::raw(1))
-                                  ->from('lesson_assignments')
-                                  ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                                  ->where('lesson_assignments.school_year_id', $syId)
-                                  ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds);
-                          })
-                          ->orWhereExists(function ($sub) use ($syId, $teacherLessonIds) {
-                              $sub->select(\Illuminate\Support\Facades\DB::raw(1))
-                                  ->from('student_lesson_progress')
-                                  ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
-                                  ->where('student_lesson_progress.school_year_id', $syId)
-                                  ->whereIn('student_lesson_progress.lesson_id', $teacherLessonIds);
-                          });
-                    });
-                    // Archived view: show all statuses (enrolled + unenrolled)
-                } else {
-                    // Active year: direct match + enrolled only
-                    $studentQuery->where('school_year', $selectedSchoolYear->name)
-                                 ->where('status', 'active');
-                }
-            } elseif ($selectedYearName !== 'all') {
-                $studentQuery->where('status', 'active');
+            $lessonIds = Lesson::where('teacher_id', $teacherId)
+                ->where('status', 'published')
+                ->whereNull('deleted_at')
+                ->pluck('lesson_id');
+
+            // ── Monthly Activity Data (active-year-scoped, per month) ─────────────
+            $monthlyActivity = [];
+            foreach ($syMonthOptions as $mo) {
+                $moStart = Carbon::createFromFormat('Y-m', $mo['value'])->startOfMonth();
+                $moEnd   = $moStart->copy()->endOfMonth();
+
+                $moActiveStudents = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
+                    ->whereBetween('last_accessed_at', [$moStart, $moEnd])
+                    ->distinct('student_id')
+                    ->count('student_id');
+
+                $moCompletions = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
+                    ->where('lesson_completed', 1)
+                    ->whereBetween('updated_at', [$moStart, $moEnd])
+                    ->count();
+
+                $monthlyActivity[] = [
+                    'month'           => $mo['value'],
+                    'label'           => $mo['label'],
+                    'short'           => $moStart->format('M'),
+                    'active_students' => $moActiveStudents,
+                    'completions'     => $moCompletions,
+                ];
             }
-
-            $studentIds = $studentQuery->pluck('student_id');
-            $lessonIds  = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->whereNull('deleted_at')->pluck('lesson_id');
 
             // ── Stat Cards ───────────────────────────────────────────────────────
             $totalStudents = $studentIds->count();
 
-            $newStudentsQuery = Student::where('teacher_id', $teacherId)
-                ->where('created_at', '>=', Carbon::now()->subWeek());
-            if ($selectedSchoolYear) {
-                $newStudentsQuery->where('school_year', $selectedSchoolYear->name);
+            // Year-over-year student count change:
+            // current S.Y. enrollments minus previous S.Y. enrollments
+            $activeSyName   = $activeSchoolYear?->name ?? '';
+            $prevSyName     = '';
+            if ($activeSyName && preg_match('/^(\d{4})-(\d{4})$/', $activeSyName, $m)) {
+                $prevSyName = ($m[1] - 1) . '-' . ($m[2] - 1);
             }
-            $newStudentsThisWeek = $newStudentsQuery->count();
+            $currentSyCount  = StudentYearEnrollment::where('teacher_id', $teacherId)
+                ->where('school_year_name', $activeSyName)
+                ->count();
+            $previousSyCount = $prevSyName
+                ? StudentYearEnrollment::where('teacher_id', $teacherId)
+                    ->where('school_year_name', $prevSyName)
+                    ->count()
+                : 0;
+            $newStudentsThisWeek = $currentSyCount - $previousSyCount;
 
-            $activeToday = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->whereIn('lesson_id', $lessonIds)
+            // Active Today: any student who accessed a lesson, practiced a gesture,
+            // attempted a checkpoint exam, or did a daily challenge today.
+            $activeTodayLesson = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereDate('last_accessed_at', Carbon::today())
-                ->distinct('student_id')
-                ->count('student_id');
+                ->pluck('student_id');
+
+            $activeTodayGesture = GesturePerformance::whereIn('student_id', $studentIds)
+                ->whereDate('last_attempt_at', Carbon::today())
+                ->pluck('student_id');
+
+            $activeTodayExam = CheckpointExamAttempt::whereIn('student_id', $studentIds)
+                ->whereDate('updated_at', Carbon::today())
+                ->pluck('student_id');
+
+            $activeTodayChallenge = DailyChallenge::whereIn('student_id', $studentIds)
+                ->whereDate('challenge_date', Carbon::today())
+                ->pluck('student_id');
+
+            $activeToday = $activeTodayLesson
+                ->merge($activeTodayGesture)
+                ->merge($activeTodayExam)
+                ->merge($activeTodayChallenge)
+                ->unique()
+                ->count();
 
             $activeTodayPercent = $totalStudents > 0
                 ? round(($activeToday / $totalStudents) * 100)
@@ -184,36 +247,21 @@ class DashboardController extends Controller
                 ];
 
                 $sparklineTotalStudents[] = Student::where('teacher_id', $teacherId)
-                    ->when($selectedSchoolYear, function ($q) use ($selectedSchoolYear, $isArchivedView, $teacherLessonIds) {
-                        if ($isArchivedView) {
-                            $syId = $selectedSchoolYear->id;
-                            $q->where(function ($q2) use ($selectedSchoolYear, $syId, $teacherLessonIds) {
-                                $q2->where('school_year', $selectedSchoolYear->name)
-                                   ->orWhereExists(fn($s) => $s->select(\Illuminate\Support\Facades\DB::raw(1))
-                                       ->from('lesson_assignments')
-                                       ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                                       ->where('lesson_assignments.school_year_id', $syId)
-                                       ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds));
-                            });
-                        } else {
-                            $q->where('school_year', $selectedSchoolYear->name)
-                              ->where('status', 'active');
-                        }
-                    })
-                    ->when(!$selectedSchoolYear, fn($q) => $q->where('status', 'active'))
+                    ->where('school_year', $activeSchoolYear?->name)
+                    ->where('is_enrolled', true)
                     ->whereDate('created_at', '<=', $day)
                     ->count();
 
                 $sparklineActive[] = StudentLessonProgress::whereIn('student_id', $studentIds)
                     ->whereIn('lesson_id', $lessonIds)
-                    ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                    ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                     ->whereDate('last_accessed_at', $day)
                     ->distinct('student_id')
                     ->count('student_id');
 
                 $dayAccuracy = StudentLessonProgress::whereIn('student_id', $studentIds)
                     ->whereIn('lesson_id', $lessonIds)
-                    ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                    ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                     ->whereNotNull('quiz_score')
                     ->whereDate('updated_at', $day)
                     ->avg('quiz_score');
@@ -232,23 +280,43 @@ class DashboardController extends Controller
                 }])
                 ->orderBy('module_order')
                 ->get()
-                ->map(function ($module) use ($studentIds, $selectedSyId) {
+                ->map(function ($module) use ($activeSyId, $studentIds, $teacherId, $activeSchoolYear) {
                     $lessonIds = $module->lessons->pluck('lesson_id');
 
-                    $assignedStudentIds = LessonAssignment::whereIn('lesson_id', $lessonIds)
-                        ->whereIn('student_id', $studentIds)
-                        ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
-                        ->distinct('student_id')
-                        ->pluck('student_id');
+                    if ($lessonIds->isEmpty()) {
+                        $module->enrolled     = 0;
+                        $module->completion   = 0;
+                        $module->topStudents  = collect();
+                        $module->extraStudents = 0;
+                        return $module;
+                    }
+
+                    $assignedQuery = LessonAssignment::whereIn('lesson_id', $lessonIds)
+                        ->join('students', 'students.student_id', '=', 'lesson_assignments.student_id')
+                        ->where('students.teacher_id', $teacherId)
+                        ->where('students.school_year', $activeSchoolYear?->name)
+                        ->where('students.is_enrolled', true);
+
+                    if ($activeSyId) {
+                        $assignedQuery->where('lesson_assignments.school_year_id', $activeSyId);
+                    }
+
+                    $assignedStudentIds = (clone $assignedQuery)
+                        ->distinct('lesson_assignments.student_id')
+                        ->pluck('lesson_assignments.student_id');
 
                     $enrolled = $assignedStudentIds->count();
 
-                    $completed = LessonAssignment::whereIn('lesson_id', $lessonIds)
-                        ->whereIn('student_id', $studentIds)
-                        ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
-                        ->where('status', 'completed')
-                        ->distinct('student_id')
-                        ->count('student_id');
+                    $completedQuery = (clone $assignedQuery)->whereExists(function ($sub) use ($activeSyId) {
+                        $sub->select(DB::raw(1))
+                            ->from('student_lesson_progress')
+                            ->whereColumn('student_lesson_progress.student_id', 'lesson_assignments.student_id')
+                            ->whereColumn('student_lesson_progress.lesson_id', 'lesson_assignments.lesson_id')
+                            ->where('student_lesson_progress.lesson_completed', 1)
+                            ->when($activeSyId, fn($q) => $q->where('student_lesson_progress.school_year_id', $activeSyId));
+                    });
+
+                    $completed = $completedQuery->distinct('lesson_assignments.student_id')->count('lesson_assignments.student_id');
 
                     $module->enrolled   = $enrolled;
                     $module->completion = $enrolled > 0 ? round(($completed / $enrolled) * 100) : 0;
@@ -265,29 +333,38 @@ class DashboardController extends Controller
                 ->whereNull('deleted_at')
                 ->orderBy('module_order')
                 ->get()
-                ->map(function ($lesson) use ($studentIds, $selectedSyId) {
-                    $enrolled = StudentLessonProgress::whereIn('student_id', $studentIds)
-                        ->where('lesson_id', $lesson->lesson_id)
-                        ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
-                        ->distinct('student_id')
-                        ->count('student_id');
+                ->map(function ($lesson) use ($activeSyId, $teacherId, $activeSchoolYear) {
+                    $assignedQuery = LessonAssignment::where('lesson_assignments.lesson_id', $lesson->lesson_id)
+                        ->join('students', 'students.student_id', '=', 'lesson_assignments.student_id')
+                        ->where('students.teacher_id', $teacherId)
+                        ->where('students.school_year', $activeSchoolYear?->name)
+                        ->where('students.is_enrolled', true);
 
-                    $completed = StudentLessonProgress::whereIn('student_id', $studentIds)
-                        ->where('lesson_id', $lesson->lesson_id)
-                        ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
-                        ->where('lesson_completed', 1)
-                        ->count();
+                    if ($activeSyId) {
+                        $assignedQuery->where('lesson_assignments.school_year_id', $activeSyId);
+                    }
+
+                    $assignedStudentIds = (clone $assignedQuery)
+                        ->distinct('lesson_assignments.student_id')
+                        ->pluck('lesson_assignments.student_id');
+
+                    $enrolled = $assignedStudentIds->count();
+
+                    $completedQuery = (clone $assignedQuery)->whereExists(function ($sub) use ($activeSyId) {
+                        $sub->select(DB::raw(1))
+                            ->from('student_lesson_progress')
+                            ->whereColumn('student_lesson_progress.student_id', 'lesson_assignments.student_id')
+                            ->whereColumn('student_lesson_progress.lesson_id', 'lesson_assignments.lesson_id')
+                            ->where('student_lesson_progress.lesson_completed', 1)
+                            ->when($activeSyId, fn($q) => $q->where('student_lesson_progress.school_year_id', $activeSyId));
+                    });
+
+                    $completed = $completedQuery->distinct('lesson_assignments.student_id')->count('lesson_assignments.student_id');
 
                     $lesson->enrolled   = $enrolled;
                     $lesson->completion = $enrolled > 0 ? round(($completed / $enrolled) * 100) : 0;
 
-                    $lesson->topStudents = Student::whereIn('student_id',
-                        StudentLessonProgress::where('lesson_id', $lesson->lesson_id)
-                            ->whereIn('student_id', $studentIds)
-                            ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
-                            ->pluck('student_id')
-                    )->take(3)->get();
-
+                    $lesson->topStudents  = Student::whereIn('student_id', $assignedStudentIds)->take(3)->get();
                     $lesson->extraStudents = max(0, $enrolled - 3);
 
                     return $lesson;
@@ -300,16 +377,16 @@ class DashboardController extends Controller
                 ->orderBy('module_order')
                 ->take(4)
                 ->get()
-                ->map(function ($lesson) use ($studentIds, $selectedSyId) {
+                ->map(function ($lesson) use ($studentIds, $activeSyId) {
                     $enrolled  = StudentLessonProgress::whereIn('student_id', $studentIds)
                         ->where('lesson_id', $lesson->lesson_id)
-                        ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                        ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                         ->distinct('student_id')
                         ->count('student_id');
 
                     $completed = StudentLessonProgress::whereIn('student_id', $studentIds)
                         ->where('lesson_id', $lesson->lesson_id)
-                        ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                        ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                         ->where('lesson_completed', 1)
                         ->count();
 
@@ -320,11 +397,11 @@ class DashboardController extends Controller
             // ── Overall Class Rate ────────────────────────────────────────────────
             $totalProgress  = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)
-                ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->count();
             $totalCompleted = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)
-                ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->where('lesson_completed', 1)
                 ->count();
             $classRate = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
@@ -332,21 +409,21 @@ class DashboardController extends Controller
             // ── Average Accuracy ──────────────────────────────────────────────────
             $avgScore = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)
-                ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->whereNotNull('quiz_score')
                 ->avg('quiz_score');
             $avgAccuracy = $avgScore ? (int) round($avgScore) : 0;
 
             $avgThisWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)
-                ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->whereNotNull('quiz_score')
                 ->where('updated_at', '>=', Carbon::now()->subWeek())
                 ->avg('quiz_score');
 
             $avgLastWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)
-                ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->whereNotNull('quiz_score')
                 ->whereBetween('updated_at', [Carbon::now()->subWeeks(2), Carbon::now()->subWeek()])
                 ->avg('quiz_score');
@@ -357,36 +434,16 @@ class DashboardController extends Controller
                 $accuracyWeeklyChange = (int) round($avgThisWeek);
             }
 
-            // ── Student Performance (5 most recent, with avg quiz score as proxy) ─
-            $recentStudentQuery = Student::where('teacher_id', $teacherId);
-            if ($selectedSchoolYear) {
-                if ($isArchivedView) {
-                    $syId = $selectedSchoolYear->id;
-                    $recentStudentQuery->where(function ($q) use ($selectedSchoolYear, $syId, $teacherLessonIds) {
-                        $q->where('school_year', $selectedSchoolYear->name)
-                          ->orWhereExists(fn($s) => $s->select(\Illuminate\Support\Facades\DB::raw(1))
-                              ->from('lesson_assignments')
-                              ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                              ->where('lesson_assignments.school_year_id', $syId)
-                              ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds));
-                    });
-                } else {
-                    $recentStudentQuery->where('school_year', $selectedSchoolYear->name)
-                                       ->where('status', 'active');
-                }
-            } else {
-                $recentStudentQuery->where('status', 'active');
-            }
-            $students = $recentStudentQuery
+            // ── Student Performance (5 most recent enrolled students) ─────────────
+            $students = Student::where('teacher_id', $teacherId)
+                ->whereIn('student_id', $studentIds->isEmpty() ? [-1] : $studentIds)
                 ->orderBy('created_at', 'desc')
                 ->take(5)
                 ->get()
-                ->map(function ($student) use ($selectedSyId) {
-                    // Scope progress to the selected school year so the % reflects
-                    // only what the student did in that year, not all-time.
+                ->map(function ($student) use ($activeSyId) {
                     $progressQuery = $student->progress();
-                    if ($selectedSyId) {
-                        $progressQuery = $progressQuery->where('school_year_id', $selectedSyId);
+                    if ($activeSyId) {
+                        $progressQuery = $progressQuery->where('school_year_id', $activeSyId);
                     }
                     $progressRecords = $progressQuery->get();
                     $total     = $progressRecords->count();
@@ -395,124 +452,54 @@ class DashboardController extends Controller
                     return $student;
                 });
 
-        // ── My Students (sidebar list) ───────────────────────────────────────
-            $allStudentsQuery = Student::where('teacher_id', $teacherId);
-            if ($selectedSchoolYear) {
-                if ($isArchivedView) {
-                    $syId = $selectedSchoolYear->id;
-                    $allStudentsQuery->where(function ($q) use ($selectedSchoolYear, $syId, $teacherLessonIds) {
-                        $q->where('school_year', $selectedSchoolYear->name)
-                          ->orWhereExists(fn($s) => $s->select(\Illuminate\Support\Facades\DB::raw(1))
-                              ->from('lesson_assignments')
-                              ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                              ->where('lesson_assignments.school_year_id', $syId)
-                              ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds));
-                    });
-                } else {
-                    $allStudentsQuery->where('school_year', $selectedSchoolYear->name)
-                                     ->where('status', 'active');
-                }
-            } else {
-                $allStudentsQuery->where('status', 'active');
-            }
-            $allStudents = $allStudentsQuery->orderBy('first_name')->get();
+        // ── My Students (sidebar list) — active year, currently enrolled ────────
+            $allStudents = Student::where('teacher_id', $teacherId)
+                ->where('school_year', $activeSchoolYear?->name)
+                ->where('is_enrolled', true)
+                ->orderBy('first_name')
+                ->get();
 
             // ── Enrollment Trend per School Year ─────────────────────────────────
-            // Shows how many students were enrolled under this teacher each year.
-            // Logic:
-            //   - For each year label, count students whose school_year = that label.
-            //   - For past/archived years: count all (they were enrolled then;
-            //     their status was changed to inactive when the year transitioned).
-            //   - For the current active year: count only active (actually enrolled now).
-            // This prevents students who were moved to a new year with inactive status
-            // from inflating the count for the new year before they are re-enrolled.
-            $now = Carbon::now();
-            $currentYear = (int) $now->year;
-            $syCutoff = Carbon::create($currentYear, 6, 8, 0, 0, 0);
-            $baseStartYear = $now->lt($syCutoff) ? ($currentYear - 1) : $currentYear;
-
+            // Queries student_year_enrollments — an immutable, append-only log that
+            // records one row per student per school year at the moment of enrollment.
+            // This is the authoritative source and is immune to the students.school_year
+            // column being overwritten during SY transitions.
+            //
+            // IMPORTANT: Anchor the rightmost year to the ACTUAL active school year
+            // stored in the database — not today's calendar date. This prevents the
+            // chart from sliding forward when the calendar year advances but no new
+            // school year has been created yet (e.g. it's Oct 2026 but the active SY
+            // is still 2025-2026).
             $activeSyNameForTrend = $activeSchoolYear?->name ?? SchoolYear::currentDepEdLabel();
+            [$baseStartYear] = explode('-', $activeSyNameForTrend);
+            $baseStartYear = (int) $baseStartYear;
 
             $enrollmentTrend = [];
             for ($i = 4; $i >= 0; $i--) {
                 $syStart = $baseStartYear - $i;
                 $syEnd   = $syStart + 1;
                 $syLabel = "{$syStart}-{$syEnd}";
-                $startDate = Carbon::create($syStart, 6, 8, 0, 0, 0);
-                $endDate   = Carbon::create($syEnd, 4, 8, 23, 59, 59);
 
-                $isCurrentSy = ($syLabel === $activeSyNameForTrend);
-
-                // For the active/current year: count only active (enrolled) students
-                // using the direct students.school_year column match.
-                //
-                // For past years: students.school_year has been updated to the newer
-                // year after each transition — so we can't rely on it.
-                // Instead, count distinct students who had a lesson_assignment for
-                // this teacher's lessons in this school_year_id. This is the only
-                // reliable historical record of "was this student enrolled this year".
-                $syRecord = $availableSchoolYears->firstWhere('name', $syLabel);
-
-                if ($isCurrentSy) {
-                    // Active year: direct column match + enrolled only
-                    $count = Student::where('teacher_id', $teacherId)
-                        ->where('school_year', $syLabel)
-                        ->where('status', 'active')
-                        ->count();
-                } elseif ($syRecord) {
-                    // Past year with a school_years record: count via lesson_assignments
-                    $count = DB::table('students')
-                        ->where('students.teacher_id', $teacherId)
-                        ->whereExists(function ($sub) use ($syRecord, $teacherLessonIds) {
-                            $sub->select(DB::raw(1))
-                                ->from('lesson_assignments')
-                                ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                                ->where('lesson_assignments.school_year_id', $syRecord->id)
-                                ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds);
-                        })
-                        ->count();
-
-                    // Also include students whose school_year still matches this label
-                    // (enrolled but never assigned a lesson yet in that year)
-                    $directCount = Student::where('teacher_id', $teacherId)
-                        ->where('school_year', $syLabel)
-                        ->whereNotExists(function ($sub) use ($syRecord, $teacherLessonIds) {
-                            $sub->select(DB::raw(1))
-                                ->from('lesson_assignments')
-                                ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                                ->where('lesson_assignments.school_year_id', $syRecord->id)
-                                ->whereIn('lesson_assignments.lesson_id', $teacherLessonIds);
-                        })
-                        ->count();
-
-                    $count += $directCount;
-                } else {
-                    // No school_years record — fall back to creation date range
-                    $count = Student::where('teacher_id', $teacherId)
-                        ->where(function ($q) use ($syLabel, $startDate, $endDate) {
-                            $q->where('school_year', $syLabel)
-                              ->orWhere(function ($sq) use ($startDate, $endDate) {
-                                  $sq->where(function ($q2) {
-                                      $q2->whereNull('school_year')->orWhere('school_year', '');
-                                  })->whereBetween('created_at', [$startDate, $endDate]);
-                              });
-                        })
-                        ->count();
-                }
+                // Count distinct students enrolled in this school year under this teacher.
+                // student_year_enrollments is not overwritten on transition, so past years
+                // always return the correct historical count.
+                $count = StudentYearEnrollment::where('teacher_id', $teacherId)
+                    ->where('school_year_name', $syLabel)
+                    ->count();
 
                 $enrollmentTrend[] = [
                     'school_year' => $syLabel,
                     'start_year'  => $syStart,
                     'end_year'    => $syEnd,
                     'count'       => $count,
-                    'date_range'  => "June 8, {$syStart} – April 8, {$syEnd}",
+                    'date_range'  => "July 1, {$syStart} – June 30, {$syEnd}",
                     'is_current'  => ($i === 0),
                 ];
             }
 
             // ── Student Activity & Activeness Percentage ────────────────────────
             $activeFromProgress = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->where(function ($q) {
                     $q->whereNotNull('last_accessed_at')
                       ->orWhere('lesson_completed', 1)
@@ -521,7 +508,7 @@ class DashboardController extends Controller
                 ->pluck('student_id');
 
             $activeFromGestures = GesturePerformance::whereIn('student_id', $studentIds)
-                ->when($selectedSyId, fn($q) => $q->where('school_year_id', $selectedSyId))
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->where('attempts', '>', 0)
                 ->pluck('student_id');
 
@@ -542,7 +529,7 @@ class DashboardController extends Controller
             ];
 
             // ── Senya Insights (rich, data-driven) ──────────────────────────────
-            $senyaInsights = (new SenyaInsightsService($teacherId, $selectedSyId))->generate();
+            $senyaInsights = (new SenyaInsightsService($teacherId, $activeSyId))->generate();
 
             // ── Legacy senyaTips (kept for JS rotator compatibility) ──────────────
             $senyaTips = array_map(fn($i) => $i['text'], $senyaInsights);
@@ -584,6 +571,12 @@ class DashboardController extends Controller
                 'activity_pct'    => 0,
                 'subtitle'        => 'Active Monitoring',
             ];
+            $monthlyActivity      = [];
+            $syMonthOptions       = [];
+            $selectedMonthParam   = Carbon::now()->format('Y-m');
+            $syStartDate          = null;
+            $syEndDate            = null;
+            $activeSchoolYear     = null;
         }
 
         // Session-based tip rotation for the legacy single-tip rotator
@@ -635,10 +628,12 @@ class DashboardController extends Controller
             'senyaInsights',
             'enrollmentTrend',
             'practiceSessions',
-            'availableSchoolYears',
             'activeSchoolYear',
-            'selectedSchoolYear',
-            'isArchivedView'
+            'monthlyActivity',
+            'syMonthOptions',
+            'selectedMonthParam',
+            'syStartDate',
+            'syEndDate'
         ));
     }
 }

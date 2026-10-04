@@ -142,6 +142,7 @@ Route::get('/students', [App\Http\Controllers\StudentsController::class, 'index'
 Route::post('/students/filter', [App\Http\Controllers\StudentsController::class, 'applyFilter'])->name('students.filter');
 Route::get('/students/check-lrn', [App\Http\Controllers\StudentsController::class, 'checkLrn'])->name('students.check-lrn');
 Route::post('/students', [App\Http\Controllers\StudentsController::class, 'store'])->name('students.store');
+Route::get('/students/download-template', [App\Http\Controllers\StudentsController::class, 'downloadTemplate'])->name('students.download-template');
 Route::post('/students/import', [App\Http\Controllers\StudentsController::class, 'import'])->name('students.import');
 
 // 🔥 NEW ROUTE - MUST COME BEFORE THE WILDCARD

@@ -8,13 +8,15 @@
         "php": "^8.0.2",
         "barryvdh/laravel-dompdf": "^2.2",
         "doctrine/dbal": "^3.10",
-        "elibyy/tcpdf-laravel": "^13.0",
+        "elibyy/tcpdf-laravel": "*",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^9.19",
         "laravel/sanctum": "^3.3",
         "laravel/socialite": "^5.29",
         "laravel/tinker": "^2.7",
-        "smalot/pdfparser": "^2.12"
+        "phpoffice/phpspreadsheet": "1.29",
+        "smalot/pdfparser": "^2.12",
+        "symfony/console": "6.0.*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",

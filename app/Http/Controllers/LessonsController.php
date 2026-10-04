@@ -15,6 +15,7 @@ use App\Models\GestureModule;
 use App\Models\CheckpointExam;
 use App\Models\CheckpointExamQuestion;
 use App\Models\CheckpointExamAssignment;
+use App\Models\SchoolYear;
 use App\Services\AiService;
 use App\Services\DeepSeekService;
 use App\Services\GestureMediaResolver;
@@ -1125,8 +1126,10 @@ public function publishLesson(Request $request, $id)
     // Create records in lesson_assignments table
     $assignedCount = 0;
     foreach ($studentIds as $studentId) {
+        $activeSyId = SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id;
         $exists = LessonAssignment::where('lesson_id', $lesson->lesson_id)
                                   ->where('student_id', $studentId)
+                                  ->where('school_year_id', $activeSyId)
                                   ->exists();
 
         if (! $exists) {
@@ -1150,6 +1153,7 @@ public function publishLesson(Request $request, $id)
                 'status' => 'pending',
                 'is_locked' => $isLocked,
                 'notified' => $request->input('notify_students', false),
+                'school_year_id' => SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id,
             ]);
             $assignedCount++;
             
@@ -1376,23 +1380,32 @@ public function manageStudents($id)
 {
     $id = \App\Support\UrlObfuscator::decode($id) ?? $id;
     $lesson = Lesson::findOrFail($id);
-    
-    // ✅ Get the current teacher's ID
-    $teacherId = $this->resolveTeacherId();
 
+    $teacherId  = $this->resolveTeacherId();
+    $teacher    = Teacher::find($teacherId);
+    $activeSyId = SchoolYear::activeForSchool((int) ($teacher?->school_id ?? 0))?->id;
+
+    // Only mark students as assigned if they have an ACTIVE-year assignment.
+    // Archived-year records must not appear as "assigned" in the current UI.
     $assignedIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+        ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
         ->pluck('student_id')
         ->map(fn ($v) => (int) $v)
         ->toArray();
 
-    // ✅ FILTER: Only show students belonging to this teacher
     $students = DB::table('students')
         ->select('student_id', 'first_name', 'last_name', 'lrn',
             'fsl_mastery_level as mastery_level',
             'program_type as program',
             'grade_level', 'section')
-        ->where('status', 'active')
-        ->where('teacher_id', $teacherId)  // ✅ ADD THIS LINE
+        ->where('teacher_id', $teacherId)
+        ->where('is_enrolled', true)
+        ->when($activeSyId, function ($q) use ($activeSyId) {
+            $syName = \App\Models\SchoolYear::find($activeSyId)?->name;
+            if ($syName) {
+                $q->where('school_year', $syName);
+            }
+        })
         ->orderBy('last_name')
         ->get()
         ->map(function ($s) use ($assignedIds) {
@@ -1401,9 +1414,9 @@ public function manageStudents($id)
         });
 
     return response()->json([
-        'lesson_id'   => $lesson->lesson_id,
-        'lesson_title'=> $lesson->title,
-        'students'    => $students,
+        'lesson_id'    => $lesson->lesson_id,
+        'lesson_title' => $lesson->title,
+        'students'     => $students,
     ]);
 }
 
@@ -1424,27 +1437,34 @@ public function manageStudents($id)
         $newIds = $validated['student_ids'] ?? [];
 
         DB::transaction(function () use ($lesson, $newIds) {
+            $activeSyId = SchoolYear::activeForSchool((int) ($lesson->teacher?->school_id ?? 0))?->id;
+
+            // Only consider assignments belonging to the ACTIVE school year.
+            // Archived-year records must never be touched by current-year edits.
             $existingIds = LessonAssignment::where('lesson_id', $lesson->lesson_id)
+                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                 ->pluck('student_id')
                 ->map(fn ($v) => (int) $v)
                 ->toArray();
 
-            // Add new
+            // Add new (current year only)
             foreach (array_diff($newIds, $existingIds) as $studentId) {
                 LessonAssignment::create([
-                    'lesson_id'   => $lesson->lesson_id,
-                    'student_id'  => $studentId,
-                    'assigned_at' => now(),
-                    'status'      => 'pending',
-                    'notified'    => false,
+                    'lesson_id'      => $lesson->lesson_id,
+                    'student_id'     => $studentId,
+                    'assigned_at'    => now(),
+                    'status'         => 'pending',
+                    'notified'       => false,
+                    'school_year_id' => $activeSyId,
                 ]);
             }
 
-            // Remove revoked
+            // Remove revoked (current year only — never delete archived-year records)
             $toRemove = array_diff($existingIds, $newIds);
             if (!empty($toRemove)) {
                 LessonAssignment::where('lesson_id', $lesson->lesson_id)
                     ->whereIn('student_id', $toRemove)
+                    ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
                     ->delete();
             }
         });

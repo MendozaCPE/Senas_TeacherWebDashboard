@@ -29,10 +29,15 @@ class Student extends Model
         'fsl_mastery_level',
         'profile_picture',
         'status',
+        'is_enrolled',
         'total_xp',
         'level',
         'streak_days',
         'last_activity_date',
+    ];
+
+    protected $casts = [
+        'is_enrolled' => 'boolean',
     ];
 
     public function user()
@@ -181,6 +186,16 @@ class Student extends Model
     {
         return $this->hasMany(StudentPromotion::class, 'student_id', 'student_id')
                     ->orderBy('promoted_at', 'desc');
+    }
+
+    /**
+     * Get all school-year enrollment records for this student.
+     * One row per school year — the authoritative source for enrollment trend data.
+     */
+    public function yearEnrollments(): HasMany
+    {
+        return $this->hasMany(StudentYearEnrollment::class, 'student_id', 'student_id')
+                    ->orderBy('enrolled_at', 'asc');
     }
 
     public function quizAttempts(): HasMany
