@@ -432,7 +432,7 @@
                     </div>
                 @endif
 
-                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
                     <table class="w-full text-left border-collapse" style="table-layout:fixed" id="students-table">
                         <colgroup>
                             <col style="width:30%">
@@ -976,13 +976,13 @@
 
 {{-- ══════════ STUDENT DETAILS MODAL ══════════ --}}
 <div id="student-details-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div id="student-details-card" class="bg-white rounded-[28px] w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col overflow-hidden" style="max-width:1100px;max-height:92vh">
+    <div id="student-details-card" class="bg-white rounded-[24px] sm:rounded-[28px] w-full mx-3 sm:mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col overflow-hidden" style="max-width:1240px;max-height:94vh">
 
         {{-- Top accent bar --}}
         <div id="sdc-accent" class="h-1.5 w-full bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] shrink-0"></div>
 
         {{-- Header --}}
-        <div class="flex items-center justify-between px-7 pt-5 pb-4 border-b border-slate-100 shrink-0">
+        <div class="flex items-center justify-between gap-3 px-5 sm:px-7 pt-4 sm:pt-5 pb-3.5 sm:pb-4 border-b border-slate-100 shrink-0">
             <div class="flex items-center gap-3">
                 <span class="material-symbols-outlined text-[#0d326b] text-[22px]">person</span>
                 <h2 class="text-[17px] font-black text-[#0d326b]">Student Details</h2>
@@ -1050,7 +1050,7 @@
         <div id="sdc-content" class="hidden flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
 
             {{-- LEFT SIDEBAR --}}
-            <div class="lg:w-[240px] shrink-0 bg-gradient-to-b from-[#f8fafc] to-white border-r border-slate-100 p-5 flex flex-col items-center gap-3 overflow-y-auto">
+            <div class="lg:w-[250px] shrink-0 bg-gradient-to-b from-[#f8fafc] to-white border-r border-slate-100 p-4 sm:p-5 flex flex-col items-center gap-3 overflow-y-auto">
                 <div class="relative">
                     <img id="sdc-avatar" src="" alt="" class="w-16 h-16 rounded-2xl shadow-md object-cover ring-4 ring-white" />
                     <span id="sdc-status-dot" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white bg-emerald-400"></span>
@@ -1092,7 +1092,7 @@
             </div>
 
             {{-- RIGHT SCROLLABLE PANEL --}}
-            <div class="flex-1 flex flex-col overflow-y-auto p-5 space-y-4">
+            <div class="flex-1 min-w-0 flex flex-col overflow-y-auto p-4 sm:p-5 space-y-4">
 
                 {{-- Top 2x2 Grid: Personal, Academic, Account Info, Promotion History --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1172,6 +1172,35 @@
                         </div>
                     </div>
 
+                    {{-- Family and emergency contacts: second row, beside account information. --}}
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">contact_phone</span>Family &amp; Emergency Contacts
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Mother’s Name</p>
+                                <p id="sdc-mother-name" class="text-[13px] font-bold text-slate-700 break-words view-only">—</p>
+                                <input id="sdc-edit-mother-name" type="text" maxlength="255" placeholder="Mother or guardian name" class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Father’s Name</p>
+                                <p id="sdc-father-name" class="text-[13px] font-bold text-slate-700 break-words view-only">—</p>
+                                <input id="sdc-edit-father-name" type="text" maxlength="255" placeholder="Father or guardian name" class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Emergency Contact Name</p>
+                                <p id="sdc-emergency-name" class="text-[13px] font-bold text-slate-700 break-words view-only">—</p>
+                                <input id="sdc-edit-emergency-name" type="text" maxlength="255" placeholder="Contact person’s name" class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-1">Emergency Contact Number</p>
+                                <p id="sdc-emergency-number" class="text-[13px] font-bold text-slate-700 break-words view-only">—</p>
+                                <input id="sdc-edit-emergency-number" type="tel" maxlength="40" placeholder="Phone number" class="edit-only hidden w-full bg-white border border-slate-200 focus:border-[#0d326b] text-[12px] font-medium py-1.5 px-2.5 rounded-xl outline-none transition-all" />
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- 3. Account Information --}}
                     <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col">
                         <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
@@ -1220,14 +1249,14 @@
                 </div>
 
                 {{-- Bottom Section: Student Management (4 clean cards in responsive grid) --}}
-                <div class="bg-gradient-to-r from-[#0d326b]/5 to-[#1a6fd4]/5 rounded-[20px] border border-[#0d326b]/10 p-4">
-                    <p class="text-[9px] font-bold text-[#0d326b] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <div class="bg-gradient-to-br from-slate-50 to-blue-50/70 rounded-[20px] border border-[#0d326b]/10 p-4 sm:p-5">
+                    <p class="text-[10px] font-bold text-[#0d326b] uppercase tracking-widest mb-3.5 flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[13px]">settings</span>Student Management
                     </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3 sm:gap-3.5">
 
                         {{-- Enrollment --}}
-                        <div class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col">
+                        <div class="min-w-0 min-h-[158px] bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
                             <div class="flex items-center gap-2 mb-1.5">
                                 <div class="w-7 h-7 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
                                     <span class="material-symbols-outlined text-emerald-500 text-[15px]">how_to_reg</span>
@@ -1236,17 +1265,17 @@
                             </div>
                             <p id="sdc-enroll-status-text" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]"></p>
                             <div class="flex gap-1.5">
-                                <button id="sdc-enroll-btn" class="flex-1 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer">
+                                <button id="sdc-enroll-btn" class="flex-1 min-h-10 px-2 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer">
                                     <span class="material-symbols-outlined text-[13px]">person_add</span>Enroll
                                 </button>
-                                <button id="sdc-unenroll-btn" class="flex-1 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer">
+                                <button id="sdc-unenroll-btn" class="flex-1 min-h-10 px-2 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer">
                                     <span class="material-symbols-outlined text-[13px]">person_remove</span>Remove
                                 </button>
                             </div>
                         </div>
 
                         {{-- Promotion --}}
-                        <div id="sdc-promote-card" class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col transition-all duration-300">
+                        <div id="sdc-promote-card" class="min-w-0 min-h-[158px] bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col transition-all duration-300">
                             <div class="flex items-center gap-2 mb-1.5">
                                 <div id="sdc-promote-icon-wrap" class="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                                     <span class="material-symbols-outlined text-[#0d326b] text-[15px]">trending_up</span>
@@ -1259,14 +1288,14 @@
                                 </div>
                             </div>
                             <p id="sdc-promote-hint" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]"></p>
-                            <button id="sdc-promote-btn" class="w-full py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-[#0d326b] hover:bg-[#154188] text-white cursor-pointer">
+                            <button id="sdc-promote-btn" class="w-full min-h-10 px-3 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-[#0d326b] hover:bg-[#154188] text-white cursor-pointer">
                                 <span class="material-symbols-outlined text-[13px]">arrow_upward</span>
                                 <span id="sdc-promote-label">Promote</span>
                             </button>
                         </div>
 
                         {{-- Demotion --}}
-                        <div class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col">
+                        <div class="min-w-0 min-h-[158px] bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
                             <div class="flex items-center gap-2 mb-1.5">
                                 <div class="w-7 h-7 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
                                     <span class="material-symbols-outlined text-red-400 text-[15px]">trending_down</span>
@@ -1274,14 +1303,14 @@
                                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Demotion</p>
                             </div>
                             <p id="sdc-demote-hint" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]">Move student down one level.</p>
-                            <button id="sdc-demote-btn" class="w-full py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer">
+                            <button id="sdc-demote-btn" class="w-full min-h-10 px-3 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 cursor-pointer">
                                 <span class="material-symbols-outlined text-[13px]">arrow_downward</span>
                                 <span id="sdc-demote-label">Demote</span>
                             </button>
                         </div>
 
                         {{-- Manage Lessons --}}
-                        <div class="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col">
+                        <div class="min-w-0 min-h-[158px] bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col">
                             <div class="flex items-center gap-2 mb-1.5">
                                 <div class="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                                     <span class="material-symbols-outlined text-blue-500 text-[15px]">edit_document</span>
@@ -1289,7 +1318,7 @@
                                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lessons</p>
                             </div>
                             <p id="sdc-assignment-hint" class="text-[11px] text-slate-400 mb-2.5 leading-relaxed flex-1 min-h-[30px]">Manage assigned student lessons.</p>
-                            <button id="sdc-assign-btn" class="w-full py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 cursor-pointer">
+                            <button id="sdc-assign-btn" class="w-full min-h-10 px-3 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 cursor-pointer">
                                 <span class="material-symbols-outlined text-[13px]">edit_note</span>
                                 <span>Manage Lessons</span>
                             </button>
@@ -1466,18 +1495,23 @@
 </div>
 
 {{-- ══════════ ADD STUDENT MODAL ══════════ --}}
-<div id="add-student-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-[32px] w-[900px] max-w-full max-h-[92vh] overflow-y-auto p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
-        <button id="close-modal-btn" class="absolute top-7 right-7 text-slate-400 hover:text-slate-600 outline-none">
+<div id="add-student-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 px-3 py-4 sm:p-6">
+    <div class="bg-white rounded-[24px] sm:rounded-[30px] w-full max-w-[960px] max-h-[92vh] overflow-y-auto p-5 sm:p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
+        <button id="close-modal-btn" aria-label="Close add student dialog" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 outline-none transition-colors flex items-center justify-center">
             <span class="material-symbols-outlined text-[24px]">close</span>
         </button>
-        <div class="mb-6">
-            <h2 class="text-[24px] font-bold text-[#0d326b] mb-1">Add New Students</h2>
-            <p class="text-[13px] text-slate-400 font-medium">Populate your classroom</p>
+        <div class="mb-6 pr-12 flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-blue-50 text-[#0d326b] flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined">person_add</span>
+            </div>
+            <div>
+                <h2 class="text-[22px] sm:text-[24px] font-bold text-[#0d326b] mb-1">Add Students</h2>
+                <p class="text-[13px] text-slate-400 font-medium">Add one student or import a class roster.</p>
+            </div>
         </div>
-        <div class="flex space-x-6 border-b border-slate-100 mb-6 text-[12px] font-bold tracking-wider uppercase">
-            <button id="tab-single" class="text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all">Single Student</button>
-            <button id="tab-bulk" class="text-slate-400 border-b-2 border-transparent pb-3 hover:text-slate-600 outline-none transition-all">Bulk Add (Excel)</button>
+        <div class="flex gap-1 rounded-2xl bg-slate-100 p-1 mb-6 text-[11px] sm:text-[12px] font-bold tracking-wide uppercase">
+            <button id="tab-single" class="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white text-[#0d326b] shadow-sm outline-none transition-all"><span class="material-symbols-outlined text-[18px]">person</span>Single Student</button>
+            <button id="tab-bulk" class="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-slate-500 hover:text-[#0d326b] outline-none transition-all"><span class="material-symbols-outlined text-[18px]">upload_file</span>Bulk Add (Excel)</button>
         </div>
         <div id="modal-alert" class="hidden mb-5 p-4 rounded-xl text-sm font-medium flex items-start space-x-2 border">
             <span id="modal-alert-icon" class="material-symbols-outlined text-[20px] mt-0.5 shrink-0"></span>
@@ -1485,7 +1519,7 @@
         </div>
         <form id="form-single" class="block" onsubmit="submitSingleStudent(event)">
             @csrf
-            <div class="grid grid-cols-2 gap-x-6 gap-y-5 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 sm:gap-x-6 gap-y-5 mb-6">
                 <div class="flex flex-col space-y-2">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Learner Reference Number (LRN) <span class="text-red-500">*</span></label>
                     <input type="text" name="lrn" id="input-lrn" required placeholder="12-digit LRN" pattern="\d{12}" maxlength="12" title="LRN must be exactly 12 digits" class="bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 px-4 rounded-xl outline-none border border-transparent focus:border-slate-300 transition-all placeholder:text-slate-400" />
@@ -1560,7 +1594,34 @@
                     </div>
                 </div>
             </div>
-            <div class="bg-[#f1f5f9] p-4 rounded-[20px] flex items-center justify-between mb-8 shadow-sm">
+            <section class="mb-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-[12px] font-bold text-[#0d326b] uppercase tracking-wider">Family &amp; Emergency Contacts</h3>
+                        <p class="mt-1 text-[11px] text-slate-400">Optional details for contacting a student’s family.</p>
+                    </div>
+                    <span class="material-symbols-outlined text-slate-400">contact_phone</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+                    <div class="flex flex-col space-y-2">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mother’s Name</label>
+                        <input type="text" name="mother_name" maxlength="255" placeholder="Mother or guardian name" class="bg-white text-[#1e293b] text-[14px] font-medium py-3 px-4 rounded-xl outline-none border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400" />
+                    </div>
+                    <div class="flex flex-col space-y-2">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Father’s Name</label>
+                        <input type="text" name="father_name" maxlength="255" placeholder="Father or guardian name" class="bg-white text-[#1e293b] text-[14px] font-medium py-3 px-4 rounded-xl outline-none border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400" />
+                    </div>
+                    <div class="flex flex-col space-y-2">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Emergency Contact Name</label>
+                        <input type="text" name="emergency_contact_name" maxlength="255" placeholder="Contact person’s name" class="bg-white text-[#1e293b] text-[14px] font-medium py-3 px-4 rounded-xl outline-none border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400" />
+                    </div>
+                    <div class="flex flex-col space-y-2">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Emergency Contact Number</label>
+                        <input type="tel" name="emergency_contact_number" maxlength="40" placeholder="Phone number" class="bg-white text-[#1e293b] text-[14px] font-medium py-3 px-4 rounded-xl outline-none border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400" />
+                    </div>
+                </div>
+            </section>
+            <div class="bg-[#f1f5f9] p-4 rounded-[20px] flex items-center justify-between gap-3 mb-6 sm:mb-8 shadow-sm">
                 <div class="flex items-center space-x-4">
                     <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#0d326b] shadow-sm">
                         <span class="material-symbols-outlined text-[20px]">lock</span>
@@ -1572,7 +1633,7 @@
                 </div>
                 <span id="pin-preview" class="text-[18px] font-bold text-[#0d326b] tracking-widest tabular-nums">----</span>
             </div>
-            <div class="flex items-center justify-end space-x-4">
+            <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4">
                 <button type="button" class="btn-cancel px-6 py-3 text-slate-500 hover:text-slate-800 font-semibold text-[14px] transition-colors">Cancel</button>
                 <button type="submit" id="btn-single-submit" class="bg-[#0d326b] hover:bg-[#154188] text-white px-8 py-3.5 rounded-xl text-[14px] font-bold transition-colors flex items-center justify-center">Save Student</button>
             </div>
@@ -1589,7 +1650,7 @@
                         </div>
                         <div>
                             <p class="text-[14px] font-bold text-white">Need a template?</p>
-                            <p class="text-[11px] text-white/80 font-medium mt-0.5">Download our Excel template with proper formatting and instructions</p>
+                            <p class="text-[11px] text-white/80 font-medium mt-0.5">Includes optional mother, father, and emergency contact columns</p>
                         </div>
                     </div>
                     <a href="{{ route('students.download-template') }}" 
@@ -1664,7 +1725,7 @@ function closeModal(){
 closeModalBtn.addEventListener('click', closeModal);
 cancelBtns.forEach(btn => btn.addEventListener('click', closeModal));
 // Removed click-outside-to-close behavior - modal only closes via X button or Cancel button
-const AT='text-[#0d326b] border-b-2 border-[#0d326b] pb-3 outline-none transition-all',IT='text-slate-400 border-b-2 border-transparent hover:text-slate-600 outline-none transition-all';
+const AT='flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white text-[#0d326b] shadow-sm outline-none transition-all',IT='flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-slate-500 hover:text-[#0d326b] outline-none transition-all';
 tabSingle.addEventListener('click',()=>{tabSingle.className=AT;tabBulk.className=IT;formSingle.classList.remove('hidden');containerBulk.classList.add('hidden');});
 tabBulk.addEventListener('click',()=>{tabBulk.className=AT;tabSingle.className=IT;containerBulk.classList.remove('hidden');formSingle.classList.add('hidden');});
 function showAlert(msg,type='error'){modalAlert.classList.remove('hidden','bg-red-50','border-red-200','text-red-800','bg-emerald-50','border-emerald-200','text-emerald-800','bg-amber-50','border-amber-200','text-amber-800');modalAlertIcon.innerText=type==='error'?'error':(type==='warning'?'warning':'check_circle');modalAlert.classList.add(type==='error'?'bg-red-50':(type==='warning'?'bg-amber-50':'bg-emerald-50'),type==='error'?'border-red-200':(type==='warning'?'border-amber-200':'border-emerald-200'),type==='error'?'text-red-800':(type==='warning'?'text-amber-800':'text-emerald-800'));modalAlertMsg.innerHTML=msg;}
@@ -1743,13 +1804,17 @@ function mapExcelData(rows) {
     const lastIdx    = h.findIndex(x => x.includes('last'));
     // Only treat a column as the combined "full name" column if it isn't actually
     // a separate first_name/last_name column (those also contain the word "name").
-    const nameIdx    = h.findIndex(x => (x.includes('name') || x.includes('student') || x.includes('full')) && !x.includes('first') && !x.includes('last'));
+    const nameIdx    = h.findIndex(x => (x === 'name' || x.includes('student') || x.includes('full')) && !x.includes('first') && !x.includes('last'));
     const programIdx = h.findIndex(x => x.includes('program') || x.includes('type') || x.includes('track'));
     const gradeIdx   = h.findIndex(x => (x.includes('grade') || x.includes('level') || x.includes('class')) && !x.includes('mastery'));
     const ageIdx     = h.findIndex(x => x === 'age' || x.includes('age'));
     const sectionIdx = h.findIndex(x => x.includes('section'));
     const masteryIdx = h.findIndex(x => x.includes('fsl') || x.includes('mastery') || x.includes('skill'));
     const syIdx      = h.findIndex(x => x.includes('school') && x.includes('year'));
+    const motherIdx  = h.findIndex(x => x.includes('mother'));
+    const fatherIdx  = h.findIndex(x => x.includes('father'));
+    const emergencyNameIdx = h.findIndex(x => x.includes('emergency') && (x.includes('name') || x.includes('contact person')));
+    const emergencyNumberIdx = h.findIndex(x => x.includes('emergency') && (x.includes('number') || x.includes('phone')));
     const PROGRAMS   = { regular:'Regular', inclusion:'Inclusion', transition:'Transition', 'self-contained':'Self-contained', selfcontained:'Self-contained', sped:'Transition', 'home-based':'Self-contained', homebased:'Self-contained', home:'Self-contained' };
     return rows.slice(1)
         .filter(r => r && r.some(cell => String(cell || '').trim() !== ''))
@@ -1809,6 +1874,10 @@ function mapExcelData(rows) {
                 age,
                 section:           sectionIdx !== -1 ? String(row[sectionIdx] ?? '').trim() || null : null,
                 school_year,
+                mother_name: motherIdx !== -1 ? String(row[motherIdx] ?? '').trim() || null : null,
+                father_name: fatherIdx !== -1 ? String(row[fatherIdx] ?? '').trim() || null : null,
+                emergency_contact_name: emergencyNameIdx !== -1 ? String(row[emergencyNameIdx] ?? '').trim() || null : null,
+                emergency_contact_number: emergencyNumberIdx !== -1 ? String(row[emergencyNumberIdx] ?? '').trim() || null : null,
                 fsl_mastery_level,
             };
         });
@@ -1884,7 +1953,11 @@ async function submitSingleStudent(event) {
         program_type: fd.get('program_type'), 
         age: fd.get('age'), 
         fsl_mastery_level: fd.get('fsl_mastery_level'), 
-        school_year: fd.get('school_year') 
+        school_year: fd.get('school_year'),
+        mother_name: fd.get('mother_name') || null,
+        father_name: fd.get('father_name') || null,
+        emergency_contact_name: fd.get('emergency_contact_name') || null,
+        emergency_contact_number: fd.get('emergency_contact_number') || null
     };
     if (showGS) { 
         payload.grade_level = fd.get('grade_level'); 
@@ -2002,6 +2075,10 @@ async function renderDataTable() {
         { key:'age',               label:'Age',         w:'64px',  edit:true, type:'text'   },
         { key:'fsl_mastery_level', label:'FSL Mastery', w:'128px', edit:true, type:'select', opts:['', ...VALID_MASTERY] },
         { key:'school_year',       label:'School Year', w:'115px', edit:false, type:'text'   },
+        { key:'mother_name', label:'Mother’s Name', w:'150px', edit:true, type:'text' },
+        { key:'father_name', label:'Father’s Name', w:'150px', edit:true, type:'text' },
+        { key:'emergency_contact_name', label:'Emergency Contact Name', w:'175px', edit:true, type:'text' },
+        { key:'emergency_contact_number', label:'Emergency Contact Number', w:'175px', edit:true, type:'text' },
     ];
 
     const tbl = document.createElement('table');
@@ -2479,6 +2556,10 @@ function sdcEnterEdit() {
     document.getElementById('sdc-edit-section').value     = s.section || '';
     document.getElementById('sdc-edit-school-year').value = s.school_year || '';
     document.getElementById('sdc-edit-lrn').value         = s.lrn || '';
+    document.getElementById('sdc-edit-mother-name').value = s.mother_name || '';
+    document.getElementById('sdc-edit-father-name').value = s.father_name || '';
+    document.getElementById('sdc-edit-emergency-name').value = s.emergency_contact_name || '';
+    document.getElementById('sdc-edit-emergency-number').value = s.emergency_contact_number || '';
     document.getElementById('sdc-sy-error').classList.add('hidden');
 
     // Show edit fields, hide read-only
@@ -2570,6 +2651,10 @@ document.getElementById('sdc-save-btn').addEventListener('click', async () => {
             section:           document.getElementById('sdc-edit-section').value || null,
             school_year:       syVal || null,
             lrn:               document.getElementById('sdc-edit-lrn').value.trim() || null,
+            mother_name:       document.getElementById('sdc-edit-mother-name').value.trim() || null,
+            father_name:       document.getElementById('sdc-edit-father-name').value.trim() || null,
+            emergency_contact_name: document.getElementById('sdc-edit-emergency-name').value.trim() || null,
+            emergency_contact_number: document.getElementById('sdc-edit-emergency-number').value.trim() || null,
             fsl_mastery_level: _sdCurrent.fsl_mastery_level,
             _method:           'PUT',
         }, { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } });
@@ -2681,6 +2766,10 @@ function populateStudentDetails(s) {
     document.getElementById('sdc-age').textContent         = s.age ? s.age + ' yrs' : '—';
     document.getElementById('sdc-username').textContent    = s.username || '—';
     document.getElementById('sdc-email').textContent       = s.email || '—';
+    document.getElementById('sdc-mother-name').textContent = s.mother_name || '—';
+    document.getElementById('sdc-father-name').textContent = s.father_name || '—';
+    document.getElementById('sdc-emergency-name').textContent = s.emergency_contact_name || '—';
+    document.getElementById('sdc-emergency-number').textContent = s.emergency_contact_number || '—';
 
     // Academic
     document.getElementById('sdc-program').textContent     = s.program_type || '—';

@@ -163,48 +163,24 @@ class AnalyticsController extends Controller
         if ($selectedSchoolYear) {
             $syName = $selectedSchoolYear->name;
 
-            // 1. Enrollment log
-            $enrollmentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
-                ->where('school_year_name', $syName)
-                ->pluck('student_id');
-
-            // 2. Direct school_year match
-            $directIds = Student::where('teacher_id', $teacherId)
-                ->where('school_year', $syName)
-                ->pluck('student_id');
-
-            $allIds = $enrollmentIds->merge($directIds);
-
-            // 3. Historical assignments & progress stamped with school_year_id
-            $assignmentIds = DB::table('lesson_assignments')
-                ->where('school_year_id', $selectedSchoolYear->id)
-                ->whereIn('student_id', $tStudentIds)
-                ->pluck('student_id');
-            $progressIds = StudentLessonProgress::where('school_year_id', $selectedSchoolYear->id)
-                ->whereIn('student_id', $tStudentIds)
-                ->pluck('student_id');
-            $allIds = $allIds->merge($assignmentIds)->merge($progressIds);
-
-            // 4. Activity within the school year's date range (July 1 - June 30)
-            if ($syStartDate && $syEndDate) {
-                $dateProgressIds = StudentLessonProgress::whereIn('student_id', $tStudentIds)
-                    ->whereBetween('last_accessed_at', [$syStartDate, $syEndDate])
-                    ->pluck('student_id');
-                $dateQuizIds = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->whereBetween('completed_at', [$syStartDate, $syEndDate])
-                    ->pluck('student_id');
-                $dateGestureIds = DB::table('gesture_performances')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->where(function ($q) use ($syStartDate, $syEndDate) {
-                        $q->whereBetween('last_attempt_at', [$syStartDate, $syEndDate])
-                          ->orWhereBetween('updated_at', [$syStartDate, $syEndDate]);
-                    })
-                    ->pluck('student_id');
-                $allIds = $allIds->merge($dateProgressIds)->merge($dateQuizIds)->merge($dateGestureIds);
+            if ($selectedSchoolYear->status === 'active') {
+                // Current-year analytics use the same active roster as the
+                // dashboard, Student Management, and lesson assignment UI.
+                $studentIds = Student::where('teacher_id', $teacherId)
+                    ->where('school_year', $syName)
+                    ->where('is_enrolled', true)
+                    ->pluck('student_id')
+                    ->unique()
+                    ->values();
+            } else {
+                // Archived-year analytics use the enrollment history. Activity
+                // records alone must not add students to a year's roster.
+                $studentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
+                    ->where('school_year_name', $syName)
+                    ->pluck('student_id')
+                    ->unique()
+                    ->values();
             }
-
-            $studentIds = $allIds->unique()->values();
         } else {
             $studentIds = $tStudentIds;
         }

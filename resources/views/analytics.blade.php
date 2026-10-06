@@ -143,6 +143,17 @@
     outline: none;
     transition: border-color .15s, background-color .15s;
 }
+.filter-select-school-year {
+    padding-left: 36px;
+}
+.filter-wrap .filter-calendar-icon {
+    position: absolute;
+    left: 10px;
+    right: auto;
+    pointer-events: none;
+    font-size: 16px;
+    color: #0d326b;
+}
 .filter-select:hover {
     background: #f1f5f9;
     border-color: #cbd5e1;
@@ -436,13 +447,14 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="school_year" class="filter-select">
+                    <select name="school_year" class="filter-select filter-select-school-year">
                         @foreach($availableSchoolYears ?? [] as $sy)
                         <option value="{{ $sy->name }}" {{ ($selectedSchoolYear?->name ?? $activeSchoolYear?->name) === $sy->name ? 'selected' : '' }}>
                             S.Y. {{ $sy->name }} {{ $sy->status === 'active' ? '(Current)' : '(Archived)' }}
                         </option>
                         @endforeach
                     </select>
+                    <span class="material-symbols-outlined filter-calendar-icon">calendar_month</span>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
 

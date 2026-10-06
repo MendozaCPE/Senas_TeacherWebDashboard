@@ -95,9 +95,11 @@ class StudentsController extends Controller
             if ($activeSyNameForDelta && preg_match('/^(\d{4})-(\d{4})$/', $activeSyNameForDelta, $syM)) {
                 $prevSyNameForDelta = ($syM[1] - 1) . '-' . ($syM[2] - 1);
             }
-            $currentSyEnrollCount  = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
-                ->where('school_year_name', $activeSyNameForDelta)
-                ->count();
+            $currentSyEnrollCount  = Student::where('teacher_id', $teacher->id)
+                ->where('school_year', $activeSyNameForDelta)
+                ->where('is_enrolled', true)
+                ->distinct('student_id')
+                ->count('student_id');
             $previousSyEnrollCount = $prevSyNameForDelta
                 ? \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
                     ->where('school_year_name', $prevSyNameForDelta)
@@ -472,6 +474,10 @@ class StudentsController extends Controller
         'grade_level' => 'nullable|string|max:255',
         'age' => 'required|integer|min:1|max:120',
         'section' => 'nullable|string|max:255',
+        'mother_name' => 'nullable|string|max:255',
+        'father_name' => 'nullable|string|max:255',
+        'emergency_contact_name' => 'nullable|string|max:255',
+        'emergency_contact_number' => 'nullable|string|max:40',
         'school_year' => ['nullable', 'string', 'max:20',
             function ($attribute, $value, $fail) {
                 if (empty($value)) return;
@@ -539,6 +545,12 @@ class StudentsController extends Controller
             $existingStudent->teacher_id = $teacher->id;
             $existingStudent->school_id = $teacher->school_id;
             $existingStudent->is_enrolled = true;
+            foreach (['mother_name', 'father_name', 'emergency_contact_name', 'emergency_contact_number'] as $contactField) {
+                $contactValue = trim((string) $request->input($contactField, ''));
+                if ($contactValue !== '') {
+                    $existingStudent->{$contactField} = $contactValue;
+                }
+            }
             $existingStudent->save();
 
             return response()->json([
@@ -578,6 +590,10 @@ class StudentsController extends Controller
             'age' => $request->age,
             'grade_level' => $showGradeSection ? $request->grade_level : null,
             'section' => $showGradeSection ? $request->section : null,
+            'mother_name' => $request->input('mother_name'),
+            'father_name' => $request->input('father_name'),
+            'emergency_contact_name' => $request->input('emergency_contact_name'),
+            'emergency_contact_number' => $request->input('emergency_contact_number'),
             'school_year' => $schoolYearToUse,
             'fsl_mastery_level' => $request->fsl_mastery_level,
             'program_type' => $programType,
@@ -744,6 +760,10 @@ if (!empty($examIdsOnly)) {
         $request->validate([
             'students'  => 'required|array|min:1',
             'auto_pin'  => 'nullable|boolean',
+            'students.*.mother_name' => 'nullable|string|max:255',
+            'students.*.father_name' => 'nullable|string|max:255',
+            'students.*.emergency_contact_name' => 'nullable|string|max:255',
+            'students.*.emergency_contact_number' => 'nullable|string|max:40',
         ]);
 
         $studentsData = $request->students;
@@ -889,6 +909,12 @@ if (!empty($examIdsOnly)) {
                         $existingStudent->teacher_id = $teacher->id;
                         $existingStudent->school_id  = $teacher->school_id;
                         $existingStudent->is_enrolled = true;
+                        foreach (['mother_name', 'father_name', 'emergency_contact_name', 'emergency_contact_number'] as $contactField) {
+                            $contactValue = trim((string) ($data[$contactField] ?? ''));
+                            if ($contactValue !== '') {
+                                $existingStudent->{$contactField} = $contactValue;
+                            }
+                        }
                         $existingStudent->save();
                         $imported++;
                         $transfers[] = $displayName;
@@ -946,6 +972,10 @@ if (!empty($examIdsOnly)) {
                     'age'              => $age,
                     'grade_level'      => $gradeLevel,
                     'section'          => $section,
+                    'mother_name'      => trim((string) ($data['mother_name'] ?? '')) ?: null,
+                    'father_name'      => trim((string) ($data['father_name'] ?? '')) ?: null,
+                    'emergency_contact_name' => trim((string) ($data['emergency_contact_name'] ?? '')) ?: null,
+                    'emergency_contact_number' => trim((string) ($data['emergency_contact_number'] ?? '')) ?: null,
                     'school_year'      => $schoolYear,
                     'fsl_mastery_level'=> $masteryLevel,
                     'program_type'     => $programType,
@@ -1015,6 +1045,10 @@ if (!empty($examIdsOnly)) {
             'program_type'      => 'required|in:Regular,Inclusion,Self-contained,Transition',
             'grade_level'       => 'nullable|string|max:50',
             'section'           => 'nullable|string|max:100',
+            'mother_name'       => 'nullable|string|max:255',
+            'father_name'       => 'nullable|string|max:255',
+            'emergency_contact_name' => 'nullable|string|max:255',
+            'emergency_contact_number' => 'nullable|string|max:40',
             'lrn'               => ['nullable', 'digits:12',
                 function ($attribute, $value, $fail) use ($student) {
                     if (empty($value)) return;
@@ -1066,6 +1100,10 @@ if (!empty($examIdsOnly)) {
             'program_type'      => $validated['program_type'],
             'grade_level'       => $needGradeSection ? ($validated['grade_level'] ?? null) : ($validated['grade_level'] ?? null),
             'section'           => $validated['section'] ?? null,
+            'mother_name'       => $validated['mother_name'] ?? null,
+            'father_name'       => $validated['father_name'] ?? null,
+            'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
+            'emergency_contact_number' => $validated['emergency_contact_number'] ?? null,
             'school_year'       => $validated['school_year'] ?? null,
             'lrn'               => $validated['lrn'] ?? $student->lrn,
             'fsl_mastery_level' => $validated['fsl_mastery_level'] ?? $student->fsl_mastery_level,
@@ -1222,6 +1260,10 @@ if (!empty($examIdsOnly)) {
         'age'               => $student->age,
         'grade_level'       => $student->grade_level,
         'section'           => $student->section,
+        'mother_name'       => $student->mother_name,
+        'father_name'       => $student->father_name,
+        'emergency_contact_name' => $student->emergency_contact_name,
+        'emergency_contact_number' => $student->emergency_contact_number,
         'school_year'       => \App\Models\StudentYearEnrollment::where('student_id', $student->student_id)
                                 ->orderByDesc('created_at')
                                 ->value('school_year_name')

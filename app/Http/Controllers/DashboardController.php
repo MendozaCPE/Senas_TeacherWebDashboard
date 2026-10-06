@@ -187,9 +187,7 @@ class DashboardController extends Controller
             if ($activeSyName && preg_match('/^(\d{4})-(\d{4})$/', $activeSyName, $m)) {
                 $prevSyName = ($m[1] - 1) . '-' . ($m[2] - 1);
             }
-            $currentSyCount  = StudentYearEnrollment::where('teacher_id', $teacherId)
-                ->where('school_year_name', $activeSyName)
-                ->count();
+            $currentSyCount  = $totalStudents;
             $previousSyCount = $prevSyName
                 ? StudentYearEnrollment::where('teacher_id', $teacherId)
                     ->where('school_year_name', $prevSyName)
@@ -483,9 +481,12 @@ class DashboardController extends Controller
                 // Count distinct students enrolled in this school year under this teacher.
                 // student_year_enrollments is not overwritten on transition, so past years
                 // always return the correct historical count.
-                $count = StudentYearEnrollment::where('teacher_id', $teacherId)
-                    ->where('school_year_name', $syLabel)
-                    ->count();
+                $count = $i === 0
+                    ? $totalStudents
+                    : StudentYearEnrollment::where('teacher_id', $teacherId)
+                        ->where('school_year_name', $syLabel)
+                        ->distinct('student_id')
+                        ->count('student_id');
 
                 $enrollmentTrend[] = [
                     'school_year' => $syLabel,

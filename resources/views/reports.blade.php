@@ -34,7 +34,7 @@
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead><tr class="border-b border-slate-100">
-                    @foreach(['Student','Progress','Lessons','Quizzes','Avg Score','Gesture','Last Active',''] as $h)
+                    @foreach(['Student','Progress','Lessons','Quizzes','Avg Score','Gesture','Last Activity',''] as $h)
                     <th class="px-4 py-3"><div class="skeleton h-3 rounded w-20"></div></th>
                     @endforeach
                 </tr></thead>
@@ -728,17 +728,7 @@
     {{-- ══════════ 1. TOOLBAR: FILTER + EXPORT ══════════ --}}
     @php $rf = session('reports_filters', []); @endphp
 
-    {{-- Build current label for student --}}
     @php
-        $currentStudentId    = $rf['student_id'] ?? 'all';
-        $currentStudentLabel = 'All Students';
-        foreach ($students as $s) {
-            if ((string)$s->student_id === (string)$currentStudentId) {
-                $currentStudentLabel = $s->first_name . ' ' . $s->last_name;
-                break;
-            }
-        }
-
         $currentLessonId    = $rf['lesson_id'] ?? 'all';
         $currentLessonLabel = 'All Content';
         foreach ($lessons as $l) {
@@ -762,7 +752,6 @@
     <form method="POST" action="{{ route('reports.filter') }}" id="filterForm">
         @csrf
         {{-- Hidden real values submitted to server --}}
-        <input type="hidden" name="student_id"  id="studentIdHidden"  value="{{ $currentStudentId }}">
         <input type="hidden" name="lesson_id"   id="lessonIdHidden"   value="{{ $currentLessonId }}">
         <input type="hidden" name="school_year" id="schoolYearHidden" value="{{ $currentSchoolYear }}">
 
@@ -773,36 +762,7 @@
                     <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Reports</span>
                 </div>
 
-                {{-- ── Student search combobox ── --}}
-                <div class="rpt-combo" id="studentCombo">
-                    <div class="rpt-combo-input-wrap">
-                        <span class="material-symbols-outlined rpt-combo-icon">person_search</span>
-                        <input type="text" id="studentSearch" class="rpt-combo-input"
-                               placeholder="Search student…"
-                               value="{{ $currentStudentLabel === 'All Students' ? '' : $currentStudentLabel }}"
-                               autocomplete="off" />
-                        <button type="button" class="rpt-combo-clear" id="studentClear"
-                                style="{{ $currentStudentLabel === 'All Students' ? 'display:none' : '' }}"
-                                title="Clear">
-                            <span class="material-symbols-outlined" style="font-size:15px">close</span>
-                        </button>
-                    </div>
-                    <div class="rpt-combo-dropdown" id="studentDropdown">
-                        <div class="rpt-combo-option rpt-combo-option--all" data-value="all" data-label="All Students">
-                            <span class="material-symbols-outlined" style="font-size:15px;margin-right:6px;color:#0d326b">groups</span>
-                            All Students
-                        </div>
-                        @foreach($students as $s)
-                        <div class="rpt-combo-option" data-value="{{ $s->student_id }}" data-label="{{ $s->first_name }} {{ $s->last_name }}">
-                            <span class="rpt-combo-avatar">{{ strtoupper(substr($s->first_name,0,1)) }}</span>
-                            {{ $s->first_name }} {{ $s->last_name }}
-                        </div>
-                        @endforeach
-                        <div class="rpt-combo-empty hidden">No students found</div>
-                    </div>
-                </div>
-
-                {{-- ── Content search combobox ── --}}
+                {{-- Content search combobox --}}
                 <div class="rpt-combo" id="lessonCombo">
                     <div class="rpt-combo-input-wrap">
                         <span class="material-symbols-outlined rpt-combo-icon">search</span>
@@ -865,7 +825,7 @@
                 @endif
 
                 <a href="{{ route('reports') }}"
-                   onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({student_id:'all',lesson_id:'all',school_year:'all'})}).then(()=>window.location.href='{{ route('reports') }}')"
+                   onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({lesson_id:'all',school_year:'all'})}).then(()=>window.location.href='{{ route('reports') }}')"
                    class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">refresh</span>
@@ -1044,7 +1004,7 @@
                             <th style="width:110px;">Quizzes (Pass/Taken)</th>
                             <th style="width:95px;">Avg Score</th>
                             <th style="width:130px; text-align:center;">Gesture Accuracy</th>
-                            <th style="width:130px;">Last Active</th>
+                            <th style="width:130px;">Last Activity</th>
                             <th style="width:40px;"></th>
                         </tr>
                     </thead>
@@ -1152,13 +1112,8 @@
 {{-- ═══════════ EXPORT PDF MODAL ═══════════ --}}
 @php
     $rf = session('reports_filters', []);
-    $activeStudent  = 'All Students';
     $activeLesson   = 'All Lessons';
     $activeSyLabel  = 'All School Years';
-    if (!empty($rf['student_id']) && $rf['student_id'] !== 'all') {
-        $fs = $students->firstWhere('student_id', $rf['student_id']);
-        if ($fs) $activeStudent = $fs->first_name . ' ' . $fs->last_name;
-    }
     if (!empty($rf['lesson_id']) && $rf['lesson_id'] !== 'all') {
         $fl = $lessons->firstWhere('lesson_id', $rf['lesson_id']);
         if ($fl) $activeLesson = $fl->title;
@@ -1169,7 +1124,6 @@
         $activeSyLabel = 'S.Y. ' . $activeSchoolYear->name . ' (Active)';
     }
     $exportBaseUrl = route('reports.export-pdf.post');
-    $hiddenStudent = ($rf['student_id'] ?? 'all') !== 'all' ? $rf['student_id'] : null;
     $hiddenLesson  = ($rf['lesson_id']  ?? 'all') !== 'all' ? $rf['lesson_id']  : null;
 @endphp
 
@@ -1193,7 +1147,7 @@
                 <div class="pdf-preview-title">What will be included</div>
                 <div class="pdf-preview-row">
                     <div class="pdf-preview-dot"></div>
-                    <div class="pdf-preview-text">Student: <span>{{ $activeStudent }}</span></div>
+                    <div class="pdf-preview-text">Students: <span>All students in the selected school year</span></div>
                 </div>
                 <div class="pdf-preview-row">
                     <div class="pdf-preview-dot"></div>
@@ -1216,9 +1170,6 @@
             {{-- Document Settings Form --}}
             <form id="reportsPdfForm" method="POST" action="{{ $exportBaseUrl }}" target="_blank">
                 @csrf
-                @if($hiddenStudent)
-                    <input type="hidden" name="student_id" value="{{ $hiddenStudent }}">
-                @endif
                 @if($hiddenLesson)
                     <input type="hidden" name="lesson_id" value="{{ $hiddenLesson }}">
                 @endif
@@ -1665,7 +1616,7 @@ document.addEventListener('keydown', function(e) {
         document.getElementById('modalQuizzesCount').textContent = (data.quizzesPassed || 0) + ' / ' + data.quizzesTaken;
         document.getElementById('modalAvgScore').textContent = data.quizzesTaken > 0 ? data.avgScore + ' pts' : '—';
         document.getElementById('modalGestureAccuracy').textContent = (data.gestureAttempts && data.gestureAttempts > 0) ? data.gestureAccuracy + '%' : '—';
-        document.getElementById('modalLastActive').textContent = 'Last active ' + data.lastAccessed;
+        document.getElementById('modalLastActive').textContent = 'Last activity ' + data.lastAccessed;
 
         const bar = document.getElementById('modalOverallBar');
         bar.style.width = Math.min(100, data.overallPct) + '%';
@@ -2167,10 +2118,16 @@ document.addEventListener('keydown', function(e) {
 
         // Dot + hit area
         let dotsSvg = '';
-        pts.forEach(p => {
-            dotsSvg += `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#0d326b" stroke="#ffffff" stroke-width="2" class="cursor-pointer"/>`;
+        pts.forEach((p, index) => {
+            const showPoint = !opts.sparsePoints || p.v > 0 || index === 0 || index === pts.length - 1;
+            if (showPoint) {
+                dotsSvg += `<circle cx="${p.x}" cy="${p.y}" r="${opts.sparsePoints ? 3 : 4}" fill="#0d326b" stroke="#ffffff" stroke-width="2" class="cursor-pointer"/>`;
+            }
             dotsSvg += `<circle cx="${p.x}" cy="${p.y}" r="12" fill="transparent" class="lp-line-hit cursor-pointer" data-label="${p.label}" data-value="${opts.yFormat ? opts.yFormat(p.v) : p.v}"/>`;
-            dotsSvg += `<text x="${p.x}" y="${H - 7}" font-size="8" fill="#94a3b8" font-weight="600" text-anchor="middle">${p.label}</text>`;
+            const labelEvery = opts.labelEvery || 1;
+            if (index % labelEvery === 0 || index === pts.length - 1) {
+                dotsSvg += `<text x="${p.x}" y="${H - 7}" font-size="8" fill="#94a3b8" font-weight="600" text-anchor="middle">${p.label}</text>`;
+            }
         });
 
         container.innerHTML = `
@@ -2347,7 +2304,9 @@ document.addEventListener('keydown', function(e) {
             const quizMax  = quizArr.length ? Math.max(...quizArr).toFixed(1) : null;
 
             const lessonArr   = charts.lessons_daily || [];
-            const activeDays  = lessonArr.filter(v => v > 0).length;
+            const activePeriods = lessonArr.filter(v => v > 0).length;
+            const completedLessonCount = lessonArr.reduce((total, count) => total + (Number(count) || 0), 0);
+            const lessonPeriodLabel = charts.lessons_period_label || 'days';
 
             const masteryDist = charts.mastery_dist || {};
             const masteredCnt = masteryDist.mastered || 0;
@@ -2452,10 +2411,10 @@ document.addEventListener('keydown', function(e) {
                     <div class="flex items-start justify-between gap-2 mb-2">
                         <div>
                             <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Lesson Activity</span>
-                            <h3 class="text-[15px] font-black text-[#0d326b]">Completions / Day</h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Daily lesson completions over 14 days</p>
+                            <h3 class="text-[15px] font-black text-[#0d326b]">Lesson Completions</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">${charts.lessons_window_note || 'Lesson completion history'}</p>
                         </div>
-                        <span class="text-[11px] font-bold text-[#0d326b] bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shrink-0">${activeDays} active day${activeDays !== 1 ? 's' : ''}</span>
+                        <span class="text-[11px] font-bold text-[#0d326b] bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shrink-0">${activePeriods} active ${lessonPeriodLabel}</span>
                     </div>
                     <div id="lp-lesson-chart-${studentId}"></div>
                     <div class="senya-insight-gold mt-3">
@@ -2463,10 +2422,11 @@ document.addEventListener('keydown', function(e) {
                         <div>
                             <div class="senya-insight-gold-title">Activity Insight</div>
                             <div class="senya-insight-gold-text">
-                                Student completed lessons on <strong>${activeDays} of the last 14 days</strong>.
-                                ${activeDays >= 10 ? 'Excellent consistency — keep it up!'
-                                    : activeDays >= 5 ? 'Moderate activity. Encourage daily practice.'
-                                    : 'Low activity detected. Student may need motivation or support.'}
+                                Student completed <strong>${completedLessonCount} lesson${completedLessonCount !== 1 ? 's' : ''}</strong> across <strong>${activePeriods} active ${lessonPeriodLabel}</strong>.
+                                ${activePeriods >= 10 ? 'Excellent consistency — keep it up!'
+                                    : activePeriods >= 5 ? 'Moderate activity. Encourage regular practice.'
+                                    : activePeriods === 0 ? 'No lesson completions recorded in this period.'
+                                    : 'Activity has been limited. Student may need motivation or support.'}
                             </div>
                         </div>
                     </div>
@@ -2527,12 +2487,14 @@ document.addEventListener('keydown', function(e) {
 
             // Lesson bar chart (rendered as line for consistency)
             lpBuildLineChart(`lp-lesson-chart-${studentId}`, {
-                labels:    charts.labels        || [],
+                labels:    charts.lessons_labels || charts.labels || [],
                 values:    charts.lessons_daily || [],
                 yMin:      0,
                 yMax:      Math.max(1, ...(charts.lessons_daily || [])),
                 gradId:    `lpLesson${studentId}`,
                 gridTicks: [0, 1, 2, 3],
+                sparsePoints: true,
+                labelEvery: Math.max(1, Math.ceil((charts.lessons_labels || []).length / 10)),
             });
 
             // Donut
@@ -2920,13 +2882,6 @@ document.addEventListener('keydown', function(e) {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        initCombo({
-            comboId:    'studentCombo',
-            inputId:    'studentSearch',
-            dropdownId: 'studentDropdown',
-            hiddenId:   'studentIdHidden',
-            clearId:    'studentClear',
-        });
         initCombo({
             comboId:    'lessonCombo',
             inputId:    'lessonSearch',

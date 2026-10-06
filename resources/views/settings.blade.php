@@ -945,17 +945,6 @@
             </div>
         </div>
 
-        <div class="set-side-card danger">
-            <div class="set-side-title"><span class="material-symbols-outlined">warning</span>Danger Zone</div>
-            <p>These actions affect your access to SEÑAS Teacher Portal. Proceed with care.</p>
-            <form method="POST" action="{{ route('logout') }}" id="signOutEverywhereForm">
-                @csrf
-                <button type="button" class="set-btn-danger-outline"
-                        onclick="if(confirm('This will sign you out of all devices including this one. Continue?')) document.getElementById('signOutEverywhereForm').submit()">
-                    <span class="material-symbols-outlined" style="font-size:15px;">logout</span>Sign out everywhere
-                </button>
-            </form>
-        </div>
     </div>
     </div>
 
