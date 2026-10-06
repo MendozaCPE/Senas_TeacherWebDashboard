@@ -1640,25 +1640,28 @@ public function getAvailableLessons($id)
         ->get()
         ->groupBy('module_id');  // ← Changed from keyBy to groupBy
 
-    // Get currently assigned lesson IDs — scoped to the active school year only.
-    // Without this scope, old-year assignment rows bleed through after a transition
-    // and appear pre-checked in the modal even though the student hasn't been
-    // re-enrolled or re-assigned for the new year.
+    // Get currently assigned lesson IDs — scoped to the active school year or un-stamped current assignments.
     $activeSyId = \App\Models\SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id;
     $activeSyName = \App\Models\SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->name;
 
     $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
-        ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
+        ->where(function ($q) use ($activeSyId) {
+            if ($activeSyId) {
+                $q->where('school_year_id', $activeSyId)
+                  ->orWhereNull('school_year_id');
+            }
+        })
         ->pluck('lesson_id')
         ->toArray();
 
-    // Get currently assigned checkpoint exam IDs — same school year scope.
+    // Get currently assigned checkpoint exam IDs
     $assignedExamIds = CheckpointExamAssignment::where('student_id', $student->student_id)
         ->pluck('exam_id')
         ->toArray();
 
-    // ✅ NEW: Get previous year assignments (any school year that's NOT the active one)
+    // Previous year assignments (stamped with a non-null school_year_id that is NOT active)
     $previousYearLessons = LessonAssignment::where('student_id', $student->student_id)
+        ->whereNotNull('school_year_id')
         ->when($activeSyId, fn($q) => $q->where('school_year_id', '!=', $activeSyId))
         ->with('schoolYear')
         ->get()

@@ -417,10 +417,16 @@ public function updateSettings(Request $request)
                 }
             }
 
-            // 🔥 ONLY FETCH LESSONS FROM ACCESSIBLE / UNLOCKED MODULES
+            // Get all assigned lesson IDs for this student (only assigned lessons should be on the learning path)
+            $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
+                ->pluck('lesson_id')
+                ->toArray();
+
+            // 🔥 ONLY FETCH ASSIGNED LESSONS FROM ACCESSIBLE / UNLOCKED MODULES
             $allLessons = Lesson::where('status', 'published')
                 ->whereNull('deleted_at')
                 ->whereIn('module_id', $accessibleModuleIds)
+                ->whereIn('lesson_id', empty($assignedLessonIds) ? [-1] : $assignedLessonIds)
                 ->with(['contents', 'quiz.questions.options', 'module'])
                 ->get();
 
