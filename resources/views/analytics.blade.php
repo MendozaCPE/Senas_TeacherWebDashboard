@@ -432,14 +432,13 @@
             <div class="filter-group">
                 <div class="flex items-center gap-2 mr-2">
                     <span class="material-symbols-outlined text-[#0d326b] text-[22px]">tune</span>
-                    <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Period</span>
+                    <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Analytics</span>
                 </div>
 
                 <div class="filter-wrap">
                     <select name="school_year" class="filter-select">
-                        <option value="all" {{ ($af['school_year'] ?? '') === 'all' ? 'selected' : '' }}>All School Years</option>
                         @foreach($availableSchoolYears ?? [] as $sy)
-                        <option value="{{ $sy->name }}" {{ ($af['school_year'] ?? ($activeSchoolYear?->name ?? '')) === $sy->name ? 'selected' : '' }}>
+                        <option value="{{ $sy->name }}" {{ ($selectedSchoolYear?->name ?? $activeSchoolYear?->name) === $sy->name ? 'selected' : '' }}>
                             S.Y. {{ $sy->name }} {{ $sy->status === 'active' ? '(Current)' : '(Archived)' }}
                         </option>
                         @endforeach
@@ -448,35 +447,15 @@
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="period" id="periodSelect" class="filter-select">
-                        <option value="weekly" {{ ($af['period'] ?? 'weekly') === 'weekly' ? 'selected' : '' }}>Weekly Trend</option>
-                        <option value="monthly" {{ ($af['period'] ?? '') === 'monthly' ? 'selected' : '' }}>Monthly</option>
-                        <option value="quarterly" {{ ($af['period'] ?? '') === 'quarterly' ? 'selected' : '' }}>Quarterly</option>
-                        <option value="yearly" {{ ($af['period'] ?? '') === 'yearly' ? 'selected' : '' }}>Yearly</option>
-                    </select>
-                    <span class="material-symbols-outlined">expand_more</span>
-                </div>
-
-                <div class="filter-wrap">
-                    <select name="year" class="filter-select">
-                        @php $currentYear = date('Y'); @endphp
-                        @for($y = $currentYear; $y >= $currentYear - 5; $y--)
-                        <option value="{{ $y }}" {{ ($af['year'] ?? $currentYear) == $y ? 'selected' : '' }}>{{ $y }}</option>
-                        @endfor
-                    </select>
-                    <span class="material-symbols-outlined">expand_more</span>
-                </div>
-
-                <div class="filter-wrap {{ in_array($af['period'] ?? 'weekly', ['monthly', 'quarterly']) ? '' : 'hidden' }}" id="monthFilterWrap">
                     <select name="month" class="filter-select">
-                        @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m => $name)
-                        <option value="{{ $m + 1 }}" {{ ($af['month'] ?? date('n')) == ($m + 1) ? 'selected' : '' }}>{{ $name }}</option>
+                        @foreach($monthOptions ?? [['value' => 'all', 'label' => 'All Months']] as $monthOption)
+                        <option value="{{ $monthOption['value'] }}" {{ (string) ($selectedMonth ?? 'all') === (string) $monthOption['value'] ? 'selected' : '' }}>{{ $monthOption['label'] }}</option>
                         @endforeach
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
 
-                <a href="{{ route('analytics') }}" onclick="event.preventDefault(); fetch('{{ route('analytics.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({period:'weekly',year:{{ date('Y') }},month:{{ date('n') }}})}).then(()=>window.location.href='{{ route('analytics') }}')" class="filter-reset">Reset</a>
+                <a href="{{ route('analytics', ['reset_filters' => 1]) }}" class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">refresh</span>
                     Apply
@@ -490,6 +469,13 @@
             </button>
         </div>
     </form>
+
+    @if(!empty($noDataMessage))
+    <div class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+        <span class="material-symbols-outlined text-[19px] leading-5">info</span>
+        <span>{{ $noDataMessage }}</span>
+    </div>
+    @endif
 
     {{-- ══════════ 2. CLASS SUMMARY KPI CARDS ══════════ --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
@@ -529,18 +515,18 @@
             <p class="text-[12px] text-slate-400 font-medium">Completed vs assigned lessons</p>
         </div>
 
-        {{-- Card 4: Active Engagement (1 day / X days) --}}
+        {{-- Card 4: Active Engagement in the selected period --}}
         <div class="stat-kpi-card text-amber-950" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.22);">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Active Streak</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Active Engagement</span>
                 <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
                     <span class="material-symbols-outlined text-[20px]">bolt</span>
                 </div>
             </div>
             <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">
-                {{ $avgStreakDays }} {{ $avgStreakDays === 1 ? 'day' : 'days' }}
+                {{ $activePeriodPct }}%
             </p>
-            <p class="text-[12px] text-amber-950/80 font-bold">{{ $activeLast7Pct }}% active in last 7 days</p>
+            <p class="text-[12px] text-amber-950/80 font-bold">{{ $activeInPeriod }} of {{ $totalStudents }} students active in selected period</p>
         </div>
     </div>
 
@@ -897,7 +883,7 @@
                     <div>
                         <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Performance Trend</span>
                         <h3 class="text-[17px] font-black text-[#0d326b]">Class Progress Over Time</h3>
-                        <p class="text-[12px] text-slate-400 mt-0.5">Average quiz score progression across {{ request('period', 'weekly') }} intervals</p>
+                        <p class="text-[12px] text-slate-400 mt-0.5">Average quiz score progression across {{ ($selectedMonth ?? 'all') === 'all' ? 'the school year' : 'weeks in ' . date('F', mktime(0, 0, 0, (int) $selectedMonth, 1)) }}</p>
                     </div>
                     <span class="text-[11px] font-bold text-[#0d326b] bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shrink-0">
                         {{ count($progressOverTime) }} data points
@@ -1208,10 +1194,12 @@
 {{-- ══════════ EXPORT PDF MODAL ══════════ --}}
 @php
     $af = session('analytics_filters', []);
-    $aPeriod = ucfirst($af['period'] ?? 'Weekly');
-    $aYear   = $af['year'] ?? date('Y');
-    $aMonth  = isset($af['month']) ? date('F', mktime(0,0,0,$af['month'],1)) : null;
-    $aPeriodLabel = $aPeriod . ($aMonth ? ' — ' . $aMonth . ' ' . $aYear : ' — ' . $aYear);
+    $aPeriod = 'S.Y. ' . ($selectedSchoolYear?->name ?? $activeSchoolYear?->name ?? 'Current');
+    $aYear   = '';
+    $aMonth  = ($selectedMonth ?? 'all') === 'all'
+        ? 'All Months'
+        : date('F', mktime(0, 0, 0, (int) $selectedMonth, 1));
+    $aPeriodLabel = trim($aPeriod . ' — ' . $aMonth . ' ' . $aYear);
 @endphp
 
 <div id="analyticsPdfModalOverlay" class="pdf-modal-overlay" onclick="if(event.target===this)closeAnalyticsPdfModal()">
@@ -1241,11 +1229,8 @@
             <form id="analyticsPdfForm" method="POST" action="{{ route('analytics.export-pdf.post') }}" target="_blank">
                 @csrf
                 {{-- Pass active filter values so the PDF matches the page --}}
-                <input type="hidden" name="period" value="{{ $af['period'] ?? 'weekly' }}">
-                <input type="hidden" name="year"   value="{{ $af['year']   ?? date('Y') }}">
-                @if(!empty($af['month']))
-                <input type="hidden" name="month"  value="{{ $af['month'] }}">
-                @endif
+                <input type="hidden" name="school_year" value="{{ $selectedSchoolYear?->name ?? $activeSchoolYear?->name ?? '' }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth ?? 'all' }}">
                 <div class="space-y-3 pt-1">
                     <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Document Settings</div>
 
@@ -1306,18 +1291,6 @@ const signsData = @json($signsBreakdown ?? []);
 document.addEventListener('DOMContentLoaded', function() {
 
     // ── 0. Period Filter Month Toggle ──────────────────────────────────────
-    const periodSelect = document.getElementById('periodSelect');
-    const monthFilterWrap = document.getElementById('monthFilterWrap');
-    if (periodSelect && monthFilterWrap) {
-        periodSelect.addEventListener('change', function() {
-            if (this.value === 'monthly' || this.value === 'quarterly') {
-                monthFilterWrap.classList.remove('hidden');
-            } else {
-                monthFilterWrap.classList.add('hidden');
-            }
-        });
-    }
-
     // ── 1. Interactive Leaderboard Lesson Switcher ────────────────────────
     const selector = document.getElementById('leaderboardLessonSelector');
     const modeSubtitle = document.getElementById('leaderboardModeSubtitle');

@@ -12,13 +12,14 @@ class PaulDummyDataSeeder extends Seeder
     {
         $now = Carbon::now();
         $teacher = DB::table('teachers')
-            ->where('first_name', 'Christian')
-            ->where('last_name', 'Paul Mendoza')
+            ->join('users', 'teachers.user_id', '=', 'users.id')
+            ->where('users.email', 'christianpaulmendoza10@gmail.com')
+            ->select('teachers.*')
             ->first();
 
         if (!$teacher) {
             $teacher = DB::table('teachers')
-                ->where('first_name', 'Christian')
+                ->where('first_name', 'like', 'Christian%')
                 ->where('last_name', 'like', '%Mendoza%')
                 ->first();
         }
@@ -315,7 +316,7 @@ class PaulDummyDataSeeder extends Seeder
         // practice_time enum: 5_10_min | 15_20_min | 30_min | 1_hour_plus
         $lpData = [
             [0, 'Beginner',    'Alphabet_Numbers',   '30_min',      false],
-            [1, 'Intermediate','Greetings',           '30_min',      false],
+            [1, 'Intermediate','Greetings_FSL_Words',  '30_min',      false],
             [2, 'Beginner',    'Alphabet_Numbers',   '15_20_min',   false],
             [3, 'Advanced',    'Everything',          '1_hour_plus', true],
         ];

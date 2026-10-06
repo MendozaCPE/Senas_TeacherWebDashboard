@@ -1185,9 +1185,8 @@ class ReportsController extends Controller
         // fall back to session values so the PDF always matches the page filter.
         $sessionFilters = session('analytics_filters', []);
         $filters = array_merge($sessionFilters, array_filter([
-            'period' => $request->input('period'),
-            'year'   => $request->input('year'),
-            'month'  => $request->input('month'),
+            'school_year' => $request->input('school_year'),
+            'month'       => $request->input('month'),
         ], fn($v) => $v !== null && $v !== ''));
         $request->merge($filters);
 
@@ -1230,8 +1229,8 @@ class ReportsController extends Controller
             ['label' => 'Avg Quiz Score',  'value' => number_format($data['avgQuizScore'] ?? 0, 1) . '%'],
             ['label' => 'Gesture Mastery', 'value' => number_format($data['avgMastery'] ?? 0, 1) . '%'],
             ['label' => 'Completion Rate', 'value' => number_format($data['completionRate'] ?? 0, 1) . '%'],
-            ['label' => 'Avg Streak',      'value' => ($data['avgStreakDays'] ?? 0) . ' d'],
-            ['label' => 'Active (Last 7d)','value' => number_format($data['activeLast7Pct'] ?? 0, 1) . '%'],
+            ['label' => 'Active Students','value' => (string) ($data['activeInPeriod'] ?? 0)],
+            ['label' => 'Active Engagement','value' => number_format($data['activePeriodPct'] ?? 0, 1) . '%'],
         ]);
         $pdf->Ln(1);
 
@@ -1247,11 +1246,14 @@ class ReportsController extends Controller
         $pdf->Ln(1);
 
         /* ── Class Progress Over Time ── */
-        $period      = $request->get('period', 'weekly');
-        $year        = (int) $request->get('year', date('Y'));
         $progressPts = array_values((array) ($data['progressOverTime'] ?? []));
-        $periodLabel = ucfirst($period) . ' average quiz score ' . $year;
-        $countLabel  = count($progressPts) . ' ' . $period;
+        $schoolYearName = $data['selectedSchoolYear']->name ?? $data['activeSchoolYear']->name ?? 'Current School Year';
+        $selectedMonth = $request->get('month', 'all');
+        $periodLabel = 'Average quiz score · S.Y. ' . $schoolYearName;
+        if ($selectedMonth !== 'all') {
+            $periodLabel .= ' · ' . date('F', mktime(0, 0, 0, (int) $selectedMonth, 1));
+        }
+        $countLabel = count($progressPts) . ($selectedMonth === 'all' ? ' months' : ' weeks');
         $pdf->sectionTitle('Class Progress Over Time');
         $pdf->progressLineChart($progressPts, $periodLabel, $countLabel);
         $pdf->Ln(1);

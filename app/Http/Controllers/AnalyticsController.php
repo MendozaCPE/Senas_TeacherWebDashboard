@@ -14,6 +14,11 @@ class AnalyticsController extends Controller
 {
     public function index(\Illuminate\Http\Request $request)
     {
+        if ($request->boolean('reset_filters')) {
+            session()->forget('analytics_filters');
+            return redirect()->route('analytics');
+        }
+
         $user    = Auth::user();
         $teacher = $user->teacher;
 
@@ -23,6 +28,12 @@ class AnalyticsController extends Controller
 
         // Merge session filters into request so buildAnalyticsData() works unchanged
         $filters = session('analytics_filters', []);
+        // Drop the old period/year filter state so existing sessions use the
+        // new School Year + Month defaults.
+        if (array_key_exists('period', $filters) || array_key_exists('year', $filters)) {
+            session()->forget('analytics_filters');
+            $filters = [];
+        }
         $request->merge($filters);
 
         try {
@@ -44,17 +55,11 @@ class AnalyticsController extends Controller
     public function applyFilter(\Illuminate\Http\Request $request)
     {
         $validated = $request->validate([
-            'period'      => ['nullable', 'string', 'in:weekly,monthly,quarterly,yearly'],
-            'year'        => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'month'       => ['nullable', 'integer', 'min:1', 'max:12'],
-            'school_year' => ['nullable', 'string'],
+            'school_year' => ['required', 'string', 'max:20'],
+            'month'       => ['required', 'string', 'in:all,1,2,3,4,5,6,7,8,9,10,11,12'],
         ]);
 
-        if (empty(array_filter($validated))) {
-            session()->forget('analytics_filters');
-        } else {
-            session(['analytics_filters' => $validated]);
-        }
+        session(['analytics_filters' => $validated]);
 
         return redirect()->route('analytics');
     }
@@ -81,8 +86,7 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Builds every value the analytics view (web or PDF) needs, given a
-     * teacher and the current request's filters (period/year/month/school_year).
+     * Builds analytics scoped to the selected school year and optional month.
      * Both index() and exportPdf() call this so the two outputs can
      * never show different numbers.
      */
@@ -98,14 +102,15 @@ class AnalyticsController extends Controller
         $activeSchoolYear = $availableSchoolYears->firstWhere('status', 'active')
             ?? $availableSchoolYears->first();
 
-        $selectedYear = $request->get('school_year');
-        if (!$selectedYear && $activeSchoolYear) {
-            $selectedYear = $activeSchoolYear->name;
-        }
+        $selectedYear = $request->get('school_year') ?: $activeSchoolYear?->name;
+        $selectedSchoolYear = $availableSchoolYears->firstWhere('name', $selectedYear)
+            ?? $activeSchoolYear
+            ?? $availableSchoolYears->first();
 
-        $selectedSchoolYear = ($selectedYear && $selectedYear !== 'all')
-            ? $availableSchoolYears->firstWhere('name', $selectedYear)
-            : null;
+        $selectedMonth = (string) $request->get('month', 'all');
+        if (!in_array($selectedMonth, ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], true)) {
+            $selectedMonth = 'all';
+        }
 
         $syStartYear = null;
         $syEndYear   = null;
@@ -117,6 +122,40 @@ class AnalyticsController extends Controller
             $syEndYear   = (int) $m[2];
             $syStartDate = Carbon::create($syStartYear, 7, 1)->startOfDay();
             $syEndDate   = Carbon::create($syEndYear, 6, 30)->endOfDay();
+        }
+
+        $monthOptions = [['value' => 'all', 'label' => 'All Months']];
+        if ($syStartYear && $syEndYear) {
+            $schoolYearMonths = [];
+            foreach (range(7, 12) as $monthNumber) {
+                $schoolYearMonths[] = [$monthNumber, $syStartYear];
+            }
+            foreach (range(1, 6) as $monthNumber) {
+                $schoolYearMonths[] = [$monthNumber, $syEndYear];
+            }
+
+            foreach ($schoolYearMonths as [$monthNumber, $calendarYear]) {
+                $monthOptions[] = [
+                    'value' => (string) $monthNumber,
+                    'label' => Carbon::create($calendarYear, $monthNumber, 1)->format('F Y'),
+                ];
+            }
+        }
+
+        // The selected month is interpreted within the selected July-to-June
+        // school year, never as a separate calendar-year filter.
+        $month = $selectedMonth === 'all' ? null : (int) $selectedMonth;
+        $year = $month === null
+            ? ($syStartYear ?? (int) date('Y'))
+            : ($month >= 7 ? ($syStartYear ?? (int) date('Y')) : ($syEndYear ?? (int) date('Y')));
+        $period = $month === null ? 'yearly' : 'monthly';
+
+        if ($period === 'monthly') {
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth()->startOfDay();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
+        } else {
+            $startDate = $syStartDate ?? Carbon::create($year, 1, 1)->startOfYear()->startOfDay();
+            $endDate = $syEndDate ?? Carbon::create($year, 12, 31)->endOfYear()->endOfDay();
         }
 
         $tStudentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
@@ -173,18 +212,57 @@ class AnalyticsController extends Controller
         $lessonIds  = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->whereNull('deleted_at')->pluck('lesson_id');
         $totalStudents = $studentIds->count();
 
+        $hasAnalyticsData = false;
+        if ($studentIds->isNotEmpty()) {
+            $hasAnalyticsData = DB::table('quiz_attempts')
+                ->whereIn('student_id', $studentIds)
+                ->where('status', 'completed')
+                ->whereBetween('completed_at', [$startDate, $endDate])
+                ->exists();
+
+            if (!$hasAnalyticsData) {
+                $hasAnalyticsData = DB::table('lesson_assignments')
+                    ->whereIn('student_id', $studentIds)
+                    ->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('assigned_at', [$startDate, $endDate])
+                          ->orWhereBetween('completed_at', [$startDate, $endDate])
+                          ->orWhereBetween('updated_at', [$startDate, $endDate]);
+                    })
+                    ->exists();
+            }
+
+            if (!$hasAnalyticsData) {
+                $hasAnalyticsData = StudentLessonProgress::whereIn('student_id', $studentIds)
+                    ->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('last_accessed_at', [$startDate, $endDate])
+                          ->orWhereBetween('updated_at', [$startDate, $endDate]);
+                    })
+                    ->exists();
+            }
+
+            if (!$hasAnalyticsData) {
+                $hasAnalyticsData = DB::table('gesture_performances')
+                    ->whereIn('student_id', $studentIds)
+                    ->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('last_attempt_at', [$startDate, $endDate])
+                          ->orWhereBetween('updated_at', [$startDate, $endDate])
+                          ->orWhereBetween('created_at', [$startDate, $endDate]);
+                    })
+                    ->exists();
+            }
+        }
+
         if ($totalStudents === 0) {
             $emptyData = $this->emptyTeacherData($teacher->user ?? Auth::user());
             $emptyData['availableSchoolYears'] = $availableSchoolYears;
             $emptyData['activeSchoolYear']     = $activeSchoolYear;
             $emptyData['selectedSchoolYear']   = $selectedSchoolYear;
+            $emptyData['selectedMonth']        = $selectedMonth;
+            $emptyData['monthOptions']         = $monthOptions;
+            $emptyData['hasAnalyticsData']     = false;
+            $emptyData['noDataMessage']        = $this->noDataMessage($selectedSchoolYear, $selectedMonth, $year);
             return $emptyData;
         }
-
-        // Filter parameters
-        $period = $request->get('period', 'weekly');
-        $year   = (int) $request->get('year', $syStartYear ?? date('Y'));
-        $month  = (int) $request->get('month', date('n'));
 
         // Anchor date: if archived school year is selected, anchor to its end date so weekly/monthly queries stay within that SY
         $isArchivedSy = $selectedSchoolYear && $selectedSchoolYear->status === 'archived';
@@ -198,28 +276,6 @@ class AnalyticsController extends Controller
             ->where('quiz_attempts.status', 'completed')
             ->where('lessons.status', 'published')
             ->whereNull('lessons.deleted_at');
-
-        if ($period === 'monthly') {
-            $startDate = Carbon::create($year, $month, 1)->startOfMonth()->startOfDay();
-            $endDate   = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
-        } elseif ($period === 'quarterly') {
-            $qStartMonth = (ceil($month / 3) - 1) * 3 + 1;
-            $startDate   = Carbon::create($year, $qStartMonth, 1)->startOfMonth()->startOfDay();
-            $endDate     = Carbon::create($year, $qStartMonth + 2, 1)->endOfMonth()->endOfDay();
-        } elseif ($period === 'yearly') {
-            if ($syStartDate && $syEndDate) {
-                $startDate = $syStartDate;
-                $endDate   = $syEndDate;
-            } else {
-                $startDate = Carbon::create($year, 1, 1)->startOfYear()->startOfDay();
-                $endDate   = Carbon::create($year, 12, 31)->endOfYear()->endOfDay();
-            }
-        } else {
-            // 'weekly' or default view:
-            // Overall summary KPIs, leaderboard, and distribution metrics encompass the full school year period
-            $startDate = ($syStartDate) ?: Carbon::now()->subMonths(6)->startOfDay();
-            $endDate   = ($syEndDate) ?: Carbon::now()->endOfDay();
-        }
 
         $rawAvgQuizScore = (clone $quizQuery)
             ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
@@ -261,13 +317,7 @@ class AnalyticsController extends Controller
             ? round(($assignmentTotals->completed / $assignmentTotals->total) * 100, 1)
             : 0;
 
-        // Streak days and active-in-period are scoped to $studentIds (already filtered
-        // by school year above), so inactive/archived students are correctly included
-        // when viewing a historical school year.
-        $avgStreakDays = Student::whereIn('student_id', $studentIds)
-            ->avg('streak_days') ?? 0;
-        $avgStreakDays = round($avgStreakDays);
-
+        // Count students with any recorded activity during the selected date range.
         $activeInPeriod = Student::whereIn('student_id', $studentIds)
             ->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('last_activity_date', [$startDate, $endDate])
@@ -286,15 +336,32 @@ class AnalyticsController extends Controller
                                  ->orWhereBetween('updated_at', [$startDate, $endDate])
                                  ->orWhereBetween('created_at', [$startDate, $endDate]);
                           });
+                  })
+                  ->orWhereExists(function ($sub) use ($startDate, $endDate) {
+                      $sub->select(DB::raw(1))
+                          ->from('student_lesson_progress')
+                          ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
+                          ->where(function ($pq) use ($startDate, $endDate) {
+                              $pq->whereBetween('student_lesson_progress.last_accessed_at', [$startDate, $endDate])
+                                 ->orWhereBetween('student_lesson_progress.updated_at', [$startDate, $endDate]);
+                          });
+                  })
+                  ->orWhereExists(function ($sub) use ($startDate, $endDate) {
+                      $sub->select(DB::raw(1))
+                          ->from('lesson_assignments')
+                          ->whereColumn('lesson_assignments.student_id', 'students.student_id')
+                          ->where(function ($aq) use ($startDate, $endDate) {
+                              $aq->whereBetween('lesson_assignments.assigned_at', [$startDate, $endDate])
+                                 ->orWhereBetween('lesson_assignments.completed_at', [$startDate, $endDate])
+                                 ->orWhereBetween('lesson_assignments.updated_at', [$startDate, $endDate]);
+                          });
                   });
             })
             ->count();
 
-        $activeLast7Pct = $totalStudents > 0
+        $activePeriodPct = $totalStudents > 0
             ? round(($activeInPeriod / $totalStudents) * 100, 1)
             : 0;
-
-        $streakText = $avgStreakDays . ' ' . ($avgStreakDays === 1 ? 'day' : 'days');
 
         $classSummary = collect([
             [
@@ -323,8 +390,8 @@ class AnalyticsController extends Controller
             ],
             [
                 'title'     => 'Active Engagement',
-                'value'     => $streakText,
-                'detail'    => $activeLast7Pct . '% active in period',
+                'value'     => $activePeriodPct . '%',
+                'detail'    => $activeInPeriod . ' of ' . $totalStudents . ' students active in selected period',
                 'icon'      => 'bolt',
                 'accent'    => '#fef3c7',
                 'iconColor' => '#92400e',
@@ -999,7 +1066,7 @@ class AnalyticsController extends Controller
 
         $senyaInsights = [
             'kpi' => $avgQuizScore >= 75
-                ? "<strong>Great class momentum:</strong> Your students are maintaining a strong <strong>{$formattedAvgScore}% average quiz score</strong> with {$activeLast7Pct}% active in the past 7 days."
+                ? "<strong>Great class momentum:</strong> Your students are maintaining a strong <strong>{$formattedAvgScore}% average quiz score</strong> with {$activePeriodPct}% active in the selected period."
                 : "<strong>Opportunity for reinforcement:</strong> The class average is currently <strong>{$formattedAvgScore}%</strong>. A quick 10-minute group review could help boost scores.",
 
             'progress' => count($progressOverTime) > 1
@@ -1056,8 +1123,8 @@ class AnalyticsController extends Controller
             'avgQuizScore'               => $avgQuizScore,
             'avgMastery'                 => $avgMastery,
             'completionRate'             => $completionRate,
-            'avgStreakDays'              => $avgStreakDays,
-            'activeLast7Pct'             => $activeLast7Pct,
+            'activeInPeriod'             => $activeInPeriod,
+            'activePeriodPct'             => $activePeriodPct,
             'classSummary'               => $classSummary,
             'progressOverTime'           => $progressOverTime,
             'lessonDifficulty'           => $lessonDifficulty,
@@ -1082,7 +1149,21 @@ class AnalyticsController extends Controller
             'availableSchoolYears'       => $availableSchoolYears,
             'activeSchoolYear'           => $activeSchoolYear,
             'selectedSchoolYear'         => $selectedSchoolYear,
+            'selectedMonth'              => $selectedMonth,
+            'monthOptions'               => $monthOptions,
+            'hasAnalyticsData'           => $hasAnalyticsData,
+            'noDataMessage'              => $hasAnalyticsData ? null : $this->noDataMessage($selectedSchoolYear, $selectedMonth, $year),
         ];
+    }
+
+    private function noDataMessage($schoolYear, string $month, int $calendarYear): string
+    {
+        $schoolYearName = $schoolYear?->name ?? 'selected school year';
+        $periodLabel = $month === 'all'
+            ? 'School Year ' . $schoolYearName
+            : Carbon::create($calendarYear, (int) $month, 1)->format('F Y') . ' in School Year ' . $schoolYearName;
+
+        return 'There is no available data for ' . $periodLabel . '.';
     }
 
     private function emptyTeacherData($user): array
@@ -1095,13 +1176,13 @@ class AnalyticsController extends Controller
             'avgQuizScore'               => 0,
             'avgMastery'                 => 0,
             'completionRate'             => 0,
-            'avgStreakDays'              => 0,
-            'activeLast7Pct'             => 0,
+            'activeInPeriod'             => 0,
+            'activePeriodPct'             => 0,
             'classSummary'               => collect([
                 ['title' => 'Avg Quiz Score', 'value' => '0%', 'detail' => 'No quiz attempts yet', 'icon' => 'insights', 'accent' => '#dbeafe', 'iconColor' => '#1e3a8a'],
                 ['title' => 'Gesture Mastery', 'value' => '0%', 'detail' => 'No gestures practiced', 'icon' => 'school', 'accent' => '#ecfdf5', 'iconColor' => '#15803d'],
                 ['title' => 'Lesson Completion', 'value' => '0%', 'detail' => 'No assignments completed', 'icon' => 'menu_book', 'accent' => '#eff6ff', 'iconColor' => '#1e3a8a'],
-                ['title' => 'Active Engagement', 'value' => '0 days', 'detail' => '0% active recently', 'icon' => 'bolt', 'accent' => '#fef3c7', 'iconColor' => '#92400e'],
+                ['title' => 'Active Engagement', 'value' => '0%', 'detail' => 'No activity in selected period', 'icon' => 'bolt', 'accent' => '#fef3c7', 'iconColor' => '#92400e'],
             ]),
             'progressOverTime'           => [],
             'lessonDifficulty'           => collect(),
