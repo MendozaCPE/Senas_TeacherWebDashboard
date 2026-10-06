@@ -1238,12 +1238,31 @@ function updateAssignedCount() {
     document.getElementById('assignedCountLabel').textContent = count;
 }
 
-document.getElementById('studentSearchInput')?.addEventListener('input', function() {
-    const q = this.value.toLowerCase().trim();
+function filterStudentsList() {
+    const input = document.getElementById('studentSearchInput');
+    const q = input ? input.value.toLowerCase().trim() : '';
+    let visibleCount = 0;
     document.querySelectorAll('.student-row').forEach(row => {
-        const match = row.dataset.name.includes(q) || row.dataset.lrn.includes(q);
+        const name = (row.dataset.name || '').toLowerCase();
+        const lrn  = (row.dataset.lrn || '').toLowerCase();
+        const match = !q || name.includes(q) || lrn.includes(q);
         row.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
     });
+
+    const emptyEl = document.getElementById('studentListEmpty');
+    if (emptyEl) {
+        if (visibleCount === 0 && _allStudents.length > 0) {
+            emptyEl.textContent = 'No matching students found.';
+            emptyEl.classList.remove('hidden');
+        } else if (visibleCount > 0) {
+            emptyEl.classList.add('hidden');
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('studentSearchInput')?.addEventListener('input', filterStudentsList);
 });
 
 function selectAllVisible() {
@@ -1488,6 +1507,7 @@ function restoreLesson(lessonId, lessonTitle) {
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
                 <input id="studentSearchInput" type="text" placeholder="Search by name or LRN…"
+                       oninput="filterStudentsList()"
                        class="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-[#0d326b] focus:ring-2 focus:ring-[#0d326b]/20 outline-none transition-all">
             </div>
             <div class="flex items-center justify-between mt-3">
