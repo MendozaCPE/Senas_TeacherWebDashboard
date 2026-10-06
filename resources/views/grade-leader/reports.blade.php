@@ -817,9 +817,10 @@ function tlBuildLineChart(containerId, opts) {
     const count  = vals.length;
     const gId    = opts.gradId || 'tlChartFill';
 
-    const pts = vals.map((v,i) => {
+    const pts = vals.map((rawV,i) => {
+        const v = Math.max(0, Number(rawV) || 0);
         const x = count>1 ? pL+(i/(count-1))*plotW : pL+plotW/2;
-        const y = pT + plotH - ((v - yMin) / yRange) * plotH;
+        const y = Math.max(pT, Math.min(pT + plotH, pT + plotH - ((v - yMin) / yRange) * plotH));
         return { x: +x.toFixed(1), y: +y.toFixed(1), v, label: lbls[i]||'' };
     });
 

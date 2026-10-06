@@ -107,11 +107,69 @@ class AnalyticsController extends Controller
             ? $availableSchoolYears->firstWhere('name', $selectedYear)
             : null;
 
-        $studentQuery = Student::where('teacher_id', $teacherId);
-        if ($selectedSchoolYear) {
-            $studentQuery->where('school_year', $selectedSchoolYear->name);
+        $syStartYear = null;
+        $syEndYear   = null;
+        $syStartDate = null;
+        $syEndDate   = null;
+
+        if ($selectedSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $selectedSchoolYear->name, $m)) {
+            $syStartYear = (int) $m[1];
+            $syEndYear   = (int) $m[2];
+            $syStartDate = Carbon::create($syStartYear, 7, 1)->startOfDay();
+            $syEndDate   = Carbon::create($syEndYear, 6, 30)->endOfDay();
         }
-        $studentIds = $studentQuery->pluck('student_id');
+
+        $tStudentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
+
+        if ($selectedSchoolYear) {
+            $syName = $selectedSchoolYear->name;
+
+            // 1. Enrollment log
+            $enrollmentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
+                ->where('school_year_name', $syName)
+                ->pluck('student_id');
+
+            // 2. Direct school_year match
+            $directIds = Student::where('teacher_id', $teacherId)
+                ->where('school_year', $syName)
+                ->pluck('student_id');
+
+            $allIds = $enrollmentIds->merge($directIds);
+
+            // 3. Historical assignments & progress stamped with school_year_id
+            $assignmentIds = DB::table('lesson_assignments')
+                ->where('school_year_id', $selectedSchoolYear->id)
+                ->whereIn('student_id', $tStudentIds)
+                ->pluck('student_id');
+            $progressIds = StudentLessonProgress::where('school_year_id', $selectedSchoolYear->id)
+                ->whereIn('student_id', $tStudentIds)
+                ->pluck('student_id');
+            $allIds = $allIds->merge($assignmentIds)->merge($progressIds);
+
+            // 4. Activity within the school year's date range (July 1 - June 30)
+            if ($syStartDate && $syEndDate) {
+                $dateProgressIds = StudentLessonProgress::whereIn('student_id', $tStudentIds)
+                    ->whereBetween('last_accessed_at', [$syStartDate, $syEndDate])
+                    ->pluck('student_id');
+                $dateQuizIds = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->whereBetween('completed_at', [$syStartDate, $syEndDate])
+                    ->pluck('student_id');
+                $dateGestureIds = DB::table('gesture_performances')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where(function ($q) use ($syStartDate, $syEndDate) {
+                        $q->whereBetween('last_attempt_at', [$syStartDate, $syEndDate])
+                          ->orWhereBetween('updated_at', [$syStartDate, $syEndDate]);
+                    })
+                    ->pluck('student_id');
+                $allIds = $allIds->merge($dateProgressIds)->merge($dateQuizIds)->merge($dateGestureIds);
+            }
+
+            $studentIds = $allIds->unique()->values();
+        } else {
+            $studentIds = $tStudentIds;
+        }
+
         $lessonIds  = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->whereNull('deleted_at')->pluck('lesson_id');
         $totalStudents = $studentIds->count();
 
@@ -125,8 +183,12 @@ class AnalyticsController extends Controller
 
         // Filter parameters
         $period = $request->get('period', 'weekly');
-        $year   = (int) $request->get('year', date('Y'));
+        $year   = (int) $request->get('year', $syStartYear ?? date('Y'));
         $month  = (int) $request->get('month', date('n'));
+
+        // Anchor date: if archived school year is selected, anchor to its end date so weekly/monthly queries stay within that SY
+        $isArchivedSy = $selectedSchoolYear && $selectedSchoolYear->status === 'archived';
+        $anchorDate   = ($isArchivedSy && $syEndDate) ? $syEndDate : Carbon::now();
 
         // Base quiz attempt query for top stats (only from published, active lessons)
         $quizQuery = DB::table('quiz_attempts')
@@ -137,10 +199,7 @@ class AnalyticsController extends Controller
             ->where('lessons.status', 'published')
             ->whereNull('lessons.deleted_at');
 
-        if ($period === 'weekly') {
-            $startDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks(7)->startOfDay();
-            $endDate   = Carbon::now()->endOfWeek(Carbon::SUNDAY)->endOfDay();
-        } elseif ($period === 'monthly') {
+        if ($period === 'monthly') {
             $startDate = Carbon::create($year, $month, 1)->startOfMonth()->startOfDay();
             $endDate   = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
         } elseif ($period === 'quarterly') {
@@ -148,11 +207,18 @@ class AnalyticsController extends Controller
             $startDate   = Carbon::create($year, $qStartMonth, 1)->startOfMonth()->startOfDay();
             $endDate     = Carbon::create($year, $qStartMonth + 2, 1)->endOfMonth()->endOfDay();
         } elseif ($period === 'yearly') {
-            $startDate = Carbon::create($year, 1, 1)->startOfYear()->startOfDay();
-            $endDate   = Carbon::create($year, 12, 31)->endOfYear()->endOfDay();
+            if ($syStartDate && $syEndDate) {
+                $startDate = $syStartDate;
+                $endDate   = $syEndDate;
+            } else {
+                $startDate = Carbon::create($year, 1, 1)->startOfYear()->startOfDay();
+                $endDate   = Carbon::create($year, 12, 31)->endOfYear()->endOfDay();
+            }
         } else {
-            $startDate = Carbon::now()->subMonths(6)->startOfDay();
-            $endDate   = Carbon::now()->endOfDay();
+            // 'weekly' or default view:
+            // Overall summary KPIs, leaderboard, and distribution metrics encompass the full school year period
+            $startDate = ($syStartDate) ?: Carbon::now()->subMonths(6)->startOfDay();
+            $endDate   = ($syEndDate) ?: Carbon::now()->endOfDay();
         }
 
         $rawAvgQuizScore = (clone $quizQuery)
@@ -267,8 +333,16 @@ class AnalyticsController extends Controller
 
         $progressOverTime = [];
         if ($period === 'weekly') {
+            $latestQuizDate = DB::table('quiz_attempts')
+                ->whereIn('student_id', $studentIds)
+                ->where('status', 'completed')
+                ->when($syStartDate && $syEndDate, fn($q) => $q->whereBetween('completed_at', [$syStartDate, $syEndDate]))
+                ->max('completed_at');
+
+            $chartAnchor = $latestQuizDate ? Carbon::parse($latestQuizDate) : ($anchorDate ?? Carbon::now());
+
             for ($weeksAgo = 7; $weeksAgo >= 0; $weeksAgo--) {
-                $wStart = Carbon::now()->startOfWeek(Carbon::MONDAY)->subWeeks($weeksAgo);
+                $wStart = $chartAnchor->copy()->startOfWeek(Carbon::MONDAY)->subWeeks($weeksAgo);
                 $wEnd   = $wStart->copy()->endOfWeek(Carbon::SUNDAY);
                 $val    = DB::table('quiz_attempts')
                     ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
@@ -323,8 +397,23 @@ class AnalyticsController extends Controller
                 ];
             }
         } elseif ($period === 'yearly') {
-            for ($m = 1; $m <= 12; $m++) {
-                $curM = Carbon::create($year, $m, 1);
+            $monthsToLoop = [];
+            if ($syStartYear && $syEndYear) {
+                // DepEd School Year: July (startYear) to June (endYear)
+                for ($m = 7; $m <= 12; $m++) {
+                    $monthsToLoop[] = ['year' => $syStartYear, 'month' => $m];
+                }
+                for ($m = 1; $m <= 6; $m++) {
+                    $monthsToLoop[] = ['year' => $syEndYear, 'month' => $m];
+                }
+            } else {
+                for ($m = 1; $m <= 12; $m++) {
+                    $monthsToLoop[] = ['year' => $year, 'month' => $m];
+                }
+            }
+
+            foreach ($monthsToLoop as $slot) {
+                $curM = Carbon::create($slot['year'], $slot['month'], 1);
                 $val  = DB::table('quiz_attempts')
                     ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
                     ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')

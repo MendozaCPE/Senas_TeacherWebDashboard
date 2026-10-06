@@ -54,12 +54,88 @@ class ReportsController extends Controller
                 ? $availableSchoolYears->firstWhere('name', $filterSchoolYear)
                 : null;
 
-            $studentQuery = Student::where('teacher_id', $teacherId);
-            if ($selectedSchoolYear) {
-                $studentQuery->where('school_year', $selectedSchoolYear->name);
+            $syStartYear = null;
+            $syEndYear   = null;
+            $syStartDate = null;
+            $syEndDate   = null;
+
+            if ($selectedSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $selectedSchoolYear->name, $m)) {
+                $syStartYear = (int) $m[1];
+                $syEndYear   = (int) $m[2];
+                $syStartDate = Carbon::create($syStartYear, 7, 1)->startOfDay();
+                $syEndDate   = Carbon::create($syEndYear, 6, 30)->endOfDay();
             }
-            $students   = $studentQuery->orderBy('first_name')->get();
-            $studentIds = $students->pluck('student_id');
+
+            $tStudentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
+
+            $isArchivedSy = $selectedSchoolYear && $selectedSchoolYear->status === 'archived';
+            $isActiveSy   = $selectedSchoolYear && $selectedSchoolYear->status === 'active';
+
+            if ($isActiveSy) {
+                // Active School Year: show only currently enrolled students for this school year
+                $enrollmentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
+                    ->where('school_year_name', $selectedSchoolYear->name)
+                    ->pluck('student_id');
+
+                $directIds = Student::where('teacher_id', $teacherId)
+                    ->where('school_year', $selectedSchoolYear->name)
+                    ->where('is_enrolled', true)
+                    ->pluck('student_id');
+
+                $allIds   = $enrollmentIds->merge($directIds)->unique()->values();
+                $students = Student::whereIn('student_id', $allIds->isEmpty() ? [-1] : $allIds)
+                    ->where('is_enrolled', true)
+                    ->orderBy('first_name')
+                    ->get();
+                $studentIds = $students->pluck('student_id');
+            } elseif ($isArchivedSy) {
+                // Archived School Year: show students enrolled in that SY or who had activity/progress in that SY
+                $syName = $selectedSchoolYear->name;
+
+                $enrollmentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
+                    ->where('school_year_name', $syName)
+                    ->pluck('student_id');
+
+                $directIds = Student::where('teacher_id', $teacherId)
+                    ->where('school_year', $syName)
+                    ->pluck('student_id');
+
+                $allIds = $enrollmentIds->merge($directIds);
+
+                $assignmentIds = DB::table('lesson_assignments')
+                    ->where('school_year_id', $selectedSchoolYear->id)
+                    ->whereIn('student_id', $tStudentIds)
+                    ->pluck('student_id');
+                $progressIds = StudentLessonProgress::where('school_year_id', $selectedSchoolYear->id)
+                    ->whereIn('student_id', $tStudentIds)
+                    ->pluck('student_id');
+                $allIds = $allIds->merge($assignmentIds)->merge($progressIds);
+
+                if ($syStartDate && $syEndDate) {
+                    $dateProgressIds = StudentLessonProgress::whereIn('student_id', $tStudentIds)
+                        ->whereBetween('last_accessed_at', [$syStartDate, $syEndDate])
+                        ->pluck('student_id');
+                    $dateQuizIds = DB::table('quiz_attempts')
+                        ->whereIn('student_id', $tStudentIds)
+                        ->whereBetween('completed_at', [$syStartDate, $syEndDate])
+                        ->pluck('student_id');
+                    $dateGestureIds = DB::table('gesture_performances')
+                        ->whereIn('student_id', $tStudentIds)
+                        ->where(function ($q) use ($syStartDate, $syEndDate) {
+                            $q->whereBetween('last_attempt_at', [$syStartDate, $syEndDate])
+                              ->orWhereBetween('updated_at', [$syStartDate, $syEndDate]);
+                        })
+                        ->pluck('student_id');
+                    $allIds = $allIds->merge($dateProgressIds)->merge($dateQuizIds)->merge($dateGestureIds);
+                }
+
+                $studentIds = $allIds->unique()->values();
+                $students   = Student::whereIn('student_id', $studentIds->isEmpty() ? [-1] : $studentIds)->orderBy('first_name')->get();
+            } else {
+                // All School Years: show all students under this teacher
+                $students   = Student::where('teacher_id', $teacherId)->orderBy('first_name')->get();
+                $studentIds = $students->pluck('student_id');
+            }
 
             $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
             $teacherModuleIds = $modules->pluck('module_id');
@@ -469,14 +545,87 @@ class ReportsController extends Controller
             : null;
 
         // ── Students scoped to the selected school year ─────────────────────
-        $studentQuery = Student::where('teacher_id', $teacherId);
-        if ($selectedSchoolYear) {
-            $studentQuery->where('school_year', $selectedSchoolYear->name);
+        $syStartYear = null;
+        $syEndYear   = null;
+        $syStartDate = null;
+        $syEndDate   = null;
+
+        if ($selectedSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $selectedSchoolYear->name, $m)) {
+            $syStartYear = (int) $m[1];
+            $syEndYear   = (int) $m[2];
+            $syStartDate = Carbon::create($syStartYear, 7, 1)->startOfDay();
+            $syEndDate   = Carbon::create($syEndYear, 6, 30)->endOfDay();
         }
-        // No status filter here — matches index() behaviour exactly.
-        // Inactive (unenrolled) students must still appear in historical PDFs.
-        $studentIds = $studentQuery->pluck('student_id');
-        $students   = $studentQuery->orderBy('first_name')->get();
+
+        $tStudentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
+
+        $isArchivedSy = $selectedSchoolYear && $selectedSchoolYear->status === 'archived';
+        $isActiveSy   = $selectedSchoolYear && $selectedSchoolYear->status === 'active';
+
+        if ($isActiveSy) {
+            // Active School Year: show only currently enrolled students for this school year
+            $enrollmentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
+                ->where('school_year_name', $selectedSchoolYear->name)
+                ->pluck('student_id');
+
+            $directIds = Student::where('teacher_id', $teacherId)
+                ->where('school_year', $selectedSchoolYear->name)
+                ->where('is_enrolled', true)
+                ->pluck('student_id');
+
+            $allIds   = $enrollmentIds->merge($directIds)->unique()->values();
+            $students = Student::whereIn('student_id', $allIds->isEmpty() ? [-1] : $allIds)
+                ->where('is_enrolled', true)
+                ->orderBy('first_name')
+                ->get();
+            $studentIds = $students->pluck('student_id');
+        } elseif ($isArchivedSy) {
+            // Archived School Year: show students enrolled in that SY or who had activity/progress in that SY
+            $syName = $selectedSchoolYear->name;
+
+            $enrollmentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
+                ->where('school_year_name', $syName)
+                ->pluck('student_id');
+
+            $directIds = Student::where('teacher_id', $teacherId)
+                ->where('school_year', $syName)
+                ->pluck('student_id');
+
+            $allIds = $enrollmentIds->merge($directIds);
+
+            $assignmentIds = DB::table('lesson_assignments')
+                ->where('school_year_id', $selectedSchoolYear->id)
+                ->whereIn('student_id', $tStudentIds)
+                ->pluck('student_id');
+            $progressIds = StudentLessonProgress::where('school_year_id', $selectedSchoolYear->id)
+                ->whereIn('student_id', $tStudentIds)
+                ->pluck('student_id');
+            $allIds = $allIds->merge($assignmentIds)->merge($progressIds);
+
+            if ($syStartDate && $syEndDate) {
+                $dateProgressIds = StudentLessonProgress::whereIn('student_id', $tStudentIds)
+                    ->whereBetween('last_accessed_at', [$syStartDate, $syEndDate])
+                    ->pluck('student_id');
+                $dateQuizIds = DB::table('quiz_attempts')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->whereBetween('completed_at', [$syStartDate, $syEndDate])
+                    ->pluck('student_id');
+                $dateGestureIds = DB::table('gesture_performances')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where(function ($q) use ($syStartDate, $syEndDate) {
+                        $q->whereBetween('last_attempt_at', [$syStartDate, $syEndDate])
+                          ->orWhereBetween('updated_at', [$syStartDate, $syEndDate]);
+                    })
+                    ->pluck('student_id');
+                $allIds = $allIds->merge($dateProgressIds)->merge($dateQuizIds)->merge($dateGestureIds);
+            }
+
+            $studentIds = $allIds->unique()->values();
+            $students   = Student::whereIn('student_id', $studentIds->isEmpty() ? [-1] : $studentIds)->orderBy('first_name')->get();
+        } else {
+            $students   = Student::where('teacher_id', $teacherId)->orderBy('first_name')->get();
+            $studentIds = $students->pluck('student_id');
+        }
         
         $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
         $teacherModuleIds = $modules->pluck('module_id');
@@ -1702,6 +1851,7 @@ class ReportsController extends Controller
         // ── XP over the last 14 days ─────────────────────────────────
         $xpLog = DB::table('xp_log')
             ->where('student_id', $studentId)
+            ->where('xp_amount', '>', 0)
             ->where('created_at', '>=', Carbon::now()->subDays(13)->startOfDay())
             ->selectRaw('DATE(created_at) as day, SUM(xp_amount) as total_xp')
             ->groupBy('day')
@@ -1717,7 +1867,7 @@ class ReportsController extends Controller
         for ($i = 13; $i >= 0; $i--) {
             $day   = Carbon::now()->subDays($i)->toDateString();
             $label = Carbon::now()->subDays($i)->format('M j');
-            $xp    = isset($xpLog[$day]) ? (int) $xpLog[$day]->total_xp : 0;
+            $xp    = isset($xpLog[$day]) ? max(0, (int) $xpLog[$day]->total_xp) : 0;
             $cumulative += $xp;
             $xpLabels[]         = $label;
             $xpSeries[]         = $xp;
@@ -1784,7 +1934,12 @@ class ReportsController extends Controller
         // ── Stats summary ─────────────────────────────────────────────
         $totalXpEarned = DB::table('xp_log')
             ->where('student_id', $studentId)
+            ->where('xp_amount', '>', 0)
             ->sum('xp_amount');
+
+        if ($totalXpEarned <= 0 && ($student->total_xp ?? 0) > 0) {
+            $totalXpEarned = (int) $student->total_xp;
+        }
 
         $longestStreak = $student->streak_days ?? 0;
 

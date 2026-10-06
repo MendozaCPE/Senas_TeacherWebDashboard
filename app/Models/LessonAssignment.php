@@ -41,4 +41,12 @@ class LessonAssignment extends Model
     {
         return $this->belongsTo(Student::class, 'student_id', 'student_id');
     }
+
+    /**
+     * Get the school year for this assignment
+     */
+    public function schoolYear(): BelongsTo
+    {
+        return $this->belongsTo(SchoolYear::class, 'school_year_id');
+    }
 }

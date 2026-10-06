@@ -2143,9 +2143,10 @@ document.addEventListener('keydown', function(e) {
         const yRange = yMax - yMin || 1;
         const count  = vals.length;
 
-        const pts = vals.map((v, i) => {
+        const pts = vals.map((rawV, i) => {
+            const v = Math.max(0, Number(rawV) || 0);
             const x = count > 1 ? pL + (i / (count - 1)) * plotW : pL + plotW / 2;
-            const y = pT + plotH - ((v - yMin) / yRange) * plotH;
+            const y = Math.max(pT, Math.min(pT + plotH, pT + plotH - ((v - yMin) / yRange) * plotH));
             return { x: +x.toFixed(2), y: +y.toFixed(2), v, label: lbls[i] || '', baseY: pT + plotH };
         });
 
@@ -2334,8 +2335,8 @@ document.addEventListener('keydown', function(e) {
             const charts = data.charts  || {};
 
             // ── Computed insight text ────────────────────────────────
-            const xpArr   = charts.xp_daily     || [];
-            const xpTotal = (charts.xp_cumulative || []).slice(-1)[0] || 0;
+            const xpArr   = (charts.xp_daily || []).map(v => Math.max(0, Number(v) || 0));
+            const xpTotal = Math.max(0, (charts.xp_cumulative || []).slice(-1)[0] || 0);
             const xpFirst = xpArr.find(v => v > 0) || 0;
             const xpLast  = [...xpArr].reverse().find(v => v > 0) || 0;
             const xpTrend = xpLast >= xpFirst ? '📈 improving' : '📉 declining';
