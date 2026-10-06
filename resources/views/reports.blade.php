@@ -825,7 +825,7 @@
                 @endif
 
                 <a href="{{ route('reports') }}"
-                   onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({lesson_id:'all',school_year:'all'})}).then(()=>window.location.href='{{ route('reports') }}')"
+                   onclick="event.preventDefault(); fetch('{{ route('reports.filter') }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'}, body:JSON.stringify({lesson_id:'all',school_year:'{{ $activeSchoolYear?->name ?? 'all' }}'})}).then(()=>window.location.href='{{ route('reports') }}')"
                    class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">refresh</span>
@@ -1124,7 +1124,6 @@
         $activeSyLabel = 'S.Y. ' . $activeSchoolYear->name . ' (Active)';
     }
     $exportBaseUrl = route('reports.export-pdf.post');
-    $hiddenLesson  = ($rf['lesson_id']  ?? 'all') !== 'all' ? $rf['lesson_id']  : null;
 @endphp
 
 <div id="pdfModalOverlay" class="pdf-modal-overlay" onclick="if(event.target===this)closePdfModal()">
@@ -1170,9 +1169,7 @@
             {{-- Document Settings Form --}}
             <form id="reportsPdfForm" method="POST" action="{{ $exportBaseUrl }}" target="_blank">
                 @csrf
-                @if($hiddenLesson)
-                    <input type="hidden" name="lesson_id" value="{{ $hiddenLesson }}">
-                @endif
+                <input type="hidden" name="lesson_id" value="{{ $rf['lesson_id'] ?? 'all' }}">
                 {{-- Always pass the currently selected school year to the PDF export --}}
                 <input type="hidden" name="school_year" value="{{ $rf['school_year'] ?? ($activeSchoolYear?->name ?? 'all') }}">
 
@@ -1267,7 +1264,7 @@ document.addEventListener('keydown', function(e) {
      onclick="if(event.target===this) closeStudentModal()">
     <div class="bg-white rounded-[28px] w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
 
-        <div class="flex items-start justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/60">
+        <div class="flex items-start justify-between gap-4 px-8 py-6 border-b border-slate-100 bg-slate-50/60">
             <div class="flex items-center space-x-4">
                 <img id="modalAvatar" src="" alt="" class="w-12 h-12 rounded-full object-cover shadow-sm bg-[#0d326b] flex-shrink-0"
                      onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent(window._modalInitials || 'S') + '&background=0d326b&color=fff&size=128&bold=true&rounded=true&font-size=0.45';" />
@@ -1276,9 +1273,19 @@ document.addEventListener('keydown', function(e) {
                     <p id="modalGradeLevel" class="text-[12px] text-slate-400 font-medium"></p>
                 </div>
             </div>
-            <button onclick="closeStudentModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
-                <span class="material-symbols-outlined icon-outline text-[24px]">close</span>
-            </button>
+            <div class="flex items-center gap-2 shrink-0">
+                <a id="modalStudentPdf" href="{{ url('/reports/export-pdf') }}"
+                   data-school-year="{{ $rf['school_year'] ?? ($activeSchoolYear?->name ?? 'all') }}"
+                   data-lesson-id="{{ $rf['lesson_id'] ?? 'all' }}"
+                   target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-2 rounded-xl bg-[#0d326b] px-3.5 py-2.5 text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-[#154188]">
+                    <span class="material-symbols-outlined text-[17px]">picture_as_pdf</span>
+                    <span class="hidden sm:inline">Export PDF</span>
+                </a>
+                <button onclick="closeStudentModal()" aria-label="Close student performance" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <span class="material-symbols-outlined icon-outline text-[24px]">close</span>
+                </button>
+            </div>
         </div>
 
         <div class="overflow-y-auto px-8 py-6 space-y-6">
@@ -1610,6 +1617,14 @@ document.addEventListener('keydown', function(e) {
         }
         document.getElementById('modalStudentName').textContent = data.studentName;
         document.getElementById('modalGradeLevel').textContent = data.gradeLevel;
+        const studentPdfButton = document.getElementById('modalStudentPdf');
+        if (studentPdfButton) {
+            const pdfUrl = new URL(studentPdfButton.href, window.location.origin);
+            pdfUrl.searchParams.set('student_id', studentId);
+            pdfUrl.searchParams.set('school_year', studentPdfButton.dataset.schoolYear || 'all');
+            pdfUrl.searchParams.set('lesson_id', studentPdfButton.dataset.lessonId || 'all');
+            studentPdfButton.href = pdfUrl.toString();
+        }
 
         document.getElementById('modalOverallPct').textContent = data.overallPct + '%';
         document.getElementById('modalLessonsCount').textContent = data.completedLessons + ' / ' + data.totalLessons;

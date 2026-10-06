@@ -163,7 +163,20 @@ document.addEventListener('DOMContentLoaded', function () {
             let html = '';
             if (students.length) {
                 html += `<div><div class="px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase text-slate-400 flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px] text-blue-600">school</span><span>Students (${students.length})</span></div><div class="space-y-0.5 mt-1">`;
-                students.forEach(s => { const t=highlightMatch(s.title,q); html+=`<a href="${s.url}" class="search-item group flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50/70 transition-all cursor-pointer"><div class="flex items-center gap-3 min-w-0"><img src="${s.avatar}" class="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-slate-100 group-hover:ring-blue-200 transition-all"><div class="min-w-0"><p class="text-[13.5px] font-bold text-[#0d326b] truncate">${t}</p><p class="text-[11px] font-medium text-slate-400 truncate mt-0.5">${s.subtitle}</p></div></div><span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-[#0d326b] shrink-0 ml-2">${s.badge}</span></a>`; });
+                students.forEach(s => {
+                    const t = highlightMatch(s.title, q);
+                    const destinations = [
+                        { url: s.performance_url, label: 'Reports Performance', icon: 'monitoring' },
+                        { url: s.details_url || s.url, label: 'Student Details', icon: 'person' },
+                    ];
+                    destinations.forEach(destination => {
+                        html += '<a href="' + destination.url + '" class="search-item group flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-blue-50/70 transition-all cursor-pointer">' +
+                            '<div class="flex items-center gap-3 min-w-0"><img src="' + s.avatar + '" class="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-slate-100 group-hover:ring-blue-200 transition-all">' +
+                            '<div class="min-w-0"><p class="text-[13.5px] font-bold text-[#0d326b] truncate">' + t + '</p>' +
+                            '<p class="text-[11px] font-medium text-slate-400 truncate mt-0.5">' + destination.label + ' ? ' + s.subtitle + '</p></div></div>' +
+                            '<span class="material-symbols-outlined text-[18px] text-slate-400 group-hover:text-[#0d326b] shrink-0">' + destination.icon + '</span></a>';
+                    });
+                });
                 html += `</div></div>`;
             }
             if (lessons.length) {

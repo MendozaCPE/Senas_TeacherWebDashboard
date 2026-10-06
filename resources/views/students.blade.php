@@ -2712,6 +2712,15 @@ function openStudentDetails(studentId) {
         sdNotifShow('Error loading student details: ' + err.message, 'error');
     });
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const openStudentId = new URLSearchParams(window.location.search).get('open_student');
+    if (!openStudentId) return;
+
+    openStudentDetails(openStudentId);
+    window.history.replaceState(null, '', window.location.pathname);
+});
+
 function closeStudentDetails() {
     if (_sdEditing) sdcExitEdit();
     sdModal.classList.add('opacity-0'); sdCard.classList.add('scale-95');

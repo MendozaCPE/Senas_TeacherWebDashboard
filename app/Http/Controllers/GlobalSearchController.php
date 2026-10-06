@@ -58,7 +58,9 @@ class GlobalSearchController extends Controller
                 'badge'    => $s->fsl_mastery_level ?? 'Beginner',
                 'status'   => $s->status ?? 'active',
                 'avatar'   => $avatar,
-                'url'      => route('students', ['search' => $fullName, 'highlight' => $s->student_id]),
+                'url'      => route('students', ['search' => $fullName, 'open_student' => $s->student_id]),
+                'details_url' => route('students', ['search' => $fullName, 'open_student' => $s->student_id]),
+                'performance_url' => url('/reports?open_student=' . $s->student_id),
             ];
         });
 

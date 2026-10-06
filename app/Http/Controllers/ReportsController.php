@@ -44,6 +44,30 @@ class ReportsController extends Controller
             $activeSchoolYear = $availableSchoolYears->firstWhere('status', 'active')
                 ?? $availableSchoolYears->first();
 
+            // Deep links from global search should open performance for this
+            // student's most relevant enrollment, even if another year was filtered.
+            if ($request->filled('open_student')) {
+                $targetStudent = Student::where('teacher_id', $teacherId)
+                    ->where('student_id', $request->input('open_student'))
+                    ->first();
+
+                if ($targetStudent) {
+                    $targetSchoolYear = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
+                        ->where('student_id', $targetStudent->student_id)
+                        ->orderByDesc('created_at')
+                        ->value('school_year_name')
+                        ?: $targetStudent->school_year
+                        ?: $activeSchoolYear?->name;
+
+                    $filters = session('reports_filters', []);
+                    $filters['school_year'] = $availableSchoolYears->contains('name', $targetSchoolYear)
+                        ? $targetSchoolYear
+                        : 'all';
+                    $filters['lesson_id'] = 'all';
+                    session(['reports_filters' => $filters]);
+                }
+            }
+
             // Read filters from session (set via POST, never from URL)
             $filters          = session('reports_filters', []);
             $filterLesson     = $filters['lesson_id']  ?? 'all';
@@ -449,14 +473,10 @@ class ReportsController extends Controller
         $lessonId   = ($validated['lesson_id']   ?? 'all') === 'all' ? 'all' : $validated['lesson_id'];
         $schoolYear = ($validated['school_year'] ?? 'all') ?: 'all';
 
-        if ($lessonId === 'all' && $schoolYear === 'all') {
-            session()->forget('reports_filters');
-        } else {
-            session(['reports_filters' => [
-                'lesson_id'   => $lessonId,
-                'school_year' => $schoolYear,
-            ]]);
-        }
+        session(['reports_filters' => [
+            'lesson_id'   => $lessonId,
+            'school_year' => $schoolYear,
+        ]]);
 
         return redirect()->route('reports');
     }
@@ -523,6 +543,15 @@ class ReportsController extends Controller
             $students   = Student::where('teacher_id', $teacherId)->orderBy('first_name')->get();
             $studentIds = $students->pluck('student_id');
         }
+
+        $individualStudentId = $request->input('student_id');
+        if ($individualStudentId !== null && $individualStudentId !== '') {
+            // Keep individual exports inside the teacher and school-year scope.
+            $individualStudent = $students->firstWhere('student_id', (int) $individualStudentId);
+            abort_unless($individualStudent, 404);
+            $students = collect([$individualStudent]);
+            $studentIds = collect([$individualStudent->student_id]);
+        }
         
         $modules          = Module::where('teacher_id', $teacherId)->orderBy('module_order')->get();
         $teacherModuleIds = $modules->pluck('module_id');
@@ -549,7 +578,9 @@ class ReportsController extends Controller
             ->orderBy('title')
             ->get();
 
-        $filterLesson  = $request->get('lesson_id', 'all');
+        $filterLesson  = $request->input('lesson_id')
+            ?? $filters['lesson_id']
+            ?? 'all';
 
         $lessonIds = $lessons->pluck('lesson_id');
 
@@ -817,6 +848,7 @@ class ReportsController extends Controller
         $scoredStudents = $studentReports->filter(fn($r) => $r['quizzesTaken'] > 0);
         $avgScore       = $scoredStudents->isNotEmpty() ? $scoredStudents->avg('avgScore') : 0;
         $activeLearners = $studentReports->where('overallPct', '>', 0)->count();
+        $individualReport = $individualStudentId ? $studentReports->first() : null;
 
         $generatedAt   = Carbon::now()->format('F d, Y · g:i A');
         $schoolName    = optional($teacher->school)->name ?? 'School';
@@ -868,24 +900,45 @@ class ReportsController extends Controller
          * of the navy header instead of underneath it. */
         $pdf->SetY($pdf->bodyStartY());
 
-        /* -- Report Summary KPI strip (6 Uniform KPIs) -- */
+        /* -- Report Summary KPI strip -- */
         $pdf->sectionTitle('Report Summary');
-        $pdf->summaryStrip([
-            ['label' => 'Total Students',    'value' => (string) $totalStudents],
-            ['label' => 'Lessons Assigned',  'value' => (string) $lessons->count()],
-            ['label' => 'Completions',       'value' => (string) $totalCompleted],
-            ['label' => 'Completion Rate',   'value' => $completionPct . '%'],
-            ['label' => 'Avg Quiz Score',    'value' => number_format($avgScore, 1)],
-            ['label' => 'Active Learners',   'value' => (string) $activeLearners],
-        ]);
+        if ($individualReport) {
+            $pdf->summaryStrip([
+                ['label' => 'Progress',          'value' => $individualReport['overallPct'] . '%'],
+                ['label' => 'Lessons',           'value' => $individualReport['completedLessons'] . ' / ' . $individualReport['totalLessons']],
+                ['label' => 'Quizzes Passed',    'value' => ($individualReport['quizzesPassed'] ?? 0) . ' / ' . $individualReport['quizzesTaken']],
+                ['label' => 'Avg Quiz Score',    'value' => $individualReport['quizzesTaken'] > 0 ? number_format($individualReport['avgScore'], 1) : '—'],
+                ['label' => 'Gesture Accuracy',  'value' => ($individualReport['gestureTotalSigns'] ?? 0) > 0 ? number_format($individualReport['gestureAccuracy'] ?? 0, 1) . '%' : '—'],
+            ]);
+        } else {
+            $pdf->summaryStrip([
+                ['label' => 'Total Students',    'value' => (string) $totalStudents],
+                ['label' => 'Lessons Assigned',  'value' => (string) $lessons->count()],
+                ['label' => 'Completions',       'value' => (string) $totalCompleted],
+                ['label' => 'Completion Rate',   'value' => $completionPct . '%'],
+                ['label' => 'Avg Quiz Score',    'value' => number_format($avgScore, 1)],
+                ['label' => 'Active Learners',   'value' => (string) $activeLearners],
+            ]);
+        }
         $pdf->Ln(2);
 
         /* ── Insight Box ── */
-        $pdf->insightBox(
-            'Curriculum Progress Insight',
-            "Across {$totalStudents} students and {$lessons->count()} assigned lessons, the class has achieved a {$completionPct}% overall completion rate with an average quiz score of " . number_format($avgScore, 1) . " pts. {$activeLearners} learners are actively progressing through the curriculum.",
-            'gold'
-        );
+        if ($individualReport) {
+            $pdf->insightBox(
+                'Student Performance Summary',
+                $individualReport['studentName'] . ' completed ' . $individualReport['completedLessons'] . ' of ' . $individualReport['totalLessons'] .
+                ' assigned lessons (' . $individualReport['overallPct'] . '%), passed ' . ($individualReport['quizzesPassed'] ?? 0) .
+                ' of ' . $individualReport['quizzesTaken'] . ' quizzes, and has a gesture accuracy of ' .
+                (($individualReport['gestureTotalSigns'] ?? 0) > 0 ? number_format($individualReport['gestureAccuracy'] ?? 0, 1) . '%' : 'no recorded attempts') . '.',
+                'gold'
+            );
+        } else {
+            $pdf->insightBox(
+                'Curriculum Progress Insight',
+                "Across {$totalStudents} students and {$lessons->count()} assigned lessons, the class has achieved a {$completionPct}% overall completion rate with an average quiz score of " . number_format($avgScore, 1) . " pts. {$activeLearners} learners are actively progressing through the curriculum.",
+                'gold'
+            );
+        }
         $pdf->Ln(2);
 
         /* ── Filter info line ── */
@@ -893,7 +946,10 @@ class ReportsController extends Controller
         $pdf->SetTextColor(148, 163, 184);
         $lm = $pdf->getOriginalMargins()['left'];
         $usableW = $pdf->getPageWidth() - $lm - $pdf->getOriginalMargins()['right'];
-        $pdf->Cell($usableW, 5, 'Filter: All Students  ·  ' . $selectedLessonName, 0, 1, 'R');
+        $filterLabel = $individualReport
+            ? 'Student: ' . $individualReport['studentName'] . '  ·  S.Y. ' . ($selectedSchoolYear->name ?? 'All Years')
+            : 'Filter: All Students  ·  ' . $selectedLessonName;
+        $pdf->Cell($usableW, 5, $filterLabel . ($individualReport ? '  ·  ' . $selectedLessonName : ''), 0, 1, 'R');
         $pdf->Ln(2);
 
         /* ── Student Progress Breakdown ── */
@@ -1071,7 +1127,9 @@ class ReportsController extends Controller
 
         }
 
-        $filename = 'senas-report-' . now()->format('Y-m-d') . '.pdf';
+        $filename = $individualReport
+            ? 'senas-student-performance-' . \Illuminate\Support\Str::slug($individualReport['studentName']) . '-' . now()->format('Y-m-d') . '.pdf'
+            : 'senas-report-' . now()->format('Y-m-d') . '.pdf';
         return $pdf->download($filename);
     }
 
