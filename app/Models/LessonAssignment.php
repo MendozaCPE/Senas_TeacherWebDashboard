@@ -41,12 +41,20 @@ class LessonAssignment extends Model
     {
         return $this->belongsTo(Student::class, 'student_id', 'student_id');
     }
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 32c92a8ef81791da90b87e7d2913428d541b329a
     /**
      * Get the school year for this assignment
      */
     public function schoolYear(): BelongsTo
     {
+<<<<<<< HEAD
         return $this->belongsTo(SchoolYear::class, 'school_year_id', 'id');
+=======
+        return $this->belongsTo(SchoolYear::class, 'school_year_id');
+>>>>>>> 32c92a8ef81791da90b87e7d2913428d541b329a
     }
 }

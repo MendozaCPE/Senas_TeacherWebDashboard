@@ -141,22 +141,46 @@ class StudentsController extends Controller
                 : $activeSchoolYear;
             $isArchivedSy = $selectedSyRecord && $selectedSyRecord->status === 'archived';
 
+            // Helper to resolve student IDs matching the chosen school year
+            $resolveSyStudentIds = function (string $syName, bool $isArchived) use ($teacher, $syFromTable) {
+                // 1. Authoritative enrollment log
+                $enrollmentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
+                    ->where('school_year_name', $syName)
+                    ->pluck('student_id');
+
+                // 2. Direct match on students.school_year
+                $directIds = Student::where('teacher_id', $teacher->id)
+                    ->where('school_year', $syName)
+                    ->pluck('student_id');
+
+                $allIds = $enrollmentIds->merge($directIds);
+
+                // 3. For archived years, check historical lesson assignments
+                if ($isArchived) {
+                    $syRec = $syFromTable->firstWhere('name', $syName);
+                    if ($syRec) {
+                        $teacherStudentIds = Student::where('teacher_id', $teacher->id)->pluck('student_id');
+                        $assignmentIds = DB::table('lesson_assignments')
+                            ->where('school_year_id', $syRec->id)
+                            ->whereIn('student_id', $teacherStudentIds)
+                            ->pluck('student_id');
+                        $allIds = $allIds->merge($assignmentIds);
+                    }
+                }
+
+                return $allIds->unique()->values();
+            };
+
             // ── Sidebar: students in scope for promotion thresholds and top students ──
             // Follows the same filter as the main query so widgets are affected by
             // the school year / enrollment filter the teacher has selected.
             $sidebarQuery = Student::where('teacher_id', $teacher->id);
 
-            if (!$isAllYears) {
-                if ($isArchivedSy && !empty($schoolYear)) {
-                    $archivedSyIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
-                        ->where('school_year_name', $schoolYear)
-                        ->pluck('student_id');
-                    $sidebarQuery->whereIn('student_id', $archivedSyIds->isEmpty() ? [-1] : $archivedSyIds);
-                } else {
+            if (!$isAllYears && !empty($schoolYear)) {
+                $scopedSbIds = $resolveSyStudentIds($schoolYear, $isArchivedSy);
+                $sidebarQuery->whereIn('student_id', $scopedSbIds->isEmpty() ? [-1] : $scopedSbIds);
+                if (!$isArchivedSy) {
                     $sidebarQuery->where('is_enrolled', true);
-                    if (!empty($schoolYear)) {
-                        $sidebarQuery->where('school_year', $schoolYear);
-                    }
                 }
             }
             // All years: no filter — every student under this teacher
@@ -233,29 +257,8 @@ class StudentsController extends Controller
             // else: archived year OR all years → no enrollment filter
 
             if (!empty($schoolYear)) {
-                $syRecord = $syFromTable->firstWhere('name', $schoolYear);
-                $isThisAnArchivedYear = $syRecord && $syRecord->status === 'archived';
-
-                if ($isThisAnArchivedYear) {
-                    // ── Archived year ─────────────────────────────────────────
-                    // student_year_enrollments is the authoritative, immutable log
-                    // of who was enrolled in each year. Use it to get the student
-                    // IDs for this archived year — the students.school_year string
-                    // is unreliable because it gets overwritten on transition.
-                    $archivedStudentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
-                        ->where('school_year_name', $schoolYear)
-                        ->pluck('student_id');
-
-                    $query->whereIn('student_id', $archivedStudentIds->isEmpty() ? [-1] : $archivedStudentIds);
-                } else {
-                    // ── Active / current year (or unrecognised year string) ───────
-                    // students.school_year is the authoritative column for the current
-                    // year. Use a simple direct match — no EXISTS fallback — so that
-                    // students whose school_year has already been updated to THIS year
-                    // (but who have past assignments with old school_year_ids) are not
-                    // accidentally surfaced.
-                    $query->where('school_year', $schoolYear);
-                }
+                $scopedMainIds = $resolveSyStudentIds($schoolYear, $isArchivedSy);
+                $query->whereIn('student_id', $scopedMainIds->isEmpty() ? [-1] : $scopedMainIds);
             }
 
             // Filter by promotable level if selected via sidebar boxes
@@ -292,19 +295,8 @@ class StudentsController extends Controller
             }
 
             if (!empty($schoolYear)) {
-                $syRecord = $syFromTable->firstWhere('name', $schoolYear);
-                $isThisAnArchivedYear = $syRecord && $syRecord->status === 'archived';
-
-                if ($isThisAnArchivedYear) {
-                    $archivedStudentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacher->id)
-                        ->where('school_year_name', $schoolYear)
-                        ->pluck('student_id');
-
-                    $chartQuery->whereIn('student_id', $archivedStudentIds->isEmpty() ? [-1] : $archivedStudentIds);
-                } else {
-                    // Active/current year: simple direct match only
-                    $chartQuery->where('school_year', $schoolYear);
-                }
+                $scopedChartIds = $resolveSyStudentIds($schoolYear, $isArchivedSy);
+                $chartQuery->whereIn('student_id', $scopedChartIds->isEmpty() ? [-1] : $scopedChartIds);
             }
 
             $chartStudents = $chartQuery
@@ -1088,6 +1080,24 @@ if (!empty($examIdsOnly)) {
             \App\Models\User::where('id', $student->user_id)->update($userUpdate);
         }
 
+        // Sync enrollment record for school year tracking if school_year is set
+        if (!empty($student->school_year)) {
+            $syRecord = SchoolYear::where('name', $student->school_year)
+                ->when($student->school_id, fn($q) => $q->where('school_id', $student->school_id))
+                ->first();
+
+            StudentYearEnrollment::record(
+                studentId:      $student->student_id,
+                teacherId:      $teacher->id,
+                schoolId:       $teacher->school_id ? (int) $teacher->school_id : null,
+                schoolYearId:   $syRecord?->id,
+                schoolYearName: $student->school_year,
+                programType:    $student->program_type,
+                gradeLevel:     $student->grade_level,
+                section:        $student->section,
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Student details updated successfully.',
@@ -1630,25 +1640,28 @@ public function getAvailableLessons($id)
         ->get()
         ->groupBy('module_id');  // ← Changed from keyBy to groupBy
 
-    // Get currently assigned lesson IDs — scoped to the active school year only.
-    // Without this scope, old-year assignment rows bleed through after a transition
-    // and appear pre-checked in the modal even though the student hasn't been
-    // re-enrolled or re-assigned for the new year.
+    // Get currently assigned lesson IDs — scoped to the active school year or un-stamped current assignments.
     $activeSyId = \App\Models\SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id;
     $activeSyName = \App\Models\SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->name;
 
     $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
-        ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
+        ->where(function ($q) use ($activeSyId) {
+            if ($activeSyId) {
+                $q->where('school_year_id', $activeSyId)
+                  ->orWhereNull('school_year_id');
+            }
+        })
         ->pluck('lesson_id')
         ->toArray();
 
-    // Get currently assigned checkpoint exam IDs — same school year scope.
+    // Get currently assigned checkpoint exam IDs
     $assignedExamIds = CheckpointExamAssignment::where('student_id', $student->student_id)
         ->pluck('exam_id')
         ->toArray();
 
-    // ✅ NEW: Get previous year assignments (any school year that's NOT the active one)
+    // Previous year assignments (stamped with a non-null school_year_id that is NOT active)
     $previousYearLessons = LessonAssignment::where('student_id', $student->student_id)
+        ->whereNotNull('school_year_id')
         ->when($activeSyId, fn($q) => $q->where('school_year_id', '!=', $activeSyId))
         ->with('schoolYear')
         ->get()

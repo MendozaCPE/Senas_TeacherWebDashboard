@@ -3388,8 +3388,8 @@ function renderAssignmentList() {
     let lessonCounter = 0;
 
     _assignModules.forEach((module, idx) => {
-        const moduleChecked = module.lessons.every(l => _assignSelectedIds.has(l.lesson_id));
-        const someChecked = module.lessons.some(l => _assignSelectedIds.has(l.lesson_id));
+        const moduleChecked = module.lessons.every(l => _assignSelectedIds.has(String(l.lesson_id)));
+        const someChecked = module.lessons.some(l => _assignSelectedIds.has(String(l.lesson_id)));
         
         html += `
             <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow transition-all">
@@ -3413,7 +3413,7 @@ function renderAssignmentList() {
                 <div class="px-5 py-3 space-y-1.5">
                    ${module.lessons.map(lesson => {
     lessonCounter++;
-    const checked = _assignSelectedIds.has(lesson.lesson_id) ? 'checked' : '';
+    const checked = _assignSelectedIds.has(String(lesson.lesson_id)) ? 'checked' : '';
     const isExam = lesson.type === 'checkpoint_exam';
     
     // Build badges
@@ -3558,7 +3558,7 @@ document.getElementById('assignment-deselect-all').addEventListener('click', fun
         cb.checked = false;
         const lessonId = cb.dataset.lessonId;
         if (lessonId && lessonId !== 'NaN' && lessonId !== '0') {
-            _assignSelectedIds.delete(lessonId);
+            _assignSelectedIds.delete(String(lessonId));
         }
     });
     assignList.querySelectorAll('.module-checkbox').forEach(cb => {
