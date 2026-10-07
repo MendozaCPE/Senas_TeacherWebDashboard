@@ -6,7 +6,7 @@
 {{-- ── SKELETON ─────────────────────────────────────────────────────────── --}}
 <div id="page-skeleton" class="space-y-6 pb-12" aria-hidden="true">
     <div class="bg-white rounded-[22px] border border-slate-100 shadow-sm p-4 flex gap-3 flex-wrap">
-        @for($i=0;$i<3;$i++)<div class="skeleton h-9 rounded-[14px] w-36"></div>@endfor
+        @for($i=0;$i<2;$i++)<div class="skeleton h-9 rounded-[14px] w-36"></div>@endfor
         <div class="skeleton h-9 rounded-[14px] w-24"></div>
         <div class="ml-auto skeleton h-9 rounded-[14px] w-36"></div>
     </div>
@@ -33,8 +33,6 @@
     --navy-950:#071c3f; --navy-900:#0d326b; --navy-700:#1e4b8f;
     --navy-500:#1a6fd4; --navy-400:#3b82f6; --navy-200:#bfdbfe;
     --navy-100:#dbeafe; --navy-50:#eff6ff;
-    --gold-600:#b45309; --gold-500:#d97706; --gold-400:#f59e0b;
-    --gold-100:#fef3c7; --gold-50:#fffbeb;
 }
 .analytics-panel {
     background:#fff; border-radius:26px; border:1px solid #edf2f7;
@@ -71,25 +69,25 @@
     background:#f8fafc; border:1px solid #e2e8f0; text-decoration:none; transition:background .15s,color .15s;
 }
 .filter-reset:hover { background:#f1f5f9; color:#0d326b; }
-/* Senya Gold Insight */
+/* Senya Insight */
 .senya-insight-gold {
-    background:linear-gradient(135deg,#fffdf8 0%,#fefce8 100%); border:1.5px solid #fbbf24;
+    background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%); border:1.5px solid #bfdbfe;
     border-radius:20px; padding:16px 20px; display:flex; align-items:flex-start; gap:14px;
-    box-shadow:0 4px 16px rgba(245,158,11,.08);
+    box-shadow:0 4px 16px rgba(13,50,107,.08);
 }
 .senya-insight-gold-icon {
     width:38px; height:38px; border-radius:12px;
-    background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%); color:#78350f;
+    background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%); color:#fff;
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
-    box-shadow:0 2px 8px rgba(245,158,11,.25);
+    box-shadow:0 2px 8px rgba(13,50,107,.2);
 }
-.senya-insight-gold-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#b45309; margin-bottom:2px; }
-.senya-insight-gold-text  { font-size:13px; font-weight:500; color:#78350f; line-height:1.55; }
+.senya-insight-gold-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#0d326b; margin-bottom:2px; }
+.senya-insight-gold-text  { font-size:13px; font-weight:500; color:#1e4b8f; line-height:1.55; }
 /* Rank badges */
 .rank-badge-podium { width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; flex-shrink:0; }
-.rank-badge-gold   { background:linear-gradient(135deg,#f59e0b,#facc15,#fbbf24); color:#78350f; border:1px solid #f59e0b; box-shadow:0 2px 6px rgba(245,158,11,.25); }
-.rank-badge-silver { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
-.rank-badge-bronze { background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; }
+.rank-badge-gold   { background:linear-gradient(135deg,#0d326b,#1a6fd4); color:#fff; border:1px solid #1e4b8f; box-shadow:0 2px 6px rgba(13,50,107,.2); }
+.rank-badge-silver { background:#eff6ff; color:#1e4b8f; border:1px solid #bfdbfe; }
+.rank-badge-bronze { background:#dbeafe; color:#0d326b; border:1px solid #93c5fd; }
 .rank-badge-default{ background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; }
 /* Chart tooltip */
 .chart-tooltip {
@@ -122,9 +120,9 @@ if ($topClass && $topClass['avg_quiz_score'] > 0)
 $aiTotal = $activeInactivePie['total'];
 if ($aiTotal > 0) {
     $aiPct = round($activeInactivePie['active'] / $aiTotal * 100);
-    if ($aiPct >= 70)     $insights[] = "<strong>{$aiPct}%</strong> of students are active in SY {$currentDepEdSY} — excellent participation rate for this school year.";
-    elseif ($aiPct >= 40) $insights[] = "<strong>{$aiPct}%</strong> of students are active in SY {$currentDepEdSY}. There is room to re-engage the inactive learners.";
-    else                   $insights[] = "Only <strong>{$aiPct}%</strong> of students are currently active in SY {$currentDepEdSY}. A targeted re-engagement effort is recommended.";
+    if ($aiPct >= 70)     $insights[] = "<strong>{$aiPct}%</strong> of students were active during {$periodDescription} — excellent participation across the school.";
+    elseif ($aiPct >= 40) $insights[] = "<strong>{$aiPct}%</strong> of students were active during {$periodDescription}. There is room to re-engage inactive learners.";
+    else                   $insights[] = "Only <strong>{$aiPct}%</strong> of students were active during {$periodDescription}. A targeted re-engagement effort is recommended.";
 }
 $insight = $insights[array_rand($insights)];
 
@@ -177,51 +175,44 @@ foreach ($pieData as $pd) {
 <div class="space-y-6 pb-12">
 
     {{-- ── 1. FILTER TOOLBAR ──────────────────────────────────────────── --}}
+    @php $selectedMonthLabel = collect($monthOptions)->firstWhere('value', $selectedMonth)['label'] ?? 'All Months'; @endphp
     <form method="POST" action="{{ route('grade-leader.analytics.filter') }}" id="filterForm">
         @csrf
         <div class="filter-container">
             <div class="filter-group">
                 <div class="flex items-center gap-2 mr-2">
                     <span class="material-symbols-outlined text-[#0d326b] text-[22px]">tune</span>
-                    <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Period</span>
+                    <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Analytics</span>
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="period" class="filter-select" id="periodSelect" onchange="toggleMonthWrap()">
-                        @foreach(['weekly'=>'Weekly','monthly'=>'Monthly','quarterly'=>'Quarterly','yearly'=>'Yearly'] as $val=>$lbl)
-                        <option value="{{ $val }}" {{ $period===$val?'selected':'' }}>{{ $lbl }}</option>
+                    <select name="school_year" class="filter-select">
+                        @foreach($availableSchoolYears as $sy)
+                        <option value="{{ $sy->name }}" {{ ($selectedSchoolYear?->name ?? '') === $sy->name ? 'selected' : '' }}>
+                            S.Y. {{ $sy->name }} {{ $sy->status === 'active' ? '(Current)' : '(Archived)' }}
+                        </option>
                         @endforeach
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
 
                 <div class="filter-wrap">
-                    <select name="year" class="filter-select">
-                        @foreach(range(date('Y'), date('Y')-4) as $y)
-                        <option value="{{ $y }}" {{ $year==$y?'selected':'' }}>{{ $y }}</option>
-                        @endforeach
-                    </select>
-                    <span class="material-symbols-outlined">expand_more</span>
-                </div>
-
-                <div class="filter-wrap {{ in_array($period,['monthly','quarterly'])?'':'hidden' }}" id="monthFilterWrap">
                     <select name="month" class="filter-select">
-                        @foreach(range(1,12) as $m)
-                        <option value="{{ $m }}" {{ $month==$m?'selected':'' }}>{{ \Carbon\Carbon::create(null,$m)->format('F') }}</option>
+                        @foreach($monthOptions as $monthOption)
+                        <option value="{{ $monthOption['value'] }}" {{ $selectedMonth === (string) $monthOption['value'] ? 'selected' : '' }}>{{ $monthOption['label'] }}</option>
                         @endforeach
                     </select>
                     <span class="material-symbols-outlined">expand_more</span>
                 </div>
-
-                <a href="{{ route('grade-leader.analytics') }}" class="filter-reset">Reset</a>
+                <a href="{{ route('grade-leader.analytics', ['reset_filters' => 1]) }}" class="filter-reset">Reset</a>
                 <button type="submit" class="filter-btn">
                     <span class="material-symbols-outlined text-[16px]">refresh</span> Apply
                 </button>
             </div>
             <div class="flex-shrink-0">
                 <p class="text-[12px] text-slate-400 font-medium">
-                    <span class="font-bold text-[#0d326b]">{{ $school->name ?? 'Your School' }}</span>
-                    &nbsp;·&nbsp; {{ ucfirst($period) }} view
+                    <span class="font-bold text-[#0d326b]">S.Y. {{ $selectedSchoolYear?->name ?? 'Current' }}</span>
+                    &nbsp;·&nbsp; {{ $selectedMonthLabel }}
                 </p>
             </div>
         </div>
@@ -239,7 +230,7 @@ foreach ($pieData as $pd) {
                 </div>
             </div>
             <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $avgQuizScore }}%</p>
-            <p class="text-[12px] text-white/70 font-medium">{{ ucfirst($period) }} school average</p>
+            <p class="text-[12px] text-white/70 font-medium">{{ $periodDescription }} average</p>
         </div>
 
         {{-- Quiz Pass Rate --}}
@@ -255,27 +246,27 @@ foreach ($pieData as $pd) {
         </div>
 
         {{-- Active Students (period) --}}
-        <div class="stat-kpi-card bg-white" style="border-color:#d1fae5;background:#f0fdf4;">
+        <div class="stat-kpi-card bg-white">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Active Students</span>
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-[#1a6fd4]">Active Students</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1e4b8f] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[20px]">bolt</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-emerald-700 tracking-tight">{{ number_format($activeStudentsCount) }}</p>
-            <p class="text-[12px] text-emerald-600 font-medium">in {{ ucfirst($period) }} period</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($activeStudentsCount) }}</p>
+            <p class="text-[12px] text-[#1a6fd4] font-medium">{{ $periodDescription }}</p>
         </div>
 
         {{-- Total Classes --}}
-        <div class="stat-kpi-card text-amber-950" style="background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%);border-color:rgba(245,158,11,.5);box-shadow:0 4px 16px rgba(245,158,11,.22)">
+        <div class="stat-kpi-card text-white" style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%)">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Total Classes</span>
-                <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                <span class="text-[11px] font-black uppercase tracking-wider text-white/70">Total Classes</span>
+                <div class="w-10 h-10 rounded-xl bg-white/15 text-white flex items-center justify-center">
                     <span class="material-symbols-outlined text-[20px]">class</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ $classPerformance->count() }}</p>
-            <p class="text-[12px] text-amber-950/80 font-bold">classrooms this school</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $classPerformance->count() }}</p>
+            <p class="text-[12px] text-white/70 font-medium">classrooms this school</p>
         </div>
 
     </div>
@@ -400,7 +391,7 @@ foreach ($pieData as $pd) {
                               style="pointer-events:none;"/>
                         {{-- Total label above bar --}}
                         <text x="{{ $cx }}" y="{{ max($EPT+11, $topY - 5) }}"
-                              font-size="10" fill="{{ $isCurr?'#d97706':'#334155' }}"
+                              font-size="10" fill="{{ $isCurr?'#0d326b':'#334155' }}"
                               font-weight="900" text-anchor="middle">{{ $total }}</text>
                         @else
                         {{-- Empty placeholder --}}
@@ -411,7 +402,7 @@ foreach ($pieData as $pd) {
                         {{-- X-axis SY label --}}
                         <text x="{{ $cx }}" y="{{ $EH - 28 }}"
                               font-size="{{ $syCount > 6 ? '8' : '9.5' }}"
-                              fill="{{ $isCurr?'#d97706':'#94a3b8' }}"
+                              fill="{{ $isCurr?'#0d326b':'#94a3b8' }}"
                               font-weight="{{ $isCurr?'800':'600' }}"
                               text-anchor="middle">{{ $shortSY }}</text>
 
@@ -451,7 +442,7 @@ foreach ($pieData as $pd) {
                 <div>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Engagement</p>
                     <h3 class="text-[17px] font-black text-[#0d326b]">Active vs Inactive</h3>
-                    <p class="text-[12px] text-slate-400 mt-0.5">SY {{ $currentDepEdSY }} · by student status</p>
+                    <p class="text-[12px] text-slate-400 mt-0.5">S.Y. {{ $currentDepEdSY }} · {{ $periodDescription }}</p>
                 </div>
                 <span class="material-symbols-outlined text-slate-300 text-[24px]">donut_large</span>
             </div>
@@ -525,7 +516,7 @@ foreach ($pieData as $pd) {
             @else
             <div class="flex-1 flex flex-col items-center justify-center py-12">
                 <span class="material-symbols-outlined text-slate-200 text-[52px]">donut_large</span>
-                <p class="text-[13px] text-slate-400 mt-3 font-600">No student data for SY {{ $currentDepEdSY }}.</p>
+                <p class="text-[13px] text-slate-400 mt-3 font-600">No student activity for {{ $periodDescription }}.</p>
             </div>
             @endif
         </div>
@@ -539,7 +530,7 @@ foreach ($pieData as $pd) {
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Per Classroom</p>
                 <h3 class="text-[17px] font-black text-[#0d326b]">Class Performance Scorecard</h3>
                 <p class="text-[12px] text-slate-400 mt-0.5">
-                    Ranked by avg score · Active students · Quiz pass rate · Checkpoint exam pass rate — {{ ucfirst($period) }} period
+                    Ranked by avg score · Active students · Quiz pass rate · Checkpoint exam pass rate — {{ $periodDescription }}
                 </p>
             </div>
             <span class="material-symbols-outlined text-slate-300 text-[24px]">grading</span>
@@ -559,15 +550,15 @@ foreach ($pieData as $pd) {
                 @foreach($classPerformance as $i => $cls)
                 @php
                     $badgeClass = $i===0?'rank-badge-gold':($i===1?'rank-badge-silver':($i===2?'rank-badge-bronze':'rank-badge-default'));
-                    $sc      = $cls['avg_quiz_score'] >= 75 ? '#16a34a' : ($cls['avg_quiz_score'] >= 50 ? '#d97706' : '#ef4444');
-                    $qColor  = $cls['quiz_pass_rate'] >= 75 ? '#16a34a' : ($cls['quiz_pass_rate'] >= 50 ? '#d97706' : '#ef4444');
-                    $ckColor = $cls['ck_pass_rate']   >= 75 ? '#16a34a' : ($cls['ck_pass_rate']   >= 50 ? '#d97706' : '#ef4444');
-                    $actColor= $cls['active_pct']     >= 70 ? '#16a34a' : ($cls['active_pct']     >= 40 ? '#d97706' : '#ef4444');
+                    $sc      = $cls['avg_quiz_score'] >= 75 ? '#0d326b' : ($cls['avg_quiz_score'] >= 50 ? '#1a6fd4' : '#93c5fd');
+                    $qColor  = $cls['quiz_pass_rate'] >= 75 ? '#0d326b' : ($cls['quiz_pass_rate'] >= 50 ? '#1a6fd4' : '#93c5fd');
+                    $ckColor = $cls['ck_pass_rate']   >= 75 ? '#0d326b' : ($cls['ck_pass_rate']   >= 50 ? '#1a6fd4' : '#93c5fd');
+                    $actColor= $cls['active_pct']     >= 70 ? '#0d326b' : ($cls['active_pct']     >= 40 ? '#1a6fd4' : '#93c5fd');
                     $sl = $cls['status']==='on_track'
-                        ? ['background:#ecfdf5','color:#15803d','On Track']
+                        ? ['background:#eff6ff','color:#0d326b','On Track']
                         : ($cls['status']==='needs_attention'
-                            ? ['background:#fffbeb','color:#b45309','Needs Attention']
-                            : ['background:#fef2f2','color:#b91c1c','Needs Support']);
+                            ? ['background:#dbeafe','color:#1e4b8f','Needs Attention']
+                            : ['background:#bfdbfe','color:#0d326b','Needs Support']);
                 @endphp
                 <tr style="border-bottom:1px solid #f8fafc;transition:background .15s;"
                     onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -652,12 +643,6 @@ foreach ($pieData as $pd) {
 
 <script>
 /* ── Period-aware month filter ─────────────────────────────────────────── */
-function toggleMonthWrap() {
-    const p = document.getElementById('periodSelect').value;
-    const w = document.getElementById('monthFilterWrap');
-    if (w) w.classList.toggle('hidden', !['monthly','quarterly'].includes(p));
-}
-
 /* ── Enrollment bar chart tooltip ──────────────────────────────────────── */
 const enrollTip = document.getElementById('enrollTip');
 function showEnrollTip(e, el) {

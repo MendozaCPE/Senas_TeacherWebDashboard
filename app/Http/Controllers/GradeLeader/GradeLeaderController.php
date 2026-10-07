@@ -77,16 +77,36 @@ class GradeLeaderController extends Controller
         $schoolId   = $this->schoolId();
         $school     = Auth::user()->teacher->school ?? null;
 
+        // Keep every student and learning metric on this dashboard aligned to
+        // the school's active academic year.
+        $activeSy = SchoolYear::activeForSchool($schoolId);
+        $activeSyName = $activeSy ? $activeSy->name : SchoolYear::currentDepEdLabel();
+        $activeSyId = $activeSy?->id ?? SchoolYear::where('school_id', $schoolId)
+            ->where('name', $activeSyName)
+            ->value('id');
+        $activeSyStartDate = $activeSy?->start_date
+            ?? Carbon::createFromDate((int) explode('-', $activeSyName)[0], 7, 1);
+
         $teacherIds = $this->schoolTeacherIds($schoolId);
-        $studentIds = $this->schoolStudentIds($schoolId);
+        $studentIds = Student::where('school_id', $schoolId)
+            ->where('school_year', $activeSyName)
+            ->where('is_enrolled', true)
+            ->pluck('student_id');
+        $currentYearTeacherIds = Student::whereIn('student_id', $studentIds)
+            ->whereNotNull('teacher_id')
+            ->distinct()
+            ->pluck('teacher_id');
+        $dashboardTeacherIds = $teacherIds->intersect($currentYearTeacherIds)->values();
 
         // ── KPI Counts ───────────────────────────────────────────────────────
+        $activeClassrooms = $dashboardTeacherIds->count();
         $totalTeachers = $teacherIds->count();
         $totalStudents = $studentIds->count();
 
         // Lesson completion rate for the school
         $lessonTotals = DB::table('lesson_assignments')
             ->whereIn('student_id', $studentIds)
+            ->where('school_year_id', $activeSyId)
             ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
             ->first();
 
@@ -99,13 +119,22 @@ class GradeLeaderController extends Controller
         // Average quiz score across the school
         $avgQuizScore = round((float) DB::table('quiz_attempts')
             ->whereIn('student_id', $studentIds)
+            ->where('school_year_id', $activeSyId)
             ->where('status', 'completed')
             ->avg('percentage') ?? 0, 1);
+        $completedQuizAttempts = DB::table('quiz_attempts')
+            ->whereIn('student_id', $studentIds)
+            ->where('school_year_id', $activeSyId)
+            ->where('status', 'completed')
+            ->count();
 
         // Active students in last 7 days
-        $activeStudents = Student::whereIn('student_id', $studentIds)
-            ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
-            ->count();
+        $activeStudents = DB::table('lesson_assignments')
+            ->whereIn('student_id', $studentIds)
+            ->where('school_year_id', $activeSyId)
+            ->where('updated_at', '>=', Carbon::now()->subDays(7))
+            ->distinct()
+            ->count('student_id');
 
         // ── 14-Day Activity Trend ─────────────────────────────────────────────
         $activityTrend = [];
@@ -113,12 +142,14 @@ class GradeLeaderController extends Controller
             $date = Carbon::now()->subDays($i)->toDateString();
             $completionsCount = DB::table('lesson_assignments')
                 ->whereIn('student_id', $studentIds)
+                ->where('school_year_id', $activeSyId)
                 ->where('status', 'completed')
                 ->whereDate('updated_at', $date)
                 ->count();
 
             $activeStudentsOnDay = DB::table('lesson_assignments')
                 ->whereIn('student_id', $studentIds)
+                ->where('school_year_id', $activeSyId)
                 ->whereDate('updated_at', $date)
                 ->distinct()
                 ->count('student_id');
@@ -133,20 +164,23 @@ class GradeLeaderController extends Controller
         }
 
         // ── Top Classes (teachers by student avg quiz score) ──────────────────
-        $topClasses = Teacher::whereIn('id', $teacherIds)
+        $topClasses = Teacher::whereIn('id', $dashboardTeacherIds)
             ->with('user')
-            ->withCount('students')
             ->get()
-            ->map(function ($teacher) {
-                $studentIds = $teacher->students()->pluck('student_id');
+            ->map(function ($teacher) use ($activeSyName, $activeSyId) {
+                $studentIds = Student::where('teacher_id', $teacher->id)
+                    ->where('school_year', $activeSyName)
+                    ->where('is_enrolled', true)
+                    ->pluck('student_id');
                 $avg = DB::table('quiz_attempts')
                     ->whereIn('student_id', $studentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->avg('percentage') ?? 0;
                 return [
                     'teacher'       => $teacher,
                     'avg_score'     => round((float) $avg, 1),
-                    'student_count' => $teacher->students_count,
+                    'student_count' => $studentIds->count(),
                 ];
             })
             ->sortByDesc('avg_score')
@@ -154,22 +188,26 @@ class GradeLeaderController extends Controller
             ->take(5);
 
         // ── More Data Needed (teachers with no quiz attempts yet) ────────────
-        $moreDataNeeded = Teacher::whereIn('id', $teacherIds)
+        $moreDataNeeded = Teacher::whereIn('id', $dashboardTeacherIds)
             ->with('user')
-            ->withCount('students')
             ->get()
-            ->map(function ($teacher) {
-                $tStudentIds = $teacher->students()->pluck('student_id');
+            ->map(function ($teacher) use ($activeSyName, $activeSyId) {
+                $tStudentIds = Student::where('teacher_id', $teacher->id)
+                    ->where('school_year', $activeSyName)
+                    ->where('is_enrolled', true)
+                    ->pluck('student_id');
                 $attemptCount = DB::table('quiz_attempts')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->count();
                 $assignedCount = DB::table('lesson_assignments')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->count();
                 return [
                     'teacher'        => $teacher,
-                    'student_count'  => $teacher->students_count,
+                    'student_count'  => $tStudentIds->count(),
                     'attempt_count'  => $attemptCount,
                     'assigned_count' => $assignedCount,
                 ];
@@ -180,8 +218,6 @@ class GradeLeaderController extends Controller
             ->take(5);
 
         // ── School Year Transition Context ──────────────────────────────────
-        $activeSy = SchoolYear::activeForSchool($schoolId);
-        $activeSyName = $activeSy ? $activeSy->name : SchoolYear::currentDepEdLabel();
         [$startY, $endY] = explode('-', $activeSyName);
         $targetSyName = ((int)$endY) . '-' . (((int)$endY) + 1);
 
@@ -192,23 +228,31 @@ class GradeLeaderController extends Controller
             ->groupBy('teacher_id');
 
         // ── Recently active teachers in the school ───────────────────────────
-        $recentTeachers = Teacher::whereIn('id', $teacherIds)
-            ->with(['user', 'students'])
+        $recentTeachers = Teacher::whereIn('id', $dashboardTeacherIds)
+            ->with('user')
             ->get()
-            ->map(function ($teacher) use ($studentIds, $transitionNotifs) {
+            ->map(function ($teacher) use ($studentIds, $transitionNotifs, $activeSyName, $activeSyId) {
                 // Per-teacher stats
-                $tStudentIds = $teacher->students()->pluck('student_id');
+                $tStudentIds = Student::where('teacher_id', $teacher->id)
+                    ->where('school_year', $activeSyName)
+                    ->where('is_enrolled', true)
+                    ->pluck('student_id');
                 $avgScore = DB::table('quiz_attempts')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->avg('percentage') ?? 0;
                 $completedLessons = DB::table('lesson_assignments')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->count();
-                $activeStudentsCount = Student::whereIn('student_id', $tStudentIds)
-                    ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
-                    ->count();
+                $activeStudentsCount = DB::table('lesson_assignments')
+                    ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
+                    ->where('updated_at', '>=', Carbon::now()->subDays(7))
+                    ->distinct()
+                    ->count('student_id');
 
                 $tNotif = $transitionNotifs->get($teacher->id)?->first();
                 $transitionStatus = 'none';
@@ -242,11 +286,12 @@ class GradeLeaderController extends Controller
             $day  = Carbon::now()->subDays($i);
             $date = $day->toDateString();
             $sparkDates[]    = ['short' => $day->format('M j'), 'day' => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')), 'date' => $day->format('M j, Y')];
-            $sparkStudents[] = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->whereDate('updated_at', $date)->distinct()->count('student_id');
-            $sparkLessons[]  = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->where('status', 'completed')->whereDate('updated_at', $date)->count();
-            $sparkTeachers[] = User::whereIn('id', Teacher::whereIn('id', $teacherIds)->pluck('user_id'))->whereDate('updated_at', '<=', $date)->count();
+            $sparkStudents[] = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->whereDate('updated_at', $date)->distinct()->count('student_id');
+            $sparkLessons[]  = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->where('status', 'completed')->whereDate('updated_at', $date)->count();
+            $sparkTeachers[] = User::whereIn('id', Teacher::whereIn('id', $dashboardTeacherIds)->pluck('user_id'))->whereDate('updated_at', '<=', $date)->count();
             $dayAvg = DB::table('quiz_attempts')
                 ->whereIn('student_id', $studentIds)
+                ->where('school_year_id', $activeSyId)
                 ->where('status', 'completed')
                 ->whereDate('updated_at', $date)
                 ->avg('percentage');
@@ -328,13 +373,13 @@ class GradeLeaderController extends Controller
 
         return view('grade-leader.dashboard', compact(
             'school', 'schoolId',
-            'totalTeachers', 'totalStudents',
+            'totalTeachers', 'activeClassrooms', 'totalStudents',
             'completionRate', 'totalAssigned', 'totalCompleted',
-            'avgQuizScore', 'activeStudents',
+            'avgQuizScore', 'completedQuizAttempts', 'activeStudents',
             'activityTrend', 'topClasses', 'moreDataNeeded', 'recentTeachers',
             'sparkDates', 'sparkStudents', 'sparkLessons', 'sparkTeachers', 'sparkQuizScores',
             'programDonut', 'fslMasteryData',
-            'activeSyName', 'targetSyName'
+            'activeSyName', 'activeSyStartDate', 'targetSyName'
         ));
     }
 
@@ -694,21 +739,74 @@ class GradeLeaderController extends Controller
 
     public function analytics(Request $request)
     {
+        if ($request->boolean('reset_filters')) {
+            session()->forget('grade_leader_analytics_filters');
+            return redirect()->route('grade-leader.analytics');
+        }
+
         $schoolId   = $this->schoolId();
         $school     = Auth::user()->teacher->school ?? null;
         $teacherIds = $this->schoolTeacherIds($schoolId);
-        $studentIds = $this->schoolStudentIds($schoolId);
+        $filters = session('grade_leader_analytics_filters', []);
+        if (array_key_exists('period', $filters) || array_key_exists('year', $filters)) {
+            session()->forget('grade_leader_analytics_filters');
+            $filters = [];
+        }
+        $request->merge($filters);
 
-        $period = $request->get('period', 'weekly');
-        $year   = (int) $request->get('year', date('Y'));
-        $month  = (int) $request->get('month', date('n'));
+        $availableSchoolYears = SchoolYear::where('school_id', $schoolId)->orderByDesc('name')->get();
+        $activeSchoolYear = $availableSchoolYears->firstWhere('status', 'active') ?? $availableSchoolYears->first();
+        $selectedYearName = $request->get('school_year') ?: $activeSchoolYear?->name;
+        $selectedSchoolYear = $availableSchoolYears->firstWhere('name', $selectedYearName) ?? $activeSchoolYear;
+        $selectedMonth = (string) $request->get('month', 'all');
+        if (!in_array($selectedMonth, ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], true)) {
+            $selectedMonth = 'all';
+        }
+
+        $selectedSchoolYearName = $selectedSchoolYear?->name ?? SchoolYear::currentDepEdLabel();
+        [$schoolYearStart, $schoolYearEnd] = array_map('intval', explode('-', $selectedSchoolYearName));
+        $activeSyId = $selectedSchoolYear?->id;
+        $monthOptions = [['value' => 'all', 'label' => 'All Months']];
+        foreach (array_merge(array_map(fn ($m) => [$m, $schoolYearStart], range(7, 12)), array_map(fn ($m) => [$m, $schoolYearEnd], range(1, 6))) as [$monthNumber, $calendarYear]) {
+            $monthOptions[] = [
+                'value' => (string) $monthNumber,
+                'label' => Carbon::create($calendarYear, $monthNumber, 1)->format('F Y'),
+            ];
+        }
+
+        $year = $selectedMonth === 'all' ? $schoolYearStart : ((int) $selectedMonth >= 7 ? $schoolYearStart : $schoolYearEnd);
+        $month = $selectedMonth === 'all' ? null : (int) $selectedMonth;
+        $period = $month === null ? 'yearly' : 'monthly';
+        $periodDescription = $month === null
+            ? 'S.Y. ' . $selectedSchoolYearName
+            : Carbon::create($year, $month, 1)->format('F Y');
+        if ($month === null) {
+            $startDate = Carbon::create($schoolYearStart, 7, 1)->startOfDay();
+            $endDate = Carbon::create($schoolYearEnd, 6, 30)->endOfDay();
+        } else {
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth()->startOfDay();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
+        }
+
+        if ($selectedSchoolYear?->status === 'active') {
+            $studentIds = Student::where('school_id', $schoolId)
+                ->where('school_year', $selectedSchoolYearName)
+                ->where('is_enrolled', true)
+                ->pluck('student_id')->unique()->values();
+        } elseif ($selectedSchoolYear) {
+            $studentIds = StudentYearEnrollment::where('school_id', $schoolId)
+                ->where('school_year_name', $selectedSchoolYearName)
+                ->pluck('student_id')->unique()->values();
+        } else {
+            $studentIds = collect();
+        }
 
         // ── Date window ───────────────────────────────────────────────────────
-        [$startDate, $endDate] = $this->buildDateWindow($period, $year, $month);
 
         // ── Top-level KPIs ────────────────────────────────────────────────────
         $avgQuizScore = round((float) DB::table('quiz_attempts')
             ->whereIn('student_id', $studentIds)
+            ->where('school_year_id', $activeSyId)
             ->where('status', 'completed')
             ->whereBetween('completed_at', [$startDate, $endDate])
             ->avg('percentage') ?? 0, 1);
@@ -716,12 +814,14 @@ class GradeLeaderController extends Controller
         $quizPassRate = $studentIds->isNotEmpty()
             ? round((float) DB::table('quiz_attempts')
                 ->whereIn('student_id', $studentIds)
+                ->where('school_year_id', $activeSyId)
                 ->where('status', 'completed')
                 ->where('percentage', '>=', 75)
                 ->whereBetween('completed_at', [$startDate, $endDate])
                 ->count() /
               max(1, DB::table('quiz_attempts')
                 ->whereIn('student_id', $studentIds)
+                ->where('school_year_id', $activeSyId)
                 ->where('status', 'completed')
                 ->whereBetween('completed_at', [$startDate, $endDate])
                 ->count()) * 100, 1)
@@ -729,31 +829,42 @@ class GradeLeaderController extends Controller
 
         $completionRate = 0; // not used in new analytics layout
 
-        $activeStudentsCount = Student::whereIn('student_id', $studentIds)
-            ->whereBetween('last_activity_date', [$startDate->toDateString(), $endDate->toDateString()])
-            ->count();
+        $activityStudentIds = StudentLessonProgress::whereIn('student_id', $studentIds)
+            ->where('school_year_id', $activeSyId)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_accessed_at', [$startDate, $endDate])
+                    ->orWhereBetween('updated_at', [$startDate, $endDate]);
+            })
+            ->pluck('student_id')
+            ->merge(DB::table('quiz_attempts')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->where('status', 'completed')->whereBetween('completed_at', [$startDate, $endDate])->pluck('student_id'))
+            ->merge(DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->whereBetween('updated_at', [$startDate, $endDate])->pluck('student_id'))
+            ->merge(DB::table('gesture_performances')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->whereBetween('last_attempt_at', [$startDate, $endDate])->pluck('student_id'))
+            ->merge(DB::table('checkpoint_exam_attempts')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->whereBetween('updated_at', [$startDate, $endDate])->pluck('student_id'))
+            ->unique()->values();
+        $activeStudentsCount = $activityStudentIds->count();
 
         // ── CLASS PERFORMANCE: active students, quiz pass rate, checkpoint pass rate per teacher ──
         $classPerformance = Teacher::whereIn('id', $teacherIds)
             ->with('user')
             ->get()
-            ->map(function ($teacher) use ($startDate, $endDate) {
-                $tStudentIds = $teacher->students()->pluck('student_id');
+            ->map(function ($teacher) use ($studentIds, $activityStudentIds, $startDate, $endDate, $activeSyId) {
+                $tStudentIds = Student::whereIn('student_id', $studentIds)
+                    ->where('teacher_id', $teacher->id)
+                    ->pluck('student_id');
                 $total       = $tStudentIds->count();
 
-                // Active: last_activity_date within period
-                $active = Student::whereIn('student_id', $tStudentIds)
-                    ->whereBetween('last_activity_date', [$startDate->toDateString(), $endDate->toDateString()])
-                    ->count();
+                $active = $activityStudentIds->intersect($tStudentIds)->count();
 
                 // Quiz: total completed attempts & those that passed (≥75%)
                 $quizTotal  = DB::table('quiz_attempts')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->whereBetween('completed_at', [$startDate, $endDate])
                     ->count();
                 $quizPassed = DB::table('quiz_attempts')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->where('percentage', '>=', 75)
                     ->whereBetween('completed_at', [$startDate, $endDate])
@@ -762,11 +873,13 @@ class GradeLeaderController extends Controller
                 // Checkpoint exam: completed attempts & those that passed (≥75%)
                 $ckTotal  = DB::table('checkpoint_exam_attempts')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->whereIn('status', ['completed', 'failed'])
                     ->whereBetween('completed_at', [$startDate, $endDate])
                     ->count();
                 $ckPassed = DB::table('checkpoint_exam_attempts')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->where('percentage', '>=', 75)
                     ->whereBetween('completed_at', [$startDate, $endDate])
@@ -774,6 +887,7 @@ class GradeLeaderController extends Controller
 
                 $avgScore = round((float) (DB::table('quiz_attempts')
                     ->whereIn('student_id', $tStudentIds)
+                    ->where('school_year_id', $activeSyId)
                     ->where('status', 'completed')
                     ->whereBetween('completed_at', [$startDate, $endDate])
                     ->avg('percentage') ?? 0), 1);
@@ -797,19 +911,16 @@ class GradeLeaderController extends Controller
                 ];
             })
             ->sortByDesc('avg_quiz_score')
+            ->filter(fn ($class) => $class['total_students'] > 0)
             ->values();
 
         // ── ENROLLMENT BY DEPED SCHOOL YEAR ──────────────────────────────────
         // DepEd SY: July (month 7) of year Y to June (month 6) of year Y+1
         // e.g. July 2024 → June 2025 = "2024-2025"
-        // Determine current DepEd school year based on today's month
-        $nowMonth       = (int) Carbon::now()->format('n');
-        $nowYear        = (int) Carbon::now()->format('Y');
-        $currentDepEdSY = $nowMonth >= 7
-            ? $nowYear . '-' . ($nowYear + 1)
-            : ($nowYear - 1) . '-' . $nowYear;
+        // Anchor the enrollment history to the selected academic year.
+        $currentDepEdSY = $selectedSchoolYearName;
 
-        // Always show exactly 5 years ending at the current SY
+        // Show five years ending at the selected school year.
         [$curStart] = explode('-', $currentDepEdSY);
         $curStart   = (int) $curStart;
         $allDepEdSYs = [];
@@ -829,7 +940,7 @@ class GradeLeaderController extends Controller
             $byProgram = [];
             $total     = 0;
             foreach ($programTypes as $pt) {
-                $cnt = StudentYearEnrollment::whereIn('student_id', $studentIds)
+                $cnt = StudentYearEnrollment::where('school_id', $schoolId)
                     ->where('school_year_name', $sy)
                     ->where('program_type', $pt)
                     ->count();
@@ -842,23 +953,17 @@ class GradeLeaderController extends Controller
             ];
         }
 
-        // ── ACTIVE vs INACTIVE for current DepEd school year (pie chart) ─────
-        // Only counts students whose school_year field is exactly the current SY.
+        // Active/inactive is period-scoped, matching the selected year/month filters.
         $activeInactivePie = [
-            'school_year' => $currentDepEdSY,
-            'active'      => Student::whereIn('student_id', $studentIds)
-                ->where('school_year', $currentDepEdSY)
-                ->where('status', 'active')
-                ->count(),
-            'inactive'    => Student::whereIn('student_id', $studentIds)
-                ->where('school_year', $currentDepEdSY)
-                ->whereIn('status', ['inactive', 'archived'])
-                ->count(),
+            'school_year' => $selectedSchoolYearName,
+            'active'      => $activeStudentsCount,
+            'inactive'    => max(0, $studentIds->count() - $activeStudentsCount),
         ];
-        $activeInactivePie['total'] = $activeInactivePie['active'] + $activeInactivePie['inactive'];
+        $activeInactivePie['total'] = $studentIds->count();
 
         return view('grade-leader.analytics', compact(
-            'school', 'period', 'year', 'month',
+            'school', 'period', 'periodDescription', 'year', 'month',
+            'availableSchoolYears', 'selectedSchoolYear', 'activeSchoolYear', 'selectedMonth', 'monthOptions',
             'startDate', 'endDate',
             'avgQuizScore', 'quizPassRate', 'completionRate', 'activeStudentsCount',
             'classPerformance',
@@ -874,16 +979,13 @@ class GradeLeaderController extends Controller
     public function analyticsFilter(Request $request)
     {
         $validated = $request->validate([
-            'period' => ['nullable', 'string', 'in:weekly,monthly,quarterly,yearly'],
-            'year'   => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'month'  => ['nullable', 'integer', 'min:1', 'max:12'],
+            'school_year' => ['required', 'string', 'max:20'],
+            'month'       => ['required', 'string', 'in:all,1,2,3,4,5,6,7,8,9,10,11,12'],
         ]);
 
-        if (empty(array_filter($validated))) {
-            session()->forget('tl_analytics_filters');
-        } else {
-            session(['tl_analytics_filters' => $validated]);
-        }
+        $schoolId = $this->schoolId();
+        abort_unless(SchoolYear::where('school_id', $schoolId)->where('name', $validated['school_year'])->exists(), 422);
+        session(['grade_leader_analytics_filters' => $validated]);
 
         return redirect()->route('grade-leader.analytics');
     }

@@ -13,6 +13,8 @@
         {{-- Left / Center column --}}
         <div class="flex-1 min-w-0 flex flex-col space-y-4">
 
+            <div class="skeleton skeleton-card h-[92px] rounded-2xl"></div>
+
             {{-- Welcome banner + calendar --}}
             <div class="flex flex-col sm:flex-row gap-5">
                 {{-- Banner --}}
@@ -271,7 +273,7 @@ if ($activeRate >= 65) {
     $insights[] = [
         'category' => 'STUDENT ENGAGEMENT',
         'icon'     => 'group',
-        'text'     => "<strong>{$activeStudents}</strong> active students ({$activeRate}%) this week across {$totalTeachers} monitored classrooms."
+        'text'     => "<strong>{$activeStudents}</strong> active students ({$activeRate}%) this week across {$activeClassrooms} active classrooms."
     ];
 }
 
@@ -318,6 +320,32 @@ if (empty($insights)) {
 
         <!-- ── Left / Center Column ────────────────────────────────────────── -->
         <div class="flex-1 min-w-0 flex flex-col space-y-4">
+
+            <!-- Academic Session -->
+            <div class="flex items-center justify-between gap-4 bg-white px-6 py-4 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+                    </span>
+                    <div class="min-w-0">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Academic Session</span>
+                        <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                            <span class="text-[14px] font-black text-slate-800">School Year {{ $activeSyName }}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
+                        </div>
+                        <span class="text-[11px] font-medium text-slate-400 block mt-0.5">{{ \Carbon\Carbon::parse($activeSyStartDate)->format('M d, Y') }} &ndash; Present</span>
+                    </div>
+                </div>
+                @if($totalTeachers > 0)
+                <button type="button"
+                        onclick="openNotifyTransitionModal(null, 'All Teachers')"
+                        class="flex-shrink-0 inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wide text-white shadow-sm hover:opacity-95 transition-all max-w-[132px] sm:max-w-none"
+                        style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%)">
+                    <span class="material-symbols-outlined text-[15px]">calendar_month</span>
+                    <span class="text-center leading-tight">Notify for S.Y.<br class="sm:hidden"> {{ $targetSyName }}</span>
+                </button>
+                @endif
+            </div>
 
             <!-- Welcome Banner + Calendar Widget -->
             <div class="flex flex-col sm:flex-row gap-5">
@@ -392,27 +420,41 @@ if (empty($insights)) {
             <!-- Stats Row: 4 KPI Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
-                {{-- Total Teachers --}}
+                {{-- Active Classrooms --}}
                 <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-9 h-9 rounded-full bg-[#0d326b] flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-white text-[18px]">meeting_room</span>
+                        </div>
+                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Active Classrooms</h3>
+                    </div>
+                    <div>
+                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $activeClassrooms }}</p>
+                        <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">with enrolled students</p>
+                    </div>
+                </div>
+
+                {{-- Total Teachers --}}
+                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-white text-[18px]">supervisor_account</span>
                         </div>
-                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Teachers</h3>
+                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Teachers</h3>
                     </div>
                     <div>
                         <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalTeachers }}</p>
-                        <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">in {{ $school->name ?? 'your school' }}</p>
+                        <p class="text-[12px] font-medium text-[#1a6fd4] mt-2 whitespace-nowrap">All school teachers</p>
                     </div>
                 </div>
 
                 {{-- Total Students --}}
                 <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0">
+                        <div class="w-9 h-9 rounded-full bg-[#1a6fd4] flex items-center justify-center flex-shrink-0">
                             <span class="material-symbols-outlined text-white text-[18px]">group</span>
                         </div>
-                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Students</h3>
+                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Enrolled Students</h3>
                     </div>
                     <div>
                         <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalStudents }}</p>
@@ -420,31 +462,17 @@ if (empty($insights)) {
                     </div>
                 </div>
 
-                {{-- Lesson Completion Rate --}}
+                {{-- School Performance --}}
                 <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-full bg-[#1a6fd4] flex items-center justify-center flex-shrink-0">
-                            <span class="material-symbols-outlined text-white text-[18px]">task_alt</span>
+                        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-white text-[18px]">school</span>
                         </div>
-                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Completion Rate</h3>
+                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">School Performance</h3>
                     </div>
                     <div>
-                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $completionRate }}%</p>
-                        <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">{{ number_format($totalCompleted) }} / {{ number_format($totalAssigned) }} lessons</p>
-                    </div>
-                </div>
-
-                {{-- Avg Quiz Score --}}
-                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-full bg-[#3b82f6] flex items-center justify-center flex-shrink-0">
-                            <span class="material-symbols-outlined text-white text-[18px]">insights</span>
-                        </div>
-                        <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Avg Quiz Score</h3>
-                    </div>
-                    <div>
-                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $avgQuizScore }}%</p>
-                        <p class="text-[12px] font-medium text-[#3b82f6] mt-2">school-wide average</p>
+                        <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($avgQuizScore, 1) }}%</p>
+                        <p class="text-[11px] font-medium text-[#1a6fd4] mt-2 whitespace-nowrap">Quiz average</p>
                     </div>
                 </div>
 
@@ -647,17 +675,12 @@ if (empty($insights)) {
                 <div class="px-7 pt-7 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
                     <div>
                         <h4 class="text-[15px] font-black text-[#0d326b]">Teachers</h4>
-                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">{{ $totalTeachers }} in {{ $school->name ?? 'your school' }} • Active S.Y. <span class="font-bold text-slate-700">{{ $activeSyName ?? '2025-2026' }}</span></p>
+                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">Active S.Y. <span class="font-bold text-slate-700">{{ $activeSyName ?? '2025-2026' }}</span></p>
                     </div>
-                    @if($totalTeachers > 0)
-                    <button type="button"
-                            onclick="openNotifyTransitionModal(null, 'All Teachers')"
-                            class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider text-white shadow-sm hover:opacity-95 transition-all"
-                            style="background:linear-gradient(135deg,#4F46E5 0%,#3730A3 100%)">
-                        <span class="material-symbols-outlined text-[14px]">calendar_month</span>
-                        <span>Notify for S.Y. {{ $targetSyName }}</span>
-                    </button>
-                    @endif
+                    <a href="{{ route('grade-leader.reports') }}"
+                       class="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-[#0d326b] hover:bg-[#e8eef8] transition-colors">
+                        View All
+                    </a>
                 </div>
 
                 <div class="mx-7 border-t border-slate-100 flex-shrink-0"></div>
@@ -690,61 +713,48 @@ if (empty($insights)) {
 
                         <!-- Teacher info -->
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2 mb-1">
-                                <p class="text-[13px] font-bold text-slate-800 truncate">
+                            <div class="flex flex-col gap-1 mb-1">
+                                <p class="text-[13px] font-bold text-slate-800 leading-snug break-words">
                                     {{ $t->first_name }} {{ $t->last_name }}
                                 </p>
-                                <div class="flex items-center gap-1.5 flex-shrink-0">
-                                    @if($transStatus === 'completed')
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                            <span class="material-symbols-outlined text-[12px]">check_circle</span>
-                                            S.Y. {{ $targetSyName }} Active
-                                        </span>
-                                    @elseif($transStatus === 'pending')
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                            <span class="material-symbols-outlined text-[12px]">schedule</span>
-                                            Notified (Pending)
-                                        </span>
-                                    @else
-                                        <button type="button"
-                                                onclick="openNotifyTransitionModal({{ $t->id }}, '{{ addslashes($t->first_name . ' ' . $t->last_name) }}')"
-                                                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200/60">
-                                            <span class="material-symbols-outlined text-[11px]">send</span>
-                                            Notify S.Y.
-                                        </button>
-                                    @endif
-
-                                    @if($avg > 0)
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black"
-                                          style="background:{{ $scoreBg }};color:{{ $scoreColor }}">
-                                        {{ $avg }}%
-                                    </span>
-                                    @endif
-                                </div>
                             </div>
 
                             <!-- Progress bar = avg quiz score -->
                             <div class="flex items-center gap-2 mb-1">
                                 <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                     <div class="h-full rounded-full transition-all duration-500"
-                                         style="width:{{ max(4, $avg) }}%;background:{{ $scoreColor }}"></div>
+                                         style="width:{{ max(4, $avg) }}%;background:linear-gradient(90deg,#1e4b8f 0%,#1a6fd4 100%)"></div>
                                 </div>
+                                @if($avg > 0)
+                                <span class="inline-flex items-center justify-center min-w-[52px] px-2.5 py-1 rounded-full text-[12px] font-black text-[#1a6fd4] bg-blue-50 flex-shrink-0">
+                                    {{ $avg }}%
+                                </span>
+                                @endif
                             </div>
 
-                            <div class="flex items-center gap-3 text-[10px] text-slate-400">
+                            <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
                                 <span class="flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[11px] icon-outline">group</span>
                                     {{ $row['student_count'] }} {{ Str::plural('student', $row['student_count']) }}
                                 </span>
-                                <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[11px] icon-outline">task_alt</span>
-                                    {{ $row['lessons_done'] }} done
-                                </span>
-                                @if($row['active_students'] > 0)
-                                <span class="flex items-center gap-1 text-[#1a6fd4] font-semibold">
-                                    <span class="material-symbols-outlined text-[11px]">bolt</span>
-                                    {{ $row['active_students'] }} active
-                                </span>
+                                @if($transStatus === 'completed')
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <span class="material-symbols-outlined text-[11px]">check_circle</span>
+                                        S.Y. {{ $targetSyName }} Active
+                                    </span>
+                                @elseif($transStatus === 'pending')
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                        <span class="material-symbols-outlined text-[11px]">schedule</span>
+                                        S.Y. {{ $targetSyName }} Pending
+                                    </span>
+                                @else
+                                    <button type="button"
+                                            onclick="openNotifyTransitionModal({{ $t->id }}, '{{ addslashes($t->first_name . ' ' . $t->last_name) }}')"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wide text-white shadow-sm hover:opacity-90 transition-opacity"
+                                            style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%)">
+                                        <span class="material-symbols-outlined text-[11px]">send</span>
+                                        Notify S.Y. {{ $targetSyName }}
+                                    </button>
                                 @endif
                             </div>
                         </div>
