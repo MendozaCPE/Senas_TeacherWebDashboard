@@ -274,11 +274,11 @@ class ReportsController extends Controller
                             'started'       => $started,
                             'stepPct'       => $stepPct,
                             'completed'     => $completed,
-                            'quizCompleted' => $started && (bool) $row->quiz_completed,
-                            'quizScore'     => $started ? $row->quiz_score : null,
-                            'lastAccessed'  => ($started && $row->last_accessed_at)
+                            'quizCompleted' => (bool) ($row?->quiz_completed),
+                            'quizScore'     => $row?->quiz_score,
+                            'lastAccessed'  => ($row && $row->last_accessed_at)
                                 ? Carbon::parse($row->last_accessed_at)->diffForHumans()
-                                : '—',
+                                : ($assignment && $assignment->updated_at ? Carbon::parse($assignment->updated_at)->diffForHumans() : '—'),
                         ];
                     })->values();
 
@@ -673,14 +673,14 @@ class ReportsController extends Controller
                         'ai_generated'  => (bool) $lesson->ai_generated,
                         'started'       => $started,
                         'completed'     => $completed,
-                        'quizCompleted' => $started && (bool) $row->quiz_completed,
-                        'quizScore'     => $started ? $row->quiz_score : null,
-                        'currentStep'   => $started ? $row->current_step : 0,
+                        'quizCompleted' => (bool) ($row?->quiz_completed),
+                        'quizScore'     => $row?->quiz_score,
+                        'currentStep'   => $row?->current_step ?? 0,
                         'totalSteps'    => $totalSteps,
                         'stepPct'       => $stepPct,
-                        'lastAccessed'  => ($started && $row->last_accessed_at)
+                        'lastAccessed'  => ($row && $row->last_accessed_at)
                             ? Carbon::parse($row->last_accessed_at)->format('M d, Y')
-                            : '—',
+                            : ($assignment && $assignment->updated_at ? Carbon::parse($assignment->updated_at)->format('M d, Y') : '—'),
                     ];
                 })->values();
 
