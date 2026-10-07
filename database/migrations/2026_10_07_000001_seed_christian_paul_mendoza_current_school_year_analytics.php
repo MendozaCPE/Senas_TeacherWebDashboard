@@ -28,7 +28,7 @@ return new class extends Migration
         }
 
         if (!$teacher) {
-            throw new RuntimeException('Christian Paul Mendoza teacher record was not found.');
+            return;
         }
 
         $schoolYear = DB::table('school_years')
@@ -38,7 +38,7 @@ return new class extends Migration
             ->first();
 
         if (!$schoolYear) {
-            throw new RuntimeException('No active school year exists for Christian Paul Mendoza\'s school.');
+            return;
         }
 
         // Reuse the project's curated dummy student, lesson, and activity data.
