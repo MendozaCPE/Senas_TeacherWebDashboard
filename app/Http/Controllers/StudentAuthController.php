@@ -7,7 +7,7 @@ use App\Models\Lesson;
 use App\Models\LessonAssignment;
 use App\Models\Student;
 use App\Models\SchoolYear;
-use App\Models\StudentEnrollment;
+use App\Models\StudentYearEnrollment;
 use App\Models\StudentPromotion; 
 use App\Models\User;
 use App\Models\StudentSetting;
@@ -43,39 +43,31 @@ use Carbon\Carbon;
 class StudentAuthController extends Controller
 {
 
-    /**
+        /**
      * Resolve the student's active or target school year context.
-     * Returns array with:
-     * - 'school_year_id'
-     * - 'school_year_name'
-     * - 'active_school_year'
-     * - 'active_school_year_id'
-     * - 'is_enrolled_in_active_year'
-     * - 'is_enrolled_in_selected_year'
-     * - 'enrolled_school_years'
-     * - 'start_date'
-     * - 'end_date'
      */
     protected function resolveStudentSchoolYear(Student $student, ?string $requestedSy = null, ?int $requestedSyId = null): array
     {
-        $activeSy = SchoolYear::where('is_active', true)->first();
+        // 1. Fetch active school year
+        $activeSy = SchoolYear::where('status', 'active')->first();
         if (!$activeSy) {
-            $activeSy = SchoolYear::orderBy('school_year_id', 'desc')->first();
+            $activeSy = SchoolYear::orderBy('id', 'desc')->first();
         }
 
-        $enrollments = StudentEnrollment::where('student_id', $student->student_id)
+        // 2. Fetch all student year enrollments ordered by latest
+        $enrollments = StudentYearEnrollment::where('student_id', $student->student_id)
             ->with('schoolYear')
-            ->orderBy('student_enrollment_id', 'desc')
+            ->orderBy('id', 'desc')
             ->get();
 
         $enrolledSyList = [];
         $isEnrolledInActive = false;
-        $activeSyId = $activeSy ? $activeSy->school_year_id : null;
+        $activeSyId = $activeSy ? $activeSy->id : null;
 
         foreach ($enrollments as $enr) {
             $syObj = $enr->schoolYear;
-            $syName = $syObj ? $syObj->school_year_name : ($enr->school_year ?: 'Unknown');
-            $syId = $syObj ? $syObj->school_year_id : null;
+            $syName = $syObj ? $syObj->name : ($enr->school_year_name ?: 'Unknown');
+            $syId = $enr->school_year_id ?? ($syObj ? $syObj->id : null);
 
             if ($activeSyId && $syId === $activeSyId) {
                 $isEnrolledInActive = true;
@@ -87,12 +79,13 @@ class StudentAuthController extends Controller
                 'program_type' => $enr->program_type ?? $student->program_type,
                 'grade_level' => $enr->grade_level ?? $student->grade_level,
                 'section' => $enr->section ?? $student->section,
-                'is_active' => $activeSy && ($syId === $activeSy->school_year_id || $syName === $activeSy->school_year_name),
+                'is_active' => $activeSy && ($syId === $activeSy->id || $syName === $activeSy->name),
                 'is_enrolled' => true,
-                'enrolled_at' => $enr->created_at ? $enr->created_at->toISOString() : null,
+                'enrolled_at' => $enr->enrolled_at ? $enr->enrolled_at->toISOString() : ($enr->created_at ? $enr->created_at->toISOString() : null),
             ];
         }
 
+        // Deduplicate enrolled school years by name
         $uniqueSyList = [];
         $seenNames = [];
         foreach ($enrolledSyList as $item) {
@@ -102,10 +95,11 @@ class StudentAuthController extends Controller
             }
         }
 
+        // Fallback if no enrollment table records exist yet for this student
         if (empty($uniqueSyList) && $activeSy) {
             $uniqueSyList[] = [
-                'school_year_id' => $activeSy->school_year_id,
-                'school_year_name' => $activeSy->school_year_name,
+                'school_year_id' => $activeSy->id,
+                'school_year_name' => $activeSy->name,
                 'program_type' => $student->program_type,
                 'grade_level' => $student->grade_level,
                 'section' => $student->section,
@@ -116,11 +110,12 @@ class StudentAuthController extends Controller
             $isEnrolledInActive = true;
         }
 
+        // 3. Resolve target school year
         $targetSy = null;
         if ($requestedSyId) {
             $targetSy = SchoolYear::find($requestedSyId);
         } elseif (!empty($requestedSy)) {
-            $targetSy = SchoolYear::where('school_year_name', $requestedSy)->first();
+            $targetSy = SchoolYear::where('name', $requestedSy)->first();
         }
 
         if (!$targetSy) {
@@ -130,7 +125,7 @@ class StudentAuthController extends Controller
                 $firstSyId = $uniqueSyList[0]['school_year_id'];
                 $targetSy = $firstSyId ? SchoolYear::find($firstSyId) : null;
                 if (!$targetSy) {
-                    $targetSy = SchoolYear::where('school_year_name', $uniqueSyList[0]['school_year_name'])->first();
+                    $targetSy = SchoolYear::where('name', $uniqueSyList[0]['school_year_name'])->first();
                 }
             }
             if (!$targetSy) {
@@ -138,8 +133,8 @@ class StudentAuthController extends Controller
             }
         }
 
-        $targetSyId = $targetSy ? $targetSy->school_year_id : null;
-        $targetSyName = $targetSy ? $targetSy->school_year_name : ($activeSy ? $activeSy->school_year_name : null);
+        $targetSyId = $targetSy ? $targetSy->id : null;
+        $targetSyName = $targetSy ? $targetSy->name : ($activeSy ? $activeSy->name : null);
 
         $isEnrolledInSelected = false;
         foreach ($uniqueSyList as $item) {
@@ -153,8 +148,8 @@ class StudentAuthController extends Controller
             'school_year_id' => $targetSyId,
             'school_year_name' => $targetSyName,
             'current_school_year' => $targetSyName,
-            'active_school_year' => $activeSy ? $activeSy->school_year_name : null,
-            'active_school_year_id' => $activeSy ? $activeSy->school_year_id : null,
+            'active_school_year' => $activeSy ? $activeSy->name : null,
+            'active_school_year_id' => $activeSy ? $activeSy->id : null,
             'is_enrolled_in_active_year' => $isEnrolledInActive,
             'is_enrolled_in_selected_year' => $isEnrolledInSelected,
             'enrolled_school_years' => $uniqueSyList,
@@ -351,7 +346,7 @@ public function updateSettings(Request $request)
 
     public function profile(Request $request)
     {
-        $user = $request->user();
+        $user = \Illuminate\Support\Facades\Auth::user() ?: $request->user();
         $student = Student::where('user_id', $user->id)->first();
 
         if (!$student) {
@@ -384,7 +379,7 @@ public function updateSettings(Request $request)
         // Calculate completed lessons for the resolved school year
         $completedLessonsCount = \DB::table('student_lesson_progress')
             ->where('student_id', $student->student_id)
-            ->where('is_completed', true)
+            ->where('lesson_completed', true)
             ->when($syId, function ($q) use ($syId) {
                 $q->where('school_year_id', $syId);
             })
@@ -394,7 +389,7 @@ public function updateSettings(Request $request)
         // Find enrollment details for the resolved school year
         $targetEnrollment = null;
         if ($syId) {
-            $targetEnrollment = StudentEnrollment::where('student_id', $student->student_id)
+            $targetEnrollment = StudentYearEnrollment::where('student_id', $student->student_id)
                 ->where('school_year_id', $syId)
                 ->first();
         }
