@@ -408,38 +408,17 @@
             return (tipSpread / (indexLength || 1));
         }
 
-        // Trail geometry is measured in "palm lengths" (pixels / palmPx) so the checks
-        // behave the same on every phone/camera resolution.
-        function trailStats(points, palmPx) {
-            let path = 0;
-            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-            for (let i = 0; i < points.length; i++) {
-                const [x, y] = points[i];
-                if (x < minX) minX = x; if (x > maxX) maxX = x;
-                if (y < minY) minY = y; if (y > maxY) maxY = y;
-                if (i > 0) path += Math.hypot(x - points[i - 1][0], y - points[i - 1][1]);
-            }
-            const first = points[0], last = points[points.length - 1];
-            const net = Math.hypot(last[0] - first[0], last[1] - first[1]);
-            return {
-                path: path / palmPx,
-                extent: Math.max(maxX - minX, maxY - minY) / palmPx,
-                straightness: path > 0 ? net / path : 1
-            };
+        function verifyZigzagGeometry(points) {
+            if (points.length < 3) return false;
+            const xs = points.map(p => p[0]);
+            const ys = points.map(p => p[1]);
+            const width = Math.max(...xs) - Math.min(...xs);
+            const height = Math.max(...ys) - Math.min(...ys);
+            return (width > 1.5 || height > 1.5);
         }
 
-        // Z: a big zig-zag stroke (not hand jitter, not a straight wave)
-        function verifyZigzagGeometry(points, palmPx) {
-            if (points.length < TRAIL_MIN_POINTS) return false;
-            const s = trailStats(points, palmPx);
-            return s.path >= Z_MIN_PATH && s.extent >= Z_MIN_EXTENT && s.straightness <= Z_MAX_STRAIGHTNESS;
-        }
-
-        // J: a big stroke that CURVES (a straight sway or a still hand is not a J)
-        function verifyJScoopGeometry(points, palmPx) {
-            if (points.length < TRAIL_MIN_POINTS) return false;
-            const s = trailStats(points, palmPx);
-            return s.path >= J_MIN_PATH && s.extent >= J_MIN_EXTENT && s.straightness <= J_MAX_STRAIGHTNESS;
+        function verifyJScoopGeometry(points) {
+            return points.length >= 2;
         }
 
         // ============================================================
@@ -447,6 +426,10 @@
         // ============================================================
 
         function processHierarchicalOverrides(predicted, avgConf, landmarks, isActivelyDrawing) {
+            if (isActivelyDrawing && (predicted === 'Z' || predicted === 'J')) {
+                return { letter: predicted, confidence: 0.99 };
+            }
+
             const handScale = getDistance2D(landmarks[0], landmarks[5]);
             const fingers = getFingerStates(landmarks);
             const fingerSpread = getFingerSpread(landmarks);
@@ -787,6 +770,13 @@
                     flatFeatures.push(lm.x, lm.y, lm.z);
                 });
 
+                if (fingers[1] || fingers[4]) {
+                    lstmFeatureSequenceBuffer.push(flatFeatures);
+                    if (lstmFeatureSequenceBuffer.length > LSTM_SEQUENCE_LENGTH) {
+                        lstmFeatureSequenceBuffer.shift();
+                    }
+                }
+
                 let predictedLetter = 'A';
                 let modelConfidence = 0.5;
 
@@ -796,15 +786,9 @@
                         const outputTensor = mobileNetModel.predict(inputTensor);
                         const probabilities = outputTensor.dataSync();
 
-                        // The static model must NEVER answer with a motion letter (J/Z):
-                        // those are only decided by the dynamic (LSTM) path.
-                        let maxIdx = -1, maxP = -1;
-                        for (let i = 0; i < probabilities.length; i++) {
-                            if (STATIC_BLOCKED_IDX.has(i)) continue;
-                            if (probabilities[i] > maxP) { maxP = probabilities[i]; maxIdx = i; }
-                        }
+                        const maxIdx = probabilities.indexOf(Math.max(...probabilities));
                         predictedLetter = ALPHABET[maxIdx] || 'A';
-                        modelConfidence = maxP > 0 ? maxP : 0.5;
+                        modelConfidence = probabilities[maxIdx] || 0.5;
 
                         inputTensor.dispose();
                         outputTensor.dispose();
@@ -854,8 +838,8 @@
         let jTrackingCooldown = 0;
         const MAX_TRAIL = 25;
 
-        let lastPinkyPos = null;
-        let lastIndexPos = null;
+        let lastPinkyPos = { x: 0, y: 0 };
+        let lastIndexPos = { x: 0, y: 0 };
 
         let mobileNetModel = null;
         let lstmModel = null;
@@ -863,41 +847,6 @@
 
         let lstmFeatureSequenceBuffer = [];
         const LSTM_SEQUENCE_LENGTH = 30;
-
-        // ---- Static vs dynamic routing ---------------------------------------
-        const DYNAMIC_LETTERS = new Set(['J', 'Z']);
-        const STATIC_BLOCKED_IDX = new Set(['J', 'Z'].map(l => ALPHABET.indexOf(l)));
-
-        // Tunables (all relative to palm length, so they are resolution independent)
-        const MOTION_THRESHOLD = 0.06;     // per-frame tip travel needed to count as "moving"
-        const TRAIL_MIN_POINTS = 8;
-        const J_MIN_PATH = 0.9, J_MIN_EXTENT = 0.45, J_MAX_STRAIGHTNESS = 0.85;
-        const Z_MIN_PATH = 1.0, Z_MIN_EXTENT = 0.5, Z_MAX_STRAIGHTNESS = 0.8;
-        const LSTM_MIN_CONF = 0.82;
-        // false: geometry decides, LSTM can only veto (safe default)
-        // true : LSTM must also confirm J/Z (once the model is loaded)
-        const REQUIRE_LSTM_FOR_DYNAMIC = false;
-
-        // The letter the learner is currently asked to sign (null = free/test mode).
-        //   static letter (A-I, K-Y)  -> static model only, J/Z impossible
-        //   'J' or 'Z'                -> dynamic path only (LSTM + trail), static model ignored
-        //   null                      -> auto: static by default, J/Z only on a real drawn stroke
-        let targetLetter = (new URLSearchParams(window.location.search).get('target') || '').toUpperCase() || null;
-
-        function getDetectionMode() {
-            if (!targetLetter) return 'auto';
-            return DYNAMIC_LETTERS.has(targetLetter) ? 'dynamic' : 'static';
-        }
-
-        function setTargetLetter(letter) {
-            targetLetter = letter ? String(letter).toUpperCase() : null;
-            trailBuffer = [];
-            lstmFeatureSequenceBuffer = [];
-            jTrackingCooldown = 0;
-            lastPinkyPos = null;
-            lastIndexPos = null;
-        }
-        window.setTargetLetter = setTargetLetter;
 
         let canvasWidth = 0;
         let canvasHeight = 0;
@@ -1003,51 +952,22 @@
                 const indexTipPx = getPixelCoords(indexTip, videoWidth, videoHeight, displayWidth, displayHeight);
                 const pinkyTipPx = getPixelCoords(pinkyTip, videoWidth, videoHeight, displayWidth, displayHeight);
 
-                // Hand size in pixels: all motion thresholds are relative to this
-                const palmPx = getDistance2D(
-                    getPixelCoords(landmarks[0], videoWidth, videoHeight, displayWidth, displayHeight),
-                    getPixelCoords(landmarks[5], videoWidth, videoHeight, displayWidth, displayHeight)
-                ) || 1;
-
-                const pinkyVelocity = lastPinkyPos ? getDistance2D(pinkyTipPx, lastPinkyPos) / palmPx : 0;
-                const indexVelocity = lastIndexPos ? getDistance2D(indexTipPx, lastIndexPos) / palmPx : 0;
+                const pinkyVelocity = getDistance2D(pinkyTipPx, lastPinkyPos);
+                const indexVelocity = getDistance2D(indexTipPx, lastIndexPos);
 
                 lastPinkyPos = pinkyTipPx;
                 lastIndexPos = indexTipPx;
 
-                // Which detectors are even allowed to run for this target letter
-                const detectionMode = getDetectionMode();
-                const allowJ = detectionMode === 'auto' || targetLetter === 'J';
-                const allowZ = detectionMode === 'auto' || targetLetter === 'Z';
-
-                const isActivelyMovingHand = (pinkyVelocity > MOTION_THRESHOLD || indexVelocity > MOTION_THRESHOLD);
-                const isJPose = fingers[4] && !fingers[1] && !fingers[2] && !fingers[3];
-                const isZPose = fingers[1] && !fingers[2] && !fingers[3] && !fingers[4];
-                const isMovingZ = allowZ && isZPose && isActivelyMovingHand;
-                const isMovingJRaw = allowJ && isJPose && isActivelyMovingHand;
+                const isActivelyMovingHand = (pinkyVelocity > 3.0 || indexVelocity > 3.0);
+                const isMovingZ = fingers[1] && !fingers[2] && !fingers[3] && !fingers[4] && isActivelyMovingHand;
+                const isMovingJRaw = fingers[4] && !fingers[1] && !fingers[2] && !fingers[3] && isActivelyMovingHand;
 
                 if (isMovingJRaw) {
                     jTrackingCooldown = 12;
                 } else if (jTrackingCooldown > 0) {
                     jTrackingCooldown--;
                 }
-                const isMovingJ = allowJ && (jTrackingCooldown > 0);
-
-                // Static target: dynamic machinery is completely off
-                if (!allowJ && !allowZ) {
-                    trailBuffer = [];
-                    lstmFeatureSequenceBuffer = [];
-                } else if ((allowJ && isJPose) || (allowZ && isZPose)) {
-                    // Feed the LSTM only with frames from the matching dynamic pose
-                    const lstmFrame = [];
-                    landmarks.forEach(lm => lstmFrame.push(lm.x, lm.y, lm.z));
-                    lstmFeatureSequenceBuffer.push(lstmFrame);
-                    if (lstmFeatureSequenceBuffer.length > LSTM_SEQUENCE_LENGTH) {
-                        lstmFeatureSequenceBuffer.shift();
-                    }
-                } else {
-                    lstmFeatureSequenceBuffer = [];
-                }
+                const isMovingJ = (jTrackingCooldown > 0);
 
                 if (isMovingZ || isMovingJ) {
                     const currentTip = isMovingZ ? indexTipPx : pinkyTipPx;
@@ -1081,40 +1001,34 @@
                 const isActivelyDrawing = trailBuffer.length > 3;
                 let result = detectLetter(landmarks, isActivelyDrawing);
 
-                // J/Z target: the static model is not allowed to name any letter
-                if (detectionMode === 'dynamic') {
-                    result = { letter: '✋', confidence: 0 };
+                if (lstmModel && lstmFeatureSequenceBuffer.length === LSTM_SEQUENCE_LENGTH) {
+                    try {
+                        const lstmInputTensor = tf.tensor3d([lstmFeatureSequenceBuffer], [1, LSTM_SEQUENCE_LENGTH, 63], 'float32');
+                        const lstmOutput = lstmModel.predict(lstmInputTensor);
+                        const dynamicProbabilities = lstmOutput.dataSync();
+
+                        const maxDynamicIdx = dynamicProbabilities.indexOf(Math.max(...dynamicProbabilities));
+                        const dynamicConfidence = dynamicProbabilities[maxDynamicIdx];
+
+                        if (dynamicConfidence > 0.82) {
+                            if (isMovingJ && maxDynamicIdx === 0) {
+                                result = { letter: 'J', confidence: dynamicConfidence };
+                            } else if (isMovingZ && maxDynamicIdx === 1) {
+                                result = { letter: 'Z', confidence: dynamicConfidence };
+                            }
+                        }
+                        lstmInputTensor.dispose();
+                        lstmOutput.dispose();
+                    } catch (e) {
+                        console.warn('LSTM context processing dropped frame:', e);
+                    }
                 }
 
-                // Dynamic path (only reachable when a J/Z detector is allowed)
-                if ((allowJ || allowZ) && (isMovingJ || isMovingZ)) {
-                    let lstmIdx = -1, lstmConf = 0;
-                    if (lstmModel && lstmFeatureSequenceBuffer.length === LSTM_SEQUENCE_LENGTH) {
-                        try {
-                            const lstmInputTensor = tf.tensor3d([lstmFeatureSequenceBuffer], [1, LSTM_SEQUENCE_LENGTH, 63], 'float32');
-                            const lstmOutput = lstmModel.predict(lstmInputTensor);
-                            const probs = lstmOutput.dataSync();
-                            lstmIdx = probs.indexOf(Math.max(...probs));
-                            lstmConf = probs[lstmIdx];
-                            lstmInputTensor.dispose();
-                            lstmOutput.dispose();
-                        } catch (e) {
-                            console.warn('LSTM context processing dropped frame:', e);
-                        }
-                    }
-                    const lstmSure = lstmConf > LSTM_MIN_CONF;
-                    const lstmSays = (idx) => lstmSure && lstmIdx === idx;
-                    const lstmVetoes = (idx) => lstmSure && lstmIdx !== idx;   // confident about the OTHER class
-
-                    const accept = (idx) => {
-                        if (!lstmModel) return true;                       // models offline: geometry only
-                        return REQUIRE_LSTM_FOR_DYNAMIC ? lstmSays(idx) : !lstmVetoes(idx);
-                    };
-
-                    if (isMovingZ && verifyZigzagGeometry(trailBuffer, palmPx) && accept(1)) {
-                        result = { letter: 'Z', confidence: lstmSays(1) ? lstmConf : 0.98 };
-                    } else if (isMovingJ && verifyJScoopGeometry(trailBuffer, palmPx) && accept(0)) {
-                        result = { letter: 'J', confidence: lstmSays(0) ? lstmConf : 0.96 };
+                if (trailBuffer.length > 4) {
+                    if (isMovingZ && verifyZigzagGeometry(trailBuffer)) {
+                        result = { letter: 'Z', confidence: 0.98 };
+                    } else if (isMovingJ && verifyJScoopGeometry(trailBuffer)) {
+                        result = { letter: 'J', confidence: 0.96 };
                     }
                 }
 
@@ -1145,10 +1059,6 @@
                 lastConfidence = result.confidence;
                 detectionCount++;
             } else {
-                lastPinkyPos = null;
-                lastIndexPos = null;
-                jTrackingCooldown = 0;
-                lstmFeatureSequenceBuffer = [];
                 if (detectionCount > 0) {
                     letterElement.textContent = '✋';
                     confidenceElement.textContent = 'Confidence: 0%';
@@ -1364,8 +1274,6 @@
                 const data = JSON.parse(event.data);
                 if (data && data.type === 'switch_camera') {
                     switchCamera();
-                } else if (data && (data.type === 'set_target' || data.type === 'SET_TARGET')) {
-                    setTargetLetter(data.letter);
                 }
             } catch (e) { /* not a JSON message meant for us, ignore */ }
         }
