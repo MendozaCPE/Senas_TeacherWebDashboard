@@ -6,6 +6,8 @@ use App\Models\LearningPath;
 use App\Models\Lesson;
 use App\Models\LessonAssignment;
 use App\Models\Student;
+use App\Models\SchoolYear;
+use App\Models\StudentEnrollment;
 use App\Models\StudentPromotion; 
 use App\Models\User;
 use App\Models\StudentSetting;
@@ -40,6 +42,127 @@ use Carbon\Carbon;
 
 class StudentAuthController extends Controller
 {
+
+    /**
+     * Resolve the student's active or target school year context.
+     * Returns array with:
+     * - 'school_year_id'
+     * - 'school_year_name'
+     * - 'active_school_year'
+     * - 'active_school_year_id'
+     * - 'is_enrolled_in_active_year'
+     * - 'is_enrolled_in_selected_year'
+     * - 'enrolled_school_years'
+     * - 'start_date'
+     * - 'end_date'
+     */
+    protected function resolveStudentSchoolYear(Student $student, ?string $requestedSy = null, ?int $requestedSyId = null): array
+    {
+        $activeSy = SchoolYear::where('is_active', true)->first();
+        if (!$activeSy) {
+            $activeSy = SchoolYear::orderBy('school_year_id', 'desc')->first();
+        }
+
+        $enrollments = StudentEnrollment::where('student_id', $student->student_id)
+            ->with('schoolYear')
+            ->orderBy('student_enrollment_id', 'desc')
+            ->get();
+
+        $enrolledSyList = [];
+        $isEnrolledInActive = false;
+        $activeSyId = $activeSy ? $activeSy->school_year_id : null;
+
+        foreach ($enrollments as $enr) {
+            $syObj = $enr->schoolYear;
+            $syName = $syObj ? $syObj->school_year_name : ($enr->school_year ?: 'Unknown');
+            $syId = $syObj ? $syObj->school_year_id : null;
+
+            if ($activeSyId && $syId === $activeSyId) {
+                $isEnrolledInActive = true;
+            }
+
+            $enrolledSyList[] = [
+                'school_year_id' => $syId,
+                'school_year_name' => $syName,
+                'program_type' => $enr->program_type ?? $student->program_type,
+                'grade_level' => $enr->grade_level ?? $student->grade_level,
+                'section' => $enr->section ?? $student->section,
+                'is_active' => $activeSy && ($syId === $activeSy->school_year_id || $syName === $activeSy->school_year_name),
+                'is_enrolled' => true,
+                'enrolled_at' => $enr->created_at ? $enr->created_at->toISOString() : null,
+            ];
+        }
+
+        $uniqueSyList = [];
+        $seenNames = [];
+        foreach ($enrolledSyList as $item) {
+            if (!in_array($item['school_year_name'], $seenNames)) {
+                $seenNames[] = $item['school_year_name'];
+                $uniqueSyList[] = $item;
+            }
+        }
+
+        if (empty($uniqueSyList) && $activeSy) {
+            $uniqueSyList[] = [
+                'school_year_id' => $activeSy->school_year_id,
+                'school_year_name' => $activeSy->school_year_name,
+                'program_type' => $student->program_type,
+                'grade_level' => $student->grade_level,
+                'section' => $student->section,
+                'is_active' => true,
+                'is_enrolled' => true,
+                'enrolled_at' => null,
+            ];
+            $isEnrolledInActive = true;
+        }
+
+        $targetSy = null;
+        if ($requestedSyId) {
+            $targetSy = SchoolYear::find($requestedSyId);
+        } elseif (!empty($requestedSy)) {
+            $targetSy = SchoolYear::where('school_year_name', $requestedSy)->first();
+        }
+
+        if (!$targetSy) {
+            if ($isEnrolledInActive && $activeSy) {
+                $targetSy = $activeSy;
+            } elseif (!empty($uniqueSyList)) {
+                $firstSyId = $uniqueSyList[0]['school_year_id'];
+                $targetSy = $firstSyId ? SchoolYear::find($firstSyId) : null;
+                if (!$targetSy) {
+                    $targetSy = SchoolYear::where('school_year_name', $uniqueSyList[0]['school_year_name'])->first();
+                }
+            }
+            if (!$targetSy) {
+                $targetSy = $activeSy;
+            }
+        }
+
+        $targetSyId = $targetSy ? $targetSy->school_year_id : null;
+        $targetSyName = $targetSy ? $targetSy->school_year_name : ($activeSy ? $activeSy->school_year_name : null);
+
+        $isEnrolledInSelected = false;
+        foreach ($uniqueSyList as $item) {
+            if ($item['school_year_id'] === $targetSyId || $item['school_year_name'] === $targetSyName) {
+                $isEnrolledInSelected = true;
+                break;
+            }
+        }
+
+        return [
+            'school_year_id' => $targetSyId,
+            'school_year_name' => $targetSyName,
+            'current_school_year' => $targetSyName,
+            'active_school_year' => $activeSy ? $activeSy->school_year_name : null,
+            'active_school_year_id' => $activeSy ? $activeSy->school_year_id : null,
+            'is_enrolled_in_active_year' => $isEnrolledInActive,
+            'is_enrolled_in_selected_year' => $isEnrolledInSelected,
+            'enrolled_school_years' => $uniqueSyList,
+            'start_date' => $targetSy && $targetSy->start_date ? $targetSy->start_date : null,
+            'end_date' => $targetSy && $targetSy->end_date ? $targetSy->end_date : null,
+        ];
+    }
+
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -95,6 +218,7 @@ class StudentAuthController extends Controller
 
         // Create token for mobile app
         $token = $user->createToken('mobile-app')->plainTextToken;
+        $syInfo = $this->resolveStudentSchoolYear($student);
 
        return response()->json([
         'message' => 'Login successful',
@@ -121,6 +245,7 @@ class StudentAuthController extends Controller
                 'notifications_enabled' => $settings->notifications_enabled,
             ],
         ],
+        'school_year_info' => $syInfo,
     ]);
 }
 
@@ -236,6 +361,46 @@ public function updateSettings(Request $request)
         $xpService = new XPService();
         $xpService->updateStreak($student);
 
+        $syInfo = $this->resolveStudentSchoolYear($student, $request->query('school_year'));
+        $syId = $syInfo['school_year_id'];
+
+        // Calculate XP for the resolved school year
+        $quizXp = \DB::table('quiz_attempts')
+            ->where('student_id', $student->student_id)
+            ->when($syId, function ($q) use ($syId) {
+                $q->where('school_year_id', $syId);
+            })
+            ->sum('xp_earned') ?? 0;
+
+        $examXp = \DB::table('checkpoint_exam_attempts')
+            ->where('student_id', $student->student_id)
+            ->when($syId, function ($q) use ($syId) {
+                $q->where('school_year_id', $syId);
+            })
+            ->sum('xp_earned') ?? 0;
+
+        $totalSyXp = (int)$quizXp + (int)$examXp;
+
+        // Calculate completed lessons for the resolved school year
+        $completedLessonsCount = \DB::table('student_lesson_progress')
+            ->where('student_id', $student->student_id)
+            ->where('is_completed', true)
+            ->when($syId, function ($q) use ($syId) {
+                $q->where('school_year_id', $syId);
+            })
+            ->distinct('lesson_id')
+            ->count('lesson_id');
+
+        // Find enrollment details for the resolved school year
+        $targetEnrollment = null;
+        if ($syId) {
+            $targetEnrollment = StudentEnrollment::where('student_id', $student->student_id)
+                ->where('school_year_id', $syId)
+                ->first();
+        }
+
+        $isCustomSy = ($request->query('school_year') || ($syInfo['school_year_name'] !== $syInfo['active_school_year']));
+
         return response()->json([
             'user' => $user,
             'student' => [
@@ -243,16 +408,20 @@ public function updateSettings(Request $request)
                 'lrn' => $student->lrn,
                 'first_name' => $student->first_name,
                 'last_name' => $student->last_name,
-                'program_type' => $student->program_type,
-                'grade_level' => $student->grade_level,
-                'section' => $student->section,
+                'program_type' => $targetEnrollment->program_type ?? $student->program_type,
+                'grade_level' => $targetEnrollment->grade_level ?? $student->grade_level,
+                'section' => $targetEnrollment->section ?? $student->section,
                 'fsl_mastery_level' => $student->fsl_mastery_level,
-                'total_xp' => $student->total_xp ?? 0,
+                'total_xp' => $isCustomSy ? $totalSyXp : ($student->total_xp ?? 0),
                 'today_xp' => $xpService->getTodayXp($student),
                 'streak_days' => $student->streak_days ?? 0,
                 'level' => $student->level ?? 1,
                 'level_name' => $xpService->getLevelName($student->level ?? 1),
+                'lessons_completed_count' => $isCustomSy ? $completedLessonsCount : null,
+                'profile_picture' => $student->profile_picture ?? 'senya',
+                'teacher_id' => $student->teacher_id,
             ],
+            'school_year_info' => $syInfo,
         ]);
     }
 
@@ -417,8 +586,14 @@ public function updateSettings(Request $request)
                 }
             }
 
-            // Get all assigned lesson IDs for this student (only assigned lessons should be on the learning path)
+            $syInfo = $this->resolveStudentSchoolYear($student, $request->query('school_year'));
+            $syId = $syInfo['school_year_id'];
+
+            // Get all assigned lesson IDs for this student for the target school year
             $assignedLessonIds = LessonAssignment::where('student_id', $student->student_id)
+                ->when($syId, function ($q) use ($syId) {
+                    $q->where('school_year_id', $syId);
+                })
                 ->pluck('lesson_id')
                 ->toArray();
 
