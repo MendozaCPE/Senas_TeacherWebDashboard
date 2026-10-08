@@ -243,7 +243,7 @@
             fill: #fff;
         }
 
-        /* ── Compact / Embedded Mode (iframe testing environment) ── */
+        /* ── Compact / Embedded Mode ── */
         body.compact-mode #overlay {
             bottom: 8px;
             left: 8px;
@@ -302,7 +302,6 @@
             height: 15px;
         }
 
-        /* Detection box: keep but lighter */
         body.compact-mode #detection-box {
             border-width: 1px;
             border-color: rgba(78, 205, 196, 0.5);
@@ -367,7 +366,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.min.js"></script>
 
     <script>
-        // Compact mode: minimize UI when loaded inside an iframe (testing dashboard)
         if (window.parent && window.parent !== window) {
             document.body.classList.add('compact-mode');
         }
@@ -380,7 +378,7 @@
         }
 
         // ============================================================
-        // CALIBRATED HEURISTIC FUNCTIONS FOR PORTRAIT MOBILE WEBVIEWS
+        // CALIBRATED HEURISTIC FUNCTIONS
         // ============================================================
         function getFingerStates(landmarks) {
             const tips = [4, 8, 12, 16, 20];
@@ -390,11 +388,9 @@
 
             const handScale = getDistance2D(landmarks[0], landmarks[5]);
 
-            // Thumb calculation: Extended out laterally or up
             const thumbExtended = Math.abs(landmarks[4].x - landmarks[2].x) > (handScale * 0.35) || (landmarks[4].y < landmarks[2].y - handScale * 0.1);
             fingers.push(thumbExtended);
 
-            // Rest of fingers logic
             for (let i = 1; i < tips.length; i++) {
                 const extended = landmarks[tips[i]].y < (landmarks[pips[i]].y - (handScale * 0.05));
                 fingers.push(extended);
@@ -409,16 +405,37 @@
         }
 
         function verifyZigzagGeometry(points) {
-            if (points.length < 3) return false;
+            if (!points || points.length < 6) return false;
             const xs = points.map(p => p[0]);
             const ys = points.map(p => p[1]);
             const width = Math.max(...xs) - Math.min(...xs);
             const height = Math.max(...ys) - Math.min(...ys);
-            return (width > 1.5 || height > 1.5);
+            return (width > 20 && height > 15);
         }
 
         function verifyJScoopGeometry(points) {
-            return points.length >= 2;
+            if (!points || points.length < 6) return false;
+            const xs = points.map(p => p[0]);
+            const ys = points.map(p => p[1]);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+
+            // Real 'J' gesture requires physical motion (minimum vertical & horizontal stroke)
+            if (height < 25 || width < 12) return false;
+
+            const firstPoint = points[0];
+            const midPoint = points[Math.floor(points.length / 2)];
+            const lastPoint = points[points.length - 1];
+
+            const movedDown = midPoint[1] > firstPoint[1] + 8;
+            const hooked = Math.abs(lastPoint[0] - midPoint[0]) > 6 || lastPoint[1] < midPoint[1];
+
+            return movedDown && hooked;
         }
 
         // ============================================================
@@ -426,15 +443,14 @@
         // ============================================================
 
         function processHierarchicalOverrides(predicted, avgConf, landmarks, isActivelyDrawing) {
-            if (isActivelyDrawing && (predicted === 'Z' || predicted === 'J')) {
-                return { letter: predicted, confidence: 0.99 };
+            if (isActivelyDrawing && predicted === 'Z') {
+                return { letter: 'Z', confidence: 0.99 };
             }
 
             const handScale = getDistance2D(landmarks[0], landmarks[5]);
             const fingers = getFingerStates(landmarks);
             const fingerSpread = getFingerSpread(landmarks);
 
-            // Coordinates cache
             const wrist = landmarks[0];
             const thumbTip = landmarks[4];
             const thumbIP = landmarks[3];
@@ -458,7 +474,6 @@
             const pinkyPip = landmarks[18];
             const pinkyMcp = landmarks[17];
 
-            // Base State Separation
             const indexUp = fingers[1];
             const middleUp = fingers[2];
             const ringUp = fingers[3];
@@ -470,7 +485,6 @@
             const distThumbRing = getDistance2D(thumbTip, ringTip);
             const distThumbPinky = getDistance2D(thumbTip, pinkyTip);
 
-            // True Fist Check (Distance-based: highly robust against side-views where Y-coords fail)
             const indexCurled = getDistance2D(indexTip, indexMcp) < (handScale * 0.7);
             const middleCurled = getDistance2D(middleTip, middleMcp) < (handScale * 0.7);
             const ringCurled = getDistance2D(ringTip, ringMcp) < (handScale * 0.7);
@@ -478,9 +492,6 @@
             const isTrueFist = indexCurled && middleCurled && ringCurled && pinkyCurled;
             const isFistState = !indexUp && !middleUp && !ringUp && !pinkyUp;
 
-            // =====================================================================
-            // 1. DIRECTIONAL OVERRIDES & STATES 
-            // =====================================================================
             const indexIsDownwards = indexTip.y > indexMcp.y + (handScale * 0.15);
             const middleIsDownwards = middleTip.y > middleMcp.y + (handScale * 0.15);
 
@@ -488,14 +499,10 @@
             const middleSideways = Math.abs(middleTip.x - middleMcp.x) > (handScale * 0.25) && Math.abs(middleTip.y - middleMcp.y) < (handScale * 0.55);
             const indexUpwards = indexTip.y < indexMcp.y - (handScale * 0.15);
 
-            // Hook states for C micro-checks
             const isIndexHooked = (indexTip.y > indexPip.y) ||
                 (getDistance2D(indexTip, indexMcp) < handScale * 0.45) ||
                 (getDistance2D(indexTip, indexDip) < handScale * 0.12);
 
-            // =====================================================================
-            // 2. 🌟 THE MASTER 'X' DETECTOR 
-            // =====================================================================
             const indexBaseLen = getDistance2D(indexPip, indexMcp);
             const indexTotalLen = getDistance2D(indexTip, indexMcp);
             const middleTotalLen = getDistance2D(middleTip, middleMcp);
@@ -512,9 +519,6 @@
                 }
             }
 
-            // -------------------------------------------------------------------------
-            // GEOMETRIC PRE-CHECKS: C & O PROTECTION MATRIX 
-            // -------------------------------------------------------------------------
             const isEnclosedO = distThumbIndex < (handScale * 0.35) && distThumbMiddle < (handScale * 0.35) &&
                 distThumbRing < (handScale * 0.38) && distThumbPinky < (handScale * 0.42);
 
@@ -534,10 +538,6 @@
                 }
             }
 
-            // -------------------------------------------------------------------------
-            // HORIZONTAL H & K DETECTOR (FIXED)
-            // -------------------------------------------------------------------------
-            // Fix: Abort H/K if the index and middle fingers are tightly curled (like in a side-view T)
             if (!ringUp && !pinkyUp && predicted !== 'C' && predicted !== 'O' && predicted !== 'T' && predicted !== 'X' && !(indexCurled && middleCurled)) {
                 const indexExtendedSide = (indexMcp.x - indexTip.x) > (handScale * 0.28) || indexSideways;
                 const middleExtendedSide = (middleMcp.x - middleTip.x) > (handScale * 0.22) || middleSideways;
@@ -556,40 +556,26 @@
                 }
             }
 
-            // -------------------------------------------------------------------------
-            // COMMON DISTANCES FOR FIST-BASED LETTERS (T, S, M, N, A)
-            // -------------------------------------------------------------------------
             const distThumbToIndexPip = getDistance2D(thumbTip, indexPip);
             const distThumbToIndexMcp = getDistance2D(thumbTip, indexMcp);
             const distThumbToMiddlePip = getDistance2D(thumbTip, middlePip);
             const distThumbToMiddleMcp = getDistance2D(thumbTip, middleMcp);
 
-            // A straight or outward 'A' has the thumb resting on the lateral outside of the index finger.
-            // It will be relatively far from the middle finger joints compared to tucked (T) or crossed (S) thumbs.
             const isOutsideThumbA = distThumbToMiddleMcp > (handScale * 0.32) && distThumbToMiddlePip > (handScale * 0.32);
 
-            // -------------------------------------------------------------------------
-            // T DETECTOR (STRICT FOR 'A', ACCOMMODATES SIDE VIEW 'T')
-            // -------------------------------------------------------------------------
             if (isFistState || isTrueFist || predicted === 'T' || (!middleUp && !ringUp && !pinkyUp && !isIndexHooked)) {
-
                 const isThumbBetweenKnucklesX = (thumbTip.x > Math.min(indexMcp.x, middleMcp.x)) && (thumbTip.x < Math.max(indexMcp.x, middleMcp.x));
 
-                // Fix: Ensure we don't swallow a straight-thumb 'A' by demanding the thumb is NOT purely on the outside.
                 if (
                     (!isOutsideThumbA && distThumbToIndexPip < (handScale * 0.28) && distThumbToIndexPip < distThumbToIndexMcp) ||
                     (isThumbBetweenKnucklesX && thumbTip.y > indexMcp.y)
                 ) {
-                    // Ensure the thumb hasn't crossed entirely to the middle finger (protects S)
                     if (distThumbToMiddlePip > (handScale * 0.22) || predicted === 'T') {
                         return { letter: 'T', confidence: 0.99 };
                     }
                 }
             }
 
-            // -------------------------------------------------------------------------
-            // INVERTED HANDS (P & Q)
-            // -------------------------------------------------------------------------
             if (indexIsDownwards && middleIsDownwards && ringTip.y < ringMcp.y + (handScale * 0.2)) {
                 return { letter: 'P', confidence: 0.99 };
             }
@@ -598,25 +584,18 @@
                 return { letter: 'Q', confidence: 0.99 };
             }
 
-            // -------------------------------------------------------------------------
-            // SAFE ZONE: M, N, S STABILITY MATRIX
-            // -------------------------------------------------------------------------
             if (isFistState || isTrueFist) {
                 const distThumbRingMcp = getDistance2D(thumbTip, ringMcp);
-                const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp); // Kept for M/N checks
+                const distThumbIndexMcp = getDistance2D(thumbTip, indexMcp);
                 const ringTipY = ringTip.y;
                 const middleTipY = middleTip.y;
 
-                // 1. Strict S Catch (Evaluated first so N cannot steal it)
-                // In S, the thumb securely crosses over the front of the fingers (near the PIPs).
                 if (!isOutsideThumbA && (distThumbToMiddlePip < (handScale * 0.26) || distThumbToIndexPip < (handScale * 0.26) || predicted === 'S')) {
-                    // Prevent A from incorrectly triggering S
                     if (distThumbToIndexPip < distThumbIndexMcp || predicted === 'S') {
                         return { letter: 'S', confidence: 0.99 };
                     }
                 }
 
-                // 2. M
                 if (distThumbRingMcp < (handScale * 0.28) &&
                     ringTipY > ringMcp.y &&
                     middleTipY > middleMcp.y &&
@@ -625,7 +604,6 @@
                     return { letter: 'M', confidence: 0.99 };
                 }
 
-                // 3. N
                 if (distThumbToMiddleMcp < (handScale * 0.26) &&
                     middleTipY > middleMcp.y &&
                     ringTipY > ringMcp.y &&
@@ -633,7 +611,6 @@
                     return { letter: 'N', confidence: 0.99 };
                 }
 
-                // 4. Fallback S (prevents swallowing A by dropping the indexMcp check)
                 if (!isOutsideThumbA && distThumbToMiddleMcp < (handScale * 0.26)) {
                     return { letter: 'S', confidence: 0.99 };
                 }
@@ -643,26 +620,21 @@
                 }
             }
 
-            // FLAT PALM CHECK FOR B
             const allExtendedUp = indexTip.y < indexPip.y && middleTip.y < middlePip.y && ringTip.y < ringPip.y && pinkyTip.y < pinkyPip.y;
             if (allExtendedUp) {
                 return { letter: 'B', confidence: 0.99 };
             }
 
-            // Strict I Detector
+            // Strict Static I Detector
             if (pinkyUp && !indexUp && !middleUp && !ringUp && Math.abs(thumbTip.x - indexMcp.x) < (handScale * 0.35)) {
                 return { letter: 'I', confidence: 0.99 };
             }
 
-            // Strict Y Detector
             const horizontalYSpread = Math.abs(thumbTip.x - pinkyTip.x);
             if (pinkyUp && thumbUp && !indexUp && !middleUp && !ringUp && horizontalYSpread > (handScale * 0.62)) {
                 return { letter: 'Y', confidence: 0.99 };
             }
 
-            // -------------------------------------------------------------------------
-            // VERTICAL/DIAGONAL K DETECTOR
-            // -------------------------------------------------------------------------
             if (indexUp && middleUp && !ringUp && !pinkyUp && !isIndexHooked) {
                 const fingersSpread = getDistance2D(indexTip, middleTip) > (handScale * 0.22);
                 const isPointingUp = indexUpwards && middleUp &&
@@ -678,16 +650,12 @@
                 }
             }
 
-            // Strict G Shape
             if (indexSideways && !middleUp && !ringUp && !pinkyUp && thumbTip.y < indexMcp.y && !indexUpwards) {
                 if (getDistance2D(thumbTip, indexPip) > (handScale * 0.25)) {
                     return { letter: 'G', confidence: 0.99 };
                 }
             }
 
-            // -------------------------------------------------------------------------
-            // ROBUST D vs L SEPARATION
-            // -------------------------------------------------------------------------
             if (!middleUp && !ringUp && !pinkyUp && !isFistState) {
                 const indexExtended = (indexUp || indexUpwards || Math.abs(indexTip.x - indexMcp.x) > (handScale * 0.25)) && indexTip.y < indexPip.y;
 
@@ -714,14 +682,12 @@
                 }
             }
 
-            // FIXED Q DETECTOR
             if ((indexIsDownwards || predicted === 'Q') && !middleUp && !ringUp && !pinkyUp) {
                 if (getDistance2D(indexTip, indexMcp) > (handScale * 0.25)) {
                     return { letter: 'Q', confidence: 0.99 };
                 }
             }
 
-            // FINAL FIST MATRIX FALLBACKS (A, E)
             if (isFistState || isTrueFist) {
                 const isEShape = indexTip.y < indexMcp.y && middleTip.y < middleMcp.y && indexTip.y > indexPip.y;
                 if (isEShape || predicted === 'E') {
@@ -730,7 +696,6 @@
                 return { letter: 'A', confidence: 0.99 };
             }
 
-            // MULTI-FINGER REGIME SEPARATION (W, V, U, R, F)
             if (indexUp && middleUp && ringUp && !pinkyUp) {
                 return { letter: 'W', confidence: 0.99 };
             }
@@ -748,7 +713,6 @@
                 }
             }
 
-            // F Rule
             const isFShape = (indexTip.y > middleTip.y) && (middleTip.y < middlePip.y) && (ringTip.y < ringPip.y);
             if (isFShape && distThumbIndex < (handScale * 0.35)) {
                 return { letter: 'F', confidence: 0.99 };
@@ -797,7 +761,6 @@
                     }
                 }
 
-                // Process cascading structural verification overrides
                 let result = processHierarchicalOverrides(predictedLetter, modelConfidence, landmarks, isActivelyDrawing);
 
                 if (result.letter === 'A' && (fingers[1] || fingers[2] || fingers[3] || fingers[4])) {
@@ -952,13 +915,19 @@
                 const indexTipPx = getPixelCoords(indexTip, videoWidth, videoHeight, displayWidth, displayHeight);
                 const pinkyTipPx = getPixelCoords(pinkyTip, videoWidth, videoHeight, displayWidth, displayHeight);
 
+                // Prevent initial velocity spike when hand first appears
+                if (!lastPinkyPos || (lastPinkyPos.x === 0 && lastPinkyPos.y === 0)) {
+                    lastPinkyPos = pinkyTipPx;
+                    lastIndexPos = indexTipPx;
+                }
+
                 const pinkyVelocity = getDistance2D(pinkyTipPx, lastPinkyPos);
                 const indexVelocity = getDistance2D(indexTipPx, lastIndexPos);
 
                 lastPinkyPos = pinkyTipPx;
                 lastIndexPos = indexTipPx;
 
-                const isActivelyMovingHand = (pinkyVelocity > 3.0 || indexVelocity > 3.0);
+                const isActivelyMovingHand = (pinkyVelocity > 7.5 || indexVelocity > 7.5);
                 const isMovingZ = fingers[1] && !fingers[2] && !fingers[3] && !fingers[4] && isActivelyMovingHand;
                 const isMovingJRaw = fingers[4] && !fingers[1] && !fingers[2] && !fingers[3] && isActivelyMovingHand;
 
@@ -1001,7 +970,8 @@
                 const isActivelyDrawing = trailBuffer.length > 3;
                 let result = detectLetter(landmarks, isActivelyDrawing);
 
-                if (lstmModel && lstmFeatureSequenceBuffer.length === LSTM_SEQUENCE_LENGTH) {
+                // LSTM dynamic recognition for J and Z
+                if (lstmModel && lstmFeatureSequenceBuffer.length === LSTM_SEQUENCE_LENGTH && (isMovingJ || isMovingZ)) {
                     try {
                         const lstmInputTensor = tf.tensor3d([lstmFeatureSequenceBuffer], [1, LSTM_SEQUENCE_LENGTH, 63], 'float32');
                         const lstmOutput = lstmModel.predict(lstmInputTensor);
@@ -1011,9 +981,9 @@
                         const dynamicConfidence = dynamicProbabilities[maxDynamicIdx];
 
                         if (dynamicConfidence > 0.82) {
-                            if (isMovingJ && maxDynamicIdx === 0) {
+                            if (isMovingJ && maxDynamicIdx === 0 && verifyJScoopGeometry(trailBuffer)) {
                                 result = { letter: 'J', confidence: dynamicConfidence };
-                            } else if (isMovingZ && maxDynamicIdx === 1) {
+                            } else if (isMovingZ && maxDynamicIdx === 1 && verifyZigzagGeometry(trailBuffer)) {
                                 result = { letter: 'Z', confidence: dynamicConfidence };
                             }
                         }
@@ -1024,7 +994,8 @@
                     }
                 }
 
-                if (trailBuffer.length > 4) {
+                // Geometric trail fallbacks
+                if (trailBuffer.length > 5) {
                     if (isMovingZ && verifyZigzagGeometry(trailBuffer)) {
                         result = { letter: 'Z', confidence: 0.98 };
                     } else if (isMovingJ && verifyJScoopGeometry(trailBuffer)) {
@@ -1068,6 +1039,8 @@
                     detectionCount = 0;
                     detectionBox.style.display = 'none';
                     trailBuffer = [];
+                    lastPinkyPos = { x: 0, y: 0 };
+                    lastIndexPos = { x: 0, y: 0 };
 
                     if (window.parent && window.parent !== window) {
                         window.parent.postMessage({
@@ -1110,7 +1083,6 @@
             const offX = (cWidth - scaledW) / 2;
             const offY = (cHeight - scaledH) / 2;
 
-            // Only mirror the x-axis when the front camera is active (it's the one shown flipped via CSS)
             const px1 = (currentFacingMode === 'user' ? (1 - boxMaxX) : boxMinX) * vWidth * s + offX;
             const py1 = boxMinY * vHeight * s + offY;
             const px2 = (currentFacingMode === 'user' ? (1 - boxMinX) : boxMaxX) * vWidth * s + offX;
@@ -1227,14 +1199,12 @@
             try {
                 statusText.textContent = 'Opening camera...';
 
-                // Stop any existing stream before opening a new one
                 if (videoElement.srcObject) {
                     videoElement.srcObject.getTracks().forEach(track => track.stop());
                     videoElement.srcObject = null;
                 }
 
                 currentFacingMode = facingMode;
-                // Only mirror the front (selfie) camera; the back camera should show normally
                 videoElement.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
 
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -1247,7 +1217,6 @@
                 statusText.textContent = 'Camera live';
                 loadingElement.style.display = 'none';
 
-                // MediaPipe/model init and the detection loop only need to start once
                 if (!handsInstance) {
                     initMediaPipe();
                     await loadSenaTfliteModels();
@@ -1268,14 +1237,13 @@
             await startCamera(nextFacingMode);
         }
 
-        // Allow the React Native host app to trigger a camera switch via postMessage
         function handleNativeMessage(event) {
             try {
                 const data = JSON.parse(event.data);
                 if (data && data.type === 'switch_camera') {
                     switchCamera();
                 }
-            } catch (e) { /* not a JSON message meant for us, ignore */ }
+            } catch (e) { }
         }
         document.addEventListener('message', handleNativeMessage);
         window.addEventListener('message', handleNativeMessage);
