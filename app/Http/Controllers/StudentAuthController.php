@@ -4847,8 +4847,13 @@ public function updateProfilePicture(Request $request)
 }
 
 /**
- * Get all notifications for the authenticated student
+ * Get all notifications for the authenticated student.
  * GET /api/student/notifications
+ *
+ * Safety rule: lesson and checkpoint_exam notifications are only returned
+ * when the referenced lesson/exam actually belongs to the student's own
+ * teacher.  This guards against cross-teacher notification leakage that
+ * may have been written to the DB before the publish bug was fixed.
  */
 public function getNotifications(Request $request)
 {
@@ -4860,31 +4865,61 @@ public function getNotifications(Request $request)
             return response()->json(['error' => 'Student not found'], 404);
         }
 
+        $teacherId = $student->teacher_id;
+
         $notifications = StudentNotification::where('student_id', $student->student_id)
             ->orderBy('created_at', 'desc')
             ->get()
+            ->filter(function ($notification) use ($teacherId) {
+                // Lesson notifications: verify the lesson belongs to the student's teacher
+                if ($notification->type === 'lesson') {
+                    $lessonId = $notification->data['lesson_id'] ?? null;
+                    if (!$lessonId) {
+                        return false; // malformed — discard
+                    }
+                    return \App\Models\Lesson::where('lesson_id', $lessonId)
+                        ->where('teacher_id', $teacherId)
+                        ->exists();
+                }
+
+                // Checkpoint exam notifications: verify the exam belongs to the student's teacher
+                if ($notification->type === 'checkpoint_exam') {
+                    $examId = $notification->data['exam_id'] ?? null;
+                    if (!$examId) {
+                        return false; // malformed — discard
+                    }
+                    return \App\Models\CheckpointExam::where('exam_id', $examId)
+                        ->where('teacher_id', $teacherId)
+                        ->exists();
+                }
+
+                // All other types (achievement, promotion, streak, system) are
+                // student-scoped — always include them.
+                return true;
+            })
             ->map(function ($notification) {
                 return [
-                    'id' => $notification->id,
-                    'type' => $notification->type,
-                    'title' => $notification->title,
-                    'message' => $notification->message,
-                    'icon' => $notification->icon,
-                    'color' => $notification->color,
-                    'data' => $notification->data,
+                    'id'         => $notification->id,
+                    'type'       => $notification->type,
+                    'title'      => $notification->title,
+                    'message'    => $notification->message,
+                    'icon'       => $notification->icon,
+                    'color'      => $notification->color,
+                    'data'       => $notification->data,
                     'action_url' => $notification->action_url,
-                    'is_read' => (bool) $notification->is_read,
+                    'is_read'    => (bool) $notification->is_read,
                     'created_at' => $notification->created_at->toISOString(),
-                    'read_at' => $notification->read_at ? $notification->read_at->toISOString() : null,
+                    'read_at'    => $notification->read_at ? $notification->read_at->toISOString() : null,
                 ];
-            });
+            })
+            ->values(); // re-index after filter
 
         $unreadCount = StudentNotification::where('student_id', $student->student_id)
             ->where('is_read', false)
             ->count();
 
         return response()->json([
-            'success' => true,
+            'success'      => true,
             'notifications' => $notifications,
             'unread_count' => $unreadCount,
         ]);
@@ -4892,7 +4927,7 @@ public function getNotifications(Request $request)
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
-            'error' => $e->getMessage(),
+            'error'   => $e->getMessage(),
         ], 500);
     }
 }

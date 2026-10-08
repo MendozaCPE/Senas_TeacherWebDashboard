@@ -1085,24 +1085,30 @@ public function publishLesson(Request $request, $id)
 
     switch ($validated['publish_option']) {
         case 'all':
+            // ✅ FIX: Only publish to students belonging to THIS teacher
             $studentIds = DB::table('students')
                 ->where('status', 'active')
+                ->where('teacher_id', $teacherId)
                 ->pluck('student_id')
                 ->toArray();
             break;
 
         case 'program':
+            // ✅ FIX: Only publish to students belonging to THIS teacher
             $studentIds = DB::table('students')
                 ->where('status', 'active')
-                ->where('program_type', $validated['program']) // Use program_type from database
+                ->where('teacher_id', $teacherId)
+                ->where('program_type', $validated['program'])
                 ->pluck('student_id')
                 ->toArray();
             break;
 
         case 'mastery':
+            // ✅ FIX: Only publish to students belonging to THIS teacher
             $studentIds = DB::table('students')
                 ->where('status', 'active')
-                ->where('fsl_mastery_level', $validated['mastery_level']) // Use fsl_mastery_level from database
+                ->where('teacher_id', $teacherId)
+                ->where('fsl_mastery_level', $validated['mastery_level'])
                 ->pluck('student_id')
                 ->toArray();
             break;
@@ -2467,21 +2473,27 @@ public function publishCheckpointExam(Request $request, $id)
     $studentIds = [];
     switch ($validated['publish_option']) {
         case 'all':
+            // ✅ FIX: Only publish to students belonging to THIS teacher
             $studentIds = DB::table('students')
                 ->where('status', 'active')
+                ->where('teacher_id', $teacherId)
                 ->pluck('student_id')
                 ->toArray();
             break;
         case 'program':
+            // ✅ FIX: Only publish to students belonging to THIS teacher
             $studentIds = DB::table('students')
                 ->where('status', 'active')
+                ->where('teacher_id', $teacherId)
                 ->where('program_type', $validated['program'])
                 ->pluck('student_id')
                 ->toArray();
             break;
         case 'mastery':
+            // ✅ FIX: Only publish to students belonging to THIS teacher
             $studentIds = DB::table('students')
                 ->where('status', 'active')
+                ->where('teacher_id', $teacherId)
                 ->where('fsl_mastery_level', $validated['mastery_level'])
                 ->pluck('student_id')
                 ->toArray();
