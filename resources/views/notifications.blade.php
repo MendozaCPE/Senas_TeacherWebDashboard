@@ -154,6 +154,7 @@
                 'challenge_completed'     => ['bg' => '#F5F3FF', 'ring' => '#DDD6FE', 'text' => '#6D28D9'],
                 'fingerspelling_completed'=> ['bg' => '#F0FDFA', 'ring' => '#99F6E4', 'text' => '#0D9488'],
                 'new_school_year'         => ['bg' => '#EEF2FF', 'ring' => '#C7D2FE', 'text' => '#4338CA'],
+                'hint_used'               => ['bg' => '#FFFBEB', 'ring' => '#FDE68A', 'text' => '#D97706'],
             ];
             $c = $colorMap[$notif->type] ?? ['bg' => '#F8FAFC', 'ring' => '#E2E8F0', 'text' => '#475569'];
 
@@ -290,6 +291,26 @@
                                 <span class="inline-flex items-center gap-1 font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200/50">
                                     <span class="material-symbols-outlined text-[12px]">priority_high</span>
                                     Practice: {{ implode(', ', $practiceList) }}
+                                </span>
+                            @endif
+                        </div>
+                    @elseif(!empty($notif->message))
+                        <p class="text-[12.5px] text-slate-500 mt-0.5 leading-snug line-clamp-1">{{ $notif->message }}</p>
+                    @endif
+                @elseif($notif->type === 'hint_used')
+                    @php
+                        $hintLetter = $notif->data['letter'] ?? null;
+                        $hintModule = !empty($notif->data['module_name']) ? ucwords(str_replace('_', ' ', $notif->data['module_name'])) : null;
+                    @endphp
+                    @if(!empty($hintLetter))
+                        <div class="mt-1 flex items-center gap-2 flex-wrap text-[11.5px] text-slate-500">
+                            <span class="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                                <span class="material-symbols-outlined text-[12px]">lightbulb</span>
+                                Hint: {{ $hintLetter }}
+                            </span>
+                            @if(!empty($hintModule))
+                                <span class="inline-flex items-center text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[11px]">
+                                    {{ $hintModule }}
                                 </span>
                             @endif
                         </div>

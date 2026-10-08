@@ -101,6 +101,7 @@ class TeacherNotification extends Model
            'challenge_completed' => ['icon' => 'emoji_events', 'color' => '#8B5CF6'],
         'fingerspelling_completed' => ['icon' => 'hand', 'color' => '#14B8A6'],
             'new_school_year'    => ['icon' => 'calendar_month',   'color' => '#4F46E5'],
+            'hint_used'          => ['icon' => 'lightbulb',        'color' => '#F59E0B'],
             default              => ['icon' => 'notifications',    'color' => '#6B7280'],
         };
     }

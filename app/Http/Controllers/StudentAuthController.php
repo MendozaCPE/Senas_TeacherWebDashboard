@@ -2863,7 +2863,92 @@ foreach ($assignments as $assignment) {
  * This handles practice sessions where students can practice anytime
  * Now with optional hint usage tracking
  */
-public function saveGesturePerformance(Request $request)
+    /**
+     * Record real-time hint usage and notify the student's teacher immediately
+     * POST /api/student/gesture/hint-used
+     */
+    public function recordHintUsed(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $student = Student::where('user_id', $user->id)->first();
+
+            if (!$student) {
+                return response()->json(['error' => 'Student not found'], 404);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'module_name' => 'required|string',
+                'letter'      => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()->first()], 422);
+            }
+
+            $moduleName = $request->input('module_name');
+            $letter = trim($request->input('letter'));
+
+            if (!$student->teacher_id) {
+                return response()->json(['success' => true, 'notified' => false]);
+            }
+
+            // Anti-spam debounce: prevent duplicate notifications for the same student + module + letter within 20s
+            $cacheKey = "hint_notif_{$student->student_id}_{$moduleName}_{$letter}";
+            if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+                return response()->json(['success' => true, 'throttled' => true]);
+            }
+            \Illuminate\Support\Facades\Cache::put($cacheKey, true, 20);
+
+            $studentName = trim($student->first_name . ' ' . $student->last_name);
+            $displayModule = ucwords(str_replace('_', ' ', $moduleName));
+
+            // Format item phrase: letter C, number 3, or 'Hello'
+            $isAlpha = (strlen($letter) === 1 && ctype_alpha($letter));
+            $isNum = is_numeric($letter);
+            if ($isAlpha) {
+                $itemPhrase = "letter " . strtoupper($letter);
+            } elseif ($isNum) {
+                $itemPhrase = "number {$letter}";
+            } else {
+                $itemPhrase = "'{$letter}'";
+            }
+
+            $title = "💡 {$studentName} used a hint on {$itemPhrase}";
+            $message = "{$studentName} used a hint on {$itemPhrase} while practicing {$displayModule}.";
+
+            $this->notifyTeacher(
+                student: $student,
+                type: 'hint_used',
+                title: $title,
+                message: $message,
+                data: [
+                    'student_id'   => $student->student_id,
+                    'student_name' => $studentName,
+                    'module_name'  => $moduleName,
+                    'letter'       => $letter,
+                    'used_at'      => now()->toISOString(),
+                ],
+                actionUrl: '/reports?open_student=' . $student->student_id,
+            );
+
+            \Log::info("💡 Real-time hint notification created for teacher {$student->teacher_id}", [
+                'student' => $studentName,
+                'letter'  => $letter,
+                'module'  => $moduleName,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hint notification sent to teacher',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to record hint notification: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function saveGesturePerformance(Request $request)
 {
     try {
         $user = Auth::user();

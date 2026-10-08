@@ -71,6 +71,7 @@ Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
 
     // ─── GESTURE PERFORMANCE ROUTES ──────────────────────────────
     Route::post('/student/gesture-performance', [StudentAuthController::class, 'saveGesturePerformance']);
+    Route::post('/student/gesture/hint-used', [StudentAuthController::class, 'recordHintUsed']);
     Route::get('/student/gesture-performance', [StudentAuthController::class, 'getGesturePerformance']);
     Route::get('/student/struggling-letters', [StudentAuthController::class, 'getStrugglingLetters']);
 
