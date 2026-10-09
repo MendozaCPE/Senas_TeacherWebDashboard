@@ -285,7 +285,9 @@
                                 @php $lessonPage = (int) floor($lessonIndex / $pageSize) + 1; @endphp
                                 <tr class="lesson-row cursor-pointer"
                                     data-lesson-id="{{ $lesson->lesson_id }}"
+                                    data-module-id="{{ $module->module_id }}"
                                     data-page="{{ $lessonPage }}"
+                                    data-preview-url="{{ route('grade-leader.lessons.preview-page', $lesson->lesson_id) }}"
                                     onclick="openPreviewModal('{{ route('grade-leader.lessons.preview-page', $lesson->lesson_id) }}')"
                                     style="cursor:pointer;">
                                     <td class="lesson-title-cell">
@@ -661,6 +663,16 @@ function closeLessonPreviewModal() {
 function openPreviewModal(url) {
     openLessonPreviewModal(url);
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const lessonId = new URLSearchParams(window.location.search).get('open_lesson');
+    if (!lessonId) return;
+    const row = document.querySelector('.lesson-row[data-lesson-id="' + CSS.escape(lessonId) + '"]');
+    if (!row) return;
+    changePage(row.dataset.moduleId, parseInt(row.dataset.page, 10) || 1);
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => openLessonPreviewModal(row.dataset.previewUrl), 150);
+});
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeLessonPreviewModal();

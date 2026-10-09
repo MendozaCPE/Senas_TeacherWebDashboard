@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\GestureMedia;
 use App\Models\Lesson;
 use App\Models\Student;
+use App\Models\Teacher;
 use App\Models\TeacherMedia;
+use App\Services\LessonTemplateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +27,10 @@ class GlobalSearchController extends Controller
         $user      = Auth::user();
         $teacher   = $user?->teacher;
         $teacherId = $teacher?->id;
+
+        if ($user?->role === 'grade_leader') {
+            return $this->gradeLeaderSuggestions($query, $teacher?->school_id);
+        }
 
         // ── 1. Students ───────────────────────────────────────────────────────
         $studentQuery = Student::query();
@@ -148,9 +154,132 @@ class GlobalSearchController extends Controller
         $mediaResults = $systemMedia->concat($uploadedMedia)->take(5);
 
         return response()->json([
+            'teachers' => [],
             'students' => $formattedStudents,
             'lessons'  => $formattedLessons,
             'media'    => $mediaResults,
+        ]);
+    }
+
+    private function gradeLeaderSuggestions(string $query, ?int $schoolId)
+    {
+        if (!$schoolId) {
+            return response()->json(['teachers' => [], 'students' => [], 'lessons' => [], 'media' => []]);
+        }
+
+        $teachers = Teacher::query()
+            ->with('user')
+            ->where('school_id', $schoolId)
+            ->where(function ($q) use ($query) {
+                $q->where('first_name', 'like', "%{$query}%")
+                    ->orWhere('last_name', 'like', "%{$query}%")
+                    ->orWhere(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$query}%")
+                    ->orWhere('specialization', 'like', "%{$query}%");
+            })
+            ->orderBy('first_name')
+            ->limit(5)
+            ->get();
+
+        $formattedTeachers = $teachers->map(function ($teacher) {
+            $name = trim($teacher->first_name . ' ' . $teacher->last_name);
+            return [
+                'id' => $teacher->id,
+                'type' => 'teacher',
+                'title' => $name,
+                'subtitle' => $teacher->specialization ?: 'Classroom teacher',
+                'badge' => 'Teacher',
+                'avatar' => $teacher->user?->avatarUrl()
+                    ?? 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=0d326b&color=fff&size=64&bold=true&rounded=true',
+                'url' => route('grade-leader.reports', ['open_teacher' => $teacher->id]),
+            ];
+        });
+
+        $students = Student::query()
+            ->with('teacher')
+            ->where('school_id', $schoolId)
+            ->whereHas('teacher', fn ($teacher) => $teacher->where('school_id', $schoolId))
+            ->where(function ($q) use ($query) {
+                $q->where('first_name', 'like', "%{$query}%")
+                    ->orWhere('last_name', 'like', "%{$query}%")
+                    ->orWhere(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$query}%")
+                    ->orWhere('lrn', 'like', "%{$query}%");
+            })
+            ->orderBy('first_name')
+            ->limit(5)
+            ->get();
+
+        $formattedStudents = $students->map(function ($student) {
+            $name = trim($student->first_name . ' ' . $student->last_name);
+            $teacherName = $student->teacher
+                ? trim($student->teacher->first_name . ' ' . $student->teacher->last_name)
+                : 'No assigned teacher';
+            return [
+                'id' => $student->student_id,
+                'type' => 'student',
+                'title' => $name,
+                'subtitle' => 'Class: ' . $teacherName . ($student->grade_level ? ' · Grade ' . $student->grade_level : ''),
+                'badge' => $student->fsl_mastery_level ?: 'Student',
+                'avatar' => $student->avatarUrl(),
+                'url' => $student->teacher_id
+                    ? route('grade-leader.reports', ['open_teacher' => $student->teacher_id, 'open_student' => $student->student_id])
+                    : route('grade-leader.reports'),
+            ];
+        });
+
+        $templateTeacherId = app(LessonTemplateService::class)->templateTeacherId();
+        $lessons = Lesson::query()
+            ->where('teacher_id', $templateTeacherId)
+            ->where('is_template', true)
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                    ->orWhere('description', 'like', "%{$query}%")
+                    ->orWhere('difficulty', 'like', "%{$query}%")
+                    ->orWhere('lesson_type', 'like', "%{$query}%");
+            })
+            ->orderBy('module_order')
+            ->limit(5)
+            ->get()
+            ->map(fn ($lesson) => [
+                'id' => $lesson->lesson_id,
+                'type' => 'lesson',
+                'title' => $lesson->title,
+                'subtitle' => ucfirst($lesson->difficulty ?? 'beginner') . ' · ' . ucfirst($lesson->lesson_type ?? 'interactive') . ' lesson',
+                'badge' => ucfirst($lesson->status ?? 'draft'),
+                'url' => route('grade-leader.lessons', ['open_lesson' => $lesson->lesson_id]),
+            ]);
+
+        $media = GestureMedia::with(['gesture', 'module'])
+            ->where(function ($q) use ($query) {
+                $q->where('file_name', 'like', "%{$query}%")
+                    ->orWhereHas('gesture', fn ($gesture) => $gesture
+                        ->where('display_name', 'like', "%{$query}%")
+                        ->orWhere('name', 'like', "%{$query}%"));
+            })
+            ->limit(5)
+            ->get()
+            ->map(function ($item) {
+                $title = $item->gesture
+                    ? ($item->gesture->display_name ?? $item->gesture->name)
+                    : ($item->display_name ?: $item->file_name);
+                return [
+                    'id' => $item->media_id,
+                    'type' => 'media',
+                    'source' => 'system',
+                    'title' => $title,
+                    'subtitle' => ($item->module?->display_name ? $item->module->display_name . ' · ' : '') . strtoupper($item->media_type),
+                    'badge' => 'System',
+                    'media_type' => $item->media_type,
+                    'thumb' => asset('storage/' . $item->file_path),
+                    'url' => route('grade-leader.media', ['open_media' => $item->media_id]),
+                ];
+            });
+
+        return response()->json([
+            'teachers' => $formattedTeachers,
+            'students' => $formattedStudents,
+            'lessons' => $lessons,
+            'media' => $media,
         ]);
     }
 }

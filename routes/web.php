@@ -453,8 +453,9 @@ Route::middleware(['auth', 'auth.session', 'no.cache', 'grade_leader'])
     Route::get('/analytics', [GradeLeaderController::class, 'analytics'])->name('analytics');
     Route::post('/analytics/filter', [GradeLeaderController::class, 'analyticsFilter'])->name('analytics.filter');
 
-    // Reports — Per-teacher class performance with student drill-down
+    // Reports — teacher list and classroom performance modal
     Route::get('/reports', [GradeLeaderController::class, 'reports'])->name('reports');
+    Route::get('/reports/{teacher}/class-report', [GradeLeaderController::class, 'teacherReportModal'])->name('reports.class-report');
 });
 
 

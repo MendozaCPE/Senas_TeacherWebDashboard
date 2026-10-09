@@ -478,6 +478,12 @@ document.getElementById('mediaPreviewModal').addEventListener('click', e => {
 
 // Initial load
 applyFilters();
+document.addEventListener('DOMContentLoaded', function () {
+    const mediaId = new URLSearchParams(window.location.search).get('open_media');
+    if (!mediaId) return;
+    const index = filteredMedia.findIndex(item => String(item.id) === 'sys_' + String(mediaId));
+    if (index >= 0) openPreview(index);
+});
 </script>
 
 </div>{{-- /skeleton-hide --}}

@@ -20,7 +20,7 @@
         @endfor
     </div>
     <div class="skeleton rounded-[18px] h-16 w-full"></div>
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 items-start gap-4">
         <div class="lg:col-span-7 skeleton rounded-[26px] h-72"></div>
         <div class="lg:col-span-5 skeleton rounded-[26px] h-72"></div>
     </div>
@@ -71,18 +71,22 @@
 .filter-reset:hover { background:#f1f5f9; color:#0d326b; }
 /* Senya Insight */
 .senya-insight-gold {
-    background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%); border:1.5px solid #bfdbfe;
+    background:linear-gradient(135deg,#fffdf8 0%,#fefce8 100%); border:1.5px solid #fbbf24;
     border-radius:20px; padding:16px 20px; display:flex; align-items:flex-start; gap:14px;
-    box-shadow:0 4px 16px rgba(13,50,107,.08);
+    box-shadow:0 4px 16px rgba(245,158,11,.08);
 }
 .senya-insight-gold-icon {
     width:38px; height:38px; border-radius:12px;
-    background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%); color:#fff;
+    background:linear-gradient(135deg,#f59e0b 0%,#facc15 50%,#fbbf24 100%); color:#78350f;
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
-    box-shadow:0 2px 8px rgba(13,50,107,.2);
+    box-shadow:0 2px 8px rgba(245,158,11,.25);
 }
-.senya-insight-gold-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#0d326b; margin-bottom:2px; }
-.senya-insight-gold-text  { font-size:13px; font-weight:500; color:#1e4b8f; line-height:1.55; }
+.senya-insight-gold-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#b45309; margin-bottom:2px; }
+.senya-insight-gold-text  { font-size:13px; font-weight:500; color:#78350f; line-height:1.55; }
+.senya-chart-insight { display:flex; align-items:flex-start; gap:10px; margin-top:14px; padding:11px 13px; border:1px solid #fbbf24; border-radius:16px; background:linear-gradient(135deg,#fffdf8 0%,#fefce8 100%); }
+.senya-chart-insight-icon { width:27px; height:27px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#78350f; background:linear-gradient(135deg,#f59e0b,#facc15 60%,#fbbf24); }
+.senya-chart-insight-title { color:#b45309; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px; }
+.senya-chart-insight-text { color:#78350f; font-size:12px; font-weight:500; line-height:1.5; }
 /* Rank badges */
 .rank-badge-podium { width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; flex-shrink:0; }
 .rank-badge-gold   { background:linear-gradient(135deg,#0d326b,#1a6fd4); color:#fff; border:1px solid #1e4b8f; box-shadow:0 2px 6px rgba(13,50,107,.2); }
@@ -101,6 +105,45 @@
 
 @php
 /* ══ Senya Insight ══════════════════════════════════════════════════════ */
+$fslPalette = [
+    'Beginner' => ['color' => '#93c5fd', 'from' => '#bfdbfe', 'to' => '#93c5fd', 'id' => 'analyticsMasteryBeginner'],
+    'Intermediate' => ['color' => '#3b82f6', 'from' => '#60a5fa', 'to' => '#3b82f6', 'id' => 'analyticsMasteryIntermediate'],
+    'Advanced' => ['color' => '#0d326b', 'from' => '#1e4b8f', 'to' => '#071c3f', 'id' => 'analyticsMasteryAdvanced'],
+    'Not recorded' => ['color' => '#cbd5e1', 'from' => '#e2e8f0', 'to' => '#cbd5e1', 'id' => 'analyticsMasteryMissing'],
+];
+$fslMasteryTotal = $fslMasteryDonut->sum('count');
+$fslMasterySegments = [];
+$fslActiveCount = $fslMasteryDonut->filter(fn ($segment) => $segment['count'] > 0)->count();
+$fslMaxCount = max(1, (int) $fslMasteryDonut->max('count'));
+$fslGap = $fslActiveCount > 1 ? 0.08 : 0;
+$fslAngle = -M_PI / 2;
+foreach ($fslMasteryDonut as $masterySegment) {
+    if ($masterySegment['count'] <= 0) continue;
+    $masteryAngleSpan = $fslMasteryTotal > 0 ? $masterySegment['count'] / $fslMasteryTotal * 2 * M_PI : 0;
+    $masteryOuterRadius = round(56 + 18 * ($masterySegment['count'] / $fslMaxCount), 1);
+    $masteryStartAngle = $fslActiveCount === 1 ? $fslAngle : $fslAngle + $fslGap / 2;
+    $masteryEndAngle = $fslActiveCount === 1 ? $fslAngle + 2 * M_PI - 0.001 : $fslAngle + $masteryAngleSpan - $fslGap / 2;
+    if ($masteryEndAngle <= $masteryStartAngle) { $masteryStartAngle = $fslAngle; $masteryEndAngle = $fslAngle + $masteryAngleSpan; }
+    $mx1 = round(80 + $masteryOuterRadius * cos($masteryStartAngle), 2); $my1 = round(80 + $masteryOuterRadius * sin($masteryStartAngle), 2);
+    $mx2 = round(80 + $masteryOuterRadius * cos($masteryEndAngle), 2); $my2 = round(80 + $masteryOuterRadius * sin($masteryEndAngle), 2);
+    $mx3 = round(80 + 40 * cos($masteryEndAngle), 2); $my3 = round(80 + 40 * sin($masteryEndAngle), 2);
+    $mx4 = round(80 + 40 * cos($masteryStartAngle), 2); $my4 = round(80 + 40 * sin($masteryStartAngle), 2);
+    $masteryLargeArc = ($masteryEndAngle - $masteryStartAngle > M_PI) ? 1 : 0;
+    $fslMasterySegments[] = array_merge($masterySegment, $fslPalette[$masterySegment['label']], [
+        'pct' => $fslMasteryTotal > 0 ? round($masterySegment['count'] / $fslMasteryTotal * 100, 1) : 0,
+        'path' => "M {$mx1} {$my1} A {$masteryOuterRadius} {$masteryOuterRadius} 0 {$masteryLargeArc} 1 {$mx2} {$my2} L {$mx3} {$my3} A 40 40 0 {$masteryLargeArc} 0 {$mx4} {$my4} Z",
+    ]);
+    $fslAngle += $masteryAngleSpan;
+}
+$recordedMasterySegments = collect($fslMasterySegments)->reject(fn ($segment) => $segment['label'] === 'Not recorded');
+$recordedMasteryTotal = $recordedMasterySegments->sum('count');
+$largestMasteryGroup = $recordedMasterySegments->sortByDesc('count')->first();
+$missingMasteryCount = (int) ($fslMasteryDonut->firstWhere('label', 'Not recorded')['count'] ?? 0);
+$fslMasteryInsight = $recordedMasteryTotal === 0
+    ? 'No Beginner, Intermediate, or Advanced FSL mastery levels are recorded for the selected student roster.'
+    : '<strong>' . e($largestMasteryGroup['label']) . '</strong> is the largest recorded group with <strong>' . $largestMasteryGroup['count'] . ' of ' . $recordedMasteryTotal . '</strong> students (' . $largestMasteryGroup['pct'] . '%).'
+        . ($missingMasteryCount > 0 ? ' Mastery level is not recorded for <strong>' . $missingMasteryCount . '</strong> student(s).' : ' All students have a recorded mastery level.');
+
 $insights = [];
 if ($avgQuizScore >= 80)      $insights[] = "School quiz average is at <strong>{$avgQuizScore}%</strong> — students are demonstrating strong content retention across all classes.";
 elseif ($avgQuizScore >= 50)  $insights[] = "School quiz average sits at <strong>{$avgQuizScore}%</strong>. Targeted review sessions could help push the average closer to the 75% benchmark.";
@@ -126,47 +169,35 @@ if ($aiTotal > 0) {
 }
 $insight = $insights[array_rand($insights)];
 
-/* ══ Active/Inactive Pie ════════════════════════════════════════════════ */
-$pieCx=110; $pieCy=110; $pieR=86; $pieIn=52;
-$pieTotal  = max(1, $activeInactivePie['total']);
-$pieActive = $activeInactivePie['active'];
-$pieInact  = $activeInactivePie['inactive'];
-// Segments: active (navy), inactive (slate)
-$pieSegs = [];
-$pieData = [
-    ['val'=>$pieActive, 'color'=>'#0d326b', 'label'=>'Active'],
-    ['val'=>$pieInact,  'color'=>'#e2e8f0', 'label'=>'Inactive'],
-];
-$pieAngle = -M_PI / 2;
-foreach ($pieData as $pd) {
-    $sw = $pieTotal > 0 ? ($pd['val'] / $pieTotal) * 2 * M_PI : 0;
-    if ($sw < 0.01) { $pieAngle += $sw; continue; }
-    $x1 = round($pieCx + $pieR  * cos($pieAngle),   2);
-    $y1 = round($pieCy + $pieR  * sin($pieAngle),   2);
-    $x2 = round($pieCx + $pieR  * cos($pieAngle+$sw),2);
-    $y2 = round($pieCy + $pieR  * sin($pieAngle+$sw),2);
-    $i1 = round($pieCx + $pieIn * cos($pieAngle),   2);
-    $j1 = round($pieCy + $pieIn * sin($pieAngle),   2);
-    $i2 = round($pieCx + $pieIn * cos($pieAngle+$sw),2);
-    $j2 = round($pieCy + $pieIn * sin($pieAngle+$sw),2);
-    $lg = ($sw > M_PI) ? 1 : 0;
-    $pct = round($pd['val'] / $pieTotal * 100, 1);
-    // Mid-angle for label placement
-    $mid = $pieAngle + $sw / 2;
-    $lx  = round($pieCx + ($pieR * 0.72) * cos($mid), 1);
-    $ly  = round($pieCy + ($pieR * 0.72) * sin($mid), 1);
-    $pieSegs[] = [
-        'path'  => "M {$x1},{$y1} A {$pieR},{$pieR} 0 {$lg},1 {$x2},{$y2} L {$i2},{$j2} A {$pieIn},{$pieIn} 0 {$lg},0 {$i1},{$j1} Z",
-        'color' => $pd['color'],
-        'label' => $pd['label'],
-        'val'   => $pd['val'],
-        'pct'   => $pct,
-        'lx'    => $lx,
-        'ly'    => $ly,
-        'show_label' => $pct >= 8,
-    ];
-    $pieAngle += $sw;
+$selectedEnrollment = $enrollmentBySY[$currentDepEdSY] ?? ['total' => 0, 'programs' => []];
+$previousStartYear = (int) explode('-', $currentDepEdSY)[0] - 1;
+$previousEnrollmentSY = $previousStartYear . '-' . ($previousStartYear + 1);
+$previousEnrollment = $enrollmentBySY[$previousEnrollmentSY]['total'] ?? 0;
+$largestProgram = collect($selectedEnrollment['programs'])->sortDesc()->keys()->first();
+$largestProgramCount = $largestProgram ? ($selectedEnrollment['programs'][$largestProgram] ?? 0) : 0;
+if ($selectedEnrollment['total'] > 0) {
+    $enrollmentInsight = 'S.Y. ' . e($currentDepEdSY) . ' has <strong>' . $selectedEnrollment['total'] . '</strong> enrolled students. '
+        . ($largestProgram ? '<strong>' . e($largestProgram) . '</strong> is the largest program group with <strong>' . $largestProgramCount . '</strong> students. ' : '')
+        . ($previousEnrollment > 0
+            ? 'Enrollment ' . ($selectedEnrollment['total'] >= $previousEnrollment ? 'increased' : 'decreased') . ' by <strong>' . abs($selectedEnrollment['total'] - $previousEnrollment) . '</strong> from the previous school year.'
+            : 'The previous school year has no recorded enrollment for comparison.');
+} else {
+    $enrollmentInsight = 'No enrollment records are available for S.Y. ' . e($currentDepEdSY) . ' yet.';
 }
+
+$engagementPct = $aiTotal > 0 ? round($activeInactivePie['active'] / $aiTotal * 100, 1) : 0;
+$engagementInsight = $aiTotal > 0
+    ? '<strong>' . $activeInactivePie['active'] . ' of ' . $aiTotal . ' students (' . $engagementPct . '%)</strong> showed activity during ' . e($periodDescription) . '. '
+        . ($activeInactivePie['inactive'] > 0 ? '<strong>' . $activeInactivePie['inactive'] . '</strong> students had no recorded activity in this period.' : 'Every enrolled student showed activity in this period.')
+    : 'There is no enrolled student data to measure engagement for this period.';
+
+$onTrackClasses = $classPerformance->where('status', 'on_track')->count();
+$classInsight = $topClass
+    ? '<strong>' . e($topClass['name']) . '</strong> leads the classroom scorecard with an average quiz score of <strong>' . $topClass['avg_quiz_score'] . '%</strong>. '
+        . '<strong>' . $onTrackClasses . ' of ' . $classPerformance->count() . '</strong> classrooms are currently on track.'
+    : 'No classroom assessment results are available for ' . e($periodDescription) . '.';
+
+/* ══ Active/Inactive Pie ════════════════════════════════════════════════ */
 @endphp
 
 {{-- ════════════════════════════════════════════════════════════════════ --}}
@@ -286,7 +317,7 @@ foreach ($pieData as $pd) {
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         {{-- Enrollment bar chart (left, wider) --}}
-        <div class="analytics-panel lg:col-span-7">
+        <div class="analytics-panel lg:col-span-6">
             <div class="flex items-start justify-between pb-4 border-b border-slate-100 mb-5">
                 <div>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Enrollment</p>
@@ -313,7 +344,7 @@ foreach ($pieData as $pd) {
             $syMax = max(1, collect($enrollmentBySY)->max('total'));
 
             // SVG dimensions
-            $EW=600; $EH=240; $EPL=36; $EPR=16; $EPT=18; $EPB=52;
+            $EW=560; $EH=200; $EPL=36; $EPR=16; $EPT=14; $EPB=42;
             $ePW = $EW - $EPL - $EPR;
             $ePH = $EH - $EPT - $EPB;
 
@@ -324,7 +355,7 @@ foreach ($pieData as $pd) {
             @endphp
 
             @if($syCount > 0)
-            <div id="enrollWrap" style="position:relative;">
+            <div id="enrollWrap" style="position:relative;max-width:680px;margin:0 auto;">
                 <div id="enrollTip" class="chart-tooltip"></div>
                 <svg id="enrollChart"
                      viewBox="0 0 {{ $EW }} {{ $EH }}"
@@ -406,13 +437,6 @@ foreach ($pieData as $pd) {
                               font-weight="{{ $isCurr?'800':'600' }}"
                               text-anchor="middle">{{ $shortSY }}</text>
 
-                        {{-- NOW badge --}}
-                        @if($isCurr)
-                        <rect x="{{ round($cx - 14, 1) }}" y="{{ $EH-22 }}" width="28" height="13"
-                              rx="4" fill="#fef3c7"/>
-                        <text x="{{ $cx }}" y="{{ $EH-12 }}" font-size="7.5" fill="#b45309"
-                              font-weight="800" text-anchor="middle">NOW</text>
-                        @endif
                     @endforeach
 
                 </svg>
@@ -428,6 +452,14 @@ foreach ($pieData as $pd) {
                 @endforeach
             </div>
 
+            <div class="senya-chart-insight">
+                <div class="senya-chart-insight-icon"><span class="material-symbols-outlined text-[16px]">lightbulb</span></div>
+                <div>
+                    <div class="senya-chart-insight-title">Enrollment Insight</div>
+                    <div class="senya-chart-insight-text">{!! $enrollmentInsight !!}</div>
+                </div>
+            </div>
+
             @else
             <div style="padding:48px 0;text-align:center;">
                 <span class="material-symbols-outlined" style="font-size:52px;color:#e2e8f0;">bar_chart</span>
@@ -436,87 +468,56 @@ foreach ($pieData as $pd) {
             @endif
         </div>
 
-        {{-- Active vs Inactive Pie (right, narrower) --}}
-        <div class="analytics-panel lg:col-span-5 flex flex-col">
+        {{-- Student FSL Mastery Donut --}}
+        <div class="analytics-panel lg:col-span-6 flex flex-col">
             <div class="flex items-start justify-between pb-4 border-b border-slate-100 mb-5">
                 <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Engagement</p>
-                    <h3 class="text-[17px] font-black text-[#0d326b]">Active vs Inactive</h3>
-                    <p class="text-[12px] text-slate-400 mt-0.5">S.Y. {{ $currentDepEdSY }} · {{ $periodDescription }}</p>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">FSL Mastery</p>
+                    <h3 class="text-[17px] font-black text-[#0d326b]">Student Mastery</h3>
+                    <p class="text-[12px] text-slate-400 mt-0.5">Selected S.Y. roster</p>
                 </div>
                 <span class="material-symbols-outlined text-slate-300 text-[24px]">donut_large</span>
             </div>
 
-            @if($activeInactivePie['total'] > 0)
-            <div class="flex flex-col items-center flex-1 justify-center gap-4">
-                {{-- Donut --}}
-                <div style="position:relative;width:220px;height:220px;flex-shrink:0;">
-                    <svg viewBox="0 0 220 220" width="220" height="220" id="pieSvg">
+            @if($fslMasteryTotal > 0)
+            <div class="flex items-center justify-center gap-8 py-3 w-full max-w-[560px] mx-auto">
+                <div class="relative w-[148px] h-[148px] flex-shrink-0 flex items-center justify-center">
+                    <svg class="w-full h-full overflow-visible" viewBox="0 0 160 160" role="img" aria-label="Student mastery donut chart">
                         <defs>
-                            <filter id="pieShadow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0d326b" flood-opacity="0.12"/>
-                            </filter>
+                            <filter id="analyticsMasteryDonutShadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/></filter>
+                            @foreach($fslMasterySegments as $segment)
+                            <linearGradient id="{{ $segment['id'] }}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="{{ $segment['from'] }}"/><stop offset="100%" stop-color="{{ $segment['to'] }}"/></linearGradient>
+                            @endforeach
                         </defs>
-                        @foreach($pieSegs as $seg)
-                        <path d="{{ $seg['path'] }}"
-                              fill="{{ $seg['color'] }}"
-                              filter="url(#pieShadow)"
-                              class="pie-seg" style="cursor:default;transition:opacity .15s;"
-                              data-label="{{ $seg['label'] }}" data-val="{{ $seg['val'] }}" data-pct="{{ $seg['pct'] }}"
-                              onmouseover="this.style.opacity='.82'" onmouseout="this.style.opacity='1'"/>
-                        {{-- Pct label inside segment --}}
-                        @if($seg['show_label'])
-                        <text x="{{ $seg['lx'] }}" y="{{ $seg['ly']+4 }}"
-                              font-size="11" fill="{{ $seg['color']==='#0d326b'?'#fff':'#475569' }}"
-                              font-weight="800" text-anchor="middle">{{ $seg['pct'] }}%</text>
-                        @endif
+                        <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity="0.6"/>
+                        @foreach($fslMasterySegments as $segment)
+                        <path d="{{ $segment['path'] }}" fill="url(#{{ $segment['id'] }})" stroke="#fff" stroke-width="2" stroke-linejoin="round" filter="url(#analyticsMasteryDonutShadow)"/>
                         @endforeach
-                        {{-- Centre label --}}
-                        <text x="110" y="104" font-size="26" fill="#0d326b" font-weight="900" text-anchor="middle">
-                            {{ $activeInactivePie['total'] }}
-                        </text>
-                        <text x="110" y="122" font-size="10" fill="#94a3b8" font-weight="700" text-anchor="middle">STUDENTS</text>
+                        <circle cx="80" cy="80" r="39" fill="#fff" filter="url(#analyticsMasteryDonutShadow)"/>
                     </svg>
-                </div>
-
-                {{-- Legend --}}
-                <div class="flex flex-col gap-3 w-full max-w-[220px]">
-                    @php $actPct = $activeInactivePie['total']>0 ? round($activeInactivePie['active']/$activeInactivePie['total']*100,1) : 0; @endphp
-                    @php $inPct  = $activeInactivePie['total']>0 ? round($activeInactivePie['inactive']/$activeInactivePie['total']*100,1) : 0; @endphp
-
-                    <div class="flex items-center gap-3">
-                        <span style="width:12px;height:12px;border-radius:3px;background:#0d326b;display:inline-block;flex-shrink:0;"></span>
-                        <div class="flex-1">
-                            <div class="flex justify-between items-baseline">
-                                <span class="text-[12px] font-700 text-slate-700">Active</span>
-                                <span class="text-[13px] font-900 text-[#0d326b]">{{ $activeInactivePie['active'] }}</span>
-                            </div>
-                            <div class="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                                <div class="h-full bg-[#0d326b] rounded-full" style="width:{{ $actPct }}%"></div>
-                            </div>
-                        </div>
-                        <span class="text-[11px] font-700 text-slate-400 w-10 text-right">{{ $actPct }}%</span>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <span style="width:12px;height:12px;border-radius:3px;background:#e2e8f0;border:1px solid #cbd5e1;display:inline-block;flex-shrink:0;"></span>
-                        <div class="flex-1">
-                            <div class="flex justify-between items-baseline">
-                                <span class="text-[12px] font-700 text-slate-700">Inactive</span>
-                                <span class="text-[13px] font-900 text-slate-500">{{ $activeInactivePie['inactive'] }}</span>
-                            </div>
-                            <div class="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                                <div class="h-full bg-slate-300 rounded-full" style="width:{{ $inPct }}%"></div>
-                            </div>
-                        </div>
-                        <span class="text-[11px] font-700 text-slate-400 w-10 text-right">{{ $inPct }}%</span>
+                    <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span class="text-2xl font-black text-[#0d326b] leading-none">{{ $fslMasteryTotal }}</span>
+                        <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 mt-0.5">Students</span>
                     </div>
                 </div>
+                <div class="flex flex-col gap-4 flex-1 min-w-0 max-w-[300px]">
+                    @foreach($fslMasterySegments as $segment)
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $segment['color'] }}"></span>
+                        <span class="text-[12px] font-semibold text-slate-600 flex-1 truncate">{{ $segment['label'] }}</span>
+                        <span class="text-[12px] font-black text-[#0d326b] flex-shrink-0">{{ $segment['count'] }} <span class="text-slate-400 font-semibold">({{ $segment['pct'] }}%)</span></span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            <div class="senya-chart-insight mt-auto">
+                <div class="senya-chart-insight-icon"><span class="material-symbols-outlined text-[16px]">lightbulb</span></div>
+                <div><div class="senya-chart-insight-title">Mastery Insight</div><div class="senya-chart-insight-text">{!! $fslMasteryInsight !!}</div></div>
             </div>
             @else
             <div class="flex-1 flex flex-col items-center justify-center py-12">
                 <span class="material-symbols-outlined text-slate-200 text-[52px]">donut_large</span>
-                <p class="text-[13px] text-slate-400 mt-3 font-600">No student activity for {{ $periodDescription }}.</p>
+                <p class="text-[13px] text-slate-400 mt-3 font-600">No students in this school-year roster.</p>
             </div>
             @endif
         </div>
@@ -637,6 +638,14 @@ foreach ($pieData as $pd) {
             <p style="font-size:13px;color:#94a3b8;margin-top:8px;font-weight:600;">No class data for this period.</p>
         </div>
         @endif
+
+        <div class="senya-chart-insight">
+            <div class="senya-chart-insight-icon"><span class="material-symbols-outlined text-[16px]">lightbulb</span></div>
+            <div>
+                <div class="senya-chart-insight-title">Class Performance Insight</div>
+                <div class="senya-chart-insight-text">{!! $classInsight !!}</div>
+            </div>
+        </div>
     </div>
 
 </div>{{-- /space-y-6 --}}
