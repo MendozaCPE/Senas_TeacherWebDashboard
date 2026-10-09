@@ -189,7 +189,7 @@ $dAcc            = $dTotalAttempts > 0 ? round(($dTotalSuccess/$dTotalAttempts)*
 <div id="page-skeleton" class="flex flex-col gap-5 pt-4" aria-hidden="true">
     {{-- Filter bar --}}
     <div class="bg-white rounded-[22px] border border-slate-100 shadow-sm p-4 flex gap-3 flex-wrap">
-        @for($i=0;$i<4;$i++)<div class="skeleton h-9 rounded-[14px] w-36"></div>@endfor
+        @for($i=0;$i<2;$i++)<div class="skeleton h-9 rounded-[14px] w-36"></div>@endfor
         <div class="ml-auto skeleton h-9 rounded-[14px] w-24"></div>
     </div>
     {{-- 4 KPI cards --}}
@@ -248,31 +248,24 @@ $dAcc            = $dTotalAttempts > 0 ? round(($dTotalSuccess/$dTotalAttempts)*
         <div class="filter-group">
             <div class="flex items-center gap-2 mr-2">
                 <span class="material-symbols-outlined text-[#0d326b] text-[22px]">tune</span>
-                <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Period</span>
+                <span class="text-[13px] font-bold text-[#0d326b] uppercase tracking-wider">Filter Analytics</span>
             </div>
 
             <div class="filter-wrap">
-                <select name="period" id="adminPeriodSelect" class="filter-select" onchange="document.getElementById('adminAnalyticsFilterForm').submit()">
-                    @foreach(['weekly'=>'Weekly Trend','monthly'=>'Monthly','quarterly'=>'Quarterly','yearly'=>'Yearly'] as $v=>$l)
-                    <option value="{{ $v }}" {{ $period===$v?'selected':'' }}>{{ $l }}</option>
+                <select name="school_year" id="adminSchoolYearFilter" class="filter-select">
+                    <option value="all" {{ $selectedSchoolYear === 'all' ? 'selected' : '' }}>All School Years</option>
+                    @foreach($schoolYearFilterOptions as $schoolYearOption)
+                    <option value="{{ $schoolYearOption['name'] }}" data-schools="{{ implode(',', $schoolYearOption['school_ids']) }}" {{ $selectedSchoolYear === $schoolYearOption['name'] ? 'selected' : '' }}>S.Y. {{ $schoolYearOption['name'] }}</option>
                     @endforeach
                 </select>
                 <span class="material-symbols-outlined">expand_more</span>
             </div>
 
             <div class="filter-wrap">
-                <select name="year" class="filter-select">
-                    @for($y=date('Y');$y>=2024;$y--)
-                    <option value="{{ $y }}" {{ $year==$y?'selected':'' }}>{{ $y }}</option>
-                    @endfor
-                </select>
-                <span class="material-symbols-outlined">expand_more</span>
-            </div>
-
-            <div class="filter-wrap {{ $period==='monthly'?'':'hidden' }}" id="adminMonthWrap">
-                <select name="month" class="filter-select">
-                    @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $mi=>$mn)
-                    <option value="{{ $mi+1 }}" {{ $month==$mi+1?'selected':'' }}>{{ $mn }}</option>
+                <select name="school" id="adminSchoolFilter" class="filter-select">
+                    <option value="all" {{ $selectedSchoolId === 'all' ? 'selected' : '' }}>All Schools</option>
+                    @foreach($schoolFilterOptions as $schoolOption)
+                    <option value="{{ $schoolOption['school_id'] }}" {{ (string) $selectedSchoolId === (string) $schoolOption['school_id'] ? 'selected' : '' }}>{{ $schoolOption['school'] }}</option>
                     @endforeach
                 </select>
                 <span class="material-symbols-outlined">expand_more</span>
@@ -288,10 +281,23 @@ $dAcc            = $dTotalAttempts > 0 ? round(($dTotalSuccess/$dTotalAttempts)*
 </form>
 
 <script>
-document.getElementById('adminPeriodSelect')?.addEventListener('change', function() {
-    const wrap = document.getElementById('adminMonthWrap');
-    if (wrap) wrap.classList.toggle('hidden', this.value !== 'monthly');
-});
+(() => {
+    const school = document.getElementById('adminSchoolFilter');
+    const schoolYear = document.getElementById('adminSchoolYearFilter');
+    if (!school || !schoolYear) return;
+    const syncSchoolYears = () => {
+        Array.from(schoolYear.options).forEach(option => {
+            if (option.value === 'all') return;
+            const availableSchools = (option.dataset.schools || '').split(',');
+            const available = school.value === 'all' || availableSchools.includes(school.value);
+            option.disabled = !available;
+            option.hidden = !available;
+        });
+        if (schoolYear.selectedOptions[0]?.disabled) schoolYear.value = 'all';
+    };
+    school.addEventListener('change', syncSchoolYears);
+    syncSchoolYears();
+})();
 </script>
 
 {{-- ══ 2. KPI CARDS ════════════════════════════════════════════════════════ --}}
@@ -306,19 +312,22 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
             </div>
         </div>
         <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ number_format($totalUsers) }}</p>
-        <p class="text-[12px] text-white/70 font-medium">{{ $totalTeachers }} teachers · {{ $totalStudents }} students</p>
+        <p class="text-[12px] text-white/70 font-medium">{{ $totalStudents }} students · {{ $totalTeachers }} teachers · {{ $totalGradeLeaders }} grade leaders</p>
     </div>
 
-    {{-- Card 2: Active Students — white --}}
+    {{-- Card 2: Enrolled Students — white --}}
     <div class="stat-kpi-card bg-white">
         <div class="flex items-center justify-between mb-4">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Students (7d)</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Enrolled Students</span>
             <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
-                <span class="material-symbols-outlined text-[20px]">monitor_heart</span>
+                <span class="material-symbols-outlined text-[20px]">school</span>
             </div>
         </div>
-        <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($activeStudents) }}</p>
-        <p class="text-[12px] text-slate-400 font-medium">{{ $totalStudents>0?round(($activeStudents/$totalStudents)*100):0 }}% of total students</p>
+        <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($totalStudents) }}</p>
+        <p class="text-[12px] text-slate-400 font-medium">
+            {{ $selectedSchoolId === 'all' ? 'All schools' : 'Selected school' }} ·
+            {{ $selectedSchoolYear === 'all' ? 'Current enrolled roster' : 'S.Y. ' . $selectedSchoolYear }}
+        </p>
     </div>
 
     {{-- Card 3: Lessons Completed — white --}}
@@ -342,7 +351,7 @@ document.getElementById('adminPeriodSelect')?.addEventListener('change', functio
             </div>
         </div>
         <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ round($avgQuizScore,1) }}%</p>
-        <p class="text-[12px] text-amber-950/80 font-bold">Platform-wide average score</p>
+        <p class="text-[12px] text-amber-950/80 font-bold">Average score in this selection</p>
     </div>
 
 </div>
@@ -354,20 +363,22 @@ $gAcc = ($gestureStats && $gestureStats->total_attempts > 0)
     : 0;
 $activePct = $totalStudents > 0 ? round(($activeStudents / $totalStudents) * 100, 1) : 0;
 $formattedScore = number_format($avgQuizScore, 1);
+$scopeLabel = ($selectedSchoolId === 'all' ? 'all schools' : 'the selected school')
+    . ($selectedSchoolYear === 'all' ? ' across all school years' : ' in S.Y. ' . $selectedSchoolYear);
 
 if ($totalUsers === 0) {
     $adminInsight = "No platform data yet. Insights will appear once teachers and students start using SEÑAS.";
 } elseif ($avgQuizScore >= 75 && $gAcc >= 70) {
-    $adminInsight = "<strong>Platform is performing well.</strong> The average quiz score across all students is <strong>{$formattedScore}%</strong> and gesture accuracy is <strong>{$gAcc}%</strong>. Keep monitoring engagement to sustain this momentum.";
+    $adminInsight = "<strong>Performance is strong for {$scopeLabel}.</strong> The average quiz score is <strong>{$formattedScore}%</strong> and gesture accuracy is <strong>{$gAcc}%</strong>. Keep monitoring engagement to sustain this momentum.";
 } elseif ($avgQuizScore < 50) {
-    $adminInsight = "<strong>Quiz scores need attention.</strong> The platform-wide average is <strong>{$formattedScore}%</strong>. Consider prompting teachers to review lesson content or add more practice activities for struggling students.";
+    $adminInsight = "<strong>Quiz scores need attention for {$scopeLabel}.</strong> The average is <strong>{$formattedScore}%</strong>. Consider prompting teachers to review lesson content or add more practice activities for struggling students.";
 } elseif ($gAcc < 50 && $gestureStats && $gestureStats->total_attempts > 0) {
     $adminInsight = "<strong>Gesture accuracy is below target at {$gAcc}%.</strong> A significant number of students are struggling with sign recognition. Review the gesture breakdown below to identify signs that need curriculum attention.";
 } elseif ($activePct < 30) {
     $adminInsight = "<strong>Student engagement is low — only {$activePct}% of students were active in the last 7 days.</strong> Encourage teachers to assign new lessons or issue daily challenges to re-engage inactive students.";
 } else {
     $mastered = number_format($totalGestureMastered);
-    $adminInsight = "Across the platform, <strong>{$totalStudents} students</strong> have attempted <strong>" . number_format($gestureStats->total_attempts ?? 0) . " gestures</strong> with an accuracy of <strong>{$gAcc}%</strong> and <strong>{$mastered} signs mastered</strong>. Average quiz score stands at <strong>{$formattedScore}%</strong>.";
+    $adminInsight = "For {$scopeLabel}, <strong>{$totalStudents} students</strong> have attempted <strong>" . number_format($gestureStats->total_attempts ?? 0) . " gestures</strong> with an accuracy of <strong>{$gAcc}%</strong> and <strong>{$mastered} signs mastered</strong>. Average quiz score stands at <strong>{$formattedScore}%</strong>.";
 }
 @endphp
 
@@ -376,7 +387,7 @@ if ($totalUsers === 0) {
         <span class="material-symbols-outlined text-[20px]">lightbulb</span>
     </div>
     <div>
-        <div class="senya-insight-gold-title">Senya Platform Overview Insight</div>
+        <div class="senya-insight-gold-title">Senya Analytics Insight</div>
         <div class="senya-insight-gold-text">{!! $adminInsight !!}</div>
     </div>
 </div>
@@ -559,6 +570,491 @@ if ($totalUsers === 0) {
         </div>
 
 
+    </div>
+
+</div>
+
+{{-- ══ 6. SCHOOL, TEACHER, PROGRAM, AND HELP REQUEST ANALYTICS ══ --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+    {{-- Teacher Activity --}}
+    <div class="a-panel !p-0 overflow-hidden order-4 lg:col-span-2">
+        <div class="px-6 pt-5 pb-4 border-b border-slate-50">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Rankings</p>
+            <h3 class="text-[15px] font-bold text-[#0d326b]">Teacher Activity</h3>
+            <p class="text-[12px] text-slate-400 mt-0.5">Ranked by total lesson completions</p>
+        </div>
+        <div class="max-h-[350px] overflow-auto">
+            <table class="w-full text-[13px]">
+                <thead class="sticky top-0 z-10">
+                    <tr class="border-b border-slate-50 bg-[#f8fafc]">
+                        <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-400 w-8">#</th>
+                        <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-400">Teacher</th>
+                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">Students</th>
+                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">Lessons</th>
+                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-400">School</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    @forelse($teacherActivity as $i=>$t)
+                    <tr class="hover:bg-[#f8fafc] transition-colors">
+                        <td class="px-5 py-3">
+                            <span class="w-6 h-6 rounded-full text-[11px] font-black flex items-center justify-center
+                                {{ $i===0?'text-white':'text-slate-500 bg-slate-100' }}"
+                                style="{{ $i===0?'background:linear-gradient(135deg,#0d326b,#1a6fd4)':'' }}">{{ $i+1 }}</span>
+                        </td>
+                        <td class="px-5 py-3">
+                            <p class="font-bold text-slate-800 text-[12.5px]">{{ $t['name'] }}</p>
+                            <p class="text-[10px] text-slate-400">{{ $t['email'] }}</p>
+                        </td>
+                        <td class="px-4 py-3 text-center font-semibold text-slate-600 text-[12px]">{{ $t['students'] }}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-slate-600 text-[12px]">{{ $t['lessons'] }}</td>
+                        <td class="px-4 py-3 text-left text-[11px] font-semibold text-slate-600"><span class="block max-w-36 truncate" title="{{ $t['school'] }}">{{ $t['school'] }}</span></td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="5" class="px-5 py-8 text-center text-slate-400 text-[13px]">No teacher data yet</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{-- Teacher Ranking Insight --}}
+        @php
+        $topTeacher    = $teacherActivity->first();
+        $activeTeachN  = $teacherActivity->where('active_students', '>', 0)->count();
+        $totalTeachN   = $teacherActivity->count();
+        $teacherInsight = match(true) {
+            $totalTeachN === 0
+                => "No teacher activity recorded yet. Teachers haven't published lessons or had student completions this period.",
+            $topTeacher && $topTeacher['completions'] > 0
+                => "<strong>{$topTeacher['name']}</strong> leads the platform with <strong>" . number_format($topTeacher['completions']) . " completions</strong> across <strong>{$topTeacher['students']} students</strong>." . ($activeTeachN < $totalTeachN ? " Note: " . ($totalTeachN - $activeTeachN) . " of {$totalTeachN} teachers have no active students this week — consider reaching out." : ' All teachers have active students this period.'),
+            default
+                => "Teacher activity data is available but no completions have been recorded this period. Encourage teachers to assign and follow up on lesson progress.",
+        };
+        @endphp
+        <div class="px-5 pb-5 pt-4 border-t border-slate-50">
+            <div class="senya-insight-gold">
+                <div class="senya-insight-gold-icon">
+                    <span class="material-symbols-outlined text-[19px]">insights</span>
+                </div>
+                <div>
+                    <div class="senya-insight-gold-title">Teacher Ranking Insight</div>
+                    <div class="senya-insight-gold-text">{!! $teacherInsight !!}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Users by School and each school's own active school year --}}
+    <div class="a-panel order-1">
+        <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">School Year Aware</p>
+                <h3 class="text-[15px] font-bold text-[#0d326b]">School Users by Role</h3>
+                <p class="text-[12px] text-slate-400 mt-1">{{ $selectedSchoolYear === 'all' ? "Student counts use each school's active roster." : 'Student counts use the selected school-year roster.' }} Teacher and grade leader counts are school accounts.</p>
+            </div>
+            <span class="material-symbols-outlined text-slate-300 text-[22px]">bar_chart</span>
+        </div>
+
+        @php
+            $schoolChartCount = $schoolUserCounts->count();
+            $schoolChartW = max(640, $schoolChartCount * 112 + 72);
+            $schoolChartH = 280; $schoolPlotL = 44; $schoolPlotR = 18; $schoolPlotT = 22; $schoolPlotB = 76;
+            $schoolPlotW = $schoolChartW - $schoolPlotL - $schoolPlotR;
+            $schoolPlotH = $schoolChartH - $schoolPlotT - $schoolPlotB;
+            $schoolSlot = $schoolChartCount > 0 ? $schoolPlotW / $schoolChartCount : $schoolPlotW;
+            $schoolBarW = max(32, min(66, round($schoolSlot * .56)));
+            $schoolMaxUsers = max(1, (int) $schoolUserCounts->max(fn ($school) => $school['students'] + $school['teachers'] + $school['grade_leaders']));
+            $schoolRoleColors = ['students' => '#bfdbfe', 'teachers' => '#3b82f6', 'grade_leaders' => '#0d326b'];
+        @endphp
+
+        @if($schoolChartCount > 0)
+        <div class="overflow-x-auto">
+            <svg viewBox="0 0 {{ $schoolChartW }} {{ $schoolChartH }}" role="img" aria-label="User counts by school and role" style="width:max(100%, {{ $schoolChartW }}px);height:auto;" preserveAspectRatio="xMidYMid meet">
+                @foreach([0,25,50,75,100] as $tick)
+                    @php
+                        $tickY = round($schoolPlotT + $schoolPlotH - ($tick / 100) * $schoolPlotH, 1);
+                        $tickLabel = (int) round($schoolMaxUsers * $tick / 100);
+                    @endphp
+                    <line x1="{{ $schoolPlotL }}" y1="{{ $tickY }}" x2="{{ $schoolChartW - $schoolPlotR }}" y2="{{ $tickY }}" stroke="#e8eef6" stroke-width="1" stroke-dasharray="3,4" />
+                    <text x="{{ $schoolPlotL - 8 }}" y="{{ $tickY + 4 }}" font-size="10" fill="#94a3b8" font-weight="600" text-anchor="end">{{ $tickLabel }}</text>
+                @endforeach
+                <line x1="{{ $schoolPlotL }}" y1="{{ $schoolPlotT + $schoolPlotH }}" x2="{{ $schoolChartW - $schoolPlotR }}" y2="{{ $schoolPlotT + $schoolPlotH }}" stroke="#cbd5e1" stroke-width="1.4" />
+
+                @foreach($schoolUserCounts as $index => $school)
+                    @php
+                        $centerX = round($schoolPlotL + ($index + .5) * $schoolSlot, 1);
+                        $barX = round($centerX - $schoolBarW / 2, 1);
+                        $stackOffset = 0;
+                        $roleValues = [
+                            ['key' => 'students', 'count' => $school['students']],
+                            ['key' => 'teachers', 'count' => $school['teachers']],
+                            ['key' => 'grade_leaders', 'count' => $school['grade_leaders']],
+                        ];
+                        $totalUsersForSchool = array_sum(array_column($roleValues, 'count'));
+                    @endphp
+                    @foreach($roleValues as $role)
+                        @if($role['count'] > 0)
+                            @php
+                                $segmentHeight = max(2, round(($role['count'] / $schoolMaxUsers) * $schoolPlotH, 1));
+                                $segmentY = round($schoolPlotT + $schoolPlotH - $stackOffset - $segmentHeight, 1);
+                                $stackOffset += $segmentHeight;
+                            @endphp
+                            <rect x="{{ $barX }}" y="{{ $segmentY }}" width="{{ $schoolBarW }}" height="{{ $segmentHeight }}" fill="{{ $schoolRoleColors[$role['key']] }}" rx="{{ $role['key'] === 'grade_leaders' ? 4 : 1 }}">
+                                <title>{{ $school['school'] }} — {{ str_replace('_', ' ', ucfirst($role['key'])) }}: {{ number_format($role['count']) }}</title>
+                            </rect>
+                            @if($segmentHeight >= 18)
+                            <text x="{{ $centerX }}" y="{{ $segmentY + ($segmentHeight / 2) + 3 }}" font-size="9" fill="{{ $role['key'] === 'students' ? '#0d326b' : '#ffffff' }}" font-weight="800" text-anchor="middle">{{ $role['count'] }}</text>
+                            @endif
+                        @endif
+                    @endforeach
+                    <text x="{{ $centerX }}" y="{{ max($schoolPlotT + 12, $schoolPlotT + $schoolPlotH - $stackOffset - 7) }}" font-size="10" fill="#0d326b" font-weight="800" text-anchor="middle">{{ number_format($totalUsersForSchool) }}</text>
+                    <text x="{{ $centerX }}" y="{{ $schoolChartH - 48 }}" font-size="10" fill="#475569" font-weight="700" text-anchor="middle">
+                        <title>{{ $school['school'] }}</title>{{ \Illuminate\Support\Str::limit($school['school'], 16) }}
+                    </text>
+                    <text x="{{ $centerX }}" y="{{ $schoolChartH - 27 }}" font-size="9" fill="#94a3b8" font-weight="600" text-anchor="middle">{{ $school['school_year'] ? 'S.Y. ' . $school['school_year'] : 'No active S.Y.' }}</text>
+                @endforeach
+            </svg>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 pt-3 border-t border-slate-100">
+            @foreach([['key' => 'students', 'label' => 'Students'], ['key' => 'teachers', 'label' => 'Teachers'], ['key' => 'grade_leaders', 'label' => 'Grade Leaders']] as $roleLegend)
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-3 h-3 rounded-sm" style="background:{{ $schoolRoleColors[$roleLegend['key']] }}"></span>
+                <span class="text-[11px] font-semibold text-slate-600">{{ $roleLegend['label'] }}</span>
+            </div>
+            @endforeach
+            <span class="text-[10px] text-slate-400 ml-auto">Admin accounts are not school-linked and are excluded.</span>
+        </div>
+        @php
+            $topSchoolByStudents = $schoolUserCounts->sortByDesc('students')->first();
+            $schoolStudentTotal = $schoolUserCounts->sum('students');
+            $schoolTeacherTotal = $schoolUserCounts->sum('teachers');
+            $schoolLeaderTotal = $schoolUserCounts->sum('grade_leaders');
+            $schoolChartInsight = $schoolStudentTotal > 0 && $topSchoolByStudents
+                ? '<strong>' . e($topSchoolByStudents['school']) . '</strong> has the most enrolled students with <strong>' . number_format($topSchoolByStudents['students']) . '</strong>. Across <strong>' . $schoolChartCount . ' schools</strong>, the chart shows <strong>' . number_format($schoolStudentTotal) . ' students, ' . number_format($schoolTeacherTotal) . ' teachers, and ' . number_format($schoolLeaderTotal) . ' grade leaders</strong>.'
+                : 'No active school-year student enrollments are recorded. The chart still shows school-linked teacher and grade leader accounts.';
+        @endphp
+        <div class="senya-insight-gold mt-4">
+            <div class="senya-insight-gold-icon"><span class="material-symbols-outlined text-[19px]">lightbulb</span></div>
+            <div>
+                <div class="senya-insight-gold-title">School Users Insight</div>
+                <div class="senya-insight-gold-text">{!! $schoolChartInsight !!}</div>
+            </div>
+        </div>
+        @else
+        <div class="py-14 text-center text-[13px] font-semibold text-slate-400">No schools are registered yet.</div>
+        @endif
+    </div>
+
+    {{-- Student Overview: classification and mastery --}}
+    <div class="a-panel order-2 flex flex-col">
+        <div class="flex items-start justify-between pb-4 border-b border-slate-100 mb-4">
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Students</p>
+                <h3 class="text-[15px] font-bold text-[#0d326b]">Student Overview</h3>
+            </div>
+            <span class="material-symbols-outlined text-slate-300 text-[22px]">donut_large</span>
+        </div>
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Classification</div>
+        @php
+            $totalP = $programDistribution->sum('count');
+            $programPalette = [
+                ['color' => '#0d326b', 'from' => '#1e4b8f', 'to' => '#071c3f'],
+                ['color' => '#1a6fd4', 'from' => '#3b82f6', 'to' => '#1a6fd4'],
+                ['color' => '#60a5fa', 'from' => '#93c5fd', 'to' => '#3b82f6'],
+                ['color' => '#93c5fd', 'from' => '#bfdbfe', 'to' => '#60a5fa'],
+                ['color' => '#1e40af', 'from' => '#3b82f6', 'to' => '#1e3a8a'],
+                ['color' => '#38bdf8', 'from' => '#7dd3fc', 'to' => '#0284c7'],
+                ['color' => '#64748b', 'from' => '#94a3b8', 'to' => '#475569'],
+            ];
+            $programDonut = [];
+            $donutCx = 80; $donutCy = 80; $donutInner = 40;
+            $programActiveCount = $programDistribution->count();
+            $programMaxCount = max(1, (int) $programDistribution->max('count'));
+            $programCurrentAngle = -pi() / 2;
+            $donutGapAngle = $programActiveCount > 1 ? .08 : 0;
+            foreach ($programDistribution->values() as $i => $pd) {
+                $fraction = $totalP > 0 ? $pd->count / $totalP : 0;
+                $angleSpan = $fraction * (2 * pi());
+                $outerR = round(56 + (18 * ($pd->count / $programMaxCount)), 1);
+                if ($programActiveCount === 1) {
+                    $start = $programCurrentAngle;
+                    $end = $programCurrentAngle + (2 * pi()) - .001;
+                } else {
+                    $start = $programCurrentAngle + ($donutGapAngle / 2);
+                    $end = $programCurrentAngle + $angleSpan - ($donutGapAngle / 2);
+                    if ($end <= $start) {
+                        $start = $programCurrentAngle;
+                        $end = $programCurrentAngle + $angleSpan;
+                    }
+                }
+                $x1 = round($donutCx + $outerR * cos($start), 2);
+                $y1 = round($donutCy + $outerR * sin($start), 2);
+                $x2 = round($donutCx + $outerR * cos($end), 2);
+                $y2 = round($donutCy + $outerR * sin($end), 2);
+                $x3 = round($donutCx + $donutInner * cos($end), 2);
+                $y3 = round($donutCy + $donutInner * sin($end), 2);
+                $x4 = round($donutCx + $donutInner * cos($start), 2);
+                $y4 = round($donutCy + $donutInner * sin($start), 2);
+                $largeArc = ($end - $start) > pi() ? 1 : 0;
+                $palette = $programPalette[$i % count($programPalette)];
+                $programDonut[] = [
+                    'label' => $pd->program_type ?? 'N/A', 'count' => (int) $pd->count,
+                    'pct' => round($fraction * 100), 'color' => $palette['color'],
+                    'from' => $palette['from'], 'to' => $palette['to'], 'gradient_id' => 'adminProgramDonut' . $i,
+                    'outerR' => $outerR,
+                    'path' => "M {$x1} {$y1} A {$outerR} {$outerR} 0 {$largeArc} 1 {$x2} {$y2} L {$x3} {$y3} A {$donutInner} {$donutInner} 0 {$largeArc} 0 {$x4} {$y4} Z",
+                ];
+                $programCurrentAngle += $angleSpan;
+            }
+        @endphp
+        @if($totalP > 0)
+        <div class="flex items-center justify-center gap-5 py-2 w-full max-w-[500px] mx-auto">
+            <div class="relative w-[124px] h-[124px] shrink-0">
+                <svg class="w-full h-full overflow-visible" viewBox="0 0 160 160" role="img" aria-label="Student classification donut chart">
+                    <defs>
+                        <filter id="adminProgramSliceShadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/></filter>
+                        @foreach($programDonut as $segment)
+                        <linearGradient id="{{ $segment['gradient_id'] }}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="{{ $segment['from'] }}"/><stop offset="100%" stop-color="{{ $segment['to'] }}"/></linearGradient>
+                        @endforeach
+                    </defs>
+                    <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity=".6"/>
+                    @foreach($programDonut as $segment)
+                    <path d="{{ $segment['path'] }}" fill="url(#{{ $segment['gradient_id'] }})" stroke="#fff" stroke-width="2" stroke-linejoin="round" filter="url(#adminProgramSliceShadow)"/>
+                    @endforeach
+                    <circle cx="80" cy="80" r="39" fill="#fff" filter="url(#adminProgramSliceShadow)"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                    <span class="text-[23px] font-black text-[#0d326b] leading-none">{{ $totalP }}</span>
+                    <span class="text-[8px] font-extrabold uppercase tracking-wider text-slate-400 mt-1">Total</span>
+                </div>
+            </div>
+            <div class="flex-1 min-w-0 space-y-3">
+                @foreach($programDonut as $segment)
+                <div class="flex items-center gap-2 min-w-0 text-[11px]">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:{{ $segment['color'] }}"></span>
+                    <span class="font-semibold text-slate-600 flex-1 truncate" title="{{ $segment['label'] }}">{{ $segment['label'] }}</span>
+                    <span class="font-black text-[#0d326b] shrink-0">{{ $segment['count'] }} <span class="font-semibold text-slate-400">({{ $segment['pct'] }}%)</span></span>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @else
+        <div class="py-8 text-center text-[13px] text-slate-400">No program data available.</div>
+        @endif
+
+        {{-- Program distribution insight data --}}
+        @php
+        $topProgram   = $programDistribution->sortByDesc('count')->first();
+        $programCount = $programDistribution->count();
+        $totalInProg  = $programDistribution->sum('count');
+        $programInsight = match(true) {
+            $totalInProg === 0
+                => "No program data recorded yet. Insights will appear once students have programs assigned.",
+            $programCount === 1
+                => "All <strong>{$totalInProg} students</strong> are in the <strong>" . ($topProgram->program_type ?? 'N/A') . "</strong> program. Consider enrolling students across multiple programs for broader reach.",
+            $topProgram && $totalInProg > 0
+                => "<strong>" . ($topProgram->program_type ?? 'N/A') . "</strong> is the largest program group with <strong>{$topProgram->count} students</strong> (" . round(($topProgram->count / $totalInProg) * 100) . "% of total). Spread across <strong>{$programCount} programs</strong> — tailor lesson content to match each program's learning needs.",
+        };
+        @endphp
+        <div class="pt-4 mt-4 border-t border-slate-100">
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">FSL Mastery</div>
+        @php
+            $masteryPalette = [
+                'Beginner' => ['color' => '#93c5fd', 'from' => '#bfdbfe', 'to' => '#60a5fa'],
+                'Intermediate' => ['color' => '#3b82f6', 'from' => '#60a5fa', 'to' => '#2563eb'],
+                'Advanced' => ['color' => '#0d326b', 'from' => '#1e4b8f', 'to' => '#071c3f'],
+                'Completed' => ['color' => '#1a6fd4', 'from' => '#3b82f6', 'to' => '#1a6fd4'],
+                'Unassigned' => ['color' => '#cbd5e1', 'from' => '#e2e8f0', 'to' => '#94a3b8'],
+            ];
+            $masteryOrder = ['Beginner', 'Intermediate', 'Advanced', 'Completed', 'Unassigned'];
+            $masteryDistribution = $masteryDistribution->sortBy(function ($item) use ($masteryOrder) {
+                $position = array_search($item->mastery_level, $masteryOrder, true);
+                return $position === false ? 99 : $position;
+            })->values();
+            $totalMastery = $masteryDistribution->sum('count');
+            $masteryDonut = [];
+            $masteryActiveCount = $masteryDistribution->count();
+            $masteryMaxCount = max(1, (int) $masteryDistribution->max('count'));
+            $masteryCurrentAngle = -pi() / 2;
+            $masteryGapAngle = $masteryActiveCount > 1 ? .08 : 0;
+            foreach ($masteryDistribution as $masteryIndex => $item) {
+                $fraction = $totalMastery > 0 ? $item->count / $totalMastery : 0;
+                $angleSpan = $fraction * (2 * pi());
+                $outerR = round(56 + (18 * ($item->count / $masteryMaxCount)), 1);
+                if ($masteryActiveCount === 1) {
+                    $start = $masteryCurrentAngle;
+                    $end = $masteryCurrentAngle + (2 * pi()) - .001;
+                } else {
+                    $start = $masteryCurrentAngle + ($masteryGapAngle / 2);
+                    $end = $masteryCurrentAngle + $angleSpan - ($masteryGapAngle / 2);
+                    if ($end <= $start) {
+                        $start = $masteryCurrentAngle;
+                        $end = $masteryCurrentAngle + $angleSpan;
+                    }
+                }
+                $x1 = round($donutCx + $outerR * cos($start), 2);
+                $y1 = round($donutCy + $outerR * sin($start), 2);
+                $x2 = round($donutCx + $outerR * cos($end), 2);
+                $y2 = round($donutCy + $outerR * sin($end), 2);
+                $x3 = round($donutCx + $donutInner * cos($end), 2);
+                $y3 = round($donutCy + $donutInner * sin($end), 2);
+                $x4 = round($donutCx + $donutInner * cos($start), 2);
+                $y4 = round($donutCy + $donutInner * sin($start), 2);
+                $largeArc = ($end - $start) > pi() ? 1 : 0;
+                $palette = $masteryPalette[$item->mastery_level] ?? ['color' => '#64748b', 'from' => '#94a3b8', 'to' => '#475569'];
+                $midAngle = ($start + $end) / 2;
+                $masteryDonut[] = [
+                    'label' => $item->mastery_level, 'count' => (int) $item->count,
+                    'pct' => round($fraction * 100), 'color' => $palette['color'],
+                    'from' => $palette['from'], 'to' => $palette['to'], 'gradient_id' => 'adminMasteryDonut' . $masteryIndex,
+                    'outerR' => $outerR,
+                    'path' => "M {$x1} {$y1} A {$outerR} {$outerR} 0 {$largeArc} 1 {$x2} {$y2} L {$x3} {$y3} A {$donutInner} {$donutInner} 0 {$largeArc} 0 {$x4} {$y4} Z",
+                ];
+                $masteryCurrentAngle += $angleSpan;
+            }
+            $topMastery = $masteryDistribution->sortByDesc('count')->first();
+            $masteryInsight = $totalMastery === 0
+                ? 'No student mastery data is available yet.'
+                : '<strong>' . e($topMastery->mastery_level) . '</strong> is the largest group with <strong>' . $topMastery->count . ' of ' . $totalMastery . ' students (' . round(($topMastery->count / $totalMastery) * 100) . '%)</strong>.';
+        @endphp
+        @if($totalMastery > 0)
+        <div class="flex items-center justify-center gap-5 py-2 w-full max-w-[500px] mx-auto">
+            <div class="relative w-[124px] h-[124px] shrink-0">
+                <svg class="w-full h-full overflow-visible" viewBox="0 0 160 160" role="img" aria-label="Student mastery donut chart">
+                    <defs>
+                        <filter id="adminMasterySliceShadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.08"/></filter>
+                        @foreach($masteryDonut as $segment)
+                        <linearGradient id="{{ $segment['gradient_id'] }}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="{{ $segment['from'] }}"/><stop offset="100%" stop-color="{{ $segment['to'] }}"/></linearGradient>
+                        @endforeach
+                    </defs>
+                    <circle cx="80" cy="80" r="54" fill="none" stroke="#f1f5f9" stroke-width="26" opacity=".6"/>
+                    @foreach($masteryDonut as $segment)
+                    <path d="{{ $segment['path'] }}" fill="url(#{{ $segment['gradient_id'] }})" stroke="#fff" stroke-width="2" stroke-linejoin="round" filter="url(#adminMasterySliceShadow)"/>
+                    @endforeach
+                    <circle cx="80" cy="80" r="39" fill="#fff" filter="url(#adminMasterySliceShadow)"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                    <span class="text-[23px] font-black text-[#0d326b] leading-none">{{ $totalMastery }}</span>
+                    <span class="text-[8px] font-extrabold uppercase tracking-wider text-slate-400 mt-1">Total</span>
+                </div>
+            </div>
+            <div class="flex-1 min-w-0 space-y-3">
+                @foreach($masteryDonut as $segment)
+                <div class="flex items-center gap-2 min-w-0 text-[11px]">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:{{ $segment['color'] }}"></span>
+                    <span class="font-semibold text-slate-600 flex-1 truncate">{{ $segment['label'] }}</span>
+                    <span class="font-black text-[#0d326b] shrink-0">{{ $segment['count'] }} <span class="font-semibold text-slate-400">({{ $segment['pct'] }}%)</span></span>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @else
+        <div class="py-8 text-center text-[13px] text-slate-400">No student mastery data available.</div>
+        @endif
+        </div>
+        @php $studentOverviewInsight = $programInsight . ' ' . $masteryInsight; @endphp
+        <div class="senya-insight-gold mt-auto">
+            <div class="senya-insight-gold-icon"><span class="material-symbols-outlined text-[19px]">lightbulb</span></div>
+            <div>
+                <div class="senya-insight-gold-title">Student Overview Insight</div>
+                <div class="senya-insight-gold-text">{!! $studentOverviewInsight !!}</div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Help Request Activity --}}
+    <div class="a-panel order-5 lg:col-span-2">
+        <div class="flex items-start justify-between mb-3">
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Activity</p>
+                <h3 class="text-[14px] font-bold text-[#0d326b]">Help Request Activity</h3>
+                <p class="text-[11.5px] text-slate-400 mt-0.5">Submitted &amp; resolved — last 7 days</p>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] font-semibold shrink-0">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-6 h-1.5 rounded-full inline-block" style="background:#0d326b"></span>
+                    <span class="text-slate-600">Submitted</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-6 h-1.5 rounded-full inline-block" style="background:#1a6fd4;opacity:.6"></span>
+                    <span class="text-slate-600">Resolved</span>
+                </span>
+            </div>
+        </div>
+        <div class="bg-[#f8fafc] rounded-2xl w-full relative" style="padding-bottom:52%">
+            <svg viewBox="0 0 {{ $RW }} {{ $RH }}" class="absolute inset-0 w-full h-full" overflow="visible">
+                <defs>
+                    <linearGradient id="rPFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#0d326b" stop-opacity=".14"/>
+                        <stop offset="100%" stop-color="#0d326b" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="rRFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#1a6fd4" stop-opacity=".10"/>
+                        <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="rPLine" x1="0" y1="0" x2="100%" y2="0">
+                        <stop offset="0%" stop-color="#1e4b8f"/>
+                        <stop offset="100%" stop-color="#0d326b"/>
+                    </linearGradient>
+                    <linearGradient id="rRLine" x1="0" y1="0" x2="100%" y2="0">
+                        <stop offset="0%" stop-color="#3b82f6"/>
+                        <stop offset="100%" stop-color="#1a6fd4"/>
+                    </linearGradient>
+                </defs>
+                @foreach([0,25,50,75,100] as $gv)
+                    @php $gy2=round($RpT+$RpH-($gv/100)*$RpH,1); @endphp
+                    <line x1="{{ $RpL }}" y1="{{ $gy2 }}" x2="{{ $RpL+$RpW }}" y2="{{ $gy2 }}"
+                          stroke="#e8ecf2" stroke-width="1" stroke-dasharray="4,4"/>
+                @endforeach
+                <path d="{{ $rPArea }}" fill="url(#rPFill)"/>
+                <path d="{{ $rRArea }}" fill="url(#rRFill)"/>
+                <path d="{{ $rPLine }}" fill="none" stroke="url(#rPLine)" stroke-width="2" stroke-linecap="round"/>
+                <path d="{{ $rRLine }}" fill="none" stroke="url(#rRLine)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5,3"/>
+                @foreach($rPPts as $i=>$p)
+                    <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="3.5" fill="#0d326b" stroke="white" stroke-width="1.5"/>
+                @endforeach
+                @foreach($rRPts as $i=>$p)
+                    <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="3.5" fill="#1a6fd4" stroke="white" stroke-width="1.5"/>
+                @endforeach
+                @foreach($reportTrend as $i=>$d)
+                    <text x="{{ $rPPts[$i]['x'] }}" y="{{ $RH-6 }}" font-size="9" fill="#94a3b8"
+                          font-weight="600" text-anchor="middle">{{ $d['label'] }}</text>
+                @endforeach
+            </svg>
+        </div>
+
+        {{-- Help Request Insight --}}
+        @php
+        $totalPending  = collect($reportTrend)->sum('pending');
+        $totalResolved = collect($reportTrend)->sum('resolved');
+        $latestPending = collect($reportTrend)->last()['pending'] ?? 0;
+        $resolutionRate = ($totalPending + $totalResolved) > 0
+            ? round(($totalResolved / ($totalPending + $totalResolved)) * 100)
+            : 0;
+        $reportInsight = match(true) {
+            $totalPending === 0 && $totalResolved === 0
+                => "No help requests recorded in the last 7 days. This is a good sign — students are managing lessons without needing to escalate issues.",
+            $resolutionRate >= 80
+                => "<strong>Help requests are being resolved effectively</strong> — <strong>{$resolutionRate}% resolution rate</strong> over the past 7 days ({$totalResolved} resolved of " . ($totalPending + $totalResolved) . " submitted). Keep encouraging teachers to respond promptly.",
+            $latestPending > 0 && $totalResolved === 0
+                => "<strong>{$totalPending} help requests submitted</strong> in the past 7 days with <strong>none resolved yet.</strong> Remind teachers to review and respond to pending student concerns.",
+            $totalPending > $totalResolved
+                => "<strong>More requests are coming in than being resolved</strong> — {$totalPending} submitted vs {$totalResolved} resolved this week ({$resolutionRate}% rate). Consider following up with teachers on outstanding student reports.",
+            default
+                => "<strong>{$totalPending} help requests</strong> submitted and <strong>{$totalResolved} resolved</strong> in the last 7 days — a <strong>{$resolutionRate}% resolution rate</strong>. Monitor trends to keep response times low.",
+        };
+        @endphp
+        <div class="senya-insight-gold mt-4">
+            <div class="senya-insight-gold-icon">
+                <span class="material-symbols-outlined text-[19px]">support_agent</span>
+            </div>
+            <div>
+                <div class="senya-insight-gold-title">Help Request Insight</div>
+                <div class="senya-insight-gold-text">{!! $reportInsight !!}</div>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -792,289 +1288,6 @@ $gestureInsight = match(true) {
         <div class="senya-insight-gold-title">Gesture Coaching Insight</div>
         <div class="senya-insight-gold-text">{!! $gestureInsight !!}</div>
     </div>
-</div>
-
-{{-- ══ 6. 2×2 GRID: TEACHER ACTIVITY · MOST COMPLETED · GRADE DIST · HELP REQUEST ══ --}}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-    {{-- Teacher Activity --}}
-    <div class="a-panel !p-0 overflow-hidden">
-        <div class="px-6 pt-5 pb-4 border-b border-slate-50">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Rankings</p>
-            <h3 class="text-[15px] font-bold text-[#0d326b]">Teacher Activity</h3>
-            <p class="text-[12px] text-slate-400 mt-0.5">Ranked by total lesson completions</p>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-[13px]">
-                <thead>
-                    <tr class="border-b border-slate-50 bg-[#f8fafc]">
-                        <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-400 w-8">#</th>
-                        <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-400">Teacher</th>
-                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">Students</th>
-                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">Lessons</th>
-                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">Done</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-50">
-                    @forelse($teacherActivity as $i=>$t)
-                    <tr class="hover:bg-[#f8fafc] transition-colors">
-                        <td class="px-5 py-3">
-                            <span class="w-6 h-6 rounded-full text-[11px] font-black flex items-center justify-center
-                                {{ $i===0?'text-white':'text-slate-500 bg-slate-100' }}"
-                                style="{{ $i===0?'background:linear-gradient(135deg,#0d326b,#1a6fd4)':'' }}">{{ $i+1 }}</span>
-                        </td>
-                        <td class="px-5 py-3">
-                            <p class="font-bold text-slate-800 text-[12.5px]">{{ $t['name'] }}</p>
-                            <p class="text-[10px] text-slate-400">{{ $t['email'] }}</p>
-                        </td>
-                        <td class="px-4 py-3 text-center font-semibold text-slate-600 text-[12px]">{{ $t['students'] }}</td>
-                        <td class="px-4 py-3 text-center font-semibold text-slate-600 text-[12px]">{{ $t['lessons'] }}</td>
-                        <td class="px-4 py-3 text-center font-black text-[#0d326b] text-[12px]">{{ number_format($t['completions']) }}</td>
-                    </tr>
-                    @empty
-                    <tr><td colspan="5" class="px-5 py-8 text-center text-slate-400 text-[13px]">No teacher data yet</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        {{-- Teacher Ranking Insight --}}
-        @php
-        $topTeacher    = $teacherActivity->first();
-        $activeTeachN  = $teacherActivity->where('active_students', '>', 0)->count();
-        $totalTeachN   = $teacherActivity->count();
-        $teacherInsight = match(true) {
-            $totalTeachN === 0
-                => "No teacher activity recorded yet. Teachers haven't published lessons or had student completions this period.",
-            $topTeacher && $topTeacher['completions'] > 0
-                => "<strong>{$topTeacher['name']}</strong> leads the platform with <strong>" . number_format($topTeacher['completions']) . " completions</strong> across <strong>{$topTeacher['students']} students</strong>." . ($activeTeachN < $totalTeachN ? " Note: " . ($totalTeachN - $activeTeachN) . " of {$totalTeachN} teachers have no active students this week — consider reaching out." : ' All teachers have active students this period.'),
-            default
-                => "Teacher activity data is available but no completions have been recorded this period. Encourage teachers to assign and follow up on lesson progress.",
-        };
-        @endphp
-        <div class="px-5 pb-5 pt-4 border-t border-slate-50">
-            <div class="senya-insight-gold">
-                <div class="senya-insight-gold-icon">
-                    <span class="material-symbols-outlined text-[19px]">insights</span>
-                </div>
-                <div>
-                    <div class="senya-insight-gold-title">Teacher Ranking Insight</div>
-                    <div class="senya-insight-gold-text">{!! $teacherInsight !!}</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Most Completed Lessons --}}
-    <div class="a-panel">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Content</p>
-                <h3 class="text-[14px] font-bold text-[#0d326b]">Most Completed Lessons</h3>
-            </div>
-            <span class="material-symbols-outlined text-slate-300 text-[20px]">menu_book</span>
-        </div>
-        <div class="space-y-3">
-            @forelse($mostCompletedLessons as $lesson)
-            @php $maxC=$mostCompletedLessons->max('completions')?:1; @endphp
-            <div>
-                <div class="flex items-center justify-between mb-1 text-[12px]">
-                    <span class="font-semibold text-slate-700 truncate pr-3">{{ $lesson->title }}</span>
-                    <span class="font-black text-[#0d326b] shrink-0">{{ number_format($lesson->completions) }}</span>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div class="h-1.5 rounded-full" style="width:{{ round(($lesson->completions/$maxC)*100) }}%; background:linear-gradient(90deg,#0d326b,#1a6fd4)"></div>
-                </div>
-            </div>
-            @empty
-            <p class="text-[13px] text-slate-400 text-center py-4">No completion data yet</p>
-            @endforelse
-        </div>
-
-        {{-- Lesson Content Insight --}}
-        @php
-        $topLesson    = $mostCompletedLessons->first();
-        $bottomLesson = $leastCompletedLessons->first();
-        $lessonInsight = match(true) {
-            !$topLesson
-                => "No lesson completion data yet. Once students start completing assignments, top and low-performing lessons will surface here.",
-            $topLesson->completions > 0 && $bottomLesson && $bottomLesson->completions == 0
-                => "<strong>\"{$topLesson->title}\"</strong> leads with <strong>{$topLesson->completions} completions</strong>, while <strong>\"{$bottomLesson->title}\"</strong> has zero completions. Review whether the lowest-performing lessons are assigned or accessible to students.",
-            default
-                => "<strong>\"{$topLesson->title}\"</strong> is the most completed lesson with <strong>{$topLesson->completions} completions</strong>." . ($bottomLesson ? " Consider reviewing <strong>\"{$bottomLesson->title}\"</strong> which has the fewest completions ({$bottomLesson->completions})." : ''),
-        };
-        @endphp
-        <div class="senya-insight-gold mt-4">
-            <div class="senya-insight-gold-icon">
-                <span class="material-symbols-outlined text-[19px]">menu_book</span>
-            </div>
-            <div>
-                <div class="senya-insight-gold-title">Lesson Content Insight</div>
-                <div class="senya-insight-gold-text">{!! $lessonInsight !!}</div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Students by Program --}}
-    <div class="a-panel">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Students</p>
-                <h3 class="text-[14px] font-bold text-[#0d326b]">Students by Program</h3>
-            </div>
-            <span class="material-symbols-outlined text-slate-300 text-[20px]">account_tree</span>
-        </div>
-        @php
-            $maxP = $programDistribution->max('count') ?: 1;
-            $totalP = $programDistribution->sum('count');
-            // Assign distinct blue shades per index
-            $programColors = [
-                'linear-gradient(90deg,#0d326b,#1a4e9e)',
-                'linear-gradient(90deg,#1a6fd4,#3b8fe8)',
-                'linear-gradient(90deg,#60a5fa,#93c5fd)',
-                'linear-gradient(90deg,#0d326b,#1a6fd4)',
-                'linear-gradient(90deg,#1e40af,#3b82f6)',
-            ];
-        @endphp
-        <div class="space-y-3">
-            @forelse($programDistribution as $i => $pd)
-            @php
-                $barColor = $programColors[$i % count($programColors)];
-                $pct = $totalP > 0 ? round(($pd->count / $totalP) * 100) : 0;
-            @endphp
-            <div class="flex items-center gap-3">
-                <span class="text-[11px] font-bold text-slate-600 w-28 shrink-0 truncate" title="{{ $pd->program_type ?? 'N/A' }}">
-                    {{ $pd->program_type ?? 'N/A' }}
-                </span>
-                <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                    <div class="h-2.5 rounded-full transition-all" style="width:{{ round(($pd->count/$maxP)*100) }}%; background:{{ $barColor }}"></div>
-                </div>
-                <span class="text-[11px] text-slate-400 font-semibold w-8 text-right shrink-0">{{ $pct }}%</span>
-                <span class="text-[12px] font-black text-[#0d326b] w-6 text-right shrink-0">{{ $pd->count }}</span>
-            </div>
-            @empty
-            <p class="text-[13px] text-slate-400 text-center py-4">No program data available</p>
-            @endforelse
-        </div>
-
-        {{-- Program Distribution Insight --}}
-        @php
-        $topProgram   = $programDistribution->sortByDesc('count')->first();
-        $programCount = $programDistribution->count();
-        $totalInProg  = $programDistribution->sum('count');
-        $programInsight = match(true) {
-            $totalInProg === 0
-                => "No program data recorded yet. Insights will appear once students have programs assigned.",
-            $programCount === 1
-                => "All <strong>{$totalInProg} students</strong> are in the <strong>" . ($topProgram->program_type ?? 'N/A') . "</strong> program. Consider enrolling students across multiple programs for broader reach.",
-            $topProgram && $totalInProg > 0
-                => "<strong>" . ($topProgram->program_type ?? 'N/A') . "</strong> is the largest program group with <strong>{$topProgram->count} students</strong> (" . round(($topProgram->count / $totalInProg) * 100) . "% of total). Spread across <strong>{$programCount} programs</strong> — tailor lesson content to match each program's learning needs.",
-        };
-        @endphp
-        <div class="senya-insight-gold mt-4">
-            <div class="senya-insight-gold-icon">
-                <span class="material-symbols-outlined text-[19px]">account_tree</span>
-            </div>
-            <div>
-                <div class="senya-insight-gold-title">Program Distribution Insight</div>
-                <div class="senya-insight-gold-text">{!! $programInsight !!}</div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Help Request Activity --}}
-    <div class="a-panel">
-        <div class="flex items-start justify-between mb-3">
-            <div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Activity</p>
-                <h3 class="text-[14px] font-bold text-[#0d326b]">Help Request Activity</h3>
-                <p class="text-[11.5px] text-slate-400 mt-0.5">Submitted &amp; resolved — last 7 days</p>
-            </div>
-            <div class="flex items-center gap-3 text-[11px] font-semibold shrink-0">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-6 h-1.5 rounded-full inline-block" style="background:#0d326b"></span>
-                    <span class="text-slate-600">Submitted</span>
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-6 h-1.5 rounded-full inline-block" style="background:#1a6fd4;opacity:.6"></span>
-                    <span class="text-slate-600">Resolved</span>
-                </span>
-            </div>
-        </div>
-        <div class="bg-[#f8fafc] rounded-2xl w-full relative" style="padding-bottom:52%">
-            <svg viewBox="0 0 {{ $RW }} {{ $RH }}" class="absolute inset-0 w-full h-full" overflow="visible">
-                <defs>
-                    <linearGradient id="rPFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#0d326b" stop-opacity=".14"/>
-                        <stop offset="100%" stop-color="#0d326b" stop-opacity="0"/>
-                    </linearGradient>
-                    <linearGradient id="rRFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#1a6fd4" stop-opacity=".10"/>
-                        <stop offset="100%" stop-color="#1a6fd4" stop-opacity="0"/>
-                    </linearGradient>
-                    <linearGradient id="rPLine" x1="0" y1="0" x2="100%" y2="0">
-                        <stop offset="0%" stop-color="#1e4b8f"/>
-                        <stop offset="100%" stop-color="#0d326b"/>
-                    </linearGradient>
-                    <linearGradient id="rRLine" x1="0" y1="0" x2="100%" y2="0">
-                        <stop offset="0%" stop-color="#3b82f6"/>
-                        <stop offset="100%" stop-color="#1a6fd4"/>
-                    </linearGradient>
-                </defs>
-                @foreach([0,25,50,75,100] as $gv)
-                    @php $gy2=round($RpT+$RpH-($gv/100)*$RpH,1); @endphp
-                    <line x1="{{ $RpL }}" y1="{{ $gy2 }}" x2="{{ $RpL+$RpW }}" y2="{{ $gy2 }}"
-                          stroke="#e8ecf2" stroke-width="1" stroke-dasharray="4,4"/>
-                @endforeach
-                <path d="{{ $rPArea }}" fill="url(#rPFill)"/>
-                <path d="{{ $rRArea }}" fill="url(#rRFill)"/>
-                <path d="{{ $rPLine }}" fill="none" stroke="url(#rPLine)" stroke-width="2" stroke-linecap="round"/>
-                <path d="{{ $rRLine }}" fill="none" stroke="url(#rRLine)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5,3"/>
-                @foreach($rPPts as $i=>$p)
-                    <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="3.5" fill="#0d326b" stroke="white" stroke-width="1.5"/>
-                @endforeach
-                @foreach($rRPts as $i=>$p)
-                    <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="3.5" fill="#1a6fd4" stroke="white" stroke-width="1.5"/>
-                @endforeach
-                @foreach($reportTrend as $i=>$d)
-                    <text x="{{ $rPPts[$i]['x'] }}" y="{{ $RH-6 }}" font-size="9" fill="#94a3b8"
-                          font-weight="600" text-anchor="middle">{{ $d['label'] }}</text>
-                @endforeach
-            </svg>
-        </div>
-
-        {{-- Help Request Insight --}}
-        @php
-        $totalPending  = collect($reportTrend)->sum('pending');
-        $totalResolved = collect($reportTrend)->sum('resolved');
-        $latestPending = collect($reportTrend)->last()['pending'] ?? 0;
-        $resolutionRate = ($totalPending + $totalResolved) > 0
-            ? round(($totalResolved / ($totalPending + $totalResolved)) * 100)
-            : 0;
-        $reportInsight = match(true) {
-            $totalPending === 0 && $totalResolved === 0
-                => "No help requests recorded in the last 7 days. This is a good sign — students are managing lessons without needing to escalate issues.",
-            $resolutionRate >= 80
-                => "<strong>Help requests are being resolved effectively</strong> — <strong>{$resolutionRate}% resolution rate</strong> over the past 7 days ({$totalResolved} resolved of " . ($totalPending + $totalResolved) . " submitted). Keep encouraging teachers to respond promptly.",
-            $latestPending > 0 && $totalResolved === 0
-                => "<strong>{$totalPending} help requests submitted</strong> in the past 7 days with <strong>none resolved yet.</strong> Remind teachers to review and respond to pending student concerns.",
-            $totalPending > $totalResolved
-                => "<strong>More requests are coming in than being resolved</strong> — {$totalPending} submitted vs {$totalResolved} resolved this week ({$resolutionRate}% rate). Consider following up with teachers on outstanding student reports.",
-            default
-                => "<strong>{$totalPending} help requests</strong> submitted and <strong>{$totalResolved} resolved</strong> in the last 7 days — a <strong>{$resolutionRate}% resolution rate</strong>. Monitor trends to keep response times low.",
-        };
-        @endphp
-        <div class="senya-insight-gold mt-4">
-            <div class="senya-insight-gold-icon">
-                <span class="material-symbols-outlined text-[19px]">support_agent</span>
-            </div>
-            <div>
-                <div class="senya-insight-gold-title">Help Request Insight</div>
-                <div class="senya-insight-gold-text">{!! $reportInsight !!}</div>
-            </div>
-        </div>
-    </div>
-
 </div>
 
 </div>{{-- end skeleton-hide --}}

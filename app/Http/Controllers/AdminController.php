@@ -7,6 +7,7 @@ use App\Models\HelpRequest;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\School;
+use App\Models\SchoolYear;
 use App\Models\Student;
 use App\Models\StudentRating;
 use App\Models\Teacher;
@@ -200,218 +201,311 @@ class AdminController extends Controller
 
     public function analytics(Request $request)
     {
-        $period = $request->get('period', 'weekly');
-        $year   = (int) $request->get('year', date('Y'));
-        $month  = (int) $request->get('month', date('n'));
+        $selectedSchoolId = $request->query('school', 'all');
+        if ($selectedSchoolId !== 'all' && (!ctype_digit((string) $selectedSchoolId) || !School::whereKey((int) $selectedSchoolId)->exists())) {
+            $selectedSchoolId = 'all';
+        }
+        $selectedSchoolYear = trim((string) $request->query('school_year', 'all')) ?: 'all';
 
-        // ── Platform-wide KPIs ──────────────────────────────────────────
-        $totalUsers    = User::whereIn('role', ['teacher', 'student'])->count();
-        $totalTeachers = User::where('role', 'teacher')->count();
-        $totalStudents = Student::count();
-        $activeStudents = Student::where('last_activity_date', '>=', Carbon::now()->subDays(7))->count();
-        $activeTeachersCount = User::where('role', 'teacher')
-            ->where('updated_at', '>=', Carbon::now()->subDays(7))
+        // School accounts use each school's own active academic year. Keep the
+        // school comparison scoped to those local years instead of applying one
+        // global school-year label across the platform.
+        $schoolRecords = School::query()->orderBy('name')->get(['id', 'name', 'address', 'region', 'division']);
+        $schoolIds = $schoolRecords->pluck('id');
+        $activeSchoolYears = SchoolYear::query()
+            ->whereIn('school_id', $schoolIds)
+            ->where('status', 'active')
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('school_id')
+            ->keyBy('school_id');
+
+        // Some existing installs contain duplicate school rows with the same
+        // name and location. Group those for display, preferring the row with
+        // an active school year and retaining all associated school IDs.
+        $schoolList = $schoolRecords
+            ->groupBy(fn ($school) => mb_strtolower(trim($school->name . '|' . $school->address . '|' . $school->region . '|' . $school->division)))
+            ->map(function ($records) use ($activeSchoolYears) {
+                $canonical = $records->sortByDesc(fn ($school) => $activeSchoolYears->has($school->id))->first();
+                $activeSchoolYear = $activeSchoolYears->get($canonical->id);
+
+                return [
+                    'school_id' => $canonical->id,
+                    'school_ids' => $records->pluck('id')->all(),
+                    'school' => $canonical->name,
+                    'school_year' => $activeSchoolYear?->name,
+                ];
+            })
+            ->values();
+
+        $allSchoolList = $schoolList;
+        $schoolFilterOptions = $allSchoolList;
+        $selectedSchoolRecord = $selectedSchoolId === 'all'
+            ? null
+            : $allSchoolList->firstWhere('school_id', (int) $selectedSchoolId);
+        if ($selectedSchoolId !== 'all' && !$selectedSchoolRecord) {
+            $selectedSchoolId = 'all';
+        }
+        $filterSchoolIds = $selectedSchoolId === 'all'
+            ? $schoolIds
+            : collect($selectedSchoolRecord['school_ids']);
+        $schoolList = $selectedSchoolId === 'all'
+            ? $allSchoolList
+            : $allSchoolList->where('school_id', (int) $selectedSchoolId)->values();
+
+        $schoolYearFilterOptions = SchoolYear::query()
+            ->whereIn('school_id', $schoolIds)
+            ->get(['name', 'school_id'])
+            ->groupBy('name')
+            ->map(function ($records, $name) use ($allSchoolList) {
+                $recordSchoolIds = $records->pluck('school_id')->all();
+                $displaySchoolIds = $allSchoolList
+                    ->filter(fn ($school) => count(array_intersect($school['school_ids'], $recordSchoolIds)) > 0)
+                    ->pluck('school_id')->values()->all();
+                return ['name' => $name, 'school_ids' => $displaySchoolIds];
+            })->values();
+
+        $schoolYearRecords = SchoolYear::query()
+            ->whereIn('school_id', $filterSchoolIds)
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get();
+        $schoolYearOptions = $schoolYearRecords->pluck('name')->unique()->values();
+        if ($selectedSchoolYear !== 'all' && !$schoolYearOptions->contains($selectedSchoolYear)) {
+            $selectedSchoolYear = 'all';
+        }
+        $selectedSchoolYearIds = $selectedSchoolYear === 'all'
+            ? collect()
+            : $schoolYearRecords->where('name', $selectedSchoolYear)->pluck('id')->values();
+
+        // For a selected school year use its enrollment snapshot; the All
+        // school-year view counts each student once from the current roster.
+        $studentIdQuery = DB::table('students')->where('is_enrolled', true)->select('student_id');
+        if ($selectedSchoolYear !== 'all') {
+            $studentIdQuery = DB::table('student_year_enrollments')
+                ->whereIn('school_id', $filterSchoolIds)
+                ->where('school_year_name', $selectedSchoolYear)
+                ->select('student_id');
+        } elseif ($selectedSchoolId !== 'all') {
+            $studentIdQuery->whereIn('school_id', $filterSchoolIds);
+        }
+        $studentIds = $studentIdQuery->distinct()->pluck('student_id')->values();
+        $studentIdValues = $studentIds->all();
+
+        $teacherProfilesQuery = Teacher::query();
+        if ($selectedSchoolId !== 'all') {
+            $teacherProfilesQuery->whereIn('school_id', $filterSchoolIds);
+        }
+        $teacherProfiles = $teacherProfilesQuery->get(['id', 'user_id', 'school_id']);
+        $teacherIds = $teacherProfiles->pluck('id')->all();
+        $teacherUserIds = $teacherProfiles->pluck('user_id')->filter()->unique()->values()->all();
+        if ($selectedSchoolId === 'all') {
+            $totalTeachers = User::where('role', 'teacher')->count();
+            $totalGradeLeaders = User::where('role', 'grade_leader')->count();
+        } else {
+            $totalTeachers = User::whereIn('id', $teacherUserIds)->where('role', 'teacher')->distinct()->count('id');
+            $totalGradeLeaders = User::whereIn('id', $teacherUserIds)->where('role', 'grade_leader')->distinct()->count('id');
+        }
+        $totalStudents = count($studentIdValues);
+        $totalUsers = $totalTeachers + $totalGradeLeaders + $totalStudents;
+        $activeStudents = Student::whereIn('student_id', $studentIdValues)
+            ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
             ->count();
+        $activeTeachersQuery = User::where('role', 'teacher')
+            ->where('updated_at', '>=', Carbon::now()->subDays(7));
+        if ($selectedSchoolId !== 'all') {
+            $activeTeachersQuery->whereIn('id', $teacherUserIds);
+        }
+        $activeTeachersCount = $activeTeachersQuery->count();
 
-        $totalLessonsCompleted = DB::table('lesson_assignments')->where('status', 'completed')->count();
-        $totalQuizAttempts     = DB::table('quiz_attempts')->where('status', 'completed')->count();
-        $avgQuizScore = DB::table('quiz_attempts')
-            ->where('status', 'completed')
-            ->avg('percentage') ?? 0;
+        $applyStudentScope = function ($query, string $table = '') use ($studentIdValues, $selectedSchoolYear, $selectedSchoolYearIds) {
+            $studentColumn = $table !== '' ? $table . '.student_id' : 'student_id';
+            $yearColumn = $table !== '' ? $table . '.school_year_id' : 'school_year_id';
+            $query->whereIn($studentColumn, $studentIdValues);
+            if ($selectedSchoolYear !== 'all') {
+                $query->whereIn($yearColumn, $selectedSchoolYearIds->all());
+            }
+            return $query;
+        };
 
-        $totalGestureAttempts  = DB::table('gesture_performances')->where('attempts', '>', 0)->sum('attempts');
-        $totalGestureMastered  = DB::table('gesture_performances')->where('is_mastered', 1)->count();
+        $totalLessonsCompleted = $applyStudentScope(DB::table('lesson_assignments'))
+            ->where('status', 'completed')->count();
+        $totalQuizAttempts = $applyStudentScope(DB::table('quiz_attempts'))
+            ->where('status', 'completed')->count();
+        $avgQuizScore = $applyStudentScope(DB::table('quiz_attempts'))
+            ->where('status', 'completed')->avg('percentage') ?? 0;
+        $totalGestureAttempts = $applyStudentScope(DB::table('gesture_performances'))
+            ->where('attempts', '>', 0)->sum('attempts');
+        $totalGestureMastered = $applyStudentScope(DB::table('gesture_performances'))
+            ->where('is_mastered', 1)->count();
+
+        $roleCountsBySchool = DB::table('teachers as t')
+            ->join('users as u', 'u.id', '=', 't.user_id')
+            ->whereIn('t.school_id', $filterSchoolIds)
+            ->whereIn('u.role', ['teacher', 'grade_leader'])
+            ->select('t.school_id', 'u.role', DB::raw('COUNT(DISTINCT u.id) as user_count'))
+            ->groupBy('t.school_id', 'u.role')
+            ->get()
+            ->keyBy(fn ($row) => $row->school_id . ':' . $row->role);
+
+        $activeYearStudentCounts = DB::table('student_year_enrollments as sye')
+            ->join('students as s', 's.student_id', '=', 'sye.student_id')
+            ->join('users as u', 'u.id', '=', 's.user_id')
+            ->whereIn('sye.school_id', $filterSchoolIds)
+            ->where('u.role', 'student')
+            ->select('sye.school_id', 'sye.school_year_name', DB::raw('COUNT(DISTINCT u.id) as user_count'))
+            ->groupBy('sye.school_id', 'sye.school_year_name')
+            ->get()
+            ->keyBy(fn ($row) => $row->school_id . ':' . $row->school_year_name);
+
+        $currentStudentCounts = Student::query()
+            ->whereIn('school_id', $filterSchoolIds)
+            ->where('is_enrolled', true)
+            ->select('school_id', DB::raw('COUNT(DISTINCT user_id) as user_count'))
+            ->groupBy('school_id')
+            ->get()
+            ->keyBy('school_id');
+
+        $schoolUserCounts = $schoolList->map(function ($school) use ($roleCountsBySchool, $activeYearStudentCounts, $currentStudentCounts, $selectedSchoolYear) {
+            $students = 0;
+            foreach ($school['school_ids'] as $schoolId) {
+                $chartYear = $selectedSchoolYear === 'all' ? $school['school_year'] : $selectedSchoolYear;
+                $students += $chartYear
+                    ? (int) data_get($activeYearStudentCounts->get($schoolId . ':' . $chartYear), 'user_count', 0)
+                    : (int) data_get($currentStudentCounts->get($schoolId), 'user_count', 0);
+            }
+            $teachers = 0;
+            $gradeLeaders = 0;
+            foreach ($school['school_ids'] as $schoolId) {
+                $teachers += (int) data_get($roleCountsBySchool->get($schoolId . ':teacher'), 'user_count', 0);
+                $gradeLeaders += (int) data_get($roleCountsBySchool->get($schoolId . ':grade_leader'), 'user_count', 0);
+            }
+
+            return [
+                'school_id' => $school['school_id'],
+                'school' => $school['school'],
+                'school_year' => $selectedSchoolYear === 'all' ? $school['school_year'] : $selectedSchoolYear,
+                'students' => $students,
+                'teachers' => $teachers,
+                'grade_leaders' => $gradeLeaders,
+            ];
+        });
 
         // ── Usage trend (completions per day/week) ──────────────────────
-        if ($period === 'weekly') {
-            $trendPoints = [];
-            for ($w = 7; $w >= 0; $w--) {
-                $wStart = Carbon::now()->startOfWeek()->subWeeks($w);
-                $wEnd   = $wStart->copy()->endOfWeek();
-                $trendPoints[] = [
-                    'label'       => $wStart->format('M d'),
-                    'completions' => DB::table('lesson_assignments')
-                        ->where('status', 'completed')
-                        ->whereBetween('updated_at', [$wStart->startOfDay(), $wEnd->endOfDay()])
-                        ->count(),
-                    'quiz_attempts' => DB::table('quiz_attempts')
-                        ->where('status', 'completed')
-                        ->whereBetween('completed_at', [$wStart->startOfDay(), $wEnd->endOfDay()])
-                        ->count(),
-                    'active_students' => DB::table('students')
-                        ->whereBetween('last_activity_date', [$wStart->toDateString(), $wEnd->toDateString()])
-                        ->count(),
-                ];
+        // Trend points use the selected academic year, or the latest eight
+        // weeks when all school years are selected. Demo floors are omitted so
+        // every chart value comes from the filtered records.
+        $trendPoints = [];
+        $selectedYearRangeStart = null;
+        $selectedYearRangeEnd = null;
+        if ($selectedSchoolYear !== 'all') {
+            $selectedYearRows = $schoolYearRecords->where('name', $selectedSchoolYear);
+            $startDate = $selectedYearRows->pluck('start_date')->filter()->sort()->first();
+            $endDate = $selectedYearRows->pluck('end_date')->filter()->sortDesc()->first();
+            if (!$startDate || !$endDate) {
+                preg_match('/^(\\d{4})-(\\d{4})$/', $selectedSchoolYear, $yearParts);
+                $startDate = $startDate ?: (($yearParts[1] ?? Carbon::now()->year) . '-07-01');
+                $endDate = $endDate ?: (($yearParts[2] ?? Carbon::now()->year) . '-06-30');
             }
-        } elseif ($period === 'monthly') {
-            $trendPoints = [];
-            $mStart = Carbon::create($year, $month, 1)->startOfMonth();
-            for ($i = 0; $i < 4; $i++) {
-                $dStart = $mStart->copy()->addDays($i * 7);
-                $dEnd   = $i === 3 ? $mStart->copy()->endOfMonth() : $mStart->copy()->addDays(($i + 1) * 7 - 1);
+            $selectedYearRangeStart = Carbon::parse($startDate)->startOfDay();
+            $selectedYearRangeEnd = Carbon::parse($endDate)->endOfDay();
+            $monthStart = $selectedYearRangeStart->copy()->startOfMonth();
+            $rangeEnd = $selectedYearRangeEnd->copy()->endOfMonth();
+            while ($monthStart->lte($rangeEnd)) {
+                $monthEnd = $monthStart->copy()->endOfMonth();
                 $trendPoints[] = [
-                    'label' => $dStart->format('M d'),
-                    'completions' => DB::table('lesson_assignments')
+                    'label' => $monthStart->format('M y'),
+                    'completions' => $applyStudentScope(DB::table('lesson_assignments'))
                         ->where('status', 'completed')
-                        ->whereBetween('updated_at', [$dStart->startOfDay(), $dEnd->endOfDay()])
+                        ->whereBetween('updated_at', [$monthStart->copy()->startOfDay(), $monthEnd->copy()->endOfDay()])
                         ->count(),
-                    'quiz_attempts' => DB::table('quiz_attempts')
+                    'quiz_attempts' => $applyStudentScope(DB::table('quiz_attempts'))
                         ->where('status', 'completed')
-                        ->whereBetween('completed_at', [$dStart->startOfDay(), $dEnd->endOfDay()])
+                        ->whereBetween('completed_at', [$monthStart->copy()->startOfDay(), $monthEnd->copy()->endOfDay()])
                         ->count(),
-                    'active_students' => DB::table('students')
-                        ->whereBetween('last_activity_date', [$dStart->toDateString(), $dEnd->toDateString()])
+                    'active_students' => Student::whereIn('student_id', $studentIdValues)
+                        ->whereBetween('last_activity_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                         ->count(),
                 ];
-            }
-        } elseif ($period === 'yearly') {
-            $trendPoints = [];
-            for ($m = 1; $m <= 12; $m++) {
-                $curM = Carbon::create($year, $m, 1);
-                $trendPoints[] = [
-                    'label' => $curM->format('M'),
-                    'completions' => DB::table('lesson_assignments')
-                        ->where('status', 'completed')
-                        ->whereBetween('updated_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
-                        ->count(),
-                    'quiz_attempts' => DB::table('quiz_attempts')
-                        ->where('status', 'completed')
-                        ->whereBetween('completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
-                        ->count(),
-                    'active_students' => DB::table('students')
-                        ->whereBetween('last_activity_date', [$curM->copy()->startOfMonth()->toDateString(), $curM->copy()->endOfMonth()->toDateString()])
-                        ->count(),
-                ];
+                $monthStart->addMonth();
             }
         } else {
-            // quarterly
-            $qStartMonth = (ceil($month / 3) - 1) * 3 + 1;
-            $trendPoints = [];
-            for ($m = 0; $m < 3; $m++) {
-                $curM = Carbon::create($year, $qStartMonth + $m, 1);
+            for ($week = 7; $week >= 0; $week--) {
+                $weekStart = Carbon::now()->startOfWeek()->subWeeks($week);
+                $weekEnd = $weekStart->copy()->endOfWeek();
                 $trendPoints[] = [
-                    'label' => $curM->format('M Y'),
-                    'completions' => DB::table('lesson_assignments')
+                    'label' => $weekStart->format('M d'),
+                    'completions' => $applyStudentScope(DB::table('lesson_assignments'))
                         ->where('status', 'completed')
-                        ->whereBetween('updated_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
+                        ->whereBetween('updated_at', [$weekStart->copy()->startOfDay(), $weekEnd->copy()->endOfDay()])
                         ->count(),
-                    'quiz_attempts' => DB::table('quiz_attempts')
+                    'quiz_attempts' => $applyStudentScope(DB::table('quiz_attempts'))
                         ->where('status', 'completed')
-                        ->whereBetween('completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
+                        ->whereBetween('completed_at', [$weekStart->copy()->startOfDay(), $weekEnd->copy()->endOfDay()])
                         ->count(),
-                    'active_students' => DB::table('students')
-                        ->whereBetween('last_activity_date', [$curM->copy()->startOfMonth()->toDateString(), $curM->copy()->endOfMonth()->toDateString()])
+                    'active_students' => Student::whereIn('student_id', $studentIdValues)
+                        ->whereBetween('last_activity_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
                         ->count(),
                 ];
             }
         }
-
-        // ── DEMO BOOST: trendPoints ──────────────────────────────────────────
-        // Ensures every period's chart looks rich & dynamic for presentation.
-        // Completions floor: big varied wave; active_students: lower offset wave.
-        // Real data that is higher is always kept as-is.
-        $trendN = count($trendPoints);
-        // Generic floor arrays mapped by period length (8=weekly, 4=monthly, 12=yearly, 3=quarterly)
-        $demoTrendFloors = [
-            // weekly (8 points, going back 7 weeks)
-            8  => [
-                'completions'    => [312, 445, 378, 521, 289, 467, 398, 543],
-                'active_students'=> [87, 112, 95, 134, 78, 118, 103, 141],
-            ],
-            // monthly (4 points = 4 weekly buckets)
-            4  => [
-                'completions'    => [648, 892, 735, 1024],
-                'active_students'=> [156, 198, 172, 231],
-            ],
-            // yearly (12 points = Jan–Dec)
-            12 => [
-                'completions'    => [0, 0, 0, 0, 0, 0, 487, 712, 634, 891, 745, 0],
-                'active_students'=> [0, 0, 0, 0, 0, 0, 118, 162, 143, 198, 176, 0],
-            ],
-            // quarterly (3 points)
-            3  => [
-                'completions'    => [1245, 1876, 2134],
-                'active_students'=> [287, 412, 498],
-            ],
-        ];
-        if (isset($demoTrendFloors[$trendN])) {
-            $floors = $demoTrendFloors[$trendN];
-            foreach ($trendPoints as $idx => &$tp) {
-                $cFloor = $floors['completions'][$idx]    ?? 0;
-                $sFloor = $floors['active_students'][$idx] ?? 0;
-                if ($cFloor > 0) $tp['completions']     = max($tp['completions'],     $cFloor);
-                if ($sFloor > 0) $tp['active_students'] = max($tp['active_students'], $sFloor);
-            }
-            unset($tp);
-        }
-        // ─────────────────────────────────────────────────────────────────────
-
-        // ── Teacher Activity Ranking ────────────────────────────────────
-        $teacherActivity = Teacher::with('user')
-            ->withCount([
-                'students',
-                'students as active_students_count' => function ($q) {
-                    $q->where('last_activity_date', '>=', Carbon::now()->subDays(7));
-                },
-            ])
+        $teacherActivity = Teacher::with(['user', 'school'])
+            ->when($selectedSchoolId !== 'all', fn ($query) => $query->whereIn('school_id', $filterSchoolIds))
             ->get()
-            ->map(function ($teacher) {
+            ->map(function ($teacher) use ($studentIdValues, $selectedSchoolYear, $applyStudentScope) {
+                $teacherStudentIds = $selectedSchoolYear !== 'all'
+                    ? DB::table('student_year_enrollments')
+                        ->where('teacher_id', $teacher->id)
+                        ->where('school_year_name', $selectedSchoolYear)
+                        ->whereIn('student_id', $studentIdValues)
+                        ->distinct()->pluck('student_id')->all()
+                    : $teacher->students->pluck('student_id')->intersect($studentIdValues)->values()->all();
                 $lessonCount = Lesson::where('teacher_id', $teacher->id)
                     ->where('status', 'published')
                     ->whereNull('deleted_at')
                     ->count();
-                $completions = DB::table('lesson_assignments')
-                    ->whereIn('student_id', $teacher->students->pluck('student_id'))
+                $completions = $applyStudentScope(DB::table('lesson_assignments'))
+                    ->whereIn('student_id', $teacherStudentIds)
                     ->where('status', 'completed')
+                    ->count();
+                $activeTeacherStudents = Student::whereIn('student_id', $teacherStudentIds)
+                    ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
                     ->count();
                 return [
                     'name'            => trim($teacher->first_name . ' ' . $teacher->last_name),
                     'email'           => $teacher->user->email ?? '—',
-                    'students'        => $teacher->students_count,
-                    'active_students' => $teacher->active_students_count,
+                    'school'          => $teacher->school->name ?? 'Unassigned',
+                    'students'        => count($teacherStudentIds),
+                    'active_students' => $activeTeacherStudents,
                     'lessons'         => $lessonCount,
                     'completions'     => $completions,
                 ];
             })
             ->sortByDesc('completions')
-            ->values()
-            ->take(10);
+            ->values();
 
         // ── Most/Least Completed Lessons ────────────────────────────────
-        $mostCompletedLessons = DB::table('lesson_assignments')
-            ->join('lessons', 'lesson_assignments.lesson_id', '=', 'lessons.lesson_id')
-            ->where('lesson_assignments.status', 'completed')
-            ->whereNull('lessons.deleted_at')
-            ->selectRaw('lessons.title, COUNT(*) as completions, AVG(lesson_assignments.score) as avg_score')
-            ->groupBy('lessons.lesson_id', 'lessons.title')
-            ->orderByDesc('completions')
-            ->limit(5)
-            ->get();
-
-        $leastCompletedLessons = DB::table('lesson_assignments')
-            ->join('lessons', 'lesson_assignments.lesson_id', '=', 'lessons.lesson_id')
-            ->whereNull('lessons.deleted_at')
-            ->where('lessons.status', 'published')
-            ->selectRaw('lessons.title, COUNT(*) as total, SUM(CASE WHEN lesson_assignments.status = "completed" THEN 1 ELSE 0 END) as completions')
-            ->groupBy('lessons.lesson_id', 'lessons.title')
-            ->having('total', '>', 0)
-            ->orderBy('completions')
-            ->limit(5)
-            ->get();
-
         // ── Help Request Trend ──────────────────────────────────────────
         $reportTrend = [];
+        $reportEndDate = Carbon::today();
+        if ($selectedSchoolYear !== 'all' && $selectedYearRangeEnd) {
+            $reportEndDate = $selectedYearRangeEnd->copy()->startOfDay()->min(Carbon::today());
+            if ($selectedYearRangeStart && $reportEndDate->lt($selectedYearRangeStart)) {
+                $reportEndDate = $selectedYearRangeStart->copy();
+            }
+        }
         for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->toDateString();
+            $date = $reportEndDate->copy()->subDays($i)->toDateString();
             $reportTrend[] = [
-                'label'    => Carbon::now()->subDays($i)->format('M j'),
-                'pending'  => HelpRequest::where('status', 'pending')->whereDate('created_at', $date)->count(),
-                'resolved' => HelpRequest::where('status', 'resolved')->whereDate('updated_at', $date)->count(),
+                'label'    => $reportEndDate->copy()->subDays($i)->format('M j'),
+                'pending'  => HelpRequest::whereIn('student_id', $studentIdValues)->where('status', 'pending')->whereDate('created_at', $date)->count(),
+                'resolved' => HelpRequest::whereIn('student_id', $studentIdValues)->where('status', 'resolved')->whereDate('updated_at', $date)->count(),
             ];
         }
 
         // ── Gesture Performance System-wide ────────────────────────────
-        $gestureStats = DB::table('gesture_performances')
+        $gestureStats = $applyStudentScope(DB::table('gesture_performances'))
             ->selectRaw('
                 COUNT(DISTINCT student_id) as students_who_practiced,
                 SUM(attempts) as total_attempts,
@@ -423,7 +517,13 @@ class AdminController extends Controller
         // ── Per-Gesture Breakdown (includes sign_type so we can split static vs dynamic) ──
         $gestureBreakdown = DB::table('gestures as g')
             ->leftJoin('gesture_modules as gm', 'g.module_id', '=', 'gm.module_id')
-            ->leftJoin('gesture_performances as gp', 'g.gesture_id', '=', 'gp.gesture_id')
+            ->leftJoin('gesture_performances as gp', function ($join) use ($studentIdValues, $selectedSchoolYear, $selectedSchoolYearIds) {
+                $join->on('g.gesture_id', '=', 'gp.gesture_id')
+                    ->whereIn('gp.student_id', $studentIdValues);
+                if ($selectedSchoolYear !== 'all') {
+                    $join->whereIn('gp.school_year_id', $selectedSchoolYearIds->all());
+                }
+            })
             ->selectRaw('
                 g.gesture_id,
                 g.name,
@@ -476,6 +576,8 @@ class AdminController extends Controller
         // ── Dynamic (Moving) Gesture Summary ───────────────────────────
         $dynamicGestureStats = DB::table('gestures as g')
             ->join('gesture_performances as gp', 'g.gesture_id', '=', 'gp.gesture_id')
+            ->whereIn('gp.student_id', $studentIdValues)
+            ->when($selectedSchoolYear !== 'all', fn ($query) => $query->whereIn('gp.school_year_id', $selectedSchoolYearIds->all()))
             ->where('g.sign_type', 'dynamic')
             ->selectRaw('
                 COUNT(DISTINCT g.gesture_id)              as total_gestures,
@@ -488,28 +590,42 @@ class AdminController extends Controller
             ->first();
 
         // ── Grade Level Distribution ────────────────────────────────────
-        $gradeDistribution = Student::selectRaw('grade_level, COUNT(*) as count')
+        $gradeDistribution = Student::whereIn('student_id', $studentIdValues)->selectRaw('grade_level, COUNT(*) as count')
             ->groupBy('grade_level')
             ->orderBy('grade_level')
             ->get();
 
         // ── Program type distribution ───────────────────────────────────
-        $programDistribution = Student::selectRaw('program_type, COUNT(*) as count')
-            ->whereNotNull('program_type')
-            ->groupBy('program_type')
+        if ($selectedSchoolYear !== 'all') {
+            $programDistribution = DB::table('student_year_enrollments')
+                ->whereIn('school_id', $filterSchoolIds)
+                ->where('school_year_name', $selectedSchoolYear)
+                ->whereNotNull('program_type')
+                ->selectRaw('program_type, COUNT(DISTINCT student_id) as count')
+                ->groupBy('program_type')->get();
+        } else {
+            $programDistribution = Student::whereIn('student_id', $studentIdValues)
+                ->selectRaw('program_type, COUNT(*) as count')
+                ->whereNotNull('program_type')->groupBy('program_type')->get();
+        }
+
+        // FSL mastery levels recorded on student profiles.
+        $masteryDistribution = Student::whereIn('student_id', $studentIdValues)
+            ->selectRaw("COALESCE(NULLIF(TRIM(fsl_mastery_level), ''), 'Unassigned') as mastery_level, COUNT(*) as count")
+            ->groupBy('mastery_level')
             ->get();
 
         return view('admin.analytics', compact(
-            'period', 'year', 'month',
-            'totalUsers', 'totalTeachers', 'totalStudents',
+            'selectedSchoolId', 'selectedSchoolYear', 'schoolYearOptions',
+            'totalUsers', 'totalTeachers', 'totalStudents', 'totalGradeLeaders',
             'activeStudents', 'activeTeachersCount',
             'totalLessonsCompleted', 'totalQuizAttempts', 'avgQuizScore',
             'totalGestureAttempts', 'totalGestureMastered',
             'trendPoints', 'teacherActivity',
-            'mostCompletedLessons', 'leastCompletedLessons',
             'reportTrend', 'gestureStats', 'gestureBreakdown',
             'dynamicGestureStats',
-            'gradeDistribution', 'programDistribution'
+            'gradeDistribution', 'programDistribution', 'masteryDistribution', 'schoolUserCounts',
+            'schoolFilterOptions', 'schoolYearFilterOptions'
         ));
     }
 
