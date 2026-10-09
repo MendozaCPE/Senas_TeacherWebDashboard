@@ -22,6 +22,7 @@ use App\Models\Module;
 use App\Models\Achievement;
 use App\Models\StudentAchievement;
 use App\Models\StudentNotification;
+use App\Models\StudentPushToken;
 use App\Models\DailyChallenge; 
 use App\Models\ChallengeGoalProgress; 
 use App\Models\CheckpointExam;
@@ -5086,6 +5087,66 @@ public function markAllNotificationsRead(Request $request)
             'error' => $e->getMessage(),
         ], 500);
     }
+}
+
+/**
+ * Register the Expo token for the authenticated student's current device.
+ * Re-registering the same token is expected whenever the mobile app starts.
+ */
+public function registerPushToken(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'expo_push_token' => [
+            'required',
+            'string',
+            'max:255',
+            'regex:/^(Exponent|Expo)PushToken\[.+\]$/',
+        ],
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'message' => 'Invalid Expo push token',
+            'errors' => $validator->errors(),
+        ], 422);
+    }
+
+    $student = Student::where('user_id', $request->user()->id)->first();
+    if (! $student) {
+        return response()->json(['error' => 'Student not found'], 404);
+    }
+
+    $pushToken = StudentPushToken::updateOrCreate(
+        ['expo_push_token' => $request->expo_push_token],
+        [
+            'student_id' => $student->student_id,
+            'last_used_at' => now(),
+        ]
+    );
+
+    return response()->json([
+        'success' => true,
+        'id' => $pushToken->id,
+    ]);
+}
+
+/**
+ * Remove a device token when the student explicitly signs out.
+ */
+public function unregisterPushToken(Request $request)
+{
+    $request->validate(['expo_push_token' => 'required|string|max:255']);
+
+    $student = Student::where('user_id', $request->user()->id)->first();
+    if (! $student) {
+        return response()->json(['error' => 'Student not found'], 404);
+    }
+
+    StudentPushToken::where('student_id', $student->student_id)
+        ->where('expo_push_token', $request->expo_push_token)
+        ->delete();
+
+    return response()->json(['success' => true]);
 }
 
 /**

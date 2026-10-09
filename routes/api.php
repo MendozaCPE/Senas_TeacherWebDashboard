@@ -52,6 +52,8 @@ Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
     Route::post('/student/notifications/save', [StudentAuthController::class, 'saveNotifications']);
     Route::post('/student/notifications/{id}/read', [StudentAuthController::class, 'markNotificationRead']);
     Route::post('/student/notifications/read-all', [StudentAuthController::class, 'markAllNotificationsRead']);
+    Route::post('/student/push-tokens', [StudentAuthController::class, 'registerPushToken']);
+    Route::delete('/student/push-tokens', [StudentAuthController::class, 'unregisterPushToken']);
 
     // Student Lessons
     Route::get('/student/all-lessons', [StudentAuthController::class, 'getAllLessons']);

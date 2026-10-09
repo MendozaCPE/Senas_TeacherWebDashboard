@@ -30,6 +30,13 @@ class StudentNotification extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::created(function (self $notification) {
+            app(\App\Services\StudentPushNotificationService::class)->queue($notification);
+        });
+    }
+
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class, 'student_id', 'student_id');
