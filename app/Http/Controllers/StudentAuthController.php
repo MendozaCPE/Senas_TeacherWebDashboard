@@ -1639,6 +1639,9 @@ public function getLessons(Request $request)
                         'score' => null,
                         'is_locked' => !$isAccessible ? true : ($lesson->lesson_id !== $moduleLessons->first()?->lesson_id), // 🔥 First lesson unlocked, subsequent locked
                         'assigned_at' => null,
+                        'deadline' => $lesson->deadline ? $lesson->deadline->toIso8601String() : null,
+                        'has_deadline' => !empty($lesson->deadline),
+                        'is_late' => false,
                         'module_order' => $lesson->module_order ?? 0,
                         'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
                         'has_quiz' => $lesson->quiz ? true : false,
@@ -2162,6 +2165,9 @@ public function getLessonById(Request $request, $lessonId)
                 'quiz' => $quiz,
                 'total_steps' => $contents->count() + ($quiz ? 1 : 0),
                 'assignment_status' => $assignment->status,
+                'deadline' => $lesson->deadline ? $lesson->deadline->toIso8601String() : ($assignment->deadline ? $assignment->deadline->toIso8601String() : null),
+                'has_deadline' => !empty($lesson->deadline) || !empty($assignment->deadline),
+                'is_late' => (bool) ($assignment->is_late ?? false),
                 'progress' => $progress ? [
                     'current_step' => $progress->current_step ?? 0,
                     'lesson_completed' => $progress->lesson_completed ?? false,

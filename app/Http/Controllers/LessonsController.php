@@ -1226,7 +1226,8 @@ protected function createLessonNotification($studentId, $lesson)
         'message' => "\"{$lesson->title}\" is ready for you to start! 🎓",
         'icon' => $iconMap['lesson'],
         'color' => $colorMap['lesson'],
-        'data' => ['lesson_id' => $lesson->lesson_id, 'lesson_title' => $lesson->title],
+        'data' => ['lesson_id' => $lesson->lesson_id, 'module_id' => $lesson->module_id, 'lesson_title' => $lesson->title],
+        'action_url' => '/lessons?tab=modules&lessonId=' . $lesson->lesson_id . '&moduleId=' . $lesson->module_id,
         'action_url' => '/lessons',
         'is_read' => false,
     ]);

@@ -2059,7 +2059,8 @@ private function createLessonAssignmentNotifications($student, $lessonIds)
                 'message' => "\"{$lesson->title}\" has been assigned to you. Start learning today! 🎓",
                 'icon' => 'book',
                 'color' => '#3B82F6',
-                'data' => ['lesson_id' => $lesson->lesson_id, 'lesson_title' => $lesson->title],
+                'data' => ['lesson_id' => $lesson->lesson_id, 'module_id' => $lesson->module_id, 'lesson_title' => $lesson->title],
+                'action_url' => '/lessons?tab=modules&lessonId=' . $lesson->lesson_id . '&moduleId=' . $lesson->module_id,
                 'action_url' => '/lessons',
                 'is_read' => false,
             ]);
