@@ -1068,6 +1068,7 @@ public function publishLesson(Request $request, $id)
         'mastery_level' => 'required_if:publish_option,mastery|nullable|string',
         'students' => 'required_if:publish_option,selected|nullable|array|min:1',
         'students.*' => 'exists:students,student_id',
+        'deadline' => 'nullable|date',
         'notify_students' => 'boolean',
         'send_reminder' => 'boolean',
     ]);
@@ -1075,6 +1076,7 @@ public function publishLesson(Request $request, $id)
     $lesson = Lesson::findOrFail($id);
 
     $teacherId = $this->resolveTeacherId();
+    $teacher = Teacher::find($teacherId);
     $moduleId = $this->resolveModuleId($request, $teacherId);
     if (! $moduleId) {
         return back()->withErrors(['module_action' => 'Please select or create a module before publishing.'])->withInput();
@@ -1122,17 +1124,24 @@ public function publishLesson(Request $request, $id)
         return back()->withErrors(['publish_option' => 'No students matched the selected publish option.'])->withInput();
     }
 
-   // Assign module and publish the lesson
+    $deadline = !empty($validated['deadline']) ? \Carbon\Carbon::parse($validated['deadline']) : null;
+
+    // Assign module and publish the lesson
     $lesson->update([
         'module_id' => $moduleId,
         'status' => 'published',
         'published_at' => now(),
+        'deadline' => $deadline,
     ]);
+
+    // Keep all existing assignments for this lesson in sync with the deadline
+    LessonAssignment::where('lesson_id', $lesson->lesson_id)
+        ->update(['deadline' => $deadline]);
 
     // Create records in lesson_assignments table
     $assignedCount = 0;
+    $activeSyId = SchoolYear::activeForSchool((int) ($teacher?->school_id ?? 0))?->id;
     foreach ($studentIds as $studentId) {
-        $activeSyId = SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id;
         $exists = LessonAssignment::where('lesson_id', $lesson->lesson_id)
                                   ->where('student_id', $studentId)
                                   ->where('school_year_id', $activeSyId)
@@ -1156,10 +1165,11 @@ public function publishLesson(Request $request, $id)
                 'lesson_id' => $lesson->lesson_id,
                 'student_id' => $studentId,
                 'assigned_at' => now(),
+                'deadline' => $deadline,
                 'status' => 'pending',
                 'is_locked' => $isLocked,
                 'notified' => $request->input('notify_students', false),
-                'school_year_id' => SchoolYear::activeForSchool((int) ($teacher->school_id ?? 0))?->id,
+                'school_year_id' => $activeSyId,
             ]);
             $assignedCount++;
             
@@ -1508,6 +1518,7 @@ public function manageStudents($id)
                     'lesson_id'      => $lesson->lesson_id,
                     'student_id'     => $studentId,
                     'assigned_at'    => now(),
+                    'deadline'       => $lesson->deadline,
                     'status'         => 'pending',
                     'notified'       => false,
                     'school_year_id' => $activeSyId,

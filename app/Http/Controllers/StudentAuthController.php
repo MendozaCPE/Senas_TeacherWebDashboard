@@ -1609,6 +1609,9 @@ public function getLessons(Request $request)
                     'score' => $highestScore,
                     'is_locked' => $isLessonLocked,
                     'assigned_at' => $assignment->assigned_at,
+                    'deadline' => $lesson->deadline ? $lesson->deadline->toIso8601String() : null,
+                    'has_deadline' => !empty($lesson->deadline),
+                    'is_late' => (bool) ($assignment->is_late ?? false),
                     'module_order' => $lesson->module_order ?? 0,
                     'total_steps' => $lesson->contents->count() + ($lesson->quiz ? 1 : 0),
                     'has_quiz' => $lesson->quiz ? true : false,
@@ -2305,6 +2308,43 @@ public function submitQuizAttempt(Request $request, $lessonId)
             $attemptNumber
         );
 
+        // ─── CHECK DEADLINE STATUS ────────────────────────────────────
+        $lesson = Lesson::find($lessonId);
+        $hasDeadline = ($lesson && !empty($lesson->deadline));
+        $deadline = $hasDeadline ? \Carbon\Carbon::parse($lesson->deadline) : null;
+
+        $assignment = LessonAssignment::where('student_id', $student->student_id)
+            ->where('lesson_id', $lessonId)
+            ->first();
+
+        $hadPriorOnTimeCompletion = false;
+        if ($hasDeadline) {
+            if ($assignment && $assignment->first_completed_at && \Carbon\Carbon::parse($assignment->first_completed_at)->lte($deadline)) {
+                $hadPriorOnTimeCompletion = true;
+            } else {
+                $priorCompletedOnTime = DB::table('quiz_attempts as qa')
+                    ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                    ->where('qa.student_id', $student->student_id)
+                    ->where('q.lesson_id', $lessonId)
+                    ->where('qa.status', 'completed')
+                    ->where('qa.completed_at', '<=', $deadline)
+                    ->exists();
+                if ($priorCompletedOnTime) {
+                    $hadPriorOnTimeCompletion = true;
+                }
+            }
+        }
+
+        $isAttemptLate = false;
+        if ($hasDeadline) {
+            // If the student already completed on or before the deadline, subsequent attempts are not late.
+            if ($hadPriorOnTimeCompletion) {
+                $isAttemptLate = false;
+            } else {
+                $isAttemptLate = now()->gt($deadline);
+            }
+        }
+
         // ─── CREATE QUIZ ATTEMPT WITH XP ──────────────────────────────
         $attemptId = DB::table('quiz_attempts')->insertGetId([
             'student_id' => $student->student_id,
@@ -2314,6 +2354,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
             'percentage' => $request->percentage,
             'status' => $status,
             'attempt_number' => $attemptNumber,
+            'is_late' => $isAttemptLate,
             'xp_earned' => $xpEarned,  // ← Save XP immediately
             'is_first_completion' => ($attemptNumber === 1),  // ← Set this too
             'started_at' => now(),
@@ -2416,6 +2457,22 @@ public function submitQuizAttempt(Request $request, $lessonId)
             $assignment->status = $status;
             $assignment->completed_at = now();
             $assignment->score = $request->percentage;
+
+            if ($hasDeadline) {
+                if (!$assignment->deadline) {
+                    $assignment->deadline = $deadline;
+                }
+                if ($status === 'completed') {
+                    if (empty($assignment->first_completed_at)) {
+                        $assignment->first_completed_at = now();
+                        $assignment->is_late = $isAttemptLate;
+                    }
+                } else {
+                    if ($isAttemptLate && empty($assignment->first_completed_at)) {
+                        $assignment->is_late = true;
+                    }
+                }
+            }
             
             if ($status === 'completed' && $request->percentage >= 60) {
                 $currentLesson = Lesson::find($lessonId);
@@ -2461,18 +2518,21 @@ public function submitQuizAttempt(Request $request, $lessonId)
 
         // ─── 🔔 NOTIFY TEACHER ──────────────────────────────────────────
         try {
-            $lesson     = Lesson::find($lessonId);
             $lessonName = $lesson ? $lesson->title : "Lesson #{$lessonId}";
             $studentName = $student->first_name . ' ' . $student->last_name;
             $pct         = (int) round($request->percentage);
             $emoji       = $pct === 100 ? '🏆' : ($pct >= 80 ? '🎯' : ($pct >= 60 ? '✅' : '❌'));
             $statusLabel = $status === 'completed' ? 'passed' : 'failed';
+            $lateSuffix  = '';
+            if ($hasDeadline) {
+                $lateSuffix = $isAttemptLate ? ' (Done Late)' : ' (On Time)';
+            }
 
             $this->notifyTeacher(
                 student:   $student,
                 type:      'quiz_answered',
                 title:     "{$emoji} {$studentName} answered a quiz",
-                message:   "Scored {$pct}% on \"{$lessonName}\" ({$statusLabel}) — Attempt #{$attemptNumber}",
+                message:   "Scored {$pct}% on \"{$lessonName}\" ({$statusLabel}) — Attempt #{$attemptNumber}{$lateSuffix}",
                 data:      [
                     'student_id'     => $student->student_id,
                     'lesson_id'      => $lessonId,
@@ -2482,6 +2542,9 @@ public function submitQuizAttempt(Request $request, $lessonId)
                     'status'         => $status,
                     'attempt_number' => $attemptNumber,
                     'xp_earned'      => $xpEarned,
+                    'has_deadline'   => $hasDeadline,
+                    'is_late'        => $isAttemptLate,
+                    'deadline'       => $deadline ? $deadline->toIso8601String() : null,
                 ],
                 actionUrl: '/students/' . $student->student_id,
             );
@@ -2500,6 +2563,9 @@ public function submitQuizAttempt(Request $request, $lessonId)
             'xp_earned' => $xpEarned,
             'attempt_number' => $attemptNumber,
             'is_first_completion' => ($attemptNumber === 1),
+            'is_late' => $isAttemptLate,
+            'has_deadline' => $hasDeadline,
+            'deadline' => $deadline ? $deadline->toIso8601String() : null,
             'is_improved' => $isImproved,
             'total_xp' => $student->total_xp,
             'level' => $student->level,

@@ -17,13 +17,19 @@ class LessonAssignment extends Model
         'status',
         'notified',
         'completed_at',
+        'first_completed_at',
+        'deadline',
+        'is_late',
         'score',
     ];
     
     protected $casts = [
         'assigned_at' => 'datetime',
         'completed_at' => 'datetime',
+        'first_completed_at' => 'datetime',
+        'deadline' => 'datetime',
         'notified' => 'boolean',
+        'is_late' => 'boolean',
     ];
     
     /**

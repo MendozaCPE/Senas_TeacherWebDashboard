@@ -29,10 +29,13 @@ class Lesson extends Model
         'ai_prompt',
         'is_template',
         'source_template_id',
+        'deadline',
     ];
 
     protected $casts = [
         'is_template' => 'boolean',
+        'published_at' => 'datetime',
+        'deadline' => 'datetime',
     ];
 
     protected $appends = ['hash_id'];

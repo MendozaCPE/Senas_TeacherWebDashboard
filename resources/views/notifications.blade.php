@@ -317,6 +317,28 @@
                     @elseif(!empty($notif->message))
                         <p class="text-[12.5px] text-slate-500 mt-0.5 leading-snug line-clamp-1">{{ $notif->message }}</p>
                     @endif
+                @elseif($notif->type === 'quiz_answered')
+                    @php
+                        $isLate = !empty($notif->data['is_late']) || str_contains($notif->message ?? '', 'Done Late');
+                        $hasDeadline = !empty($notif->data['has_deadline']) || $isLate || str_contains($notif->message ?? '', 'On Time');
+                        $cleanMessage = preg_replace('/\s*[\(—•-]?\s*(Done Late|On Time)\)?$/i', '', $notif->message ?? '');
+                    @endphp
+                    <div class="flex items-center gap-2 flex-wrap mt-0.5">
+                        <p class="text-[12.5px] text-slate-500 leading-snug">{{ $cleanMessage }}</p>
+                        @if($hasDeadline)
+                            @if($isLate)
+                                <span class="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/80 text-[11px] shadow-xs">
+                                    <span class="material-symbols-outlined text-[12px]">schedule</span>
+                                    Done Late
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80 text-[11px] shadow-xs">
+                                    <span class="material-symbols-outlined text-[12px]">check_circle</span>
+                                    On Time
+                                </span>
+                            @endif
+                        @endif
+                    </div>
                 @elseif(!empty($notif->message))
                     <p class="text-[12.5px] text-slate-500 mt-0.5 leading-snug line-clamp-1">{{ $notif->message }}</p>
                 @endif

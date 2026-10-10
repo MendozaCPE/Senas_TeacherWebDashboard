@@ -518,7 +518,15 @@
                                     <td class="drag-handle text-slate-300 hover:text-[#0d326b] transition-colors" onclick="event.stopPropagation();" title="Drag to reorder">
                                         <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
                                     </td>
-                                    <td class="lesson-title-cell">{{ $lesson->title }}</td>
+                                    <td class="lesson-title-cell">
+                                        <div>{{ $lesson->title }}</div>
+                                        @if($lesson->deadline)
+                                            <div class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mt-0.5" title="Deadline: {{ $lesson->deadline->format('M d, Y h:i A') }}">
+                                                <span class="material-symbols-outlined text-[13px] text-amber-500">schedule</span>
+                                                Due {{ $lesson->deadline->format('M d, Y h:i A') }}
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td>
                                         <span class="badge-difficulty {{ $lesson->difficulty }}">
                                             {{ $lesson->difficulty }}
@@ -694,7 +702,15 @@
                             <tbody>
                               @foreach($orphanedLessons as $lesson)
 <tr onclick="openPreviewModal('{{ route('lessons.preview-modal', $lesson->hash_id) }}')" style="cursor:pointer;">
-    <td class="lesson-title-cell">{{ $lesson->title }}</td>
+    <td class="lesson-title-cell">
+        <div>{{ $lesson->title }}</div>
+        @if($lesson->deadline)
+            <div class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mt-0.5" title="Deadline: {{ $lesson->deadline->format('M d, Y h:i A') }}">
+                <span class="material-symbols-outlined text-[13px] text-amber-500">schedule</span>
+                Due {{ $lesson->deadline->format('M d, Y h:i A') }}
+            </div>
+        @endif
+    </td>
     <td><span class="badge-difficulty {{ $lesson->difficulty }}">{{ $lesson->difficulty }}</span></td>
     <td>
         @if($lesson->trashed())

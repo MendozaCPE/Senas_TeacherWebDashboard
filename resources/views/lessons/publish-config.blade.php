@@ -24,8 +24,8 @@
             @for($i=0;$i<3;$i++)<div class="skeleton h-6 rounded-full w-20"></div>@endfor
         </div>
     </div>
-    {{-- 3 section cards --}}
-    @foreach(['Module Assignment','Target Audience','Notifications'] as $sec)
+    {{-- 4 section cards --}}
+    @foreach(['Module Assignment','Target Audience','Lesson Deadline','Notifications'] as $sec)
     <div class="bg-white rounded-[24px] p-7 border border-slate-100 shadow-sm mb-6 flex flex-col gap-5">
         <div class="flex items-center gap-3 pb-5 border-b border-slate-100">
             <div class="skeleton w-10 h-10 rounded-[12px]"></div>
@@ -474,7 +474,133 @@
             </div>
         </div>
 
-        <!-- 3. Additional Options Section -->
+        <!-- 3. Lesson Deadline Section (Optional) -->
+        <div class="section-card">
+            <div class="section-title-wrap">
+                <div class="section-icon-box bg-indigo-50 text-indigo-700">
+                    <span class="material-symbols-outlined text-indigo-600">alarm</span>
+                </div>
+                <div>
+                    <h3 class="section-title flex items-center gap-2">
+                        Lesson Deadline
+                        <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 uppercase tracking-wider">Optional</span>
+                    </h3>
+                    <p class="section-subtitle">Set an optional completion cut-off. Any quizzes submitted after this deadline will be marked "Done Late".</p>
+                </div>
+            </div>
+
+            @php
+                $initialDeadline = old('deadline', $lesson->deadline ? $lesson->deadline->format('Y-m-d H:i') : null);
+                $initialHasDeadline = !empty($initialDeadline);
+                $initialDate = $initialDeadline ? \Carbon\Carbon::parse($initialDeadline)->format('Y-m-d') : date('Y-m-d');
+                $initialTime = $initialDeadline ? \Carbon\Carbon::parse($initialDeadline)->format('H:i') : '23:59';
+            @endphp
+
+            <div class="space-y-3.5">
+                <!-- Option 1: No Deadline -->
+                <div class="option-card {{ !$initialHasDeadline ? 'selected' : '' }}" id="cardDeadlineNone">
+                    <label class="flex items-start gap-3.5 cursor-pointer">
+                        <input type="radio" name="deadline_mode" value="none" id="deadlineModeNone"
+                               {{ !$initialHasDeadline ? 'checked' : '' }}
+                               class="mt-1 h-4 w-4 text-[#0d326b] border-slate-300 focus:ring-[#0d326b]">
+                        <div class="flex-1">
+                            <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[17px] text-slate-400">all_inclusive</span>
+                                No deadline (Self-paced)
+                            </span>
+                            <span class="text-xs text-slate-500 block mt-0.5">Students can complete this lesson anytime at their own pace without late status or warnings.</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Option 2: Set Deadline -->
+                <div class="option-card {{ $initialHasDeadline ? 'selected' : '' }}" id="cardDeadlineSet">
+                    <label class="flex items-start gap-3.5 cursor-pointer">
+                        <input type="radio" name="deadline_mode" value="custom" id="deadlineModeCustom"
+                               {{ $initialHasDeadline ? 'checked' : '' }}
+                               class="mt-1 h-4 w-4 text-[#0d326b] border-slate-300 focus:ring-[#0d326b]">
+                        <div class="flex-1">
+                            <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[17px] text-indigo-600">schedule</span>
+                                Set a completion deadline
+                            </span>
+                            <span class="text-xs text-slate-500 block mt-0.5">Submissions after this cut-off will be flagged as "Done Late" in teacher notifications.</span>
+
+                            <div id="deadlineContainer" class="{{ !$initialHasDeadline ? 'hidden' : '' }} mt-4 pt-4 border-t border-slate-200/80 space-y-4">
+                                <!-- Quick Presets -->
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Quick Presets</label>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <button type="button" onclick="setDeadlinePreset('today')"
+                                                class="preset-btn px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                            <span class="material-symbols-outlined text-[15px] text-amber-500">today</span>
+                                            Today (11:59 PM)
+                                        </button>
+                                        <button type="button" onclick="setDeadlinePreset('tomorrow')"
+                                                class="preset-btn px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                            <span class="material-symbols-outlined text-[15px] text-blue-500">event_upcoming</span>
+                                            Tomorrow (11:59 PM)
+                                        </button>
+                                        <button type="button" onclick="setDeadlinePreset('end_week')"
+                                                class="preset-btn px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                            <span class="material-symbols-outlined text-[15px] text-indigo-500">date_range</span>
+                                            End of Week (Sunday 11:59 PM)
+                                        </button>
+                                        <button type="button" onclick="setDeadlinePreset('in_week')"
+                                                class="preset-btn px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                            <span class="material-symbols-outlined text-[15px] text-purple-500">update</span>
+                                            In 1 Week (11:59 PM)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Date & Time Picker Grid -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="deadlineDateInput" class="block text-xs font-bold text-slate-700 mb-1.5">
+                                            Due Date <span class="text-rose-500">*</span>
+                                        </label>
+                                        <div class="relative">
+                                            <input type="date" id="deadlineDateInput"
+                                                   value="{{ $initialDate }}"
+                                                   min="{{ date('Y-m-d') }}"
+                                                   class="field-input font-medium text-slate-800">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label for="deadlineTimeInput" class="block text-xs font-bold text-slate-700 mb-1.5">
+                                            Due Time <span class="text-rose-500">*</span>
+                                        </label>
+                                        <div class="relative">
+                                            <input type="time" id="deadlineTimeInput"
+                                                   value="{{ $initialTime }}"
+                                                   class="field-input font-medium text-slate-800">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Helper Preview Banner -->
+                                <div class="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/70 flex items-start gap-3 text-amber-900">
+                                    <span class="material-symbols-outlined text-amber-600 text-[20px] flex-shrink-0 mt-0.5">info</span>
+                                    <div class="text-xs leading-relaxed">
+                                        <p class="font-bold text-amber-950">Late Submission Status:</p>
+                                        <p id="deadlineSummaryPreview" class="text-amber-800 font-medium mt-0.5">
+                                            Students completing this quiz after the deadline will be marked as <strong class="text-rose-700 font-extrabold">"Done Late"</strong> in your notifications.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Hidden input submitted with the form -->
+            <input type="hidden" name="deadline" id="deadlineHiddenInput" value="{{ $initialDeadline }}">
+        </div>
+
+        <!-- 4. Notifications & Reminders Section -->
         <div class="section-card">
             <div class="section-title-wrap">
                 <div class="section-icon-box">
@@ -512,18 +638,80 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const publishOptions = document.querySelectorAll('input[name="publish_option"]');
-    const studentSelection = document.getElementById('studentSelection');
-    const programSelect = document.getElementById('programSelect');
-    const masterySelect = document.getElementById('masterySelect');
-    const moduleExisting = document.getElementById('moduleExisting');
-    const moduleNew = document.getElementById('moduleNew');
-    const existingModuleBlock = document.getElementById('existingModuleBlock');
-    const newModuleBlock = document.getElementById('newModuleBlock');
-    const moduleSelect = document.getElementById('module_id');
+// Global helpers for student selection and deadline presets
+function selectAllStudents() {
+    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = true);
+    const countEl = document.getElementById('selectedCount');
+    if (countEl) countEl.textContent = document.querySelectorAll('.student-checkbox').length;
+}
 
-    // Highlight Option Cards based on active selection
+function deselectAllStudents() {
+    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = false);
+    const countEl = document.getElementById('selectedCount');
+    if (countEl) countEl.textContent = 0;
+}
+
+window.setDeadlinePreset = function(type) {
+    const deadlineModeCustom = document.getElementById('deadlineModeCustom');
+    const deadlineDateInput = document.getElementById('deadlineDateInput');
+    const deadlineTimeInput = document.getElementById('deadlineTimeInput');
+    
+    if (deadlineModeCustom) {
+        deadlineModeCustom.checked = true;
+        deadlineModeCustom.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    const now = new Date();
+    let target = new Date();
+
+    if (type === 'today') {
+        target = now;
+    } else if (type === 'tomorrow') {
+        target.setDate(now.getDate() + 1);
+    } else if (type === 'end_week') {
+        const dayOfWeek = now.getDay(); // 0 is Sunday
+        const daysUntilSunday = (7 - dayOfWeek) % 7;
+        target.setDate(now.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
+    } else if (type === 'in_week') {
+        target.setDate(now.getDate() + 7);
+    }
+
+    const yyyy = target.getFullYear();
+    const mm = String(target.getMonth() + 1).padStart(2, '0');
+    const dd = String(target.getDate()).padStart(2, '0');
+
+    if (deadlineDateInput) deadlineDateInput.value = `${yyyy}-${mm}-${dd}`;
+    if (deadlineTimeInput) deadlineTimeInput.value = '23:59';
+    
+    if (typeof window.syncDeadlineHandler === 'function') {
+        window.syncDeadlineHandler();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ── Elements ─────────────────────────────────────────────────────────────
+    const moduleExisting       = document.getElementById('moduleExisting');
+    const moduleNew            = document.getElementById('moduleNew');
+    const existingModuleBlock  = document.getElementById('existingModuleBlock');
+    const newModuleBlock       = document.getElementById('newModuleBlock');
+    const moduleSelect         = document.getElementById('module_id');
+
+    const publishOptions       = document.querySelectorAll('input[name="publish_option"]');
+    const studentSelection     = document.getElementById('studentSelection');
+    const programSelect        = document.getElementById('programSelect');
+    const masterySelect        = document.getElementById('masterySelect');
+
+    const deadlineModeNone     = document.getElementById('deadlineModeNone');
+    const deadlineModeCustom   = document.getElementById('deadlineModeCustom');
+    const cardDeadlineNone     = document.getElementById('cardDeadlineNone');
+    const cardDeadlineSet      = document.getElementById('cardDeadlineSet');
+    const deadlineContainer    = document.getElementById('deadlineContainer');
+    const deadlineDateInput    = document.getElementById('deadlineDateInput');
+    const deadlineTimeInput    = document.getElementById('deadlineTimeInput');
+    const deadlineHiddenInput  = document.getElementById('deadlineHiddenInput');
+    const deadlineSummaryPreview = document.getElementById('deadlineSummaryPreview');
+
+    // ── Card Selection Visuals ───────────────────────────────────────────────
     function updateOptionCards() {
         // Module cards
         const isNew = moduleNew && moduleNew.checked;
@@ -536,8 +724,14 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('cardPublishProgram')?.classList.toggle('selected', activeOption === 'program');
         document.getElementById('cardPublishMastery')?.classList.toggle('selected', activeOption === 'mastery');
         document.getElementById('cardPublishSelected')?.classList.toggle('selected', activeOption === 'selected');
+
+        // Deadline cards
+        const isCustomDeadline = deadlineModeCustom && deadlineModeCustom.checked;
+        cardDeadlineNone?.classList.toggle('selected', !isCustomDeadline);
+        cardDeadlineSet?.classList.toggle('selected', isCustomDeadline);
     }
 
+    // ── 1. Module Toggle ─────────────────────────────────────────────────────
     function toggleModuleBlocks() {
         const useNew = moduleNew && moduleNew.checked;
         if (existingModuleBlock) existingModuleBlock.style.display = useNew ? 'none' : 'block';
@@ -551,38 +745,95 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (moduleExisting) moduleExisting.addEventListener('change', toggleModuleBlocks);
     if (moduleNew) moduleNew.addEventListener('change', toggleModuleBlocks);
-    toggleModuleBlocks();
-    
-    publishOptions.forEach(radio => {
-        radio.addEventListener('change', function() {
-            // Show/hide student selection
-            if (this.value === 'selected') {
-                studentSelection.classList.remove('hidden');
-            } else {
-                studentSelection.classList.add('hidden');
-            }
-            
-            // Enable/disable program select
-            if (this.value === 'program') {
-                programSelect.disabled = false;
-            } else {
-                programSelect.disabled = true;
-                programSelect.value = '';
-            }
-            
-            // Enable/disable mastery select
-            if (this.value === 'mastery') {
-                masterySelect.disabled = false;
-            } else {
-                masterySelect.disabled = true;
-                masterySelect.value = '';
-            }
 
-            updateOptionCards();
+    // ── 2. Target Audience Toggle ────────────────────────────────────────────
+    function updatePublishOptionUI() {
+        const activeOption = document.querySelector('input[name="publish_option"]:checked')?.value;
+
+        // Show/hide student roster
+        if (studentSelection) {
+            studentSelection.classList.toggle('hidden', activeOption !== 'selected');
+        }
+
+        // Enable/disable program select
+        if (programSelect) {
+            const isProg = (activeOption === 'program');
+            programSelect.disabled = !isProg;
+            if (!isProg) programSelect.value = '';
+        }
+
+        // Enable/disable mastery select
+        if (masterySelect) {
+            const isMast = (activeOption === 'mastery');
+            masterySelect.disabled = !isMast;
+            if (!isMast) masterySelect.value = '';
+        }
+
+        updateOptionCards();
+    }
+
+    publishOptions.forEach(radio => {
+        radio.addEventListener('change', updatePublishOptionUI);
+    });
+
+    // ── 3. Deadline Toggle & Sync ────────────────────────────────────────────
+    function syncDeadline() {
+        const isCustom = deadlineModeCustom && deadlineModeCustom.checked;
+        
+        if (deadlineContainer) {
+            deadlineContainer.classList.toggle('hidden', !isCustom);
+        }
+
+        if (isCustom) {
+            const date = deadlineDateInput?.value;
+            const time = deadlineTimeInput?.value || '23:59';
+            if (date) {
+                const combined = `${date} ${time.length === 5 ? time + ':00' : time}`;
+                if (deadlineHiddenInput) deadlineHiddenInput.value = combined;
+
+                try {
+                    const d = new Date(`${date}T${time}`);
+                    const formatted = d.toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                        hour: 'numeric', minute: '2-digit', hour12: true
+                    });
+                    if (deadlineSummaryPreview) {
+                        deadlineSummaryPreview.innerHTML = `Students completing after <strong>${formatted}</strong> will be marked as <strong class="text-rose-700 font-extrabold">"Done Late"</strong> in your notifications.`;
+                    }
+                } catch(e) {}
+            } else {
+                if (deadlineHiddenInput) deadlineHiddenInput.value = '';
+            }
+        } else {
+            if (deadlineHiddenInput) deadlineHiddenInput.value = '';
+        }
+
+        updateOptionCards();
+    }
+
+    window.syncDeadlineHandler = syncDeadline;
+
+    if (deadlineModeNone) deadlineModeNone.addEventListener('change', syncDeadline);
+    if (deadlineModeCustom) deadlineModeCustom.addEventListener('change', syncDeadline);
+    if (deadlineDateInput) deadlineDateInput.addEventListener('input', syncDeadline);
+    if (deadlineTimeInput) deadlineTimeInput.addEventListener('input', syncDeadline);
+
+    // ── Clickable Option Cards Helper ────────────────────────────────────────
+    document.querySelectorAll('.option-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            // If clicking directly on an interactive control, let it handle itself
+            if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A', 'LABEL'].includes(e.target.tagName)) {
+                return;
+            }
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio && !radio.checked && !radio.disabled) {
+                radio.checked = true;
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         });
     });
-    
-    // Student search functionality
+
+    // ── Student Search & Checkboxes ──────────────────────────────────────────
     const searchInput = document.getElementById('studentSearch');
     if (searchInput) {
         searchInput.addEventListener('input', function() {
@@ -593,60 +844,72 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    
-    // Update selected count
+
     document.querySelectorAll('.student-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectedCount);
+        checkbox.addEventListener('change', function() {
+            const checked = document.querySelectorAll('.student-checkbox:checked').length;
+            const countEl = document.getElementById('selectedCount');
+            if (countEl) countEl.textContent = checked;
+        });
     });
-    
-    function updateSelectedCount() {
-        const checked = document.querySelectorAll('.student-checkbox:checked').length;
-        const countEl = document.getElementById('selectedCount');
-        if (countEl) countEl.textContent = checked;
-    }
 
-    updateOptionCards();
-});
+    // ── Form Submit Validation ───────────────────────────────────────────────
+    document.getElementById('publishForm')?.addEventListener('submit', function(e) {
+        const useNew = moduleNew && moduleNew.checked;
+        const newTitle = document.querySelector('input[name="new_module[title]"]');
 
-function selectAllStudents() {
-    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = true);
-    const countEl = document.getElementById('selectedCount');
-    if (countEl) countEl.textContent = document.querySelectorAll('.student-checkbox').length;
-}
-
-function deselectAllStudents() {
-    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = false);
-    const countEl = document.getElementById('selectedCount');
-    if (countEl) countEl.textContent = 0;
-}
-
-document.getElementById('publishForm')?.addEventListener('submit', function(e) {
-    const useNew = document.getElementById('moduleNew')?.checked;
-    const moduleSelect = document.getElementById('module_id');
-    const newTitle = document.querySelector('input[name="new_module[title]"]');
-
-    if (useNew) {
-        if (!newTitle || !newTitle.value.trim()) {
+        if (useNew) {
+            if (!newTitle || !newTitle.value.trim()) {
+                e.preventDefault();
+                alert('Please enter a title for the new module.');
+                newTitle?.focus();
+                return;
+            }
+        } else if (moduleSelect && !moduleSelect.value) {
             e.preventDefault();
-            alert('Please enter a title for the new module.');
-            newTitle?.focus();
+            alert('Please select a module before publishing this lesson.');
+            moduleSelect.focus();
             return;
         }
-    } else if (moduleSelect && !moduleSelect.value) {
-        e.preventDefault();
-        alert('Please select a module before publishing this lesson.');
-        moduleSelect.focus();
-        return;
-    }
 
-    const selectedOption = document.querySelector('input[name="publish_option"]:checked');
-    if (selectedOption && selectedOption.value === 'selected') {
-        const checked = document.querySelectorAll('.student-checkbox:checked').length;
-        if (checked === 0) {
+        const selectedOption = document.querySelector('input[name="publish_option"]:checked')?.value;
+        if (selectedOption === 'program' && programSelect && !programSelect.value) {
             e.preventDefault();
-            alert('Please select at least one student.');
+            alert('Please select a program to filter by.');
+            programSelect.focus();
+            return;
         }
-    }
+
+        if (selectedOption === 'mastery' && masterySelect && !masterySelect.value) {
+            e.preventDefault();
+            alert('Please select a mastery level to filter by.');
+            masterySelect.focus();
+            return;
+        }
+
+        if (selectedOption === 'selected') {
+            const checked = document.querySelectorAll('.student-checkbox:checked').length;
+            if (checked === 0) {
+                e.preventDefault();
+                alert('Please select at least one student.');
+                return;
+            }
+        }
+
+        if (deadlineModeCustom && deadlineModeCustom.checked) {
+            if (!deadlineDateInput?.value) {
+                e.preventDefault();
+                alert('Please pick a due date or select "No deadline".');
+                deadlineDateInput?.focus();
+                return;
+            }
+        }
+    });
+
+    // ── Initial State Sync ───────────────────────────────────────────────────
+    toggleModuleBlocks();
+    updatePublishOptionUI();
+    syncDeadline();
 });
 </script>
 @endsection

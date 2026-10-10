@@ -262,6 +262,21 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `;
 
+        let displayMessage = n.message || '';
+        if (n.type === 'quiz_answered') {
+            const isLate = Boolean(data.is_late || /Done Late/i.test(n.message || ''));
+            const hasDeadline = Boolean(data.has_deadline || isLate || /On Time/i.test(n.message || ''));
+            const cleanMsg = (n.message || '').replace(/\s*[\(—•-]?\s*(Done Late|On Time)\)?$/i, '');
+            if (hasDeadline) {
+                const badge = isLate
+                    ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 ml-1.5 align-middle"><span class="material-symbols-outlined text-[11px]">schedule</span>Done Late</span>`
+                    : `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 ml-1.5 align-middle"><span class="material-symbols-outlined text-[11px]">check_circle</span>On Time</span>`;
+                displayMessage = `${cleanMsg} ${badge}`;
+            } else {
+                displayMessage = cleanMsg;
+            }
+        }
+
         return `<div class="notif-row flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors duration-150 ${unread?'bg-blue-50/50 hover:bg-blue-50/80':'hover:bg-slate-50/80'}"
                      data-id="${n.id}" data-dest="${dest}"
                      onclick="handleNotifClick(${n.id},'${dest}')"
@@ -270,7 +285,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ${avatarHtml}
             <div class="flex-1 min-w-0 pr-1">
                 <p class="text-[13px] font-${unread?'bold':'semibold'} text-slate-800 leading-snug">${n.title}</p>
-                <p class="notif-message-preview text-[12px] text-slate-500 mt-0.5 leading-snug line-clamp-2">${n.message}</p>
+                <p class="notif-message-preview text-[12px] text-slate-500 mt-0.5 leading-snug line-clamp-2">${displayMessage}</p>
                 <p class="text-[11px] font-semibold mt-1.5 ${unread?'text-blue-500':'text-slate-400'}">${n.time_ago}</p>
             </div>
             ${unread?'<span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-blue-500 mt-2 shadow-sm"></span>':''}
