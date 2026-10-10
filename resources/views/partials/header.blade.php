@@ -266,12 +266,23 @@ document.addEventListener('DOMContentLoaded', function () {
         if (n.type === 'quiz_answered') {
             const isLate = Boolean(data.is_late || /Done Late/i.test(n.message || ''));
             const hasDeadline = Boolean(data.has_deadline || isLate || /On Time/i.test(n.message || ''));
-            const cleanMsg = (n.message || '').replace(/\s*[\(—•-]?\s*(Done Late|On Time)\)?$/i, '');
+            // Clean the core score/attempt message — strip any appended time/status text
+            let cleanMsg = (n.message || '')
+                .replace(/\s*•\s*Submitted:[^\(]+\(Due:[^\)]+\)/i, '')
+                .replace(/\s*[\(—•-]?\s*(Done Late|On Time)\)?$/i, '');
             if (hasDeadline) {
                 const badge = isLate
-                    ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 ml-1.5 align-middle"><span class="material-symbols-outlined text-[11px]">schedule</span>Done Late</span>`
-                    : `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 ml-1.5 align-middle"><span class="material-symbols-outlined text-[11px]">check_circle</span>On Time</span>`;
-                displayMessage = `${cleanMsg} ${badge}`;
+                    ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 ml-1 align-middle"><span class="material-symbols-outlined text-[11px]">schedule</span>Done Late</span>`
+                    : `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 ml-1 align-middle"><span class="material-symbols-outlined text-[11px]">check_circle</span>On Time</span>`;
+                // Build submitted/due time chip if data is available
+                let timeChip = '';
+                const submittedTime = data.submitted_at_text || null;
+                const dueTime = data.deadline_text || null;
+                if (submittedTime) {
+                    const duePart = dueTime ? ` <span style="color:#94a3b8">· Due: ${dueTime}</span>` : '';
+                    timeChip = ` <span class="inline-flex items-center gap-0.5 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 align-middle ml-1"><span class="material-symbols-outlined text-[10px] text-slate-400">schedule</span>Submitted: <strong class="text-slate-700 ml-0.5">${submittedTime}</strong>${duePart}</span>`;
+                }
+                displayMessage = `${cleanMsg} ${badge}${timeChip}`;
             } else {
                 displayMessage = cleanMsg;
             }

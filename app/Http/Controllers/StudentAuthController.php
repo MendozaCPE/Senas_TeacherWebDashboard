@@ -2311,23 +2311,33 @@ public function submitQuizAttempt(Request $request, $lessonId)
         // ─── CHECK DEADLINE STATUS ────────────────────────────────────
         $lesson = Lesson::find($lessonId);
         $hasDeadline = ($lesson && !empty($lesson->deadline));
-        $deadline = $hasDeadline ? \Carbon\Carbon::parse($lesson->deadline) : null;
+        
+        // Parse deadline and current time in Asia/Manila timezone for 100% accurate local comparison
+        $nowManila = \Carbon\Carbon::now('Asia/Manila');
+        $rawDeadline = $lesson?->getRawOriginal('deadline') ?? $lesson?->deadline;
+        $deadlineManila = ($hasDeadline && $rawDeadline)
+            ? \Carbon\Carbon::parse($rawDeadline, 'Asia/Manila')
+            : null;
 
         $assignment = LessonAssignment::where('student_id', $student->student_id)
             ->where('lesson_id', $lessonId)
             ->first();
 
         $hadPriorOnTimeCompletion = false;
-        if ($hasDeadline) {
-            if ($assignment && $assignment->first_completed_at && \Carbon\Carbon::parse($assignment->first_completed_at)->lte($deadline)) {
-                $hadPriorOnTimeCompletion = true;
+        if ($hasDeadline && $deadlineManila) {
+            $rawFirstCompleted = $assignment?->getRawOriginal('first_completed_at') ?? $assignment?->first_completed_at;
+            if ($rawFirstCompleted) {
+                $firstCompManila = \Carbon\Carbon::parse($rawFirstCompleted, 'Asia/Manila');
+                if ($firstCompManila->lte($deadlineManila)) {
+                    $hadPriorOnTimeCompletion = true;
+                }
             } else {
                 $priorCompletedOnTime = DB::table('quiz_attempts as qa')
                     ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
                     ->where('qa.student_id', $student->student_id)
                     ->where('q.lesson_id', $lessonId)
                     ->where('qa.status', 'completed')
-                    ->where('qa.completed_at', '<=', $deadline)
+                    ->where('qa.is_late', false)
                     ->exists();
                 if ($priorCompletedOnTime) {
                     $hadPriorOnTimeCompletion = true;
@@ -2336,14 +2346,17 @@ public function submitQuizAttempt(Request $request, $lessonId)
         }
 
         $isAttemptLate = false;
-        if ($hasDeadline) {
+        if ($hasDeadline && $deadlineManila) {
             // If the student already completed on or before the deadline, subsequent attempts are not late.
             if ($hadPriorOnTimeCompletion) {
                 $isAttemptLate = false;
             } else {
-                $isAttemptLate = now()->gt($deadline);
+                $isAttemptLate = $nowManila->gt($deadlineManila);
             }
         }
+
+        $submittedAtTimeText = $nowManila->format('h:i A');
+        $deadlineTimeText = $deadlineManila ? $deadlineManila->format('h:i A') : null;
 
         // ─── CREATE QUIZ ATTEMPT WITH XP ──────────────────────────────
         $attemptId = DB::table('quiz_attempts')->insertGetId([
@@ -2528,23 +2541,30 @@ public function submitQuizAttempt(Request $request, $lessonId)
                 $lateSuffix = $isAttemptLate ? ' (Done Late)' : ' (On Time)';
             }
 
+            $deadlineInfoText = '';
+            if ($hasDeadline && !empty($deadlineTimeText)) {
+                $deadlineInfoText = " • Submitted: {$submittedAtTimeText} (Due: {$deadlineTimeText})";
+            }
+
             $this->notifyTeacher(
                 student:   $student,
                 type:      'quiz_answered',
                 title:     "{$emoji} {$studentName} answered a quiz",
-                message:   "Scored {$pct}% on \"{$lessonName}\" ({$statusLabel}) — Attempt #{$attemptNumber}{$lateSuffix}",
+                message:   "Scored {$pct}% on \"{$lessonName}\" ({$statusLabel}) — Attempt #{$attemptNumber}{$deadlineInfoText}{$lateSuffix}",
                 data:      [
-                    'student_id'     => $student->student_id,
-                    'lesson_id'      => $lessonId,
-                    'lesson_title'   => $lessonName,
-                    'score'          => $request->score,
-                    'percentage'     => $pct,
-                    'status'         => $status,
-                    'attempt_number' => $attemptNumber,
-                    'xp_earned'      => $xpEarned,
-                    'has_deadline'   => $hasDeadline,
-                    'is_late'        => $isAttemptLate,
-                    'deadline'       => $deadline ? $deadline->toIso8601String() : null,
+                    'student_id'        => $student->student_id,
+                    'lesson_id'         => $lessonId,
+                    'lesson_title'      => $lessonName,
+                    'score'             => $request->score,
+                    'percentage'        => $pct,
+                    'status'            => $status,
+                    'attempt_number'    => $attemptNumber,
+                    'xp_earned'         => $xpEarned,
+                    'has_deadline'      => $hasDeadline,
+                    'is_late'           => $isAttemptLate,
+                    'submitted_at_text' => $submittedAtTimeText,
+                    'deadline_text'     => $deadlineTimeText,
+                    'deadline'          => $deadlineManila ? $deadlineManila->toIso8601String() : null,
                 ],
                 actionUrl: '/students/' . $student->student_id,
             );
@@ -2565,7 +2585,9 @@ public function submitQuizAttempt(Request $request, $lessonId)
             'is_first_completion' => ($attemptNumber === 1),
             'is_late' => $isAttemptLate,
             'has_deadline' => $hasDeadline,
-            'deadline' => $deadline ? $deadline->toIso8601String() : null,
+            'submitted_at_text' => $submittedAtTimeText,
+            'deadline_text' => $deadlineTimeText,
+            'deadline' => $deadlineManila ? $deadlineManila->toIso8601String() : null,
             'is_improved' => $isImproved,
             'total_xp' => $student->total_xp,
             'level' => $student->level,

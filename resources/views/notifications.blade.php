@@ -321,22 +321,56 @@
                     @php
                         $isLate = !empty($notif->data['is_late']) || str_contains($notif->message ?? '', 'Done Late');
                         $hasDeadline = !empty($notif->data['has_deadline']) || $isLate || str_contains($notif->message ?? '', 'On Time');
-                        $cleanMessage = preg_replace('/\s*[\(—•-]?\s*(Done Late|On Time)\)?$/i', '', $notif->message ?? '');
+                        
+                        // Extract submitted time & due time
+                        $submittedTime = $notif->data['submitted_at_text'] ?? null;
+                        $deadlineTime = $notif->data['deadline_text'] ?? null;
+                        
+                        if (!$submittedTime && preg_match('/Submitted:\s*([0-9:]+\s*[AP]M)/i', $notif->message ?? '', $sm)) {
+                            $submittedTime = $sm[1];
+                        }
+                        if (!$deadlineTime && preg_match('/Due:\s*([0-9:]+\s*[AP]M)/i', $notif->message ?? '', $dm)) {
+                            $deadlineTime = $dm[1];
+                        }
+                        if (!$submittedTime && !empty($notif->created_at)) {
+                            $submittedTime = $notif->created_at->timezone('Asia/Manila')->format('h:i A');
+                        }
+                        if (!$deadlineTime && !empty($notif->data['deadline'])) {
+                            try {
+                                $deadlineTime = \Carbon\Carbon::parse($notif->data['deadline'])->timezone('Asia/Manila')->format('h:i A');
+                            } catch (\Exception $e) {}
+                        }
+
+                        // Clean core message text
+                        $cleanMessage = preg_replace('/\s*•\s*Submitted:[^\(]+\(Due:[^\)]+\)/i', '', $notif->message ?? '');
+                        $cleanMessage = preg_replace('/\s*[\(—•-]?\s*(Done Late|On Time)\)?$/i', '', $cleanMessage);
                     @endphp
-                    <div class="flex items-center gap-2 flex-wrap mt-0.5">
-                        <p class="text-[12.5px] text-slate-500 leading-snug">{{ $cleanMessage }}</p>
+                    <div class="mt-0.5 space-y-1">
+                        <p class="text-[12.5px] text-slate-700 leading-snug font-medium">{{ $cleanMessage }}</p>
                         @if($hasDeadline)
-                            @if($isLate)
-                                <span class="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/80 text-[11px] shadow-xs">
-                                    <span class="material-symbols-outlined text-[12px]">schedule</span>
-                                    Done Late
-                                </span>
-                            @else
-                                <span class="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80 text-[11px] shadow-xs">
-                                    <span class="material-symbols-outlined text-[12px]">check_circle</span>
-                                    On Time
-                                </span>
-                            @endif
+                            <div class="flex items-center gap-2 flex-wrap text-[11.5px] pt-0.5">
+                                @if($isLate)
+                                    <span class="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/80 text-[11px] shadow-xs">
+                                        <span class="material-symbols-outlined text-[12px]">schedule</span>
+                                        Done Late
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80 text-[11px] shadow-xs">
+                                        <span class="material-symbols-outlined text-[12px]">check_circle</span>
+                                        On Time
+                                    </span>
+                                @endif
+
+                                @if($submittedTime)
+                                    <span class="inline-flex items-center gap-1 text-slate-500 font-medium bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/60 text-[11px]">
+                                        <span class="material-symbols-outlined text-[12px] text-slate-400">schedule</span>
+                                        Submitted: <strong class="text-slate-800">{{ $submittedTime }}</strong>
+                                        @if($deadlineTime)
+                                            <span class="text-slate-400 font-normal">· Due: {{ $deadlineTime }}</span>
+                                        @endif
+                                    </span>
+                                @endif
+                            </div>
                         @endif
                     </div>
                 @elseif(!empty($notif->message))
