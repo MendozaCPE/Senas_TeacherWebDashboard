@@ -89,6 +89,10 @@ class SettingsController extends Controller
     public function updateSchool(Request $request)
     {
         $user    = Auth::user();
+
+        // Institution details are managed by the School ICT Coordinator.
+        abort_unless($user->role === 'ict', 403);
+
         $teacher = $user->teacher;
 
         if (!$teacher) {

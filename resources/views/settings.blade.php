@@ -583,10 +583,10 @@
                             <div class="set-section-icon"><span class="material-symbols-outlined">apartment</span></div>
                             <div>
                                 <div class="set-section-title">Institution Details</div>
-                                <div class="set-section-sub">Your school and division information.</div>
+                                <div class="set-section-sub">Your school and division information. Contact your School ICT Coordinator to request changes.</div>
                             </div>
                         </div>
-                        <button type="submit" class="set-btn-primary"><span class="material-symbols-outlined" style="font-size:16px;">save</span>Save</button>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-500"><span class="material-symbols-outlined text-[15px]">lock</span>View only</span>
                     </div>
 
                     <div class="set-row">
@@ -598,19 +598,19 @@
                     </div>
                     <div class="set-row">
                         <div class="set-row-label"><span class="material-symbols-outlined">apartment</span>School Name</div>
-                        <input type="text" name="school_name" class="set-input" maxlength="150" value="{{ old('school_name', $school->name) }}" required/>
+                        <input type="text" name="school_name" class="set-input" maxlength="150" value="{{ old('school_name', $school->name) }}" readonly/>
                     </div>
                     <div class="set-row">
                         <div class="set-row-label"><span class="material-symbols-outlined">location_on</span>Address</div>
-                        <input type="text" name="school_address" class="set-input" maxlength="150" value="{{ old('school_address', $school->address) }}"/>
+                        <input type="text" name="school_address" class="set-input" maxlength="150" value="{{ old('school_address', $school->address) }}" readonly/>
                     </div>
                     <div class="set-row">
                         <div class="set-row-label"><span class="material-symbols-outlined">map</span>Region</div>
-                        <input type="text" name="region" class="set-input" maxlength="100" value="{{ old('region', $school->region) }}"/>
+                        <input type="text" name="region" class="set-input" maxlength="100" value="{{ old('region', $school->region) }}" readonly/>
                     </div>
                     <div class="set-row">
                         <div class="set-row-label"><span class="material-symbols-outlined">domain</span>Division</div>
-                        <input type="text" name="division" class="set-input" maxlength="100" value="{{ old('division', $school->division) }}"/>
+                        <input type="text" name="division" class="set-input" maxlength="100" value="{{ old('division', $school->division) }}" readonly/>
                     </div>
                 </div>
             </form>
