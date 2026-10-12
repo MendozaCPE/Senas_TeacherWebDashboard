@@ -1263,7 +1263,7 @@ document.addEventListener('keydown', function(e) {
      class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 hidden items-center justify-center p-6"
      onclick="if(event.target===this) closeStudentModal()">
     <div class="bg-white rounded-[28px] w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
-
+        <div class="h-1.5 w-full shrink-0 bg-gradient-to-r from-[#0d326b] to-[#1a6fd4]"></div>
         <div class="flex items-start justify-between gap-4 px-8 py-6 border-b border-slate-100 bg-slate-50/60">
             <div class="flex items-center space-x-4">
                 <img id="modalAvatar" src="" alt="" class="w-12 h-12 rounded-full object-cover shadow-sm bg-[#0d326b] flex-shrink-0"

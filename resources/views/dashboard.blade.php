@@ -129,7 +129,7 @@
         @endphp
         <!-- Academic Session -->
         <div class="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
-            <span class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                 <span class="material-symbols-outlined text-[20px]">calendar_month</span>
             </span>
             <div>

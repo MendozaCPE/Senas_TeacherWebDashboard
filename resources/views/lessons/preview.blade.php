@@ -169,10 +169,13 @@
     box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     border: 8px solid #1a1a1a;
     position: relative;
-    min-height: 600px;
+    box-sizing: border-box;
+    height: min(680px, 80vh);
+    min-height: min(680px, 80vh);
     max-height: 80vh;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
 }
 .phone-mockup .status-bar {
     padding: 12px 20px 8px;
@@ -330,7 +333,7 @@
     background: rgba(255,255,255,0.7); border-radius: 12px; padding: 6px 12px; font-size: 13px;
     font-weight: 700; color: #6B7280; border: 1px solid rgba(255,255,255,0.85); cursor: pointer;
 }
-.preview-content { padding: 0 16px 16px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+.preview-content { padding: 0 16px 16px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 .preview-controls-wrapper {
     background: white;
     border-radius: 16px;

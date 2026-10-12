@@ -188,17 +188,17 @@
         #tutorial-modal .tutorial-scrollbar {
             scrollbar-gutter: stable;
             scrollbar-width: thin;
-            scrollbar-color: #1a6fd4 #eaf1fb;
+            scrollbar-color: #94a3b8 #f1f5f9;
         }
         #tutorial-modal .tutorial-scrollbar::-webkit-scrollbar { width: 9px; }
-        #tutorial-modal .tutorial-scrollbar::-webkit-scrollbar-track { background: #eaf1fb; border-radius: 9999px; }
+        #tutorial-modal .tutorial-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
         #tutorial-modal .tutorial-scrollbar::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #0d326b 0%, #1a6fd4 100%);
-            border: 2px solid #eaf1fb;
+            background: #94a3b8;
+            border: 2px solid #f1f5f9;
             border-radius: 9999px;
         }
         #tutorial-modal .tutorial-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #092653 0%, #155bb3 100%);
+            background: #64748b;
         }
         #add-student-modal .student-modal-scrollbar {
             scrollbar-gutter: stable;
@@ -311,6 +311,7 @@
             <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600"><span class="material-symbols-outlined text-3xl">live_help</span></div>
             <h3 id="tutorial-exit-title" class="text-lg font-extrabold text-[#0d326b]">Do you really want to exit this tutorial?</h3>
             <p class="mt-2 text-sm leading-relaxed text-slate-500">You can watch it anytime from the ? Help button beside Notifications.</p>
+            <label class="mt-4 flex cursor-pointer items-start gap-2 text-left text-sm font-medium text-slate-600"><input id="tutorial-exit-dont-show" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0d326b] focus:ring-[#0d326b]"><span>Don’t show this tutorial automatically again</span></label>
             <div class="mt-6 flex gap-3">
                 <button id="tutorial-exit-stay" type="button" class="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">Keep watching</button>
                 <button id="tutorial-exit-confirm-btn" type="button" class="flex-1 rounded-xl bg-[#0d326b] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1e4b8f]">Exit tutorial</button>
@@ -457,9 +458,11 @@
     var helpTab = document.getElementById('tutorial-tab-help');
     var preference = document.getElementById('tutorial-preference');
     var dontShow = document.getElementById('tutorial-dont-show');
+    var exitDontShow = document.getElementById('tutorial-exit-dont-show');
     var helpNote = document.getElementById('tutorial-help-note');
     var exitConfirm = document.getElementById('tutorial-exit-confirm');
     var activeTutorial = null;
+    var isAutomaticTutorial = false;
     if (!modal) return;
 
     function openModal() { modal.classList.remove('hidden'); modal.classList.add('flex'); document.body.classList.add('overflow-hidden'); }
@@ -481,7 +484,7 @@
             emptyState.classList.remove('hidden');
             emptyState.querySelector('p').textContent = 'Your tutorial is paused while you browse help.';
         } else if (showVideos && restoreVideo && activeTutorial && playerWrap.classList.contains('hidden')) {
-            playTutorial(activeTutorial, false);
+            playTutorial(activeTutorial, false, isAutomaticTutorial);
         }
     }
     function stopVideo() {
@@ -492,15 +495,18 @@
         preference.classList.add('hidden');
         helpNote.classList.add('hidden');
         activeTutorial = null;
+        isAutomaticTutorial = false;
     }
     function closeModal() { stopVideo(); modal.classList.add('hidden'); modal.classList.remove('flex'); exitConfirm.classList.add('hidden'); exitConfirm.classList.remove('flex'); document.body.classList.remove('overflow-hidden'); }
     function requestExit() {
-        if (playerWrap.classList.contains('hidden')) { closeModal(); return; }
+        if (!activeTutorial || !isAutomaticTutorial) { closeModal(); return; }
+        exitDontShow.checked = !!(activeTutorial && localStorage.getItem(prefix + 'disabled_' + activeTutorial.id) === '1');
         exitConfirm.classList.remove('hidden');
         exitConfirm.classList.add('flex');
     }
-    function playTutorial(item, autoplay) {
+    function playTutorial(item, autoplay, automaticOrigin) {
         activeTutorial = item;
+        isAutomaticTutorial = automaticOrigin === undefined ? autoplay : automaticOrigin;
         title.textContent = 'Tutorials & Help';
         selectedTitle.textContent = item.title;
         selectedSummary.textContent = item.summary;
@@ -550,7 +556,20 @@
     helpTab.addEventListener('click', function () { setActiveTab('help', false); });
     document.getElementById('tutorial-close').addEventListener('click', requestExit);
     document.getElementById('tutorial-exit-stay').addEventListener('click', function () { exitConfirm.classList.add('hidden'); exitConfirm.classList.remove('flex'); });
-    document.getElementById('tutorial-exit-confirm-btn').addEventListener('click', closeModal);
+    document.getElementById('tutorial-exit-confirm-btn').addEventListener('click', function () {
+        if (activeTutorial) {
+            var disabledKey = prefix + 'disabled_' + activeTutorial.id;
+            var snoozeKey = prefix + 'snoozed_until_' + activeTutorial.id;
+            if (exitDontShow.checked) {
+                localStorage.setItem(disabledKey, '1');
+                localStorage.removeItem(snoozeKey);
+            } else {
+                localStorage.removeItem(disabledKey);
+                localStorage.setItem(snoozeKey, String(Date.now() + 24 * 60 * 60 * 1000));
+            }
+        }
+        closeModal();
+    });
     library.addEventListener('click', function (event) {
         var button = event.target.closest('[data-tutorial-id]');
         if (!button) return;
@@ -601,7 +620,11 @@
         if (item) playTutorial(item, false);
     });
     dontShow.addEventListener('change', function () {
-        if (activeTutorial && dontShow.checked) localStorage.setItem(prefix + 'disabled_' + activeTutorial.id, '1');
+        if (!activeTutorial) return;
+        var key = prefix + 'disabled_' + activeTutorial.id;
+        if (dontShow.checked) localStorage.setItem(key, '1');
+        else localStorage.removeItem(key);
+        exitDontShow.checked = dontShow.checked;
     });
     modal.addEventListener('click', function (event) { if (event.target === modal) requestExit(); });
     document.addEventListener('keydown', function (event) {
@@ -617,7 +640,9 @@
         : path.indexOf('/media') === 0 ? tutorials[1]
         : path.indexOf('/lessons') === 0 ? tutorials[2]
         : path.indexOf('/settings') === 0 ? tutorials[3] : null;
-    if (current && localStorage.getItem(prefix + 'disabled_' + current.id) !== '1') {
+    var snoozedUntil = current ? Number(localStorage.getItem(prefix + 'snoozed_until_' + current.id) || 0) : 0;
+    if (current && localStorage.getItem(prefix + 'disabled_' + current.id) !== '1' && snoozedUntil <= Date.now()) {
+        if (snoozedUntil) localStorage.removeItem(prefix + 'snoozed_until_' + current.id);
         showLibrary();
         playTutorial(current, true);
     }

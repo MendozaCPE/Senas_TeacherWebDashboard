@@ -73,6 +73,7 @@ html.dark .media-thumb { background: #0a2244; }
     background: rgba(0,0,0,0.25); transition: background 0.18s;
 }
 .media-card:hover .play-overlay { background: rgba(0,0,0,0.38); }
+.media-card.is-playing .play-overlay { opacity: 0; pointer-events: none; }
 .play-icon-circle {
     width: 44px; height: 44px; background: rgba(255,255,255,0.92); border-radius: 50%;
     display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 12px rgba(0,0,0,0.3);
@@ -513,10 +514,21 @@ function renderGrid(items, searchTerm) {
     emptyEl.classList.add('hidden');
     grid.innerHTML = items.map((item, i) => buildCard(item, i)).join('');
 
-    // Attach video hover events
-    grid.querySelectorAll('video[data-hover]').forEach(vid => {
-        vid.addEventListener('mouseenter', () => vid.play());
-        vid.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0; });
+    // Play video previews while the card is hovered. The overlay covers the video,
+    // so listen on the card rather than the video element itself.
+    grid.querySelectorAll('.media-card').forEach(card => {
+        const vid = card.querySelector('video[data-hover]');
+        if (!vid) return;
+        card.addEventListener('mouseenter', () => {
+            card.classList.add('is-playing');
+            const playPromise = vid.play();
+            if (playPromise) playPromise.catch(() => card.classList.remove('is-playing'));
+        });
+        card.addEventListener('mouseleave', () => {
+            vid.pause();
+            vid.currentTime = 0;
+            card.classList.remove('is-playing');
+        });
     });
 }
 
