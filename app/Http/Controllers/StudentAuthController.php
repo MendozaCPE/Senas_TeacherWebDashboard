@@ -2763,12 +2763,13 @@ public function getLessonLeaderboard(Request $request, $lessonId)
                 's.student_id',
                 's.first_name',
                 's.last_name',
+                's.profile_picture',
                 'u.username',
                 DB::raw('MAX(qa.percentage) as best_score'),
                 DB::raw('COUNT(qa.attempt_id) as total_attempts'),
                 DB::raw('MAX(qa.xp_earned) as xp_earned')
             )
-            ->groupBy('s.student_id', 's.first_name', 's.last_name', 'u.username')
+            ->groupBy('s.student_id', 's.first_name', 's.last_name', 's.profile_picture', 'u.username')
             ->get();
 
         // Now for each student, find the attempt number where they achieved their best score
@@ -2797,6 +2798,7 @@ public function getLessonLeaderboard(Request $request, $lessonId)
                 'student_id' => $item->student_id,
                 'name' => $item->first_name . ' ' . $item->last_name,
                 'username' => $item->username,
+                'profile_picture' => $item->profile_picture ?? 'senya',
                 'best_score' => (int) $item->best_score,
                 'total_attempts' => (int) $item->total_attempts,
                 'attempts_to_achieve' => $attemptsToAchieve,
@@ -6259,12 +6261,13 @@ public function getCheckpointExamLeaderboard(Request $request, $examId)
                 's.student_id',
                 's.first_name',
                 's.last_name',
+                's.profile_picture',
                 'u.username',
                 DB::raw('MAX(cea.percentage) as best_score'),
                 DB::raw('COUNT(cea.attempt_id) as total_attempts'),
                 DB::raw('MAX(cea.xp_earned) as xp_earned')
             )
-            ->groupBy('s.student_id', 's.first_name', 's.last_name', 'u.username')
+            ->groupBy('s.student_id', 's.first_name', 's.last_name', 's.profile_picture', 'u.username')
             ->get();
 
         $rankedList = $rankings->map(function ($item) use ($examId, $student) {
@@ -6289,6 +6292,7 @@ public function getCheckpointExamLeaderboard(Request $request, $examId)
                 'student_id' => $item->student_id,
                 'name' => $item->first_name . ' ' . $item->last_name,
                 'username' => $item->username,
+                'profile_picture' => $item->profile_picture ?? 'senya',
                 'best_score' => (int) $item->best_score,
                 'attempts' => (int) $item->total_attempts,
                 'attempts_to_achieve' => $attemptsToAchieve,
