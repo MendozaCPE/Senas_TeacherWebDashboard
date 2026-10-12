@@ -1496,10 +1496,12 @@
 
 {{-- ══════════ ADD STUDENT MODAL ══════════ --}}
 <div id="add-student-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 px-3 py-4 sm:p-6">
-    <div class="bg-white rounded-[24px] sm:rounded-[30px] w-full max-w-[960px] max-h-[92vh] overflow-y-auto p-5 sm:p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
-        <button id="close-modal-btn" aria-label="Close add student dialog" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 outline-none transition-colors flex items-center justify-center">
+    <div class="bg-white rounded-[24px] sm:rounded-[30px] w-full max-w-[960px] max-h-[92vh] flex flex-col overflow-hidden shadow-2xl relative transform scale-95 transition-transform duration-300">
+        <div class="h-1.5 w-full shrink-0 bg-gradient-to-r from-[#0d326b] to-[#1a6fd4]"></div>
+        <button id="close-modal-btn" aria-label="Close add student dialog" class="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 outline-none transition-colors flex items-center justify-center">
             <span class="material-symbols-outlined text-[24px]">close</span>
         </button>
+        <div id="add-student-scroll" class="student-modal-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:p-8">
         <div class="mb-6 pr-12 flex items-center gap-3">
             <div class="w-11 h-11 rounded-2xl bg-blue-50 text-[#0d326b] flex items-center justify-center shrink-0">
                 <span class="material-symbols-outlined">person_add</span>
@@ -1703,6 +1705,7 @@
             <div id="bulk-step-result" class="hidden"></div>
 
         </div>
+    </div>
     </div>
 </div>
 

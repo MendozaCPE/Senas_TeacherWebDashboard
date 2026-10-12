@@ -43,6 +43,12 @@
     <!-- Right Controls -->
     <div class="flex items-center gap-3">
 
+        <button id="tutorial-help-btn" type="button"
+                class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#0d326b]/10 transition-colors text-[#0d326b]"
+                title="Tutorials and help" aria-label="Open tutorials and help">
+            <span class="material-symbols-outlined text-[22px]">help</span>
+        </button>
+
         <!-- ── NOTIFICATION BELL ──────────────────────────────────────────── -->
         <div class="relative" id="notif-container">
             <button id="notif-btn"

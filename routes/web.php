@@ -16,6 +16,7 @@ use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TestingController;
+use App\Http\Controllers\TutorialHelpController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -134,6 +135,7 @@ Route::get('/media-player', function () {
 
 // ── Protected Routes (must be logged in as teacher) ──────────────────────────
 Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher'])->group(function () {
+    Route::post('/tutorials/ask', [TutorialHelpController::class, 'ask'])->middleware('throttle:10,1')->name('tutorials.ask');
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
