@@ -77,24 +77,35 @@ Route::post('/session/ping', function () {
 
 // ── APK Download (public, Android app) ───────────────────────────────────────
 Route::get('/download/app', function () {
-    // Try public/storage/downloads first (symlinked), then fall back to storage/app/public
-    $paths = [
-        public_path('storage/downloads/senas_v1.3.apk'),
-        storage_path('app/public/downloads/senas_v1.3.apk'),
+    // Prefer the latest APK; keep v1.3 as a fallback if v1.4 is unavailable.
+    $versions = [
+        '1.4' => 'senas_v.1.4.apk',
+        '1.3' => 'senas_v1.3.apk',
     ];
 
     $path = null;
-    foreach ($paths as $candidate) {
-        if (file_exists($candidate)) { $path = $candidate; break; }
+    $version = null;
+    foreach ($versions as $candidateVersion => $filename) {
+        foreach ([
+            public_path('storage/downloads/' . $filename),
+            storage_path('app/public/downloads/' . $filename),
+        ] as $candidate) {
+            if (is_file($candidate) && is_readable($candidate)) {
+                $path = $candidate;
+                $version = $candidateVersion;
+                break 2;
+            }
+        }
     }
 
     if (!$path) {
         abort(404, 'APK file not found.');
     }
 
-    return response()->download($path, 'SENAS_v1.3.apk', [
+    $downloadName = 'SENAS_v' . $version . '.apk';
+
+    return response()->download($path, $downloadName, [
         'Content-Type' => 'application/vnd.android.package-archive',
-        'Content-Disposition' => 'attachment; filename="SENAS_v1.3.apk"',
     ]);
 })->name('app.download');
 

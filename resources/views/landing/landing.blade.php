@@ -2857,7 +2857,7 @@ footer {
       <div class="download-divider" aria-hidden="true"><span>or</span></div>
 
       <div class="download-qr">
-        <img src="{{ asset('images/qr-download.png') }}" alt="Scan to download the SEÑAS Android app" class="download-qr-img" onerror="this.onerror=null;this.src='{{ url('images/qr-download.png') }}';">
+        <img src="{{ asset('images/qr-download.png') }}?v=1.4" alt="Scan to download the SEÑAS Android app" class="download-qr-img" onerror="this.onerror=null;this.src='{{ url('images/qr-download.png') }}?v=1.4';">
         <div class="download-qr-text">
           <h4><i class="fa-solid fa-qrcode"></i> Scan to install</h4>
           <p>On a laptop or desktop? Scan this with your phone's camera to download the <strong>.apk</strong> directly to your Android device.</p>
@@ -2869,7 +2869,7 @@ footer {
         <div class="spec-card">
           <div class="spec-icon"><i class="fa-solid fa-hard-drive"></i></div>
           <div class="spec-info">
-            <span class="spec-title">171 MB</span>
+            <span class="spec-title">178 MB</span>
             <span class="spec-sub">Download Size</span>
           </div>
         </div>
@@ -2885,7 +2885,7 @@ footer {
         <div class="spec-card">
           <div class="spec-icon"><i class="fa-solid fa-code-branch"></i></div>
           <div class="spec-info">
-            <span class="spec-title">v1.3</span>
+            <span class="spec-title">v1.4</span>
             <span class="spec-sub">Latest Release</span>
           </div>
         </div>
