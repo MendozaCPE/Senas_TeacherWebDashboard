@@ -472,8 +472,8 @@
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/tf-backend-wasm.js"></script>
 
     <script>
         // Compact mode: minimize UI when loaded inside an iframe (testing dashboard)
@@ -609,15 +609,12 @@
                 await tf.ready();
                 console.log("⚙️ Active Processing Engine Backend:", tf.getBackend());
 
-                // 2. USE CLEAN URL DIRECTIVES WITH ACCURATE FILE EXTENSIONS
+                // 2. USE CLEAN URL DIRECTIVES WITH ACCURATE FILE EXTENSIONS AND FALLBACK
                 const absoluteOrigin = window.location.origin;
-                const targetModelPath = `${absoluteOrigin}/models/greetings_70_percent_tfjs_model/model.json`;
+                const primaryModelPath = `${absoluteOrigin}/models/greetings_70_percent_tfjs_model/model.json`;
+                const fallbackModelPath = `${absoluteOrigin}/models/model.json`;
 
-                console.log(`📦 WebView pulling model from destination: ${targetModelPath}`);
-
-                // Load the model using pure layers loader pipeline options
-                // We explicitly specify request headers to force the ngrok gateway to stream raw JSON
-                greetingsModel = await tf.loadLayersModel(targetModelPath, {
+                const fetchOptions = {
                     fetchFunc: (url, init) => {
                         const customInit = init || {};
                         customInit.headers = {
@@ -627,10 +624,20 @@
                         };
                         return fetch(url, customInit);
                     }
-                });
+                };
+
+                try {
+                    console.log(`📦 Attempting to load 70% Greetings model from: ${primaryModelPath}`);
+                    greetingsModel = await tf.loadLayersModel(primaryModelPath, fetchOptions);
+                    console.log('✅ Greetings (70% model) loaded successfully!');
+                } catch (primaryErr) {
+                    console.warn('⚠️ 70% Greetings model failed to load. Falling back to previous working model:', primaryErr);
+                    greetingsModel = await tf.loadLayersModel(fallbackModelPath, fetchOptions);
+                    console.log('✅ Greetings (Previous working model) loaded successfully as fallback!');
+                }
 
                 if (!greetingsModel) {
-                    throw new Error('Model layers failed to initialize into memory structure');
+                    throw new Error('Both 70% and fallback Greetings models failed to load');
                 }
 
                 console.log('✅ Model loaded successfully from server domain source!');

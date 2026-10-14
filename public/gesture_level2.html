@@ -523,8 +523,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/tf-backend-wasm.js"></script>
 
     <script>
         // Compact mode: minimize UI when loaded inside an iframe (testing dashboard)
@@ -797,27 +797,46 @@
                 await tf.ready();
                 console.log("⚙️ Backend:", tf.getBackend());
 
-                // 🚀 FIX 2: Dynamic URL with custom headers
+                // 🚀 FIX 2: Dynamic URL with fallback support
                 const absoluteOrigin = window.location.origin;
-                const targetModelPath = `${absoluteOrigin}/models/level2_survival_70_percent_tfjs_model/model.json`;
+                const primaryModelPath = `${absoluteOrigin}/models/level2_survival_70_percent_tfjs_model/model.json`;
+                const fallbackModelPath = `${absoluteOrigin}/models/level2_survival_tfjs_model/model.json`;
 
-                console.log(`📦 Loading Level 2 model from: ${targetModelPath}`);
-
-                // 🚀 FIX 3: Custom fetch with headers
-                greetingsModel = await tf.loadLayersModel(targetModelPath, {
-                    fetchFunc: (url, init) => {
+                const fetchOptions = {
+                    fetchFunc: async (url, init) => {
                         const customInit = init || {};
                         customInit.headers = {
                             ...customInit.headers,
                             'Accept': 'application/json',
                             'ngrok-skip-browser-warning': 'true'
                         };
-                        return fetch(url, customInit);
+                        const res = await fetch(url, customInit);
+
+                        // TF.js doesn't recognize 'silu' (Keras 3 alias for swish) - dynamically rewrite it
+                        if (String(url).endsWith('model.json')) {
+                            const text = (await res.text()).replace(/"silu"/g, '"swish"');
+                            return new Response(text, {
+                                status: res.status,
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                        return res;
                     }
-                });
+                };
+
+                // Try primary 70% model first, gracefully fallback to previous working model if it fails
+                try {
+                    console.log(`📦 Attempting to load Level 2 (70% model) from: ${primaryModelPath}`);
+                    greetingsModel = await tf.loadLayersModel(primaryModelPath, fetchOptions);
+                    console.log('✅ Level 2 (70% model) loaded successfully!');
+                } catch (primaryErr) {
+                    console.warn('⚠️ Level 2 (70% model) failed to load. Falling back to previous working model:', primaryErr);
+                    greetingsModel = await tf.loadLayersModel(fallbackModelPath, fetchOptions);
+                    console.log('✅ Level 2 (Previous working model) loaded successfully as fallback!');
+                }
 
                 if (!greetingsModel) {
-                    throw new Error('Model failed to load');
+                    throw new Error('Both 70% and fallback Level 2 models failed to load');
                 }
 
                 console.log('✅ Level 2 model loaded successfully!');
