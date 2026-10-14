@@ -55,22 +55,17 @@ class DashboardController extends Controller
 
         // Default stats (fallback if no teacher record)
         $totalStudents       = 0;
-        $activeToday         = 0;
-        $totalLessons        = 0;
-        $avgAccuracy         = 0;
-        $newStudentsThisWeek = 0;
-        $activeTodayPercent  = 0;
-        $accuracyWeeklyChange= 0;
-        $newLessonsThisWeek  = 0;
-        $sparklineTotalStudents   = [];
-        $sparklineActive          = [];
-        $sparklineAccuracy        = [];
-        $sparklineLessons         = [];
+        $averageQuizScore    = null;
+        $quizResultCount     = 0;
+        $activeThisWeekCount = 0;
+        $activeThisWeekPercent = 0;
+        $lessonCompletionRate = null;
+        $completedLessonsCount = 0;
+        $assignedLessonsCount = 0;
         $students         = collect();
         $lessons          = collect();
         $modules          = collect();
         $lessonMastery    = collect();
-        $classRate        = 0;
         $needsAttention   = collect();
         $topLesson        = null;
         $allStudents      = collect();
@@ -93,20 +88,22 @@ class DashboardController extends Controller
 
             // ── School Year Date Boundaries ──────────────────────────────────────
             $syStartDate = null;
-            $syEndDate   = Carbon::now()->endOfDay();
+            $syEndDate   = null;
             if ($activeSchoolYear) {
                 $syStartDate = $activeSchoolYear->start_date
                     ? Carbon::parse($activeSchoolYear->start_date)->startOfDay()
                     : null;
                 $syEndDate = $activeSchoolYear->end_date
                     ? Carbon::parse($activeSchoolYear->end_date)->endOfDay()
-                    : Carbon::now()->endOfDay();
+                    : null;
             }
-            // Fall back to DepEd default start (July 1) when no real date is stored yet
-            if (!$syStartDate && $activeSchoolYear) {
-                [$syY] = explode('-', $activeSchoolYear->name);
-                $syStartDate = Carbon::create((int)$syY, 7, 1)->startOfDay();
+            // Match Analytics' July-to-June fallback when a school year has no saved date bounds.
+            if ($activeSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $activeSchoolYear->name, $syYears)) {
+                $syStartDate ??= Carbon::create((int) $syYears[1], 7, 1)->startOfDay();
+                $syEndDate ??= Carbon::create((int) $syYears[2], 6, 30)->endOfDay();
             }
+            $dashboardStartDate = $syStartDate ?? Carbon::now()->startOfYear();
+            $dashboardEndDate = $syEndDate ?? Carbon::now()->endOfYear();
 
             // ── Month Filter Options (active-year-scoped) ────────────────────────
             // Build Month-Year options from the active school year start to today.
@@ -180,98 +177,54 @@ class DashboardController extends Controller
             // ── Stat Cards ───────────────────────────────────────────────────────
             $totalStudents = $studentIds->count();
 
-            // Year-over-year student count change:
-            // current S.Y. enrollments minus previous S.Y. enrollments
-            $activeSyName   = $activeSchoolYear?->name ?? '';
-            $prevSyName     = '';
-            if ($activeSyName && preg_match('/^(\d{4})-(\d{4})$/', $activeSyName, $m)) {
-                $prevSyName = ($m[1] - 1) . '-' . ($m[2] - 1);
-            }
-            $currentSyCount  = $totalStudents;
-            $previousSyCount = $prevSyName
-                ? StudentYearEnrollment::where('teacher_id', $teacherId)
-                    ->where('school_year_name', $prevSyName)
-                    ->count()
+            // Weekly active engagement: enrolled students with any recorded activity in the last 7 days.
+            $activityStart = Carbon::now()->subDays(6)->startOfDay();
+            $activityEnd = Carbon::now()->endOfDay();
+            $activeThisWeekCount = Student::whereIn('student_id', $studentIds)
+                ->where(function ($q) use ($activityStart, $activityEnd) {
+                    $q->whereBetween('last_activity_date', [$activityStart, $activityEnd])
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
+                          $sub->select(DB::raw(1))
+                              ->from('quiz_attempts')
+                              ->whereColumn('quiz_attempts.student_id', 'students.student_id')
+                              ->whereBetween('quiz_attempts.completed_at', [$activityStart, $activityEnd]);
+                      })
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
+                          $sub->select(DB::raw(1))
+                              ->from('gesture_performances')
+                              ->whereColumn('gesture_performances.student_id', 'students.student_id')
+                              ->where(function ($gq) use ($activityStart, $activityEnd) {
+                                  $gq->whereBetween('last_attempt_at', [$activityStart, $activityEnd])
+                                     ->orWhereBetween('updated_at', [$activityStart, $activityEnd])
+                                     ->orWhereBetween('created_at', [$activityStart, $activityEnd]);
+                              });
+                      })
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
+                          $sub->select(DB::raw(1))
+                              ->from('student_lesson_progress')
+                              ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
+                              ->where(function ($pq) use ($activityStart, $activityEnd) {
+                                  $pq->whereBetween('student_lesson_progress.last_accessed_at', [$activityStart, $activityEnd])
+                                     ->orWhereBetween('student_lesson_progress.updated_at', [$activityStart, $activityEnd]);
+                              });
+                      })
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
+                          $sub->select(DB::raw(1))
+                              ->from('lesson_assignments')
+                              ->whereColumn('lesson_assignments.student_id', 'students.student_id')
+                              ->where(function ($aq) use ($activityStart, $activityEnd) {
+                                  $aq->whereBetween('lesson_assignments.assigned_at', [$activityStart, $activityEnd])
+                                     ->orWhereBetween('lesson_assignments.completed_at', [$activityStart, $activityEnd])
+                                     ->orWhereBetween('lesson_assignments.updated_at', [$activityStart, $activityEnd]);
+                              });
+                      });
+                })
+                ->count();
+
+            $activeThisWeekPercent = $totalStudents > 0
+                ? round(($activeThisWeekCount / $totalStudents) * 100, 1)
                 : 0;
-            $newStudentsThisWeek = $currentSyCount - $previousSyCount;
 
-            // Active Today: any student who accessed a lesson, practiced a gesture,
-            // attempted a checkpoint exam, or did a daily challenge today.
-            $activeTodayLesson = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->whereDate('last_accessed_at', Carbon::today())
-                ->pluck('student_id');
-
-            $activeTodayGesture = GesturePerformance::whereIn('student_id', $studentIds)
-                ->whereDate('last_attempt_at', Carbon::today())
-                ->pluck('student_id');
-
-            $activeTodayExam = CheckpointExamAttempt::whereIn('student_id', $studentIds)
-                ->whereDate('updated_at', Carbon::today())
-                ->pluck('student_id');
-
-            $activeTodayChallenge = DailyChallenge::whereIn('student_id', $studentIds)
-                ->whereDate('challenge_date', Carbon::today())
-                ->pluck('student_id');
-
-            $activeToday = $activeTodayLesson
-                ->merge($activeTodayGesture)
-                ->merge($activeTodayExam)
-                ->merge($activeTodayChallenge)
-                ->unique()
-                ->count();
-
-            $activeTodayPercent = $totalStudents > 0
-                ? round(($activeToday / $totalStudents) * 100)
-                : 0;
-
-            $totalLessons = Lesson::where('teacher_id', $teacherId)
-                ->whereNull('deleted_at')
-                ->count();
-
-            $newLessonsThisWeek = Lesson::where('teacher_id', $teacherId)
-                ->whereNull('deleted_at')
-                ->where('created_at', '>=', Carbon::now()->subWeek())
-                ->count();
-
-            // ── Sparklines (last 7 days, ending today) ───────────────────────────
-            $sparklineDates = [];
-            for ($i = 6; $i >= 0; $i--) {
-                $day = Carbon::today()->subDays($i);
-
-                $sparklineDates[] = [
-                    'day'   => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')),
-                    'date'  => $day->format('M j, Y'),
-                    'short' => $day->format('M j'),
-                ];
-
-                $sparklineTotalStudents[] = Student::where('teacher_id', $teacherId)
-                    ->where('school_year', $activeSchoolYear?->name)
-                    ->where('is_enrolled', true)
-                    ->whereDate('created_at', '<=', $day)
-                    ->count();
-
-                $sparklineActive[] = StudentLessonProgress::whereIn('student_id', $studentIds)
-                    ->whereIn('lesson_id', $lessonIds)
-                    ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
-                    ->whereDate('last_accessed_at', $day)
-                    ->distinct('student_id')
-                    ->count('student_id');
-
-                $dayAccuracy = StudentLessonProgress::whereIn('student_id', $studentIds)
-                    ->whereIn('lesson_id', $lessonIds)
-                    ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
-                    ->whereNotNull('quiz_score')
-                    ->whereDate('updated_at', $day)
-                    ->avg('quiz_score');
-                $sparklineAccuracy[] = $dayAccuracy ? (int) round($dayAccuracy) : 0;
-
-                $sparklineLessons[] = Lesson::where('teacher_id', $teacherId)
-                    ->whereNull('deleted_at')
-                    ->whereDate('created_at', '<=', $day)
-                    ->count();
-            }
-
-            // ── Your Modules (grouped, for dashboard folder cards) ───────────────
             $modules = Module::where('teacher_id', $teacherId)
                 ->with(['lessons' => function ($q) {
                     $q->where('status', 'published')->whereNull('deleted_at')->orderBy('module_order');
@@ -393,46 +346,37 @@ class DashboardController extends Controller
                 });
 
             // ── Overall Class Rate ────────────────────────────────────────────────
-            $totalProgress  = StudentLessonProgress::whereIn('student_id', $studentIds)
+            $assignmentTotals = DB::table('lesson_assignments')
+                ->whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)
-                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
-                ->count();
-            $totalCompleted = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->whereIn('lesson_id', $lessonIds)
-                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
-                ->where('lesson_completed', 1)
-                ->count();
-            $classRate = $totalProgress > 0 ? round(($totalCompleted / $totalProgress) * 100) : 0;
+                ->where(function ($q) use ($dashboardStartDate, $dashboardEndDate) {
+                    $q->whereBetween('assigned_at', [$dashboardStartDate, $dashboardEndDate])
+                      ->orWhereBetween('completed_at', [$dashboardStartDate, $dashboardEndDate])
+                      ->orWhereBetween('updated_at', [$dashboardStartDate, $dashboardEndDate]);
+                })
+                ->selectRaw('count(*) as total')
+                ->selectRaw('sum(case when status = "completed" then 1 else 0 end) as completed')
+                ->first();
 
-            // ── Average Accuracy ──────────────────────────────────────────────────
-            $avgScore = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->whereIn('lesson_id', $lessonIds)
-                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
-                ->whereNotNull('quiz_score')
-                ->avg('quiz_score');
-            $avgAccuracy = $avgScore ? (int) round($avgScore) : 0;
+            $assignedLessonsCount = (int) ($assignmentTotals->total ?? 0);
+            $completedLessonsCount = (int) ($assignmentTotals->completed ?? 0);
+            $lessonCompletionRate = $assignedLessonsCount > 0
+                ? round(($completedLessonsCount / $assignedLessonsCount) * 100, 1)
+                : null;
 
-            $avgThisWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->whereIn('lesson_id', $lessonIds)
-                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
-                ->whereNotNull('quiz_score')
-                ->where('updated_at', '>=', Carbon::now()->subWeek())
-                ->avg('quiz_score');
+            $quizQuery = DB::table('quiz_attempts')
+                ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                ->whereIn('quiz_attempts.student_id', $studentIds)
+                ->where('quiz_attempts.status', 'completed')
+                ->where('lessons.status', 'published')
+                ->whereNull('lessons.deleted_at')
+                ->whereBetween('quiz_attempts.completed_at', [$dashboardStartDate, $dashboardEndDate]);
 
-            $avgLastWeek = StudentLessonProgress::whereIn('student_id', $studentIds)
-                ->whereIn('lesson_id', $lessonIds)
-                ->when($activeSyId, fn($q) => $q->where('school_year_id', $activeSyId))
-                ->whereNotNull('quiz_score')
-                ->whereBetween('updated_at', [Carbon::now()->subWeeks(2), Carbon::now()->subWeek()])
-                ->avg('quiz_score');
+            $averageQuizScore = (clone $quizQuery)->avg('quiz_attempts.percentage');
+            $averageQuizScore = $averageQuizScore !== null ? round((float) $averageQuizScore, 2) : null;
+            $quizResultCount = (clone $quizQuery)->count();
 
-            if ($avgThisWeek !== null && $avgLastWeek !== null) {
-                $accuracyWeeklyChange = (int) round($avgThisWeek - $avgLastWeek);
-            } elseif ($avgThisWeek !== null) {
-                $accuracyWeeklyChange = (int) round($avgThisWeek);
-            }
-
-            // ── Student Performance (5 most recent enrolled students) ─────────────
             $students = Student::where('teacher_id', $teacherId)
                 ->whereIn('student_id', $studentIds->isEmpty() ? [-1] : $studentIds)
                 ->orderBy('created_at', 'desc')
@@ -592,49 +536,15 @@ class DashboardController extends Controller
             $selectedTip = 'Keep your students engaged with regular lesson assignments!';
         }
 
-        // Circumference for SVG circle stroke: 2 * pi * r = 2 * 3.14159 * 64 ≈ 402
-        $circleCircumference = 402;
-        $circleDashOffset    = $classRate > 0
-            ? round($circleCircumference * (1 - $classRate / 100))
-            : $circleCircumference;
-
         return view('dashboard', compact(
-            'greeting',
-            'firstName',
-            'user',
-            'teacher',
-            'calendarDate',
-            'totalStudents',
-            'newStudentsThisWeek',
-            'activeToday',
-            'activeTodayPercent',
-            'avgAccuracy',
-            'accuracyWeeklyChange',
-            'totalLessons',
-            'newLessonsThisWeek',
-            'sparklineTotalStudents',
-            'sparklineActive',
-            'sparklineAccuracy',
-            'sparklineLessons',
-            'sparklineDates',
-            'students',
-            'lessons',
-            'modules',
-            'lessonMastery',
-            'classRate',
-            'circleDashOffset',
-            'allStudents',
-            'senyaTips',
-            'selectedTip',
-            'senyaInsights',
-            'enrollmentTrend',
-            'practiceSessions',
-            'activeSchoolYear',
-            'monthlyActivity',
-            'syMonthOptions',
-            'selectedMonthParam',
-            'syStartDate',
-            'syEndDate'
+            'greeting', 'firstName', 'user', 'teacher', 'calendarDate',
+            'totalStudents', 'activeThisWeekCount', 'activeThisWeekPercent',
+            'averageQuizScore', 'quizResultCount', 'lessonCompletionRate',
+            'completedLessonsCount', 'assignedLessonsCount',
+            'students', 'lessons', 'modules', 'lessonMastery', 'allStudents',
+            'senyaTips', 'selectedTip', 'senyaInsights', 'enrollmentTrend',
+            'practiceSessions', 'activeSchoolYear', 'monthlyActivity',
+            'syMonthOptions', 'selectedMonthParam', 'syStartDate', 'syEndDate',
         ));
     }
 }

@@ -25,14 +25,13 @@
             {{-- KPI stats row --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 @for($i = 0; $i < 4; $i++)
-                <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px] gap-3">
+                <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[140px] gap-3">
                     <div class="flex items-center gap-3">
                         <div class="skeleton skeleton-circle w-9 h-9 flex-shrink-0"></div>
                         <div class="skeleton h-3 rounded w-28"></div>
                     </div>
                     <div class="skeleton h-8 rounded w-16 mt-1"></div>
                     <div class="skeleton h-3 rounded w-24"></div>
-                    <div class="skeleton rounded mt-auto h-[44px] w-full"></div>
                 </div>
                 @endfor
             </div>
@@ -266,212 +265,32 @@
             });
         </script>
 
-        @php
-            if (empty($sparklineDates)) {
-                $sparklineDates = [];
-                for ($i = 6; $i >= 0; $i--) {
-                    $d = \Carbon\Carbon::today()->subDays($i);
-                    $sparklineDates[] = [
-                        'day'   => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $d->format('l')),
-                        'date'  => $d->format('M j, Y'),
-                        'short' => $d->format('M j'),
-                    ];
-                }
-            }
-
-            $kpiSparkline = function (array $data, string $color, string $metric, string $unit, array $dates, string $id, int $width = 240, int $height = 44): string {
-                if (count($data) < 2) {
-                    $data = array_fill(0, 7, $data[0] ?? 0);
-                }
-                $count = count($data);
-                if (empty($dates) || count($dates) < $count) {
-                    $dates = [];
-                    for ($i = $count - 1; $i >= 0; $i--) {
-                        $d = \Carbon\Carbon::today()->subDays($i);
-                        $dates[] = [
-                            'day'   => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $d->format('l')),
-                            'date'  => $d->format('M j, Y'),
-                            'short' => $d->format('M j'),
-                        ];
-                    }
-                }
-
-                $max = max($data);
-                $min = min($data);
-                $padTop = 8;
-                $padBottom = 8;
-                $padX = 8;
-                $plotW = $width - ($padX * 2);
-                $plotH = $height - $padTop - $padBottom;
-
-                $pts = [];
-                foreach ($data as $i => $value) {
-                    $x = round($padX + ($count > 1 ? ($i / ($count - 1)) * $plotW : $plotW / 2), 1);
-                    if ($max === $min) {
-                        $y = $max == 0 ? round($height - $padBottom, 1) : round($height / 2, 1);
-                    } else {
-                        $y = round(($height - $padBottom) - (($value - $min) / ($max - $min)) * $plotH, 1);
-                    }
-                    $pts[] = ['x' => $x, 'y' => $y, 'val' => $value];
-                }
-
-                // Smooth bezier curve
-                $curvePath = "M {$pts[0]['x']},{$pts[0]['y']}";
-                for ($i = 0; $i < count($pts) - 1; $i++) {
-                    $p0 = $pts[$i];
-                    $p1 = $pts[$i + 1];
-                    $dx = ($p1['x'] - $p0['x']) / 2;
-                    $c1x = round($p0['x'] + $dx, 1);
-                    $c1y = $p0['y'];
-                    $c2x = round($p1['x'] - $dx, 1);
-                    $c2y = $p1['y'];
-                    $curvePath .= " C {$c1x},{$c1y} {$c2x},{$c2y} {$p1['x']},{$p1['y']}";
-                }
-                $lastPt = end($pts);
-                $areaPath = $curvePath . " L {$lastPt['x']},{$height} L {$pts[0]['x']},{$height} Z";
-
-                $gradId = 'kpiGrad_' . $id . '_' . substr(md5($color), 0, 6);
-
-                $svgPoints = '';
-                foreach ($pts as $i => $pt) {
-                    $isLast = ($i === $count - 1);
-                    $val = $pt['val'];
-                    $d = $dates[$i] ?? [
-                        'day'   => $isLast ? 'Today' : 'Day ' . ($i + 1),
-                        'date'  => '',
-                        'short' => '',
-                    ];
-
-                    $formattedUnit = $unit;
-                    if ($unit === 'Students') {
-                        $formattedUnit = $val === 1 ? 'Student' : 'Students';
-                    } elseif ($unit === 'Lessons') {
-                        $formattedUnit = $val === 1 ? 'Lesson' : 'Lessons';
-                    } elseif ($unit === '%') {
-                        $formattedUnit = '% Accuracy';
-                    } elseif ($unit === 'Active') {
-                        $formattedUnit = $val === 1 ? 'Active Student' : 'Active Students';
-                    }
-
-                    // Vertical guide crosshair (fades in on hover)
-                    $svgPoints .= '<line class="kpi-crosshair-line" data-idx="' . $i . '" x1="' . $pt['x'] . '" y1="0" x2="' . $pt['x'] . '" y2="' . $height . '" stroke="' . e($color) . '" stroke-width="1.2" stroke-dasharray="2 2" stroke-opacity="0" style="transition: stroke-opacity 0.15s ease; pointer-events: none;"/>';
-
-                    // Glowing outer halo for hover effect
-                    $svgPoints .= '<circle class="kpi-point-halo" data-idx="' . $i . '" cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="8.5" fill="' . e($color) . '" fill-opacity="0" style="transition: fill-opacity 0.18s ease, r 0.18s ease; pointer-events: none;"/>';
-
-                    // Last point (today) subtle permanent indicator ring
-                    if ($isLast) {
-                        $svgPoints .= '<circle cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="6" fill="' . e($color) . '" fill-opacity="0.16" pointer-events="none"/>';
-                    }
-
-                    // Point dot on the trend line
-                    $r = $isLast ? 3.5 : 3;
-                    $svgPoints .= '<circle class="kpi-point-dot" data-idx="' . $i . '" data-is-last="' . ($isLast ? '1' : '0') . '" cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="' . $r . '" fill="' . e($color) . '" stroke="#ffffff" stroke-width="2" style="transition: r 0.18s ease, stroke-width 0.18s ease; pointer-events: none;"/>';
-
-                    // Interactive transparent hit target
-                    $svgPoints .= '<circle class="kpi-point-hit" data-idx="' . $i . '" cx="' . $pt['x'] . '" cy="' . $pt['y'] . '" r="18" fill="transparent" style="cursor: pointer;" '
-                        . 'data-val="' . e($val) . '" '
-                        . 'data-unit="' . e($formattedUnit) . '" '
-                        . 'data-day="' . e($d['day']) . '" '
-                        . 'data-date="' . e($d['date']) . '" '
-                        . 'data-short="' . e($d['short']) . '" '
-                        . 'data-color="' . e($color) . '" '
-                        . 'data-metric="' . e($metric) . '"/>';
-                }
-
-                $html = '<div class="kpi-sparkline-container relative w-full h-[44px] select-none">'
-                    . '<div class="kpi-sparkline-tooltip pointer-events-none absolute z-30 opacity-0 scale-95 transition-all duration-150 -translate-x-1/2 -translate-y-full bg-[#0d326b] text-white rounded-xl shadow-xl px-2.5 py-1.5 whitespace-nowrap border border-blue-400/20 mb-2">'
-                    . '  <div class="flex items-center justify-between gap-3 text-[10px] leading-tight">'
-                    . '    <span class="font-bold text-white tracking-tight kpi-tip-day">Today</span>'
-                    . '    <span class="text-blue-200/90 text-[9px] font-medium kpi-tip-date"></span>'
-                    . '  </div>'
-                    . '  <div class="text-[12px] font-black text-white mt-1 flex items-center gap-1.5 leading-none">'
-                    . '    <span class="w-1.5 h-1.5 rounded-full kpi-tip-dot flex-shrink-0" style="background-color: ' . e($color) . ';"></span>'
-                    . '    <span class="kpi-tip-val font-black text-white text-[13px]"></span>'
-                    . '    <span class="font-semibold text-blue-100 text-[10.5px] kpi-tip-unit"></span>'
-                    . '  </div>'
-                    . '  <div class="kpi-tip-arrow absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45 border-r border-b border-blue-400/20"></div>'
-                    . '</div>'
-                    . '<svg viewBox="0 0 ' . $width . ' ' . $height . '" class="w-full h-[44px] overflow-visible" preserveAspectRatio="none" aria-hidden="true">'
-                    . '  <defs>'
-                    . '    <linearGradient id="' . $gradId . '" x1="0%" y1="0%" x2="0%" y2="100%">'
-                    . '      <stop offset="0%" stop-color="' . e($color) . '" stop-opacity="0.22"/>'
-                    . '      <stop offset="85%" stop-color="' . e($color) . '" stop-opacity="0.03"/>'
-                    . '      <stop offset="100%" stop-color="' . e($color) . '" stop-opacity="0"/>'
-                    . '    </linearGradient>'
-                    . '  </defs>'
-                    . '  <path d="' . $areaPath . '" fill="url(#' . $gradId . ')"/>'
-                    . '  <path d="' . $curvePath . '" fill="none" stroke="' . e($color) . '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
-                    .    $svgPoints
-                    . '</svg>'
-                    . '</div>';
-
-                return $html;
-            };
-        @endphp
-
         <!-- Stats Row -->
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-
-            {{-- Total Students --}}
-            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-9 h-9 rounded-full bg-[#0d326b] flex items-center justify-center flex-shrink-0">
-                        <span class="material-symbols-outlined text-white text-[18px]">group</span>
-                    </div>
-                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Enrolled Students</h3>
-                </div>
+            {{-- Enrolled Students --}}
+            <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#0d326b] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">group</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Enrolled Students</h3></div>
                 <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalStudents }}</p>
-                <p class="text-[12px] font-medium text-[#1a6fd4] mt-2">
-                    {{ $newStudentsThisWeek >= 0 ? '+' : '' }}{{ $newStudentsThisWeek }} vs last S.Y.
-                </p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">Currently enrolled this school year</p>
             </div>
-
-            {{-- Active Today --}}
-            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0">
-                        <span class="material-symbols-outlined text-white text-[18px]">monitor_heart</span>
-                    </div>
-                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Active Today</h3>
-                </div>
-                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $activeToday }}</p>
-                <p class="text-[12px] font-medium text-slate-400 mt-2 mb-4">{{ $activeTodayPercent }}% of total</p>
-                <div class="mt-auto -mx-1 kpi-sparkline-wrap relative">
-                    {!! $kpiSparkline($sparklineActive ?: array_fill(0, 7, 0), '#1e4b8f', 'Active Today', 'Active', $sparklineDates ?? [], 'active') !!}
-                </div>
+            {{-- Active Engagement --}}
+            <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">monitor_heart</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Weekly Active Engagement</h3></div>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($activeThisWeekPercent, 1) }}%</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $activeThisWeekCount }} of {{ $totalStudents }} enrolled students active in the last 7 days</p>
             </div>
-
-            {{-- Avg. Accuracy --}}
-            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-9 h-9 rounded-full bg-[#1a6fd4] flex items-center justify-center flex-shrink-0">
-                        <span class="material-symbols-outlined text-white text-[18px]">gps_fixed</span>
-                    </div>
-                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Avg. Accuracy</h3>
-                </div>
-                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $avgAccuracy > 0 ? $avgAccuracy . '%' : '0%' }}</p>
-                <p class="text-[12px] font-medium text-[#1a6fd4] mt-2 mb-4">↑ {{ max(0, $accuracyWeeklyChange) }}% this week</p>
-                <div class="mt-auto -mx-1 kpi-sparkline-wrap relative">
-                    {!! $kpiSparkline($sparklineAccuracy ?: array_fill(0, 7, 0), '#1a6fd4', 'Avg. Accuracy', '%', $sparklineDates ?? [], 'accuracy') !!}
-                </div>
+            {{-- Lesson Completion Rate --}}
+            <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#1a6fd4] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">task_alt</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Lesson Completion Rate</h3></div>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($lessonCompletionRate ?? 0, 1) }}%</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $completedLessonsCount }} of {{ $assignedLessonsCount }} student lesson assignments completed</p>
             </div>
-
-            {{-- Total Lessons --}}
-            <div class="bg-white rounded-[24px] px-6 pt-5 pb-4 shadow-sm border border-slate-100 flex flex-col min-h-[168px]">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-9 h-9 rounded-full bg-[#3b82f6] flex items-center justify-center flex-shrink-0">
-                        <span class="material-symbols-outlined text-white text-[18px]">menu_book</span>
-                    </div>
-                    <h3 class="text-[14px] font-semibold text-slate-700 leading-none">Total Lessons</h3>
-                </div>
-                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalLessons }}</p>
-                <p class="text-[12px] font-medium text-[#3b82f6] mt-2 mb-4">↑ {{ $newLessonsThisWeek }} this week</p>
-                <div class="mt-auto -mx-1 kpi-sparkline-wrap relative">
-                    {!! $kpiSparkline($sparklineLessons ?: array_fill(0, 7, 0), '#3b82f6', 'Total Lessons', 'Lessons', $sparklineDates ?? [], 'lessons') !!}
-                </div>
+            {{-- Average Quiz Score --}}
+            <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#3b82f6] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">grade</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Average Quiz Score</h3></div>
+                <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($averageQuizScore ?? 0, 1) }}%</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $quizResultCount > 0 ? 'Based on ' . $quizResultCount . ' quiz results' : 'No quiz results yet' }}</p>
             </div>
-
         </div>
 
         <!-- Your Lessons (grouped by Module) -->
@@ -1182,138 +1001,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     })();
 
-    // ── KPI Sparklines: hover tooltip & point effects ──
-    (function () {
-        const wraps = document.querySelectorAll('.kpi-sparkline-wrap');
-        wraps.forEach(function (wrap) {
-            const tip = wrap.querySelector('.kpi-sparkline-tooltip');
-            if (!tip) return;
-
-            const tipDay = tip.querySelector('.kpi-tip-day');
-            const tipDate = tip.querySelector('.kpi-tip-date');
-            const tipVal = tip.querySelector('.kpi-tip-val');
-            const tipUnit = tip.querySelector('.kpi-tip-unit');
-            const tipDot = tip.querySelector('.kpi-tip-dot');
-            const tipArrow = tip.querySelector('.kpi-tip-arrow');
-
-            const hits = wrap.querySelectorAll('.kpi-point-hit');
-            let hideTimer = null;
-
-            hits.forEach(function (hit) {
-                const idx = hit.dataset.idx;
-                const dot = wrap.querySelector('.kpi-point-dot[data-idx="' + idx + '"]');
-                const halo = wrap.querySelector('.kpi-point-halo[data-idx="' + idx + '"]');
-                const crosshair = wrap.querySelector('.kpi-crosshair-line[data-idx="' + idx + '"]');
-
-                function activate() {
-                    if (hideTimer) {
-                        clearTimeout(hideTimer);
-                        hideTimer = null;
-                    }
-
-                    // Reset all other dots in this sparkline
-                    wrap.querySelectorAll('.kpi-point-dot').forEach(function (d) {
-                        if (d !== dot) {
-                            const isL = d.dataset.isLast === '1';
-                            d.setAttribute('r', isL ? '3.5' : '3');
-                            d.setAttribute('stroke-width', '2');
-                        }
-                    });
-                    wrap.querySelectorAll('.kpi-point-halo').forEach(function (h) {
-                        if (h !== halo) {
-                            h.setAttribute('r', '8.5');
-                            h.setAttribute('fill-opacity', '0');
-                        }
-                    });
-                    wrap.querySelectorAll('.kpi-crosshair-line').forEach(function (c) {
-                        if (c !== crosshair) {
-                            c.setAttribute('stroke-opacity', '0');
-                        }
-                    });
-
-                    // Update tooltip content
-                    if (tipDay) tipDay.textContent = hit.dataset.day || '';
-                    if (tipDate) tipDate.textContent = hit.dataset.date || '';
-                    if (tipVal) tipVal.textContent = hit.dataset.val || '0';
-                    if (tipUnit) tipUnit.textContent = hit.dataset.unit || '';
-                    if (tipDot) tipDot.style.backgroundColor = hit.dataset.color || '#0d326b';
-
-                    // Highlight hovered point elements
-                    if (dot) {
-                        dot.setAttribute('r', '5.5');
-                        dot.setAttribute('stroke-width', '2.5');
-                    }
-                    if (halo) {
-                        halo.setAttribute('r', '10');
-                        halo.setAttribute('fill-opacity', '0.25');
-                    }
-                    if (crosshair) {
-                        crosshair.setAttribute('stroke-opacity', '0.35');
-                    }
-
-                    // Calculate position
-                    const hitRect = hit.getBoundingClientRect();
-                    const wrapRect = wrap.getBoundingClientRect();
-                    const tipW = tip.offsetWidth || 110;
-                    const pointCenterX = hitRect.left - wrapRect.left + (hitRect.width / 2);
-                    const pointCenterY = hitRect.top - wrapRect.top;
-
-                    // Clamp horizontally so tooltip stays neatly inside card bounds
-                    const minLeft = (tipW / 2) + 2;
-                    const maxLeft = wrapRect.width - (tipW / 2) - 2;
-                    const clampedLeft = Math.max(minLeft, Math.min(maxLeft, pointCenterX));
-
-                    tip.style.left = clampedLeft + 'px';
-                    tip.style.top = (pointCenterY - 8) + 'px';
-
-                    // Position arrow
-                    if (tipArrow) {
-                        const arrowOffset = pointCenterX - clampedLeft;
-                        tipArrow.style.transform = 'translateX(calc(-50% + ' + arrowOffset + 'px)) rotate(45deg)';
-                    }
-
-                    tip.classList.remove('opacity-0', 'scale-95');
-                    tip.classList.add('opacity-100', 'scale-100');
-                }
-
-                function deactivate() {
-                    if (dot) {
-                        const isL = dot.dataset.isLast === '1';
-                        dot.setAttribute('r', isL ? '3.5' : '3');
-                        dot.setAttribute('stroke-width', '2');
-                    }
-                    if (halo) {
-                        halo.setAttribute('r', '8.5');
-                        halo.setAttribute('fill-opacity', '0');
-                    }
-                    if (crosshair) {
-                        crosshair.setAttribute('stroke-opacity', '0');
-                    }
-
-                    hideTimer = setTimeout(function () {
-                        tip.classList.remove('opacity-100', 'scale-100');
-                        tip.classList.add('opacity-0', 'scale-95');
-                    }, 50);
-                }
-
-                hit.addEventListener('mouseenter', activate);
-                hit.addEventListener('mouseleave', deactivate);
-                hit.addEventListener('touchstart', function (e) {
-                    activate();
-                }, { passive: true });
-            });
-
-            // Hide when tapping elsewhere on touch devices
-            document.addEventListener('touchstart', function (e) {
-                if (!wrap.contains(e.target)) {
-                    tip.classList.remove('opacity-100', 'scale-100');
-                    tip.classList.add('opacity-0', 'scale-95');
-                }
-            }, { passive: true });
-        });
-    })();
-
-    // ── Senya Insights ────────────────────────────────────────────────────
     (function () {
         const slides  = Array.from(document.querySelectorAll('.insight-slide'));
         const btn     = document.getElementById('insight-refresh');

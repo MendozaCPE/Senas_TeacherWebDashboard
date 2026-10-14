@@ -120,8 +120,12 @@ class AnalyticsController extends Controller
         if ($selectedSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $selectedSchoolYear->name, $m)) {
             $syStartYear = (int) $m[1];
             $syEndYear   = (int) $m[2];
-            $syStartDate = Carbon::create($syStartYear, 7, 1)->startOfDay();
-            $syEndDate   = Carbon::create($syEndYear, 6, 30)->endOfDay();
+            $syStartDate = $selectedSchoolYear->start_date
+                ? Carbon::parse($selectedSchoolYear->start_date)->startOfDay()
+                : Carbon::create($syStartYear, 7, 1)->startOfDay();
+            $syEndDate = $selectedSchoolYear->end_date
+                ? Carbon::parse($selectedSchoolYear->end_date)->endOfDay()
+                : Carbon::create($syEndYear, 6, 30)->endOfDay();
         }
 
         $monthOptions = [['value' => 'all', 'label' => 'All Months']];
