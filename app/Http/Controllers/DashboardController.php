@@ -89,18 +89,11 @@ class DashboardController extends Controller
             // ── School Year Date Boundaries ──────────────────────────────────────
             $syStartDate = null;
             $syEndDate   = null;
-            if ($activeSchoolYear) {
-                $syStartDate = $activeSchoolYear->start_date
-                    ? Carbon::parse($activeSchoolYear->start_date)->startOfDay()
-                    : null;
-                $syEndDate = $activeSchoolYear->end_date
-                    ? Carbon::parse($activeSchoolYear->end_date)->endOfDay()
-                    : null;
-            }
-            // Match Analytics' July-to-June fallback when a school year has no saved date bounds.
+            // Use the full DepEd July-to-June period. Stored active-year bounds
+            // may be updated during the year and must not truncate quiz data.
             if ($activeSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $activeSchoolYear->name, $syYears)) {
-                $syStartDate ??= Carbon::create((int) $syYears[1], 7, 1)->startOfDay();
-                $syEndDate ??= Carbon::create((int) $syYears[2], 6, 30)->endOfDay();
+                $syStartDate = Carbon::create((int) $syYears[1], 7, 1)->startOfDay();
+                $syEndDate = Carbon::create((int) $syYears[2], 6, 30)->endOfDay();
             }
             $dashboardStartDate = $syStartDate ?? Carbon::now()->startOfYear();
             $dashboardEndDate = $syEndDate ?? Carbon::now()->endOfYear();
@@ -181,12 +174,18 @@ class DashboardController extends Controller
             $activityStart = Carbon::now()->subDays(6)->startOfDay();
             $activityEnd = Carbon::now()->endOfDay();
             $activeThisWeekCount = Student::whereIn('student_id', $studentIds)
-                ->where(function ($q) use ($activityStart, $activityEnd) {
+                ->where(function ($q) use ($activityStart, $activityEnd, $activeSyId) {
                     $q->whereBetween('last_activity_date', [$activityStart, $activityEnd])
-                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd, $activeSyId) {
                           $sub->select(DB::raw(1))
                               ->from('quiz_attempts')
+                              ->join('quizzes as activity_quizzes', 'quiz_attempts.quiz_id', '=', 'activity_quizzes.quiz_id')
+                              ->join('lessons as activity_lessons', 'activity_quizzes.lesson_id', '=', 'activity_lessons.lesson_id')
                               ->whereColumn('quiz_attempts.student_id', 'students.student_id')
+                              ->where('quiz_attempts.status', 'completed')
+                              ->where('activity_lessons.status', 'published')
+                              ->whereNull('activity_lessons.deleted_at')
+                              ->when($activeSyId, fn ($query) => $query->where('quiz_attempts.school_year_id', $activeSyId))
                               ->whereBetween('quiz_attempts.completed_at', [$activityStart, $activityEnd]);
                       })
                       ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
@@ -371,6 +370,7 @@ class DashboardController extends Controller
                 ->where('quiz_attempts.status', 'completed')
                 ->where('lessons.status', 'published')
                 ->whereNull('lessons.deleted_at')
+                ->when($activeSyId, fn ($query) => $query->where('quiz_attempts.school_year_id', $activeSyId))
                 ->whereBetween('quiz_attempts.completed_at', [$dashboardStartDate, $dashboardEndDate]);
 
             $averageQuizScore = (clone $quizQuery)->avg('quiz_attempts.percentage');

@@ -1,5 +1,5 @@
 @extends('layouts.grade-leader')
-@section('title', 'Default Lessons')
+@section('title', 'Default Lesson')
 @section('content')
 
 <style>
@@ -157,7 +157,7 @@
                 <span class="material-symbols-outlined text-white text-[26px]">local_library</span>
             </div>
             <div>
-                <h2 class="text-[20px] font-black text-white leading-tight">Default Curriculum</h2>
+                <h2 class="text-[20px] font-black text-white leading-tight">Default Lesson</h2>
                 <p class="text-[13px] text-white/80 font-medium mt-0.5">
                     Standardized Filipino Sign Language (FSL) curriculum and lesson templates published across the school system.
                 </p>
@@ -190,8 +190,8 @@
                     <div class="w-20 h-20 rounded-3xl bg-[#0d326b]/08 flex items-center justify-center mb-5">
                         <span class="material-symbols-outlined text-[#0d326b] text-[40px]">menu_book</span>
                     </div>
-                    <h3 class="text-[20px] font-bold text-[#0d326b] mb-2">No default modules yet</h3>
-                    <p class="text-slate-500 text-sm max-w-md">Default curriculum modules published by the Super Admin will appear here.</p>
+                    <h3 class="text-[20px] font-bold text-[#0d326b] mb-2">No default lessons yet</h3>
+                    <p class="text-slate-500 text-sm max-w-md">Default lessons published by the Super Admin will appear here.</p>
                 </div>
             </div>
             @endif
@@ -393,7 +393,7 @@
                     </div>
                     <div>
                         <span class="text-[15px] font-extrabold text-[#0d326b] block">Curriculum Insights</span>
-                        <span class="text-[11px] text-slate-400 font-medium">Default Lessons Overview</span>
+                        <span class="text-[11px] text-slate-400 font-medium">Default Lesson Overview</span>
                     </div>
                 </div>
 

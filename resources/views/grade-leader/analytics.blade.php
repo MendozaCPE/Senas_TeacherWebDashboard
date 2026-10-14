@@ -276,16 +276,16 @@ $classInsight = $topClass
             <p class="text-[12px] text-[#1a6fd4] font-medium">scored ≥ 75%</p>
         </div>
 
-        {{-- Active Students (period) --}}
+        {{-- Enrolled Students --}}
         <div class="stat-kpi-card bg-white">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-[#1a6fd4]">Active Students</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-[#1a6fd4]">Enrolled Students</span>
                 <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1e4b8f] flex items-center justify-center">
-                    <span class="material-symbols-outlined text-[20px]">bolt</span>
+                    <span class="material-symbols-outlined text-[20px]">groups</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($activeStudentsCount) }}</p>
-            <p class="text-[12px] text-[#1a6fd4] font-medium">{{ $periodDescription }}</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($totalStudents) }}</p>
+            <p class="text-[12px] text-[#1a6fd4] font-medium">Enrolled in {{ $selectedSchoolYearName }}</p>
         </div>
 
         {{-- Total Classes --}}

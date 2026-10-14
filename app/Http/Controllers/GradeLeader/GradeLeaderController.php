@@ -84,8 +84,14 @@ class GradeLeaderController extends Controller
         $activeSyId = $activeSy?->id ?? SchoolYear::where('school_id', $schoolId)
             ->where('name', $activeSyName)
             ->value('id');
-        $activeSyStartDate = $activeSy?->start_date
-            ?? Carbon::createFromDate((int) explode('-', $activeSyName)[0], 7, 1);
+        // Use the full DepEd school-year window. Stored active-year end dates
+        // can be updated during the year and must not truncate current data.
+        $activeSyStartDate = Carbon::createFromDate((int) explode('-', $activeSyName)[0], 7, 1);
+        $activeSyEndDate = Carbon::createFromDate((int) explode('-', $activeSyName)[1], 6, 30);
+        $activeSyDateRange = [
+            Carbon::parse($activeSyStartDate)->startOfDay(),
+            Carbon::parse($activeSyEndDate)->endOfDay(),
+        ];
 
         $teacherIds = $this->schoolTeacherIds($schoolId);
         $studentIds = Student::where('school_id', $schoolId)
@@ -97,6 +103,20 @@ class GradeLeaderController extends Controller
             ->distinct()
             ->pluck('teacher_id');
         $dashboardTeacherIds = $teacherIds->intersect($currentYearTeacherIds)->values();
+
+        // Match the teacher Analytics score: only completed quiz attempts for
+        // published lessons, completed during the selected school year.
+        $schoolYearQuizAttempts = function ($studentIds) use ($activeSyDateRange, $activeSyId) {
+            return DB::table('quiz_attempts')
+                ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                ->whereIn('quiz_attempts.student_id', $studentIds)
+                ->where('quiz_attempts.status', 'completed')
+                ->where('lessons.status', 'published')
+                ->whereNull('lessons.deleted_at')
+                ->when($activeSyId, fn ($query) => $query->where('quiz_attempts.school_year_id', $activeSyId))
+                ->whereBetween('quiz_attempts.completed_at', $activeSyDateRange);
+        };
 
         // ── KPI Counts ───────────────────────────────────────────────────────
         $activeClassrooms = $dashboardTeacherIds->count();
@@ -117,16 +137,9 @@ class GradeLeaderController extends Controller
             : 0;
 
         // Average quiz score across the school
-        $avgQuizScore = round((float) DB::table('quiz_attempts')
-            ->whereIn('student_id', $studentIds)
-            ->where('school_year_id', $activeSyId)
-            ->where('status', 'completed')
-            ->avg('percentage') ?? 0, 1);
-        $completedQuizAttempts = DB::table('quiz_attempts')
-            ->whereIn('student_id', $studentIds)
-            ->where('school_year_id', $activeSyId)
-            ->where('status', 'completed')
-            ->count();
+        $avgQuizScore = round((float) ($schoolYearQuizAttempts($studentIds)
+            ->avg('quiz_attempts.percentage') ?? 0), 1);
+        $completedQuizAttempts = $schoolYearQuizAttempts($studentIds)->count();
 
         // Active students in last 7 days
         $activeStudents = DB::table('lesson_assignments')
@@ -167,16 +180,12 @@ class GradeLeaderController extends Controller
         $topClasses = Teacher::whereIn('id', $dashboardTeacherIds)
             ->with('user')
             ->get()
-            ->map(function ($teacher) use ($activeSyName, $activeSyId) {
+            ->map(function ($teacher) use ($activeSyName, $schoolYearQuizAttempts) {
                 $studentIds = Student::where('teacher_id', $teacher->id)
                     ->where('school_year', $activeSyName)
                     ->where('is_enrolled', true)
                     ->pluck('student_id');
-                $avg = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $studentIds)
-                    ->where('school_year_id', $activeSyId)
-                    ->where('status', 'completed')
-                    ->avg('percentage') ?? 0;
+                $avg = $schoolYearQuizAttempts($studentIds)->avg('quiz_attempts.percentage') ?? 0;
                 return [
                     'teacher'       => $teacher,
                     'avg_score'     => round((float) $avg, 1),
@@ -191,16 +200,12 @@ class GradeLeaderController extends Controller
         $moreDataNeeded = Teacher::whereIn('id', $dashboardTeacherIds)
             ->with('user')
             ->get()
-            ->map(function ($teacher) use ($activeSyName, $activeSyId) {
+            ->map(function ($teacher) use ($activeSyName, $activeSyId, $schoolYearQuizAttempts) {
                 $tStudentIds = Student::where('teacher_id', $teacher->id)
                     ->where('school_year', $activeSyName)
                     ->where('is_enrolled', true)
                     ->pluck('student_id');
-                $attemptCount = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->where('school_year_id', $activeSyId)
-                    ->where('status', 'completed')
-                    ->count();
+                $attemptCount = $schoolYearQuizAttempts($tStudentIds)->count();
                 $assignedCount = DB::table('lesson_assignments')
                     ->whereIn('student_id', $tStudentIds)
                     ->where('school_year_id', $activeSyId)
@@ -231,17 +236,13 @@ class GradeLeaderController extends Controller
         $recentTeachers = Teacher::whereIn('id', $dashboardTeacherIds)
             ->with('user')
             ->get()
-            ->map(function ($teacher) use ($studentIds, $transitionNotifs, $activeSyName, $activeSyId) {
+            ->map(function ($teacher) use ($studentIds, $transitionNotifs, $activeSyName, $activeSyId, $schoolYearQuizAttempts) {
                 // Per-teacher stats
                 $tStudentIds = Student::where('teacher_id', $teacher->id)
                     ->where('school_year', $activeSyName)
                     ->where('is_enrolled', true)
                     ->pluck('student_id');
-                $avgScore = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->where('school_year_id', $activeSyId)
-                    ->where('status', 'completed')
-                    ->avg('percentage') ?? 0;
+                $avgScore = $schoolYearQuizAttempts($tStudentIds)->avg('quiz_attempts.percentage') ?? 0;
                 $completedLessons = DB::table('lesson_assignments')
                     ->whereIn('student_id', $tStudentIds)
                     ->where('school_year_id', $activeSyId)
@@ -289,12 +290,9 @@ class GradeLeaderController extends Controller
             $sparkStudents[] = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->whereDate('updated_at', $date)->distinct()->count('student_id');
             $sparkLessons[]  = DB::table('lesson_assignments')->whereIn('student_id', $studentIds)->where('school_year_id', $activeSyId)->where('status', 'completed')->whereDate('updated_at', $date)->count();
             $sparkTeachers[] = User::whereIn('id', Teacher::whereIn('id', $dashboardTeacherIds)->pluck('user_id'))->whereDate('updated_at', '<=', $date)->count();
-            $dayAvg = DB::table('quiz_attempts')
-                ->whereIn('student_id', $studentIds)
-                ->where('school_year_id', $activeSyId)
-                ->where('status', 'completed')
-                ->whereDate('updated_at', $date)
-                ->avg('percentage');
+            $dayAvg = $schoolYearQuizAttempts($studentIds)
+                ->whereDate('quiz_attempts.completed_at', $date)
+                ->avg('quiz_attempts.percentage');
             $sparkQuizScores[] = $dayAvg !== null ? (int) round($dayAvg) : 0;
         }
 
@@ -805,28 +803,37 @@ class GradeLeaderController extends Controller
         } else {
             $studentIds = collect();
         }
+        $totalStudents = $studentIds->count();
+
+        // Keep Analytics quiz metrics on the same current-year source:
+        // completed attempts for published lessons assigned to this roster.
+        $quizAttemptsQuery = function ($students) use ($startDate, $endDate, $selectedSchoolYear) {
+            $query = DB::table('quiz_attempts')
+                ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                ->whereIn('quiz_attempts.student_id', $students)
+                ->where('quiz_attempts.status', 'completed')
+                ->where('lessons.status', 'published')
+                ->whereNull('lessons.deleted_at')
+                ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate]);
+
+            if ($selectedSchoolYear?->id) {
+                $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id);
+            }
+
+            return $query;
+        };
 
         // ── Date window ───────────────────────────────────────────────────────
 
         // ── Top-level KPIs ────────────────────────────────────────────────────
-        $avgQuizScore = round((float) DB::table('quiz_attempts')
-            ->whereIn('student_id', $studentIds)
-            ->where('status', 'completed')
-            ->whereBetween('completed_at', [$startDate, $endDate])
-            ->avg('percentage') ?? 0, 1);
-
-        $quizPassRate = $studentIds->isNotEmpty()
-            ? round((float) DB::table('quiz_attempts')
-                ->whereIn('student_id', $studentIds)
-                ->where('status', 'completed')
-                ->where('percentage', '>=', 75)
-                ->whereBetween('completed_at', [$startDate, $endDate])
-                ->count() /
-              max(1, DB::table('quiz_attempts')
-                ->whereIn('student_id', $studentIds)
-                ->where('status', 'completed')
-                ->whereBetween('completed_at', [$startDate, $endDate])
-                ->count()) * 100, 1)
+        $quizAttemptCount = $quizAttemptsQuery($studentIds)->count();
+        $avgQuizScore = round((float) ($quizAttemptsQuery($studentIds)
+            ->avg('quiz_attempts.percentage') ?? 0), 1);
+        $quizPassRate = $quizAttemptCount > 0
+            ? round($quizAttemptsQuery($studentIds)
+                ->where('quiz_attempts.percentage', '>=', 75)
+                ->count() / $quizAttemptCount * 100, 1)
             : 0;
 
         $completionRate = 0; // not used in new analytics layout
@@ -837,7 +844,7 @@ class GradeLeaderController extends Controller
                     ->orWhereBetween('updated_at', [$startDate, $endDate]);
             })
             ->pluck('student_id')
-            ->merge(DB::table('quiz_attempts')->whereIn('student_id', $studentIds)->where('status', 'completed')->whereBetween('completed_at', [$startDate, $endDate])->pluck('student_id'))
+            ->merge($quizAttemptsQuery($studentIds)->pluck('quiz_attempts.student_id'))
             ->merge(DB::table('lesson_assignments')
                 ->whereIn('student_id', $studentIds)
                 ->where(function ($q) use ($startDate, $endDate) {
@@ -868,7 +875,7 @@ class GradeLeaderController extends Controller
         $classPerformance = Teacher::whereIn('id', $teacherIds)
             ->with('user')
             ->get()
-            ->map(function ($teacher) use ($studentIds, $activityStudentIds, $startDate, $endDate, $selectedSchoolYear) {
+            ->map(function ($teacher) use ($studentIds, $activityStudentIds, $startDate, $endDate, $selectedSchoolYear, $quizAttemptsQuery) {
                 $tStudentIds = $selectedSchoolYear?->status === 'active'
                     ? Student::whereIn('student_id', $studentIds)
                         ->where('teacher_id', $teacher->id)
@@ -882,16 +889,9 @@ class GradeLeaderController extends Controller
                 $active = $activityStudentIds->intersect($tStudentIds)->count();
 
                 // Quiz: total completed attempts & those that passed (≥75%)
-                $quizTotal  = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$startDate, $endDate])
-                    ->count();
-                $quizPassed = DB::table('quiz_attempts')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->where('status', 'completed')
-                    ->where('percentage', '>=', 75)
-                    ->whereBetween('completed_at', [$startDate, $endDate])
+                $quizTotal  = $quizAttemptsQuery($tStudentIds)->count();
+                $quizPassed = $quizAttemptsQuery($tStudentIds)
+                    ->where('quiz_attempts.percentage', '>=', 75)
                     ->count();
 
                 // Checkpoint exam: completed attempts & those that passed (≥75%)
@@ -907,11 +907,8 @@ class GradeLeaderController extends Controller
                     ->whereBetween('completed_at', [$startDate, $endDate])
                     ->count();
 
-                $avgScore = round((float) (DB::table('quiz_attempts')
-                    ->whereIn('student_id', $tStudentIds)
-                    ->where('status', 'completed')
-                    ->whereBetween('completed_at', [$startDate, $endDate])
-                    ->avg('percentage') ?? 0), 1);
+                $avgScore = round((float) ($quizAttemptsQuery($tStudentIds)
+                    ->avg('quiz_attempts.percentage') ?? 0), 1);
 
                 return [
                     'teacher_id'        => $teacher->id,
@@ -1006,9 +1003,9 @@ class GradeLeaderController extends Controller
 
         return view('grade-leader.analytics', compact(
             'school', 'period', 'periodDescription', 'year', 'month',
-            'availableSchoolYears', 'selectedSchoolYear', 'activeSchoolYear', 'selectedMonth', 'monthOptions',
+            'availableSchoolYears', 'selectedSchoolYear', 'selectedSchoolYearName', 'activeSchoolYear', 'selectedMonth', 'monthOptions',
             'startDate', 'endDate',
-            'avgQuizScore', 'quizPassRate', 'completionRate', 'activeStudentsCount',
+            'avgQuizScore', 'quizPassRate', 'completionRate', 'activeStudentsCount', 'totalStudents',
             'classPerformance',
             'enrollmentBySY', 'allDepEdSYs', 'currentDepEdSY', 'programTypes',
             'activeInactivePie', 'fslMasteryDonut'
@@ -1097,6 +1094,9 @@ class GradeLeaderController extends Controller
                     ->where('l.teacher_id', $teacher->id)
                     ->whereIn('qa.student_id', $studentIds)
                     ->where('qa.status', 'completed')
+                    ->where('l.status', 'published')
+                    ->whereNull('l.deleted_at')
+                    ->when($selectedSchoolYear?->id, fn ($query) => $query->where('qa.school_year_id', $selectedSchoolYear->id))
                     ->whereBetween('qa.completed_at', [$startDate, $endDate]);
                 $quizCount = (clone $quizAttempts)->count();
                 $avgScore = $quizCount > 0 ? round((float) ((clone $quizAttempts)->avg('qa.percentage') ?? 0), 1) : null;
@@ -1247,6 +1247,9 @@ class GradeLeaderController extends Controller
                 ->whereIn('quiz_attempts.student_id', $studentIds)
                 ->where('activity_lessons.teacher_id', $teacher->id)
                 ->where('quiz_attempts.status', 'completed')
+                ->where('activity_lessons.status', 'published')
+                ->whereNull('activity_lessons.deleted_at')
+                ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id))
                 ->whereBetween('quiz_attempts.completed_at', [$trendStart, $trendEnd])
                 ->get(['quiz_attempts.student_id', 'quiz_attempts.completed_at']);
             $lessonActivity = DB::table('lesson_assignments')
@@ -1294,6 +1297,9 @@ class GradeLeaderController extends Controller
             ->where('l.teacher_id', $teacher->id)
             ->whereIn('qa.student_id', $studentIds)
             ->where('qa.status', 'completed')
+            ->where('l.status', 'published')
+            ->whereNull('l.deleted_at')
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('qa.school_year_id', $selectedSchoolYear->id))
             ->whereBetween('qa.completed_at', [$startDate, $endDate])
             ->get(['qa.student_id', 'qa.percentage', 'qa.completed_at']);
         $quizAttempts = $quizAttemptRows->groupBy('student_id');

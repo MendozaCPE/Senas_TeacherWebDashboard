@@ -120,12 +120,10 @@ class AnalyticsController extends Controller
         if ($selectedSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $selectedSchoolYear->name, $m)) {
             $syStartYear = (int) $m[1];
             $syEndYear   = (int) $m[2];
-            $syStartDate = $selectedSchoolYear->start_date
-                ? Carbon::parse($selectedSchoolYear->start_date)->startOfDay()
-                : Carbon::create($syStartYear, 7, 1)->startOfDay();
-            $syEndDate = $selectedSchoolYear->end_date
-                ? Carbon::parse($selectedSchoolYear->end_date)->endOfDay()
-                : Carbon::create($syEndYear, 6, 30)->endOfDay();
+            // School-year dates are defined by the DepEd year label. The
+            // stored active-year end date may be edited during the year.
+            $syStartDate = Carbon::create($syStartYear, 7, 1)->startOfDay();
+            $syEndDate = Carbon::create($syEndYear, 6, 30)->endOfDay();
         }
 
         $monthOptions = [['value' => 'all', 'label' => 'All Months']];
@@ -195,9 +193,14 @@ class AnalyticsController extends Controller
         $hasAnalyticsData = false;
         if ($studentIds->isNotEmpty()) {
             $hasAnalyticsData = DB::table('quiz_attempts')
-                ->whereIn('student_id', $studentIds)
-                ->where('status', 'completed')
-                ->whereBetween('completed_at', [$startDate, $endDate])
+                ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
+                ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
+                ->whereIn('quiz_attempts.student_id', $studentIds)
+                ->where('quiz_attempts.status', 'completed')
+                ->where('lessons.status', 'published')
+                ->whereNull('lessons.deleted_at')
+                ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id))
+                ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
                 ->exists();
 
             if (!$hasAnalyticsData) {
@@ -255,7 +258,8 @@ class AnalyticsController extends Controller
             ->whereIn('quiz_attempts.student_id', $studentIds)
             ->where('quiz_attempts.status', 'completed')
             ->where('lessons.status', 'published')
-            ->whereNull('lessons.deleted_at');
+            ->whereNull('lessons.deleted_at')
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id));
 
         $rawAvgQuizScore = (clone $quizQuery)
             ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
@@ -299,12 +303,18 @@ class AnalyticsController extends Controller
 
         // Count students with any recorded activity during the selected date range.
         $activeInPeriod = Student::whereIn('student_id', $studentIds)
-            ->where(function ($q) use ($startDate, $endDate) {
+            ->where(function ($q) use ($startDate, $endDate, $selectedSchoolYear) {
                 $q->whereBetween('last_activity_date', [$startDate, $endDate])
-                  ->orWhereExists(function ($sub) use ($startDate, $endDate) {
+                  ->orWhereExists(function ($sub) use ($startDate, $endDate, $selectedSchoolYear) {
                       $sub->select(DB::raw(1))
                           ->from('quiz_attempts')
+                          ->join('quizzes as activity_quizzes', 'quiz_attempts.quiz_id', '=', 'activity_quizzes.quiz_id')
+                          ->join('lessons as activity_lessons', 'activity_quizzes.lesson_id', '=', 'activity_lessons.lesson_id')
                           ->whereColumn('quiz_attempts.student_id', 'students.student_id')
+                          ->where('quiz_attempts.status', 'completed')
+                          ->where('activity_lessons.status', 'published')
+                          ->whereNull('activity_lessons.deleted_at')
+                          ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id))
                           ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate]);
                   })
                   ->orWhereExists(function ($sub) use ($startDate, $endDate) {
@@ -380,24 +390,16 @@ class AnalyticsController extends Controller
 
         $progressOverTime = [];
         if ($period === 'weekly') {
-            $latestQuizDate = DB::table('quiz_attempts')
-                ->whereIn('student_id', $studentIds)
-                ->where('status', 'completed')
-                ->when($syStartDate && $syEndDate, fn($q) => $q->whereBetween('completed_at', [$syStartDate, $syEndDate]))
-                ->max('completed_at');
+            $latestQuizDate = (clone $quizQuery)
+                ->when($syStartDate && $syEndDate, fn ($query) => $query->whereBetween('quiz_attempts.completed_at', [$syStartDate, $syEndDate]))
+                ->max('quiz_attempts.completed_at');
 
             $chartAnchor = $latestQuizDate ? Carbon::parse($latestQuizDate) : ($anchorDate ?? Carbon::now());
 
             for ($weeksAgo = 7; $weeksAgo >= 0; $weeksAgo--) {
                 $wStart = $chartAnchor->copy()->startOfWeek(Carbon::MONDAY)->subWeeks($weeksAgo);
                 $wEnd   = $wStart->copy()->endOfWeek(Carbon::SUNDAY);
-                $val    = DB::table('quiz_attempts')
-                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
-                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
-                    ->whereIn('quiz_attempts.student_id', $studentIds)
-                    ->where('quiz_attempts.status', 'completed')
-                    ->where('lessons.status', 'published')
-                    ->whereNull('lessons.deleted_at')
+                $val    = (clone $quizQuery)
                     ->whereBetween('quiz_attempts.completed_at', [$wStart->copy()->startOfDay(), $wEnd->copy()->endOfDay()])
                     ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
@@ -411,13 +413,7 @@ class AnalyticsController extends Controller
             for ($i = 0; $i < 4; $i++) {
                 $dStart = $mStart->copy()->addDays($i * 7);
                 $dEnd   = ($i === 3) ? $mStart->copy()->endOfMonth() : $mStart->copy()->addDays(($i + 1) * 7 - 1);
-                $val    = DB::table('quiz_attempts')
-                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
-                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
-                    ->whereIn('quiz_attempts.student_id', $studentIds)
-                    ->where('quiz_attempts.status', 'completed')
-                    ->where('lessons.status', 'published')
-                    ->whereNull('lessons.deleted_at')
+                $val    = (clone $quizQuery)
                     ->whereBetween('quiz_attempts.completed_at', [$dStart->copy()->startOfDay(), $dEnd->copy()->endOfDay()])
                     ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
@@ -429,13 +425,7 @@ class AnalyticsController extends Controller
             $qStartMonth = (ceil($month / 3) - 1) * 3 + 1;
             for ($m = 0; $m < 3; $m++) {
                 $curM = Carbon::create($year, $qStartMonth + $m, 1);
-                $val  = DB::table('quiz_attempts')
-                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
-                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
-                    ->whereIn('quiz_attempts.student_id', $studentIds)
-                    ->where('quiz_attempts.status', 'completed')
-                    ->where('lessons.status', 'published')
-                    ->whereNull('lessons.deleted_at')
+                $val  = (clone $quizQuery)
                     ->whereBetween('quiz_attempts.completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
                     ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
@@ -461,13 +451,7 @@ class AnalyticsController extends Controller
 
             foreach ($monthsToLoop as $slot) {
                 $curM = Carbon::create($slot['year'], $slot['month'], 1);
-                $val  = DB::table('quiz_attempts')
-                    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
-                    ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
-                    ->whereIn('quiz_attempts.student_id', $studentIds)
-                    ->where('quiz_attempts.status', 'completed')
-                    ->where('lessons.status', 'published')
-                    ->whereNull('lessons.deleted_at')
+                $val  = (clone $quizQuery)
                     ->whereBetween('quiz_attempts.completed_at', [$curM->copy()->startOfMonth()->startOfDay(), $curM->copy()->endOfMonth()->endOfDay()])
                     ->avg('quiz_attempts.percentage') ?: 0;
                 $progressOverTime[] = [
@@ -593,6 +577,7 @@ class AnalyticsController extends Controller
             ->where('quiz_attempts.status', 'completed')
             ->where('lessons.status', 'published')
             ->whereNull('lessons.deleted_at')
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id))
             ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
             ->selectRaw("CASE
                 WHEN quiz_attempts.percentage <= 20 THEN '0-20'
@@ -625,6 +610,7 @@ class AnalyticsController extends Controller
             ->where('qa.status', 'completed')
             ->where('l.status', 'published')
             ->whereNull('l.deleted_at')
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('qa.school_year_id', $selectedSchoolYear->id))
             ->whereBetween('qa.completed_at', [$startDate, $endDate])
             ->select('qa.student_id', 's.first_name', 's.last_name', 'qa.percentage', 'qa.quiz_id', 'qa.created_at', 'qa.attempt_id')
             ->orderBy('qa.created_at', 'asc')
@@ -706,6 +692,7 @@ class AnalyticsController extends Controller
                 ->where('qa.quiz_id', $lesson->quiz->quiz_id)
                 ->whereIn('qa.student_id', $studentIds)
                 ->where('qa.status', 'completed')
+                ->when($selectedSchoolYear?->id, fn ($query) => $query->where('qa.school_year_id', $selectedSchoolYear->id))
                 ->whereBetween('qa.completed_at', [$startDate, $endDate])
                 ->select(
                     's.student_id',
@@ -717,12 +704,13 @@ class AnalyticsController extends Controller
                 ->groupBy('s.student_id', 's.first_name', 's.last_name')
                 ->get();
 
-            $lessonRankings = $lessonAttempts->map(function ($item) use ($lesson, $startDate, $endDate, $studentsModelMap) {
+            $lessonRankings = $lessonAttempts->map(function ($item) use ($lesson, $startDate, $endDate, $studentsModelMap, $selectedSchoolYear) {
                 // Find attempt number where they achieved their best score
                 $allStudentAttempts = DB::table('quiz_attempts')
                     ->where('student_id', $item->student_id)
                     ->where('quiz_id', $lesson->quiz->quiz_id)
                     ->where('status', 'completed')
+                    ->when($selectedSchoolYear?->id, fn ($query) => $query->where('school_year_id', $selectedSchoolYear->id))
                     ->whereBetween('completed_at', [$startDate, $endDate])
                     ->orderBy('created_at', 'asc')
                     ->get();
