@@ -3,6 +3,33 @@
 return [
     'videos' => [
         [
+            'id' => 'teacher-account',
+            'title' => 'How to Create a Teacher Account in SEÑAS',
+            'youtube_id' => 'fVDi5Apako4',
+            'icon' => 'person_add',
+            'summary' => 'Create a teacher account with the registration form or Google sign-up, verify the email with a one-time code, then sign in to the teacher dashboard. The form asks for your name, email, password, school, and agreement to the Terms and Conditions.',
+            'steps' => [
+                'From the SEÑAS login page, select Create one to open the teacher registration form.',
+                'Enter your full name and email address, then choose your school from the Institution list.',
+                'Create a password with at least 10 characters, including an uppercase letter, a lowercase letter, a number, and a special character. Avoid common passwords, then enter it again in Confirm Password.',
+                'Read and accept the Terms and Conditions. If registration is restricted, use an email address from the permitted domain shown on the page.',
+                'Select Create Account. SEÑAS sends a 6-digit verification code to your email before it creates the account.',
+                'Enter the code on the verification page and select Verify & Create Account. The code expires after 15 minutes; choose Resend Code if needed.',
+                'After successful verification, return to the login page and sign in with your new account.',
+                'Alternatively, choose Sign up with Google on the registration page, complete Google authentication, then verify the code sent to that email. Google sign-up uses the first school in the system by default.',
+            ],
+            'faqs' => [
+                'How do I create a teacher account in SEÑAS?',
+                'How can I register for the SEÑAS Teacher Dashboard?',
+                'Where can I create a SEÑAS teacher account?',
+                'How do I sign up as a teacher in SEÑAS?',
+                'How do I create an account to access the teacher dashboard?',
+                'What are the password requirements for a SEÑAS teacher account?',
+                'How do I verify my email when creating a teacher account?',
+                'Can I create a SEÑAS teacher account with Google?',
+            ],
+        ],
+        [
             'id' => 'students',
             'title' => 'How to Enroll Students in SEÑAS',
             'youtube_id' => 'HOTilEfZomk',

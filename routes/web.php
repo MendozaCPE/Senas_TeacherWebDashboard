@@ -147,6 +147,7 @@ Route::get('/media-player', function () {
 // ── Protected Routes (must be logged in as teacher) ──────────────────────────
 Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher'])->group(function () {
     Route::post('/tutorials/ask', [TutorialHelpController::class, 'ask'])->middleware('throttle:10,1')->name('tutorials.ask');
+    Route::post('/tutorials/onboarding/complete', [TutorialHelpController::class, 'completeOnboarding'])->name('tutorials.onboarding.complete');
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

@@ -29,8 +29,9 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'is_system'         => 'boolean',
+        'email_verified_at'                 => 'datetime',
+        'tutorial_onboarding_completed_at'   => 'datetime',
+        'is_system'                          => 'boolean',
     ];
 
     /**
