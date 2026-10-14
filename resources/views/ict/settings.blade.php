@@ -2,16 +2,17 @@
 @section('title', 'Settings')
 @section('content')
 
-<div class="flex flex-col gap-5 w-full pt-4 pb-6">
+<div class="ict-settings-page flex flex-col gap-5 w-full pt-4 pb-6">
 
     {{-- ── PAGE HEADER ─────────────────────────────────────────────────── --}}
-    <div class="rounded-[28px] relative overflow-hidden flex items-center"
-         style="background:linear-gradient(135deg,#0d326b 0%,#1e4b8f 50%,#1a6fd4 100%);min-height:100px">
-        <div class="absolute top-0 right-44 w-44 h-44 rounded-full opacity-10 bg-white"></div>
-        <div class="relative z-10 px-10 py-7">
-            <h2 class="text-[22px] font-black text-white leading-tight mb-1">Settings</h2>
-            <p class="text-[13px] text-white/70 font-medium">Manage your school profile, personal details, and security credentials.</p>
+    <div class="flex items-center justify-between gap-4">
+        <div>
+            <p class="text-[11px] font-bold uppercase tracking-[.12em] text-[#1a6fd4]">Account</p>
+            <h1 class="text-[26px] font-black text-[#0d326b] leading-tight">Settings</h1>
         </div>
+        <span class="hidden sm:inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-[12px] font-bold text-[#0d326b]">
+            <span class="material-symbols-outlined text-[17px]">admin_panel_settings</span>ICT Coordinator
+        </span>
     </div>
 
     @if(session('success'))
@@ -27,21 +28,60 @@
     </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+    {{-- Profile summary follows the teacher settings layout; editable fields remain in their own forms below. --}}
+    <section class="ict-settings-hero relative overflow-hidden rounded-[20px] px-6 py-6 sm:px-7">
+        <div class="absolute -top-20 right-8 h-52 w-52 rounded-full bg-white/[.06]"></div>
+        <div class="absolute -bottom-24 right-1/3 h-40 w-40 rounded-full bg-amber-400/[.10]"></div>
+        <div class="relative z-10 flex flex-wrap items-end justify-between gap-6">
+            <div class="flex min-w-0 items-center gap-4">
+                <img src="{{ $user->avatarUrl() }}" alt="{{ $user->name }}" class="h-[72px] w-[72px] shrink-0 rounded-full border-[3px] border-white/90 object-cover shadow-lg"
+                     onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&background=facc15&color=0d326b&size=128&bold=true&rounded=true'">
+                <div class="min-w-0">
+                    <p class="mb-1 text-[10px] font-bold uppercase tracking-[.12em] text-white/60">Account overview</p>
+                    <h2 class="truncate text-[20px] font-extrabold leading-tight text-white">{{ trim(($ictProfile->first_name ?? '').' '.($ictProfile->last_name ?? '')) ?: $user->name }}</h2>
+                    <p class="mt-1 flex items-center gap-1.5 truncate text-[12px] font-medium text-white/70"><span class="material-symbols-outlined text-[15px]">alternate_email</span>{{ $user->email }}</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <div class="min-w-[112px] rounded-[14px] border border-white/15 bg-white/[.08] px-4 py-2.5">
+                    <p class="text-[9px] font-bold uppercase tracking-wider text-white/55">Member Since</p>
+                    <p class="mt-1 flex items-center gap-1.5 text-[13px] font-extrabold text-white"><span class="material-symbols-outlined text-[15px]">calendar_month</span>{{ optional($user->created_at)->format('M Y') ?? '—' }}</p>
+                </div>
+                @if($school)
+                <div class="min-w-[112px] rounded-[14px] border border-white/15 bg-white/[.08] px-4 py-2.5">
+                    <p class="text-[9px] font-bold uppercase tracking-wider text-white/55">Institution</p>
+                    <p class="mt-1 flex items-center gap-1.5 text-[13px] font-extrabold text-white"><span class="material-symbols-outlined text-[15px]">apartment</span>{{ \Illuminate\Support\Str::limit($school->name, 18) }}</p>
+                </div>
+                @endif
+                <div class="min-w-[112px] rounded-[14px] border border-white/15 bg-white/[.08] px-4 py-2.5">
+                    <p class="text-[9px] font-bold uppercase tracking-wider text-white/55">Sign-in Method</p>
+                    <p class="mt-1 flex items-center gap-1.5 text-[13px] font-extrabold text-white"><span class="material-symbols-outlined text-[15px]">{{ $user->google_id ? 'g_translate' : 'password' }}</span>{{ $user->google_id ? 'Google' : 'Password' }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_288px] gap-5 items-start">
 
         {{-- ── LEFT COLUMN: forms ─────────────────────────────────────── --}}
-        <div class="lg:col-span-2 flex flex-col gap-5">
+        <div class="flex min-w-0 flex-col">
+
+            <nav class="ict-settings-tabs" role="tablist" aria-label="Settings sections"
+                 data-settings-initial="{{ $errors->has('school_name') ? 'school' : ($errors->has('first_name') || $errors->has('last_name') ? 'profile' : ($errors->has('current_password') || $errors->has('password') ? 'security' : 'profile')) }}">
+                <button type="button" role="tab" class="ict-settings-tab active" data-settings-tab="profile" aria-selected="true"><span class="material-symbols-outlined">person</span>Profile</button>
+                <button type="button" role="tab" class="ict-settings-tab" data-settings-tab="school" aria-selected="false"><span class="material-symbols-outlined">apartment</span>School</button>
+                <button type="button" role="tab" class="ict-settings-tab" data-settings-tab="security" aria-selected="false"><span class="material-symbols-outlined">shield</span>Security</button>
+            </nav>
 
             {{-- ── 1. SCHOOL PROFILE ───────────────────────────────────── --}}
-            <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+            <div class="ict-settings-pane" data-settings-pane="school"><div class="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden">
                 <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                         style="background:linear-gradient(135deg,#0d326b,#1a6fd4)">
-                        <span class="material-symbols-outlined text-white text-[17px]">business</span>
+                    <div class="w-[38px] h-[38px] rounded-xl flex items-center justify-center flex-shrink-0 bg-[#eaf1fb] text-[#0d326b]">
+                        <span class="material-symbols-outlined text-[19px]">business</span>
                     </div>
                     <div>
-                        <p class="text-[14px] font-black text-[#0d326b]">School Profile</p>
-                        <p class="text-[11px] text-slate-400">Update your school's registration details</p>
+                        <p class="text-[17px] font-extrabold text-[#0d326b]">School Profile</p>
+                        <p class="text-[12px] font-medium text-slate-500">Update your school's registration details</p>
                     </div>
                 </div>
                 <form method="POST" action="{{ route('ict.settings.school') }}" class="p-6 flex flex-col gap-4">
@@ -78,18 +118,17 @@
                         </button>
                     </div>
                 </form>
-            </div>
+            </div></div>
 
             {{-- ── 2. PERSONAL PROFILE ─────────────────────────────────── --}}
-            <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+            <div class="ict-settings-pane active" data-settings-pane="profile"><div class="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden">
                 <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                         style="background:linear-gradient(135deg,#0d326b,#1a6fd4)">
-                        <span class="material-symbols-outlined text-white text-[17px]">person</span>
+                    <div class="w-[38px] h-[38px] rounded-xl flex items-center justify-center flex-shrink-0 bg-[#eaf1fb] text-[#0d326b]">
+                        <span class="material-symbols-outlined text-[19px]">person</span>
                     </div>
                     <div>
-                        <p class="text-[14px] font-black text-[#0d326b]">Personal Profile</p>
-                        <p class="text-[11px] text-slate-400">Update your name and profile photo</p>
+                        <p class="text-[17px] font-extrabold text-[#0d326b]">Personal Profile</p>
+                        <p class="text-[12px] font-medium text-slate-500">Update your name and profile photo</p>
                     </div>
                 </div>
                 <form method="POST" action="{{ route('ict.settings.profile') }}" enctype="multipart/form-data" class="p-6 flex flex-col gap-4">
@@ -150,18 +189,17 @@
                         </button>
                     </div>
                 </form>
-            </div>
+            </div></div>
 
             {{-- ── 3. CHANGE PASSWORD ──────────────────────────────────── --}}
-            <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+            <div class="ict-settings-pane" data-settings-pane="security"><div class="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden">
                 <div class="px-6 pt-5 pb-4 border-b border-slate-50 flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                         style="background:linear-gradient(135deg,#0d326b,#1a6fd4)">
-                        <span class="material-symbols-outlined text-white text-[17px]">lock</span>
+                    <div class="w-[38px] h-[38px] rounded-xl flex items-center justify-center flex-shrink-0 bg-[#eaf1fb] text-[#0d326b]">
+                        <span class="material-symbols-outlined text-[19px]">lock</span>
                     </div>
                     <div>
-                        <p class="text-[14px] font-black text-[#0d326b]">Change Password</p>
-                        <p class="text-[11px] text-slate-400">Must be at least 10 characters with uppercase, lowercase, number &amp; special character</p>
+                        <p class="text-[17px] font-extrabold text-[#0d326b]">Change Password</p>
+                        <p class="text-[12px] font-medium text-slate-500">Must be at least 10 characters with uppercase, lowercase, number &amp; special character</p>
                     </div>
                 </div>
 
@@ -217,7 +255,7 @@
                     </div>
                 </form>
                 @endif
-            </div>
+            </div></div>
 
         </div>{{-- /left col --}}
 
@@ -225,7 +263,7 @@
         <div class="flex flex-col gap-4">
 
             {{-- Profile card --}}
-            <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 p-6 text-center">
+            <div class="bg-white rounded-[18px] shadow-sm border border-slate-100 p-5 text-center">
                 <img src="{{ $user->avatarUrl() }}"
                      alt="Avatar"
                      class="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md mx-auto"
@@ -239,7 +277,7 @@
 
             {{-- School info card --}}
             @if($school)
-            <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 p-5 flex flex-col gap-3">
+            <div class="bg-white rounded-[18px] shadow-sm border border-slate-100 p-5 flex flex-col gap-3">
                 <p class="text-[12px] font-black uppercase tracking-wider text-slate-400">Assigned School</p>
                 <div class="flex items-start gap-3">
                     <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50">
@@ -259,7 +297,7 @@
             @endif
 
             {{-- Quick links --}}
-            <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 p-5 flex flex-col gap-2">
+            <div class="bg-white rounded-[18px] shadow-sm border border-slate-100 p-5 flex flex-col gap-2">
                 <p class="text-[12px] font-black uppercase tracking-wider text-slate-400 mb-1">Quick Links</p>
                 <a href="{{ route('ict.dashboard') }}" class="flex items-center gap-2 text-[13px] font-semibold text-[#0d326b] hover:underline">
                     <span class="material-symbols-outlined text-[15px]">grid_view</span> Dashboard
@@ -273,7 +311,38 @@
     </div>
 </div>
 
+<style>
+    .ict-settings-hero { background:linear-gradient(125deg,#0d326b 0%,#1e4b8f 55%,#1a6fd4 100%); }
+    .ict-settings-tabs { display:flex; gap:6px; margin:0 0 18px; overflow-x:auto; scrollbar-width:thin; }
+    .ict-settings-tab { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border:1.5px solid #e2e8f0; border-radius:14px; background:#fff; color:#64748b; font-size:13px; font-weight:700; white-space:nowrap; transition:.2s; }
+    .ict-settings-tab .material-symbols-outlined { color:#94a3b8; font-size:17px; }
+    .ict-settings-tab:hover { border-color:#bfdbfe; color:#0d326b; }
+    .ict-settings-tab.active { border-color:transparent; background:linear-gradient(135deg,#0d326b,#1a6fd4); color:#fff; box-shadow:0 4px 14px rgba(13,50,107,.2); }
+    .ict-settings-tab.active .material-symbols-outlined { color:#fff; }
+    .ict-settings-pane { display:none; }
+    .ict-settings-pane.active { display:block; animation:ictSettingsFade .2s ease; }
+    @keyframes ictSettingsFade { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+    @media (max-width:640px) { .ict-settings-hero { padding:20px; } .ict-settings-tabs { margin-bottom:14px; } }
+</style>
+
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tabBar = document.querySelector('.ict-settings-tabs');
+    if (!tabBar) return;
+    const tabs = tabBar.querySelectorAll('[data-settings-tab]');
+    const panes = document.querySelectorAll('[data-settings-pane]');
+    function activateSettingsTab(name) {
+        tabs.forEach(tab => {
+            const active = tab.dataset.settingsTab === name;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        panes.forEach(pane => pane.classList.toggle('active', pane.dataset.settingsPane === name));
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => activateSettingsTab(tab.dataset.settingsTab)));
+    activateSettingsTab(tabBar.dataset.settingsInitial || 'profile');
+});
+
 function previewAvatar(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();

@@ -89,6 +89,42 @@ class IctController extends Controller
         $allUserIds = $this->allSchoolUserIds($schoolId);  // all roles — for adoption metrics
         $userIds    = $this->schoolUserIds($schoolId);      // teachers+grade_leaders only — for account mgmt
         $studentIds = $this->schoolStudentIds($schoolId);
+        $staffUserIds = User::whereIn('id', $allUserIds)
+            ->whereIn('role', ['teacher', 'grade_leader', 'ict'])
+            ->pluck('id');
+        $activityStart = Carbon::now()->subDays(6)->startOfDay();
+        $activityEnd = Carbon::now()->endOfDay();
+
+        // Student app learning activity updates last_activity_date. Count each
+        // student once, even if they complete several activities.
+        $activeStudentIdsBetween = function ($start, $end) use ($studentIds) {
+            return Student::whereIn('student_id', $studentIds)
+                ->whereBetween('last_activity_date', [$start, $end])
+                ->distinct()
+                ->pluck('student_id');
+        };
+
+        // Sign-ins and important web changes give the daily event trend.
+        $staffEventsBetween = function ($start, $end) use ($staffUserIds) {
+            return AuditLog::whereIn('user_id', $staffUserIds)
+                ->whereBetween('created_at', [$start, $end])
+                ->distinct()
+                ->count('user_id');
+        };
+
+        // The database session's last_activity timestamp records actual web
+        // requests. Include audited actions and count each staff member once.
+        $activeStaffBetween = function ($start, $end) use ($staffUserIds) {
+            return DB::table('sessions')
+                ->whereIn('user_id', $staffUserIds)
+                ->whereBetween('last_activity', [$start->timestamp, $end->timestamp])
+                ->pluck('user_id')
+                ->merge(AuditLog::whereIn('user_id', $staffUserIds)
+                    ->whereBetween('created_at', [$start, $end])
+                    ->pluck('user_id'))
+                ->unique()
+                ->count();
+        };
 
         // ── KPI counts ───────────────────────────────────────────────────────
         $totalTeachers       = User::whereIn('id', $allUserIds)->where('role', 'teacher')->count();
@@ -96,28 +132,19 @@ class IctController extends Controller
         $totalIct            = User::whereIn('id', $allUserIds)->where('role', 'ict')->count();
         $totalStudents       = $studentIds->count();
 
-        // Active users (last 7 days): teachers active = updated_at proxy
-        $activeTeachers = User::whereIn('id', $allUserIds)
-            ->whereIn('role', ['teacher', 'grade_leader', 'ict'])
-            ->where('updated_at', '>=', Carbon::now()->subDays(7))
-            ->count();
-        $activeStudents = Student::whereIn('student_id', $studentIds)
-            ->where('last_activity_date', '>=', Carbon::now()->subDays(7))
-            ->count();
+        // Count unique staff and students with recorded activity in the last
+        // seven calendar days (today plus the previous six days).
+        $activeTeachers = $activeStaffBetween($activityStart, $activityEnd);
+        $activeStudents = $activeStudentIdsBetween($activityStart, $activityEnd)->count();
 
-        // ── Login trend: lesson completions + student activity as usage proxy ─
+        // ── Daily active staff and students over the last 14 days ──────────
         $usageTrend = [];
         for ($i = 13; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->toDateString();
+            $day = Carbon::now()->subDays($i);
             $usageTrend[] = [
-                'label'    => Carbon::now()->subDays($i)->format('M j'),
-                'teachers' => User::whereIn('id', $allUserIds)
-                    ->whereIn('role', ['teacher', 'grade_leader', 'ict'])
-                    ->whereDate('updated_at', $date)
-                    ->count(),
-                'students' => Student::whereIn('student_id', $studentIds)
-                    ->whereDate('last_activity_date', $date)
-                    ->count(),
+                'label'    => $day->format('M j'),
+                'teachers' => $staffEventsBetween($day->copy()->startOfDay(), $day->copy()->endOfDay()),
+                'students' => $activeStudentIdsBetween($day->copy()->startOfDay(), $day->copy()->endOfDay())->count(),
             ];
         }
 
@@ -127,13 +154,10 @@ class IctController extends Controller
         $sparkStudents = [];
         for ($i = 6; $i >= 0; $i--) {
             $day  = Carbon::now()->subDays($i);
-            $date = $day->toDateString();
             $sparkDates[]    = ['short' => $day->format('M j'), 'day' => $i === 0 ? 'Today' : ($i === 1 ? 'Yesterday' : $day->format('l')), 'date' => $day->format('M j, Y')];
-            $sparkTeachers[] = User::whereIn('id', $allUserIds)
-                ->whereIn('role', ['teacher', 'grade_leader', 'ict'])
-                ->whereDate('updated_at', $date)->count();
-            $sparkStudents[] = Student::whereIn('student_id', $studentIds)
-                ->whereDate('last_activity_date', $date)->count();
+            $trendPoint = $usageTrend[13 - $i];
+            $sparkTeachers[] = $trendPoint['teachers'];
+            $sparkStudents[] = $trendPoint['students'];
         }
 
         // ── System adoption rate: active/total ────────────────────────────

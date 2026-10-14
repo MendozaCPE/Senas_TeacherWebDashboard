@@ -116,15 +116,15 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
         </div>
 
         {{-- Active Users this week --}}
-        <div style="border-radius:24px;padding:22px 24px;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #d1fae5;background:#f0fdf4">
+        <div class="font-sans" style="border-radius:24px;padding:22px 24px;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #e2e8f0;background:#ffffff">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Active This Week</span>
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-black">Active This Week</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-100 text-black flex items-center justify-center">
                     <span class="material-symbols-outlined text-[20px]">bolt</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-emerald-700 tracking-tight">{{ $activeTeachers + $activeStudents }}</p>
-            <p class="text-[12px] text-emerald-600 font-medium">{{ $activeTeachers }} staff &bull; {{ $activeStudents }} students</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-black tracking-tight">{{ $activeTeachers + $activeStudents }}</p>
+            <p class="text-[12px] text-black font-medium">{{ $activeTeachers }} faculty &bull; {{ $activeStudents }} students</p>
         </div>
 
         {{-- System Adoption Rate --}}
@@ -149,11 +149,11 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
                 <div>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Platform Activity</p>
                     <h3 class="text-[16px] font-bold text-[#0d326b]">System Usage — Last 14 Days</h3>
-                    <p class="text-[12px] text-slate-400 mt-0.5">Staff logins &amp; student activity per day</p>
+                    <p class="text-[12px] text-slate-400 mt-0.5">Faculty sign-ins/actions and student app activity per day</p>
                 </div>
                 <div class="flex items-center gap-4 text-[11px] font-semibold flex-shrink-0">
                     <span class="flex items-center gap-1.5">
-                        <span class="w-8 h-1.5 rounded-full inline-block" style="background:#0d326b"></span>Staff
+                        <span class="w-8 h-1.5 rounded-full inline-block" style="background:#0d326b"></span>Faculty
                     </span>
                     <span class="flex items-center gap-1.5">
                         <span class="w-8 h-1.5 rounded-full inline-block" style="background:repeating-linear-gradient(90deg,#1a6fd4 0,#1a6fd4 4px,transparent 4px,transparent 7px)"></span>Students
@@ -161,8 +161,17 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
                 </div>
             </div>
 
-            <div class="bg-[#fafcff] rounded-2xl w-full relative" style="padding-bottom:40%">
-                <svg viewBox="0 0 {{ $W }} {{ $H }}" class="absolute inset-0 w-full h-full"
+            <div id="ictUsageChartWrap" class="bg-[#fafcff] rounded-2xl w-full relative z-10" style="padding-bottom:40%">
+                <div id="ictUsageChartTooltip" role="status" aria-live="polite"
+                     class="pointer-events-none absolute z-30 opacity-0 scale-95 transition-all duration-150 -translate-x-1/2 -translate-y-full bg-[#0d326b] text-white text-[11px] rounded-xl shadow-xl px-3.5 py-2.5 whitespace-nowrap border border-blue-400/20">
+                    <div class="font-extrabold text-[11.5px] tracking-wide pb-1.5 border-b border-white/10" id="ictUsageTipDate"></div>
+                    <div class="mt-1.5 flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between gap-5"><span class="flex items-center gap-1.5 text-blue-200"><span class="w-2 h-2 rounded-full bg-white"></span>Faculty</span><span id="ictUsageTipStaff" class="font-black"></span></div>
+                        <div class="flex items-center justify-between gap-5"><span class="flex items-center gap-1.5 text-blue-200"><span class="w-2 h-2 rounded-full bg-[#60a5fa]"></span>Students</span><span id="ictUsageTipStudents" class="font-black text-[#93c5fd]"></span></div>
+                    </div>
+                    <div class="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-[#0d326b] rotate-45 border-r border-b border-blue-400/20"></div>
+                </div>
+                <svg id="ictUsageChartSvg" viewBox="0 0 {{ $W }} {{ $H }}" class="absolute inset-0 w-full h-full"
                      preserveAspectRatio="none" overflow="visible">
                     <defs>
                         <linearGradient id="ictTFill" x1="0" y1="0" x2="0" y2="1">
@@ -194,11 +203,15 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
                     <path d="{{ $tLine }}" fill="none" stroke="url(#ictTLine)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                     <path d="{{ $sLine }}" fill="none" stroke="url(#ictSLine)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>
 
-                    @foreach($tPts as $i => $p)
-                        <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}"
+                    @foreach($usageTrend as $i => $d)
+                        <line class="ict-usage-crosshair ict-usage-crosshair-{{ $i }}" x1="{{ $tPts[$i]['x'] }}" y1="{{ $pT }}" x2="{{ $tPts[$i]['x'] }}" y2="{{ $bot }}" stroke="#0d326b" stroke-width="1.2" stroke-dasharray="3,3" stroke-opacity="0" style="pointer-events:none;transition:stroke-opacity .15s ease"/>
+                        <circle class="ict-usage-staff-halo ict-usage-staff-halo-{{ $i }}" cx="{{ $tPts[$i]['x'] }}" cy="{{ $tPts[$i]['y'] }}" r="9" fill="#0d326b" fill-opacity="0" style="pointer-events:none;transition:fill-opacity .18s ease"/>
+                        <circle class="ict-usage-student-halo ict-usage-student-halo-{{ $i }}" cx="{{ $sPts[$i]['x'] }}" cy="{{ $sPts[$i]['y'] }}" r="8" fill="#1a6fd4" fill-opacity="0" style="pointer-events:none;transition:fill-opacity .18s ease"/>
+                        <circle class="ict-usage-staff-dot ict-usage-staff-dot-{{ $i }}" data-last="{{ $i === count($tPts)-1 ? '1' : '0' }}" cx="{{ $tPts[$i]['x'] }}" cy="{{ $tPts[$i]['y'] }}"
                                 r="{{ $i===count($tPts)-1?4.5:3 }}"
                                 fill="{{ $i===count($tPts)-1?'#0d326b':'#1e4b8f' }}"
-                                stroke="white" stroke-width="2"/>
+                                stroke="white" stroke-width="2" style="pointer-events:none;transition:r .18s ease"/>
+                        <circle class="ict-usage-student-dot ict-usage-student-dot-{{ $i }}" data-last="{{ $i === count($sPts)-1 ? '1' : '0' }}" cx="{{ $sPts[$i]['x'] }}" cy="{{ $sPts[$i]['y'] }}" r="{{ $i===count($sPts)-1?4:2.5 }}" fill="#1a6fd4" stroke="white" stroke-width="1.8" style="pointer-events:none;transition:r .18s ease"/>
                     @endforeach
 
                     @foreach($usageTrend as $i => $d)
@@ -206,6 +219,14 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
                             <text x="{{ $tPts[$i]['x'] }}" y="{{ $H-10 }}"
                                   font-size="10" fill="#94a3b8" font-weight="500" text-anchor="middle">{{ $d['label'] }}</text>
                         @endif
+                    @endforeach
+
+                    @foreach($usageTrend as $i => $d)
+                        @php $colW = $n > 1 ? $plotW / ($n - 1) : $plotW; $hitX = $n > 1 ? max(0, $tPts[$i]['x'] - $colW / 2) : $pL; @endphp
+                        <rect class="ict-usage-hit" data-idx="{{ $i }}" x="{{ $hitX }}" y="0" width="{{ $colW }}" height="{{ $H }}" fill="transparent" tabindex="0" role="button"
+                              aria-label="{{ $d['label'] }}: {{ $d['teachers'] }} active faculty, {{ $d['students'] }} active students"
+                              data-label="{{ $d['label'] }}" data-staff="{{ $d['teachers'] }}" data-students="{{ $d['students'] }}"
+                              data-cx="{{ $tPts[$i]['x'] }}" data-cy-staff="{{ $tPts[$i]['y'] }}" data-cy-students="{{ $sPts[$i]['y'] }}"/>
                     @endforeach
                 </svg>
             </div>
@@ -303,5 +324,68 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
     </div>
 
 </div>{{-- /skeleton-hide --}}
+
+<script>
+    (function () {
+        const wrap = document.getElementById('ictUsageChartWrap');
+        const svg = document.getElementById('ictUsageChartSvg');
+        const tip = document.getElementById('ictUsageChartTooltip');
+        if (!wrap || !svg || !tip) return;
+
+        const date = document.getElementById('ictUsageTipDate');
+        const staff = document.getElementById('ictUsageTipStaff');
+        const students = document.getElementById('ictUsageTipStudents');
+        const svgWidth = {{ $W }};
+        const svgHeight = {{ $H }};
+
+        function show(hit) {
+            const index = hit.dataset.idx;
+            const crosshair = wrap.querySelector('.ict-usage-crosshair-' + index);
+            const staffHalo = wrap.querySelector('.ict-usage-staff-halo-' + index);
+            const studentHalo = wrap.querySelector('.ict-usage-student-halo-' + index);
+            const staffDot = wrap.querySelector('.ict-usage-staff-dot-' + index);
+            const studentDot = wrap.querySelector('.ict-usage-student-dot-' + index);
+
+            date.textContent = hit.dataset.label || '';
+            staff.textContent = hit.dataset.staff || '0';
+            students.textContent = hit.dataset.students || '0';
+
+            wrap.querySelectorAll('.ict-usage-crosshair').forEach(el => el.setAttribute('stroke-opacity', el === crosshair ? '0.4' : '0'));
+            wrap.querySelectorAll('.ict-usage-staff-halo, .ict-usage-student-halo').forEach(el => el.setAttribute('fill-opacity', (el === staffHalo || el === studentHalo) ? '0.22' : '0'));
+            wrap.querySelectorAll('.ict-usage-staff-dot').forEach(el => el.setAttribute('r', el === staffDot ? '5.5' : (el.dataset.last === '1' ? '4.5' : '3')));
+            wrap.querySelectorAll('.ict-usage-student-dot').forEach(el => el.setAttribute('r', el === studentDot ? '5' : (el.dataset.last === '1' ? '4' : '2.5')));
+
+            const bounds = wrap.getBoundingClientRect();
+            const x = (parseFloat(hit.dataset.cx) / svgWidth) * bounds.width;
+            const y = (Math.min(parseFloat(hit.dataset.cyStaff), parseFloat(hit.dataset.cyStudents)) / svgHeight) * bounds.height;
+            const halfTip = (tip.offsetWidth || 160) / 2;
+            const left = Math.max(halfTip + 8, Math.min(bounds.width - halfTip - 8, x));
+            tip.style.left = left + 'px';
+            tip.style.top = Math.max(12, y - 10) + 'px';
+            const arrow = tip.querySelector('div.absolute');
+            if (arrow) arrow.style.transform = 'translateX(calc(-50% + ' + (x - left) + 'px)) rotate(45deg)';
+            tip.classList.remove('opacity-0', 'scale-95');
+            tip.classList.add('opacity-100', 'scale-100');
+        }
+
+        function hide() {
+            tip.classList.add('opacity-0', 'scale-95');
+            tip.classList.remove('opacity-100', 'scale-100');
+            wrap.querySelectorAll('.ict-usage-crosshair').forEach(el => el.setAttribute('stroke-opacity', '0'));
+            wrap.querySelectorAll('.ict-usage-staff-halo, .ict-usage-student-halo').forEach(el => el.setAttribute('fill-opacity', '0'));
+            wrap.querySelectorAll('.ict-usage-staff-dot').forEach(el => el.setAttribute('r', el.dataset.last === '1' ? '4.5' : '3'));
+            wrap.querySelectorAll('.ict-usage-student-dot').forEach(el => el.setAttribute('r', el.dataset.last === '1' ? '4' : '2.5'));
+        }
+
+        wrap.querySelectorAll('.ict-usage-hit').forEach(hit => {
+            hit.addEventListener('pointerenter', () => show(hit));
+            hit.addEventListener('focus', () => show(hit));
+            hit.addEventListener('pointerleave', event => {
+                if (!hit.contains(event.relatedTarget)) hide();
+            });
+            hit.addEventListener('blur', hide);
+        });
+    })();
+</script>
 @endsection
 
