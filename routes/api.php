@@ -129,4 +129,5 @@ Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
 
     Route::get('/student/checkpoint-exam/{examId}/leaderboard', [StudentAuthController::class, 'getCheckpointExamLeaderboard']);
     Route::get('/teacher/{teacherId}', [StudentAuthController::class, 'getTeacher']);
+    Route::get('/classroom/{classroomId}', [StudentAuthController::class, 'getClassroom']);
 });

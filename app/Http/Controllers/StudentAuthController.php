@@ -74,12 +74,20 @@ class StudentAuthController extends Controller
                 $isEnrolledInActive = true;
             }
 
+            $enrClassroomId = $enr->classroom_id ?? $student->classroom_id;
+            $enrClassroom = $enrClassroomId ? \App\Models\Classroom::find($enrClassroomId) : null;
+            if (!$enrClassroom && $student->classroom_id) {
+                $enrClassroom = $student->classroom;
+            }
+
             $enrolledSyList[] = [
                 'school_year_id' => $syId,
                 'school_year_name' => $syName,
                 'program_type' => $enr->program_type ?? $student->program_type,
                 'grade_level' => $enr->grade_level ?? $student->grade_level,
                 'section' => $enr->section ?? $student->section,
+                'classroom_id' => $enrClassroomId,
+                'classroom_name' => $enrClassroom?->name,
                 'is_active' => $activeSy && ($syId === $activeSy->id || $syName === $activeSy->name),
                 'is_enrolled' => true,
                 'enrolled_at' => $enr->enrolled_at ? $enr->enrolled_at->toISOString() : ($enr->created_at ? $enr->created_at->toISOString() : null),
@@ -104,6 +112,8 @@ class StudentAuthController extends Controller
                 'program_type' => $student->program_type,
                 'grade_level' => $student->grade_level,
                 'section' => $student->section,
+                'classroom_id' => $student->classroom_id,
+                'classroom_name' => $student->classroom?->name,
                 'is_active' => true,
                 'is_enrolled' => true,
                 'enrolled_at' => null,
@@ -234,7 +244,15 @@ class StudentAuthController extends Controller
                 'section' => $student->section,
                 'fsl_mastery_level' => $student->fsl_mastery_level,
                 'profile_picture' => $student->profile_picture ?? 'senya',
-                'teacher_id' => $student->teacher_id, // ✅ ADD THIS LINE
+                'teacher_id' => $student->teacher_id,
+                'classroom_id' => $student->classroom_id,
+                'classroom_name' => $student->classroom?->name,
+                'classroom' => $student->classroom ? [
+                    'id' => $student->classroom->id,
+                    'name' => $student->classroom->name,
+                    'section' => $student->classroom->section,
+                    'description' => $student->classroom->description,
+                ] : null,
             ],
             'settings' => [
                 'sound_enabled' => $settings->sound_enabled,
@@ -395,6 +413,12 @@ public function updateSettings(Request $request)
                 ->first();
         }
 
+        $resolvedClassroomId = $targetEnrollment->classroom_id ?? $student->classroom_id;
+        $classroom = $resolvedClassroomId ? \App\Models\Classroom::find($resolvedClassroomId) : null;
+        if (!$classroom && $student->classroom_id) {
+            $classroom = $student->classroom;
+        }
+
         $isCustomSy = ($request->query('school_year') || ($syInfo['school_year_name'] !== $syInfo['active_school_year']));
 
         return response()->json([
@@ -416,6 +440,14 @@ public function updateSettings(Request $request)
                 'lessons_completed_count' => $isCustomSy ? $completedLessonsCount : null,
                 'profile_picture' => $student->profile_picture ?? 'senya',
                 'teacher_id' => $student->teacher_id,
+                'classroom_id' => $classroom?->id ?? $student->classroom_id,
+                'classroom_name' => $classroom?->name ?? null,
+                'classroom' => $classroom ? [
+                    'id' => $classroom->id,
+                    'name' => $classroom->name,
+                    'section' => $classroom->section,
+                    'description' => $classroom->description,
+                ] : null,
             ],
             'school_year_info' => $syInfo,
         ]);
@@ -6379,6 +6411,38 @@ public function getTeacher(Request $request, $teacherId)
                 'last_name' => $teacher->last_name,
                 'email' => $teacher->user->email ?? null,
                 'profile_photo' => $teacher->user->profile_photo ?? null, // ✅ ADD THIS
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Get classroom by ID
+ * GET /api/classroom/{classroomId}
+ */
+public function getClassroom(Request $request, $classroomId)
+{
+    try {
+        $classroom = \App\Models\Classroom::with('teacher')->find($classroomId);
+        
+        if (!$classroom) {
+            return response()->json(['error' => 'Classroom not found'], 404);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'classroom' => [
+                'id' => $classroom->id,
+                'name' => $classroom->name,
+                'section' => $classroom->section,
+                'description' => $classroom->description,
+                'teacher_id' => $classroom->teacher_id,
+                'teacher_name' => $classroom->teacher ? trim(($classroom->teacher->first_name ?? '') . ' ' . ($classroom->teacher->last_name ?? '')) : null,
             ],
         ]);
     } catch (\Exception $e) {

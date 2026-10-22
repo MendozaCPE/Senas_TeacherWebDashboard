@@ -32,6 +32,7 @@ class StudentYearEnrollment extends Model
     protected $fillable = [
         'student_id',
         'teacher_id',
+        'classroom_id',
         'school_id',
         'school_year_id',
         'school_year_name',
@@ -40,6 +41,11 @@ class StudentYearEnrollment extends Model
         'section',
         'enrolled_at',
     ];
+
+    public function classroom(): BelongsTo
+    {
+        return $this->belongsTo(Classroom::class, 'classroom_id', 'id');
+    }
 
     protected $casts = [
         'enrolled_at' => 'datetime',
