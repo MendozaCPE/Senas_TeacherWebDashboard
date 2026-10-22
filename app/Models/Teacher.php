@@ -62,4 +62,9 @@ class Teacher extends Model
     {
         return $this->notifications()->where('is_read', false)->count();
     }
+
+    public function classrooms()
+    {
+        return $this->hasMany(Classroom::class, 'teacher_id', 'id');
+    }
 }

@@ -126,6 +126,8 @@ class DashboardController extends Controller
             // $monthlyActivity is built below, after $studentIds is resolved.
 
             // ── Student query — active year, currently enrolled ──────────────────
+            $activeClassroomId = session('active_classroom_id');
+
             $teacherLessonIds = Lesson::where('teacher_id', $teacherId)
                 ->whereNull('deleted_at')
                 ->pluck('lesson_id');
@@ -133,6 +135,7 @@ class DashboardController extends Controller
             $studentIds = Student::where('teacher_id', $teacherId)
                 ->where('school_year', $activeSchoolYear?->name)
                 ->where('is_enrolled', true)
+                ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                 ->pluck('student_id');
 
             $lessonIds = Lesson::where('teacher_id', $teacherId)
@@ -230,7 +233,7 @@ class DashboardController extends Controller
                 }])
                 ->orderBy('module_order')
                 ->get()
-                ->map(function ($module) use ($activeSyId, $studentIds, $teacherId, $activeSchoolYear) {
+                ->map(function ($module) use ($activeSyId, $studentIds, $teacherId, $activeSchoolYear, $activeClassroomId) {
                     $lessonIds = $module->lessons->pluck('lesson_id');
 
                     if ($lessonIds->isEmpty()) {
@@ -245,7 +248,8 @@ class DashboardController extends Controller
                         ->join('students', 'students.student_id', '=', 'lesson_assignments.student_id')
                         ->where('students.teacher_id', $teacherId)
                         ->where('students.school_year', $activeSchoolYear?->name)
-                        ->where('students.is_enrolled', true);
+                        ->where('students.is_enrolled', true)
+                        ->when($activeClassroomId, fn($q, $cId) => $q->where('students.classroom_id', $cId));
 
                     if ($activeSyId) {
                         $assignedQuery->where('lesson_assignments.school_year_id', $activeSyId);
@@ -283,12 +287,13 @@ class DashboardController extends Controller
                 ->whereNull('deleted_at')
                 ->orderBy('module_order')
                 ->get()
-                ->map(function ($lesson) use ($activeSyId, $teacherId, $activeSchoolYear) {
+                ->map(function ($lesson) use ($activeSyId, $teacherId, $activeSchoolYear, $activeClassroomId) {
                     $assignedQuery = LessonAssignment::where('lesson_assignments.lesson_id', $lesson->lesson_id)
                         ->join('students', 'students.student_id', '=', 'lesson_assignments.student_id')
                         ->where('students.teacher_id', $teacherId)
                         ->where('students.school_year', $activeSchoolYear?->name)
-                        ->where('students.is_enrolled', true);
+                        ->where('students.is_enrolled', true)
+                        ->when($activeClassroomId, fn($q, $cId) => $q->where('students.classroom_id', $cId));
 
                     if ($activeSyId) {
                         $assignedQuery->where('lesson_assignments.school_year_id', $activeSyId);
@@ -398,6 +403,7 @@ class DashboardController extends Controller
             $allStudents = Student::where('teacher_id', $teacherId)
                 ->where('school_year', $activeSchoolYear?->name)
                 ->where('is_enrolled', true)
+                ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                 ->orderBy('first_name')
                 ->get();
 
@@ -429,6 +435,7 @@ class DashboardController extends Controller
                     ? $totalStudents
                     : StudentYearEnrollment::where('teacher_id', $teacherId)
                         ->where('school_year_name', $syLabel)
+                        ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                         ->distinct('student_id')
                         ->count('student_id');
 

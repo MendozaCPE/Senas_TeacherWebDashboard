@@ -38,11 +38,17 @@ class Student extends Model
         'level',
         'streak_days',
         'last_activity_date',
+        'classroom_id',
     ];
 
     protected $casts = [
         'is_enrolled' => 'boolean',
     ];
+
+    public function classroom()
+    {
+        return $this->belongsTo(Classroom::class, 'classroom_id');
+    }
 
     public function user()
     {

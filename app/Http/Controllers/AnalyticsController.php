@@ -160,7 +160,11 @@ class AnalyticsController extends Controller
             $endDate = $syEndDate ?? Carbon::create($year, 12, 31)->endOfYear()->endOfDay();
         }
 
-        $tStudentIds = Student::where('teacher_id', $teacherId)->pluck('student_id');
+        $activeClassroomId = session('active_classroom_id');
+
+        $tStudentIds = Student::where('teacher_id', $teacherId)
+            ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
+            ->pluck('student_id');
 
         if ($selectedSchoolYear) {
             $syName = $selectedSchoolYear->name;
@@ -171,6 +175,7 @@ class AnalyticsController extends Controller
                 $studentIds = Student::where('teacher_id', $teacherId)
                     ->where('school_year', $syName)
                     ->where('is_enrolled', true)
+                    ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                     ->pluck('student_id')
                     ->unique()
                     ->values();
@@ -179,6 +184,7 @@ class AnalyticsController extends Controller
                 // records alone must not add students to a year's roster.
                 $studentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
                     ->where('school_year_name', $syName)
+                    ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                     ->pluck('student_id')
                     ->unique()
                     ->values();

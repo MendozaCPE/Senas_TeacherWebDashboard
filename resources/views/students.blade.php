@@ -506,9 +506,14 @@
                                         <div class="min-w-0 flex-1">
                                             <p class="text-[13px] font-bold text-[#0d326b] truncate" title="{{ $student->first_name }} {{ $student->last_name }}">{{ $student->first_name }} {{ $student->last_name }}</p>
                                             <p class="text-[10px] text-slate-400 font-medium mt-0.5 truncate">LRN: {{ $student->lrn ?? 'N/A' }}@if($student->grade_level) &middot; {{ $student->grade_level }}@endif</p>
-                                            <div class="flex items-center gap-1 mt-0.5">
+                                            <div class="flex items-center gap-1.5 mt-0.5">
                                                 <span class="w-1.5 h-1.5 rounded-full shrink-0 {{ $statusColor['dot'] }}"></span>
                                                 <span class="text-[10px] font-semibold {{ $statusColor['text'] }} uppercase truncate">{{ $student->status }}</span>
+                                                @if($student->classroom)
+                                                    <span class="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-1.5 py-0.2 rounded-md truncate max-w-[120px]" title="Class: {{ $student->classroom->name }}">
+                                                        {{ $student->classroom->name }}
+                                                    </span>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -1595,6 +1600,23 @@
                         <span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[18px] text-slate-500 pointer-events-none">expand_more</span>
                     </div>
                 </div>
+                <div class="flex flex-col space-y-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Class / Cohort <span class="text-blue-600 font-bold">&bull; Auto-Assigned</span></label>
+                    <div class="relative">
+                        <select name="classroom_id" id="input-classroom-id" class="w-full bg-[#f1f5f9] text-[#1e293b] text-[14px] font-medium py-3.5 pl-4 pr-10 rounded-xl outline-none border border-transparent focus:border-slate-300 appearance-none transition-all cursor-pointer">
+                            @if(isset($teacherClassrooms) && $teacherClassrooms->isNotEmpty())
+                                @foreach($teacherClassrooms as $tc)
+                                    <option value="{{ $tc->id }}" {{ ((int)($activeClassroomId ?? 0) === (int)$tc->id) ? 'selected' : '' }}>
+                                        {{ $tc->name }} {{ $tc->section ? '('.$tc->section.')' : '' }}
+                                    </option>
+                                @endforeach
+                            @else
+                                <option value="">Default Class</option>
+                            @endif
+                        </select>
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined icon-outline text-[18px] text-slate-500 pointer-events-none">expand_more</span>
+                    </div>
+                </div>
             </div>
             <section class="mb-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
                 <div class="mb-4 flex items-center justify-between gap-3">
@@ -1955,6 +1977,7 @@ async function submitSingleStudent(event) {
         full_name: fd.get('full_name'), 
         program_type: fd.get('program_type'), 
         age: fd.get('age'), 
+        classroom_id: fd.get('classroom_id') || null,
         fsl_mastery_level: fd.get('fsl_mastery_level'), 
         school_year: fd.get('school_year'),
         mother_name: fd.get('mother_name') || null,

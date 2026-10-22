@@ -20,6 +20,10 @@
             <span class="material-symbols-outlined {{ request()->is('students') ? '' : 'icon-outline' }} text-[22px]">group</span>
             <span>Students</span>
         </a>
+        <a href="/classes" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('classes') || request()->is('classes/*') ? $activeClass : $inactiveClass }}">
+            <span class="material-symbols-outlined {{ request()->is('classes') || request()->is('classes/*') ? '' : 'icon-outline' }} text-[22px]">meeting_room</span>
+            <span>Classes</span>
+        </a>
         <a href="/lessons" data-nav-intercept class="flex items-center space-x-4 px-6 py-4 {{ request()->is('lessons') || request()->is('lessons/*') ? $activeClass : $inactiveClass }}">
             <span class="material-symbols-outlined {{ request()->is('lessons') || request()->is('lessons/*') ? '' : 'icon-outline' }} text-[22px]">menu_book</span>
             <span>Lessons</span>

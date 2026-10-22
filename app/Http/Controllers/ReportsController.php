@@ -77,11 +77,14 @@ class ReportsController extends Controller
                 ? $availableSchoolYears->firstWhere('name', $filterSchoolYear)
                 : null;
 
+            $activeClassroomId = session('active_classroom_id');
+
             if ($selectedSchoolYear && $selectedSchoolYear->status === 'active') {
                 // Match the active roster shown in dashboard and Students.
                 $studentIds = Student::where('teacher_id', $teacherId)
                     ->where('school_year', $selectedSchoolYear->name)
                     ->where('is_enrolled', true)
+                    ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                     ->pluck('student_id')
                     ->unique()
                     ->values();
@@ -93,6 +96,7 @@ class ReportsController extends Controller
                 // Archived-year reports use enrollment history, not activity.
                 $studentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
                     ->where('school_year_name', $selectedSchoolYear->name)
+                    ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                     ->pluck('student_id')
                     ->unique()
                     ->values();
@@ -102,7 +106,10 @@ class ReportsController extends Controller
                     ->get();
             } else {
                 // All School Years: show all students under this teacher
-                $students   = Student::where('teacher_id', $teacherId)->orderBy('first_name')->get();
+                $students = Student::where('teacher_id', $teacherId)
+                    ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
+                    ->orderBy('first_name')
+                    ->get();
                 $studentIds = $students->pluck('student_id');
             }
 
@@ -517,10 +524,13 @@ class ReportsController extends Controller
             ? $availableSchoolYears->firstWhere('name', $filterSchoolYear)
             : null;
 
+        $activeClassroomId = session('active_classroom_id');
+
         if ($selectedSchoolYear && $selectedSchoolYear->status === 'active') {
             $studentIds = Student::where('teacher_id', $teacherId)
                 ->where('school_year', $selectedSchoolYear->name)
                 ->where('is_enrolled', true)
+                ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                 ->pluck('student_id')
                 ->unique()
                 ->values();
@@ -532,6 +542,7 @@ class ReportsController extends Controller
             // Keep archived-year exports based on enrollment history.
             $studentIds = \App\Models\StudentYearEnrollment::where('teacher_id', $teacherId)
                     ->where('school_year_name', $selectedSchoolYear->name)
+                    ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
                     ->pluck('student_id')
                     ->unique()
                     ->values();
@@ -540,7 +551,10 @@ class ReportsController extends Controller
                 ->orderBy('first_name')
                 ->get();
         } else {
-            $students   = Student::where('teacher_id', $teacherId)->orderBy('first_name')->get();
+            $students = Student::where('teacher_id', $teacherId)
+                ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
+                ->orderBy('first_name')
+                ->get();
             $studentIds = $students->pluck('student_id');
         }
 

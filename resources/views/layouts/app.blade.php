@@ -228,6 +228,9 @@
         <!-- Header Topbar -->
         @include('partials.header')
 
+        <!-- Class Switcher Subtabs -->
+        @include('partials.class-switcher')
+
         <!-- Scrollable Content -->
         <main class="flex-1 overflow-y-auto px-8 pt-2 pb-0 relative border-l border-slate-100">
             @yield('content')

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ClassroomController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoogleAuthController;
@@ -174,7 +175,16 @@ Route::post('/students/{id}/demote', [App\Http\Controllers\StudentsController::c
 Route::post('/students/{id}/enroll', [App\Http\Controllers\StudentsController::class, 'enroll'])->name('students.enroll');
 Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController::class, 'unenroll'])->name('students.unenroll');
 
-// Lessons - ALL using LessonsController (plural)
+    // ── Classrooms (Class Groups) ──
+    Route::get('/classes', [ClassroomController::class, 'index'])->name('classes.index');
+    Route::post('/classes', [ClassroomController::class, 'store'])->name('classes.store');
+    Route::put('/classes/{classroom}', [ClassroomController::class, 'update'])->name('classes.update');
+    Route::delete('/classes/{classroom}', [ClassroomController::class, 'destroy'])->name('classes.destroy');
+    Route::post('/classes/switch/{id?}', [ClassroomController::class, 'switchClassroom'])->name('classes.switch');
+    Route::get('/classes/switch/{id?}', [ClassroomController::class, 'switchClassroom'])->name('classes.switch.get');
+    Route::post('/classes/{classroom}/assign-students', [ClassroomController::class, 'assignStudents'])->name('classes.assign-students');
+
+    // Lessons - ALL using LessonsController (plural)
     Route::get('/lessons', [LessonsController::class, 'index'])->name('lessons.index');
 
     Route::get('/lessons/create', [LessonsController::class, 'create'])->name('lessons.create');

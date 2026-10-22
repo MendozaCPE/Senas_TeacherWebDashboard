@@ -1411,16 +1411,18 @@ public function manageStudents($id)
         ->toArray();
 
     $students = DB::table('students')
-        ->select('student_id', 'first_name', 'last_name', 'lrn',
-            'fsl_mastery_level as mastery_level',
-            'program_type as program',
-            'grade_level', 'section')
-        ->where('teacher_id', $teacherId)
-        ->where('is_enrolled', true)
+        ->leftJoin('classrooms', 'students.classroom_id', '=', 'classrooms.id')
+        ->select('students.student_id', 'students.first_name', 'students.last_name', 'students.lrn',
+            'students.fsl_mastery_level as mastery_level',
+            'students.program_type as program',
+            'students.grade_level', 'students.section',
+            'students.classroom_id', 'classrooms.name as class_name')
+        ->where('students.teacher_id', $teacherId)
+        ->where('students.is_enrolled', true)
         ->when($activeSyId, function ($q) use ($activeSyId) {
             $syName = \App\Models\SchoolYear::find($activeSyId)?->name;
             if ($syName) {
-                $q->where('school_year', $syName);
+                $q->where('students.school_year', $syName);
             }
         })
         ->orderBy('last_name')
