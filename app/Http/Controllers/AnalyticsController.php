@@ -199,7 +199,10 @@ class AnalyticsController extends Controller
                 ->where('quiz_attempts.status', 'completed')
                 ->where('lessons.status', 'published')
                 ->whereNull('lessons.deleted_at')
-                ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id))
+                ->when($selectedSchoolYear?->id, fn ($query) => $query->where(function ($sub) use ($selectedSchoolYear) {
+                    $sub->where('quiz_attempts.school_year_id', $selectedSchoolYear->id)
+                        ->orWhereNull('quiz_attempts.school_year_id');
+                }))
                 ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
                 ->exists();
 
@@ -259,7 +262,10 @@ class AnalyticsController extends Controller
             ->where('quiz_attempts.status', 'completed')
             ->where('lessons.status', 'published')
             ->whereNull('lessons.deleted_at')
-            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id));
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where(function ($sub) use ($selectedSchoolYear) {
+                $sub->where('quiz_attempts.school_year_id', $selectedSchoolYear->id)
+                    ->orWhereNull('quiz_attempts.school_year_id');
+            }));
 
         $rawAvgQuizScore = (clone $quizQuery)
             ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
@@ -314,7 +320,10 @@ class AnalyticsController extends Controller
                           ->where('quiz_attempts.status', 'completed')
                           ->where('activity_lessons.status', 'published')
                           ->whereNull('activity_lessons.deleted_at')
-                          ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id))
+                          ->when($selectedSchoolYear?->id, fn ($query) => $query->where(function ($sub) use ($selectedSchoolYear) {
+                              $sub->where('quiz_attempts.school_year_id', $selectedSchoolYear->id)
+                                  ->orWhereNull('quiz_attempts.school_year_id');
+                          }))
                           ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate]);
                   })
                   ->orWhereExists(function ($sub) use ($startDate, $endDate) {
@@ -577,7 +586,10 @@ class AnalyticsController extends Controller
             ->where('quiz_attempts.status', 'completed')
             ->where('lessons.status', 'published')
             ->whereNull('lessons.deleted_at')
-            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('quiz_attempts.school_year_id', $selectedSchoolYear->id))
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where(function ($sub) use ($selectedSchoolYear) {
+                $sub->where('quiz_attempts.school_year_id', $selectedSchoolYear->id)
+                    ->orWhereNull('quiz_attempts.school_year_id');
+            }))
             ->whereBetween('quiz_attempts.completed_at', [$startDate, $endDate])
             ->selectRaw("CASE
                 WHEN quiz_attempts.percentage <= 20 THEN '0-20'
@@ -610,7 +622,10 @@ class AnalyticsController extends Controller
             ->where('qa.status', 'completed')
             ->where('l.status', 'published')
             ->whereNull('l.deleted_at')
-            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('qa.school_year_id', $selectedSchoolYear->id))
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where(function ($sub) use ($selectedSchoolYear) {
+                $sub->where('qa.school_year_id', $selectedSchoolYear->id)
+                    ->orWhereNull('qa.school_year_id');
+            }))
             ->whereBetween('qa.completed_at', [$startDate, $endDate])
             ->select('qa.student_id', 's.first_name', 's.last_name', 'qa.percentage', 'qa.quiz_id', 'qa.created_at', 'qa.attempt_id')
             ->orderBy('qa.created_at', 'asc')
@@ -692,7 +707,10 @@ class AnalyticsController extends Controller
                 ->where('qa.quiz_id', $lesson->quiz->quiz_id)
                 ->whereIn('qa.student_id', $studentIds)
                 ->where('qa.status', 'completed')
-                ->when($selectedSchoolYear?->id, fn ($query) => $query->where('qa.school_year_id', $selectedSchoolYear->id))
+                ->when($selectedSchoolYear?->id, fn ($query) => $query->where(function ($sub) use ($selectedSchoolYear) {
+                    $sub->where('qa.school_year_id', $selectedSchoolYear->id)
+                        ->orWhereNull('qa.school_year_id');
+                }))
                 ->whereBetween('qa.completed_at', [$startDate, $endDate])
                 ->select(
                     's.student_id',
@@ -710,7 +728,10 @@ class AnalyticsController extends Controller
                     ->where('student_id', $item->student_id)
                     ->where('quiz_id', $lesson->quiz->quiz_id)
                     ->where('status', 'completed')
-                    ->when($selectedSchoolYear?->id, fn ($query) => $query->where('school_year_id', $selectedSchoolYear->id))
+                    ->when($selectedSchoolYear?->id, fn ($query) => $query->where(function ($sub) use ($selectedSchoolYear) {
+                        $sub->where('school_year_id', $selectedSchoolYear->id)
+                            ->orWhereNull('school_year_id');
+                    }))
                     ->whereBetween('completed_at', [$startDate, $endDate])
                     ->orderBy('created_at', 'asc')
                     ->get();

@@ -2364,9 +2364,19 @@ public function submitQuizAttempt(Request $request, $lessonId)
         $submittedAtTimeText = $nowManila->format('h:i A');
         $deadlineTimeText = $deadlineManila ? $deadlineManila->format('h:i A') : null;
 
+        $syInfo = $this->resolveStudentSchoolYear($student, $request->input('school_year'), $request->input('school_year_id'));
+        $schoolYearId = $syInfo['school_year_id'] ?? null;
+        if (!$schoolYearId && $student->school_id) {
+            $schoolYearId = SchoolYear::activeForSchool((int) $student->school_id)?->id;
+        }
+        if (!$schoolYearId) {
+            $schoolYearId = SchoolYear::where('status', 'active')->latest('id')->value('id');
+        }
+
         // ─── CREATE QUIZ ATTEMPT WITH XP ──────────────────────────────
         $attemptId = DB::table('quiz_attempts')->insertGetId([
             'student_id' => $student->student_id,
+            'school_year_id' => $schoolYearId,
             'quiz_id' => $request->quiz_id,
             'score' => $request->score,
             'total_points' => $request->total_points,
@@ -2459,6 +2469,7 @@ public function submitQuizAttempt(Request $request, $lessonId)
                         'lesson_id' => $lessonId,
                     ],
                     [
+                        'school_year_id' => $schoolYearId,
                         'quiz_completed' => true,
                         'quiz_score' => $newScore,
                         'last_accessed_at' => now(),
@@ -5960,10 +5971,21 @@ public function submitCheckpointExam(Request $request, $examId)
             ->count() + 1;
 
         // Calculate XP based on percentage
-   $xpEarned = $this->calculateCheckpointXp($percentage, $attemptNumber, $student, $examId);
+        $xpEarned = $this->calculateCheckpointXp($percentage, $attemptNumber, $student, $examId);
+
+        $syInfo = $this->resolveStudentSchoolYear($student, $request->input('school_year'), $request->input('school_year_id'));
+        $schoolYearId = $syInfo['school_year_id'] ?? null;
+        if (!$schoolYearId && $student->school_id) {
+            $schoolYearId = SchoolYear::activeForSchool((int) $student->school_id)?->id;
+        }
+        if (!$schoolYearId) {
+            $schoolYearId = SchoolYear::where('status', 'active')->latest('id')->value('id');
+        }
+
         // Save the attempt
         $attemptId = DB::table('checkpoint_exam_attempts')->insertGetId([
             'student_id' => $student->student_id,
+            'school_year_id' => $schoolYearId,
             'exam_id' => $examId,
             'score' => $earnedPoints,
             'total_points' => $totalPoints,
