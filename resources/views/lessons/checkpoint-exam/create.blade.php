@@ -597,10 +597,10 @@ function addCustomQuestion(type, existingData = null) {
                             Fingerspelling Words (one per line, e.g. CAT)
                         </label>
                         <textarea name="custom_questions[${index}][fingerspelling_words]" id="fingerspellingWords_${index}"
-                            rows="4" placeholder="CAT&#10;SUN&#10;PEN"
+                            rows="4" placeholder="CAT&#10;SUN&#10;PEN" disabled
                             class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:border-[#1a6fd4] focus:ring-1 focus:ring-indigo-400 outline-none resize-y">${escapeHtml(currentFSWords)}</textarea>
                         <p class="text-[10px] text-slate-400 mt-1">Each line is one word. Students will fingerspell each letter of the word using FSL hand signs.</p>
-                        <input type="hidden" name="custom_questions[${index}][is_fingerspelling]" value="1">
+                        <input type="hidden" name="custom_questions[${index}][is_fingerspelling]" id="isFingerspellingInput_${index}" value="1" disabled>
                     </div>
                 </div>
             </div>
@@ -710,36 +710,49 @@ function onGestureModuleChange(qIndex, selectedGestureName = null) {
     const itemSelect = document.getElementById(`gestureItemSelect_${qIndex}`);
     const itemContainer = document.getElementById(`gestureItemContainer_${qIndex}`);
     const fsContainer = document.getElementById(`fingerspellingContainer_${qIndex}`);
+    const fsHidden = document.getElementById(`isFingerspellingInput_${qIndex}`);
+    const fsWords = document.getElementById(`fingerspellingWords_${qIndex}`);
     if (!modSelect) return;
 
     const modId = modSelect.value;
     if (!modId) {
-        if (itemSelect) itemSelect.innerHTML = '<option value="">-- Select Gesture --</option>';
+        if (itemSelect) {
+            itemSelect.disabled = false;
+            itemSelect.innerHTML = '<option value="">-- Select Gesture --</option>';
+        }
         if (itemContainer) itemContainer.style.display = 'block';
         if (fsContainer) fsContainer.style.display = 'none';
+        if (fsHidden) fsHidden.disabled = true;
+        if (fsWords) fsWords.disabled = true;
         return;
     }
 
     const selectedOption = modSelect.options[modSelect.selectedIndex];
     const modName = selectedOption ? selectedOption.getAttribute('data-name') : '';
-    const isFingerspelling = (modName === 'fingerspelling');
+    const isFingerspelling = (modName === 'fingerspelling' || String(modId) === '6');
 
     if (isFingerspelling) {
         // Show fingerspelling word input, hide gesture dropdown
         if (itemContainer) itemContainer.style.display = 'none';
         if (itemSelect) {
             itemSelect.removeAttribute('required');
+            itemSelect.disabled = true;
             itemSelect.innerHTML = '<option value="">-- n/a fingerspelling --</option>';
         }
         if (fsContainer) fsContainer.style.display = 'block';
+        if (fsHidden) fsHidden.disabled = false;
+        if (fsWords) fsWords.disabled = false;
     } else {
         // Show gesture dropdown, hide fingerspelling input
         if (itemContainer) itemContainer.style.display = 'block';
         if (itemSelect) {
             itemSelect.setAttribute('required', 'required');
+            itemSelect.disabled = false;
             itemSelect.innerHTML = '<option value="">-- Select Gesture --</option>';
         }
         if (fsContainer) fsContainer.style.display = 'none';
+        if (fsHidden) fsHidden.disabled = true;
+        if (fsWords) fsWords.disabled = true;
 
         const mod = gestureCatalog.find(m => String(m.module_id) === String(modId));
         if (mod && mod.gestures && itemSelect) {

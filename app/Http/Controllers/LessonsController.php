@@ -2662,19 +2662,22 @@ private function syncExamQuestions(CheckpointExam $exam, array $validLessonQuest
             $correctAnswer = count($dragDropPairs) . ' pairs';
         } elseif ($qType === 'gesture') {
             $moduleId = $cData['module_id'] ?? null;
-            $isFingerspelling = !empty($cData['is_fingerspelling']);
+            $gMod = $moduleId ? \App\Models\GestureModule::where('module_id', $moduleId)->first() : null;
 
-            // Check if this module is fingerspelling (module 6 / name 'fingerspelling')
-            if (!$isFingerspelling && $moduleId) {
-                $gMod = \App\Models\GestureModule::where('module_id', $moduleId)->first();
-                if ($gMod && $gMod->name === 'fingerspelling') {
-                    $isFingerspelling = true;
-                }
+            // Only treat as fingerspelling if the module is fingerspelling (module 6 / name 'fingerspelling')
+            // or if explicitly marked fingerspelling AND has fingerspelling words
+            $wordsText = trim((string)($cData['fingerspelling_words'] ?? ''));
+            $isFingerspelling = false;
+            if ($gMod && ($gMod->name === 'fingerspelling' || (int)$gMod->module_id === 6)) {
+                $isFingerspelling = true;
+            } elseif ($moduleId == '6') {
+                $isFingerspelling = true;
+            } elseif (!empty($cData['is_fingerspelling']) && !empty($wordsText)) {
+                $isFingerspelling = true;
             }
 
             if ($isFingerspelling) {
                 // Fingerspelling: parse words from textarea
-                $wordsText = trim((string)($cData['fingerspelling_words'] ?? ''));
                 $words = array_values(array_filter(
                     array_map(fn($w) => preg_replace('/[^A-Z]/', '', strtoupper(trim($w))), explode("\n", $wordsText)),
                     fn($w) => strlen($w) > 0
@@ -2685,14 +2688,14 @@ private function syncExamQuestions(CheckpointExam $exam, array $validLessonQuest
                 foreach ($words as $word) {
                     foreach (str_split($word) as $letter) {
                         $gid = $this->letterToGestureId($letter);
-                        if ($gid) $allGestureIds[] = $gid;
+                        if ($gid) $allGestureIds[] = (string)$gid;
                     }
                 }
                 $allGestureIds = array_values(array_unique($allGestureIds));
 
                 $correctAnswer = implode(', ', $words) ?: 'Fingerspelling';
                 $gestureData = [
-                    'module_id' => $moduleId ?? '6',
+                    'module_id' => (string)($moduleId ?? '6'),
                     'is_fingerspelling' => true,
                     'fingerspelling_words' => implode("\n", $words),
                     'words' => $words,
@@ -2706,18 +2709,26 @@ private function syncExamQuestions(CheckpointExam $exam, array $validLessonQuest
                 if ($gestureId) {
                     $gesture = Gesture::find($gestureId);
                 } elseif (!empty($gestureName)) {
-                    $gesture = Gesture::where('name', $gestureName)->first();
+                    if ($moduleId) {
+                        $gesture = Gesture::where('module_id', $moduleId)
+                            ->where(function($q) use ($gestureName) {
+                                $q->where('name', $gestureName)->orWhere('display_name', $gestureName);
+                            })->first();
+                    }
+                    if (!$gesture) {
+                        $gesture = Gesture::where('name', $gestureName)->orWhere('display_name', $gestureName)->first();
+                    }
                 }
 
-                $gestureIds = $gesture ? [$gesture->gesture_id] : ($gestureId ? [$gestureId] : []);
-                $finalName = $gesture ? $gesture->name : $gestureName;
-                $correctAnswer = $finalName;
+                $gestureIds = $gesture ? [(string)$gesture->gesture_id] : ($gestureId ? [(string)$gestureId] : []);
+                $finalName = $gesture ? ($gesture->display_name ?: $gesture->name) : $gestureName;
+                $correctAnswer = $gesture ? $gesture->name : $gestureName;
 
                 $gestureData = [
-                    'module_id' => $moduleId ?? ($gesture ? $gesture->module_id : null),
+                    'module_id' => (string)($moduleId ?? ($gesture ? $gesture->module_id : '')),
                     'gesture_ids' => $gestureIds,
-                    'gesture_name' => $finalName,
-                    'target_gesture' => $finalName,
+                    'gesture_name' => $gesture ? $gesture->name : $gestureName,
+                    'target_gesture' => $gesture ? $gesture->name : $gestureName,
                 ];
             }
         }
