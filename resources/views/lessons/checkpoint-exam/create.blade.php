@@ -90,8 +90,21 @@
         background: #eff6ff;
         border-color: #bfdbfe;
     }
+    .custom-question-card {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+        transition: all 0.2s ease;
+    }
+    .custom-question-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 14px rgba(13, 50, 107, 0.04);
+    }
     .badge-qtype {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         padding: 3px 10px;
         border-radius: 9999px;
         font-size: 10px;
@@ -120,7 +133,7 @@
         <a href="{{ $isAdmin ? route('admin.lesson-templates.index') : route('lessons.index') }}"
            class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0d326b] transition mb-2">
             <span class="material-symbols-outlined text-[16px]">arrow_back</span>
-            Back to Lessons
+            Back to {{ $isAdmin ? 'Default Lessons' : 'Lessons' }}
         </a>
         <h1 class="text-2xl font-bold text-[#0d326b]">Create Checkpoint Exam</h1>
         <p class="text-sm text-slate-500 font-medium">
@@ -140,7 +153,10 @@
 </div>
 @endif
 
-<form action="{{ $isAdmin ? route('admin.lesson-templates.checkpoint-exam.store') : route('lessons.checkpoint-exam.store') }}" method="POST" id="checkpointForm">
+<form action="{{ $isAdmin ? route('admin.lesson-templates.checkpoint-exam.store') : route('lessons.checkpoint-exam.store') }}"
+      method="POST"
+      enctype="multipart/form-data"
+      id="checkpointForm">
     @csrf
     <input type="hidden" name="module_id" value="{{ $module->module_id }}">
 
@@ -183,28 +199,27 @@
                             <p class="text-xs text-slate-400 mt-1">Students must complete the exam within this time limit.</p>
                         </div>
                     </div>
-
                 </div>
             </div>
 
-            <!-- Question Selection Card -->
+            <!-- Question Selection Card (From Lessons) -->
             <div class="exam-card p-6">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <div>
                         <h2 class="text-base font-bold text-[#0d326b] flex items-center gap-2">
                             <span class="material-symbols-outlined text-[#1a6fd4]">quiz</span>
-                            Select Questions
+                            Select Questions from Lessons
                         </h2>
-                        <p class="text-xs text-slate-400 font-medium">Choose questions from available published lessons. Questions from previous exams are excluded.</p>
+                        <p class="text-xs text-slate-400 font-medium">Choose quiz questions from published lessons and customize their points.</p>
                     </div>
                 </div>
 
                 @php $qIndex = 0; @endphp
                 <div class="space-y-6">
-                    @foreach($availableLessons as $lesson)
+                    @forelse($availableLessons as $lesson)
                     @if($lesson->quiz && $lesson->quiz->questions->count() > 0)
                     <div class="lesson-group-card p-5">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 flex-wrap gap-2">
                             <div class="flex items-center gap-3">
                                 <span class="w-8 h-8 rounded-lg bg-blue-50 text-[#0d326b] flex items-center justify-center font-bold text-xs">
                                     📖
@@ -239,92 +254,141 @@
                                     default => 'Question'
                                 };
                             @endphp
-                        <div class="question-item flex items-start gap-4 lesson-q-{{ $lesson->lesson_id }}" id="qContainer_{{ $qIndex }}">
-    <div class="pt-1">
-        <input type="checkbox"
-            class="question-checkbox w-5 h-5 rounded border-slate-300 text-[#0d326b] focus:ring-[#1a6fd4] cursor-pointer"
-            id="qCheck_{{ $qIndex }}"
-            data-qindex="{{ $qIndex }}"
-            onchange="toggleQuestion({{ $qIndex }})">
-    </div>
+                            <div class="question-item flex items-start gap-4 lesson-q-{{ $lesson->lesson_id }}" id="qContainer_{{ $qIndex }}">
+                                <div class="pt-1">
+                                    <input type="checkbox"
+                                        class="question-checkbox w-5 h-5 rounded border-slate-300 text-[#0d326b] focus:ring-[#1a6fd4] cursor-pointer"
+                                        id="qCheck_{{ $qIndex }}"
+                                        data-qindex="{{ $qIndex }}"
+                                        onchange="toggleQuestion({{ $qIndex }})">
+                                </div>
 
-    <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <span class="badge-qtype {{ $typeBadgeClass }}">{{ $typeLabel }}</span>
-            <span class="text-xs text-slate-400 font-medium">Lesson: {{ $lesson->title }}</span>
-        </div>
-        
-        {{-- Question Media --}}
-        @if($question->media_url)
-        <div class="mb-2">
-            @php
-                $mediaPath = $question->media_url;
-                $isImage = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $mediaPath);
-                $isVideo = preg_match('/\.(mp4|mov|avi|mkv|webm)$/i', $mediaPath);
-            @endphp
-            @if($isImage)
-                <img src="{{ asset('storage/' . $mediaPath) }}" alt="Question media" class="max-h-32 rounded-lg border border-slate-200">
-            @elseif($isVideo)
-                <video src="{{ asset('storage/' . $mediaPath) }}" controls class="max-h-32 rounded-lg border border-slate-200"></video>
-            @else
-                <span class="text-xs text-slate-400">📎 Media attached</span>
-            @endif
-        </div>
-        @endif
-        
-        <p class="text-sm font-semibold text-slate-800 mb-2">{{ $question->question_text }}</p>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                        <span class="badge-qtype {{ $typeBadgeClass }}">{{ $typeLabel }}</span>
+                                        <span class="text-xs text-slate-400 font-medium">Lesson: {{ $lesson->title }}</span>
+                                    </div>
 
-        {{-- Options --}}
-        @if($question->options && $question->options->count() > 0)
-        <div class="flex flex-wrap gap-2 text-xs text-slate-500">
-            @foreach($question->options as $opt)
-            <span class="px-2.5 py-1 rounded-md bg-white border border-slate-200 flex items-center gap-1 {{ $opt->is_correct ? 'border-green-300 bg-green-50 text-green-800 font-bold' : '' }}">
-                @if($opt->option_media_url)
-                    @php
-                        $optMediaPath = $opt->option_media_url;
-                        $isOptImage = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $optMediaPath);
-                    @endphp
-                    @if($isOptImage)
-                        <img src="{{ asset('storage/' . $optMediaPath) }}" alt="Option" class="h-5 w-5 object-cover rounded">
-                    @else
-                        <span class="text-slate-400">📎</span>
-                    @endif
-                @endif
-                <span>{{ $opt->option_text }}</span>
-                @if($opt->is_correct)
-                    <span class="text-green-600 text-[10px]">✓</span>
-                @endif
-            </span>
-            @endforeach
-        </div>
-        @endif
-    </div>
+                                    @if($question->media_url)
+                                    <div class="mb-2">
+                                        @php
+                                            $mediaPath = $question->media_url;
+                                            $isImage = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $mediaPath);
+                                            $isVideo = preg_match('/\.(mp4|mov|avi|mkv|webm)$/i', $mediaPath);
+                                        @endphp
+                                        @if($isImage)
+                                            <img src="{{ asset('storage/' . $mediaPath) }}" alt="Question media" class="max-h-32 rounded-lg border border-slate-200">
+                                        @elseif($isVideo)
+                                            <video src="{{ asset('storage/' . $mediaPath) }}" controls class="max-h-32 rounded-lg border border-slate-200"></video>
+                                        @else
+                                            <span class="text-xs text-slate-400">📎 Media attached</span>
+                                        @endif
+                                    </div>
+                                    @endif
 
-    <!-- Points Input -->
-    <div class="w-28 text-right flex flex-col items-end">
-        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Points</label>
-        <input type="number"
-            name="questions[{{ $qIndex }}][points]"
-            id="qPoints_{{ $qIndex }}"
-            value="1" min="1" max="10"
-            disabled
-            oninput="updateSummary()"
-            class="w-16 px-2 py-1 text-center font-bold text-sm rounded-lg border border-slate-200 focus:border-[#1a6fd4] focus:ring-1 focus:ring-[#1a6fd4] outline-none disabled:bg-slate-100 disabled:text-slate-400">
-        <input type="hidden"
-            name="questions[{{ $qIndex }}][source_question_id]"
-            id="qHidden_{{ $qIndex }}"
-            value="{{ $question->question_id }}"
-            disabled>
-    </div>
-</div>
+                                    <p class="text-sm font-semibold text-slate-800 mb-2">{{ $question->question_text }}</p>
+
+                                    @if($question->options && $question->options->count() > 0)
+                                    <div class="flex flex-wrap gap-2 text-xs text-slate-500">
+                                        @foreach($question->options as $opt)
+                                        <span class="px-2.5 py-1 rounded-md bg-white border border-slate-200 flex items-center gap-1 {{ $opt->is_correct ? 'border-green-300 bg-green-50 text-green-800 font-bold' : '' }}">
+                                            @if($opt->option_media_url)
+                                                @php
+                                                    $optMediaPath = $opt->option_media_url;
+                                                    $isOptImage = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $optMediaPath);
+                                                @endphp
+                                                @if($isOptImage)
+                                                    <img src="{{ asset('storage/' . $optMediaPath) }}" alt="Option" class="h-5 w-5 object-cover rounded">
+                                                @else
+                                                    <span class="text-slate-400">📎</span>
+                                                @endif
+                                            @endif
+                                            <span>{{ $opt->option_text }}</span>
+                                            @if($opt->is_correct)
+                                                <span class="text-green-600 text-[10px]">✓</span>
+                                            @endif
+                                        </span>
+                                        @endforeach
+                                    </div>
+                                    @endif
+                                </div>
+
+                                <!-- Editable Points Input -->
+                                <div class="w-28 text-right flex flex-col items-end flex-shrink-0">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Points</label>
+                                    <input type="number"
+                                        name="questions[{{ $qIndex }}][points]"
+                                        id="qPoints_{{ $qIndex }}"
+                                        value="1" min="1" max="50"
+                                        disabled
+                                        oninput="updateSummary()"
+                                        class="w-16 px-2 py-1 text-center font-bold text-sm rounded-lg border border-slate-200 focus:border-[#1a6fd4] focus:ring-1 focus:ring-[#1a6fd4] outline-none disabled:bg-slate-100 disabled:text-slate-400">
+                                    <input type="hidden"
+                                        name="questions[{{ $qIndex }}][source_question_id]"
+                                        id="qHidden_{{ $qIndex }}"
+                                        value="{{ $question->question_id }}"
+                                        disabled>
+                                </div>
+                            </div>
                             @php $qIndex++; @endphp
                             @endforeach
                         </div>
                     </div>
                     @endif
-                    @endforeach
+                    @empty
+                    <div class="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                        No published lesson quizzes available in this module. You can create your own custom questions below!
+                    </div>
+                    @endforelse
                 </div>
             </div>
+
+            <!-- Custom Questions Card -->
+            <div class="exam-card p-6">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-[#0d326b] flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[#1a6fd4]">edit_note</span>
+                            Create Custom Questions
+                        </h2>
+                        <p class="text-xs text-slate-400 font-medium">Add your own questions to this checkpoint exam.</p>
+                    </div>
+
+                    {{-- Question Type Add Buttons --}}
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" onclick="addCustomQuestion('multiple_choice')"
+                            class="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold text-xs flex items-center gap-1.5 transition shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">format_list_bulleted</span>
+                            + Multiple Choice
+                        </button>
+                        <button type="button" onclick="addCustomQuestion('true_false')"
+                            class="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 font-bold text-xs flex items-center gap-1.5 transition shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            + True / False
+                        </button>
+                        <button type="button" onclick="addCustomQuestion('drag_drop')"
+                            class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">drag_indicator</span>
+                            + Drag & Drop
+                        </button>
+                        <button type="button" onclick="addCustomQuestion('gesture')"
+                            class="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold text-xs flex items-center gap-1.5 transition shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">front_hand</span>
+                            + Sign Gesture
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Empty State --}}
+                <div id="customQuestionsEmpty" class="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                    <span class="material-symbols-outlined text-3xl mb-1 text-slate-300 block">add_circle_outline</span>
+                    No custom questions added yet. Use the buttons above to add Multiple Choice, True/False, Drag & Drop, or Sign Gesture questions.
+                </div>
+
+                {{-- Container for dynamically added questions --}}
+                <div id="customQuestionsContainer" class="space-y-4"></div>
+            </div>
+
         </div>
 
         <!-- Sidebar Summary Column (1 Col) -->
@@ -342,6 +406,16 @@
                     </div>
 
                     <div class="flex items-center justify-between">
+                        <span class="text-slate-500 font-medium">Lesson Questions:</span>
+                        <span class="font-bold text-slate-700 text-sm" id="lessonQuestionsCount">0</span>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500 font-medium">Custom Questions:</span>
+                        <span class="font-bold text-indigo-600 text-sm" id="customQuestionsCount">0</span>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span class="text-slate-500 font-medium">Total Exam Points:</span>
                         <span class="font-bold text-green-600 text-lg" id="totalPoints">0 pts</span>
                     </div>
@@ -363,6 +437,9 @@
 </form>
 
 <script>
+const gestureCatalog = @json($gestureModules ?? []);
+let customQuestionCounter = 0;
+
 function toggleQuestion(qIndex) {
     const check = document.getElementById(`qCheck_${qIndex}`);
     const pointsInput = document.getElementById(`qPoints_${qIndex}`);
@@ -396,29 +473,335 @@ function selectAllInLesson(lessonId) {
     });
 }
 
+function addCustomQuestion(type, existingData = null) {
+    const container = document.getElementById('customQuestionsContainer');
+    const emptyState = document.getElementById('customQuestionsEmpty');
+    emptyState.style.display = 'none';
+
+    const index = customQuestionCounter++;
+    const card = document.createElement('div');
+    card.className = 'custom-question-card space-y-4';
+    card.id = `customQCard_${index}`;
+
+    const typeConfig = {
+        multiple_choice: { label: 'Multiple Choice', badgeClass: 'mc', icon: 'format_list_bulleted' },
+        true_false:      { label: 'True / False',    badgeClass: 'tf', icon: 'check_circle' },
+        drag_drop:       { label: 'Drag & Drop',     badgeClass: 'dd', icon: 'drag_indicator' },
+        gesture:         { label: 'Sign Gesture',    badgeClass: 'gt', icon: 'front_hand' }
+    }[type] || { label: 'Question', badgeClass: 'mc', icon: 'quiz' };
+
+    const promptVal = existingData?.question_text ? escapeHtml(existingData.question_text) : '';
+    const pointsVal = existingData?.points || 1;
+
+    let typeHtml = '';
+
+    if (type === 'multiple_choice') {
+        const opts = existingData?.options_data || [
+            { text: '', is_correct: true },
+            { text: '', is_correct: false },
+            { text: '', is_correct: false },
+            { text: '', is_correct: false }
+        ];
+
+        let optsHtml = '';
+        opts.forEach((opt, oIdx) => {
+            const isChecked = opt.is_correct ? 'checked' : (oIdx === 0 ? 'checked' : '');
+            optsHtml += `
+                <div class="flex items-center gap-2">
+                    <input type="radio" name="custom_questions[${index}][correct_index]" value="${oIdx}" ${isChecked}
+                        class="w-4 h-4 text-[#0d326b] focus:ring-[#1a6fd4] cursor-pointer" title="Mark as correct answer">
+                    <input type="text" name="custom_questions[${index}][options][]" value="${escapeHtml(opt.text || '')}" required
+                        placeholder="Option ${oIdx + 1}"
+                        class="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 focus:border-[#1a6fd4] outline-none">
+                </div>
+            `;
+        });
+
+        typeHtml = `
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Options (Select radio for correct answer)</label>
+                <div class="space-y-2">${optsHtml}</div>
+            </div>
+        `;
+    } else if (type === 'true_false') {
+        const isTrueCorrect = existingData?.correct_answer === 'True' || (!existingData?.correct_answer || existingData?.correct_answer !== 'False');
+        typeHtml = `
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Correct Answer</label>
+                <div class="flex items-center gap-6">
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                        <input type="radio" name="custom_questions[${index}][correct_answer]" value="True" ${isTrueCorrect ? 'checked' : ''}
+                            class="w-4 h-4 text-[#0d326b] focus:ring-[#1a6fd4]">
+                        True
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                        <input type="radio" name="custom_questions[${index}][correct_answer]" value="False" ${!isTrueCorrect ? 'checked' : ''}
+                            class="w-4 h-4 text-[#0d326b] focus:ring-[#1a6fd4]">
+                        False
+                    </label>
+                </div>
+            </div>
+        `;
+    } else if (type === 'drag_drop') {
+        const pairs = existingData?.drag_drop_pairs && existingData.drag_drop_pairs.length > 0
+            ? existingData.drag_drop_pairs
+            : [{ left_text: '', right_text: '' }, { left_text: '', right_text: '' }];
+
+        let pairsHtml = '';
+        pairs.forEach((p, pIdx) => {
+            pairsHtml += createPairRowHtml(index, pIdx, p.left_text || p.left || '', p.right_text || p.right || '');
+        });
+
+        typeHtml = `
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Matching Pairs</label>
+                    <button type="button" onclick="addPairToQuestion(${index})" class="text-xs font-bold text-[#1a6fd4] hover:underline flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">add</span> Add Pair
+                    </button>
+                </div>
+                <div id="pairsContainer_${index}" class="space-y-2">${pairsHtml}</div>
+            </div>
+        `;
+    } else if (type === 'gesture') {
+        const currentModId = existingData?.gesture_data?.module_id || '';
+        const currentGestureName = existingData?.gesture_data?.gesture_name || existingData?.correct_answer || '';
+        const currentFSWords = existingData?.gesture_data?.fingerspelling_words || existingData?.fingerspelling_words || '';
+
+        let modOptions = '<option value="">-- Choose Gesture Module --</option>';
+        gestureCatalog.forEach(gm => {
+            const isSel = String(gm.module_id) === String(currentModId) ? 'selected' : '';
+            modOptions += `<option value="${gm.module_id}" data-name="${escapeHtml(gm.name)}" ${isSel}>${escapeHtml(gm.display_name || gm.name)}</option>`;
+        });
+
+        typeHtml = `
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Select Target Gesture</label>
+                <div class="space-y-3">
+                    <div>
+                        <select name="custom_questions[${index}][module_id]" id="gestureModuleSelect_${index}"
+                            onchange="onGestureModuleChange(${index})" required
+                            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:border-[#1a6fd4] outline-none">
+                            ${modOptions}
+                        </select>
+                    </div>
+                    <div id="gestureItemContainer_${index}">
+                        <select name="custom_questions[${index}][gesture_name]" id="gestureItemSelect_${index}"
+                            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:border-[#1a6fd4] outline-none">
+                            <option value="">-- Select Gesture --</option>
+                        </select>
+                    </div>
+                    <div id="fingerspellingContainer_${index}" style="display:none;">
+                        <label class="block text-[11px] font-bold text-indigo-600 uppercase tracking-wider mb-1">
+                            <span class="material-symbols-outlined text-[14px] align-middle">spellcheck</span>
+                            Fingerspelling Words (one per line, e.g. CAT)
+                        </label>
+                        <textarea name="custom_questions[${index}][fingerspelling_words]" id="fingerspellingWords_${index}"
+                            rows="4" placeholder="CAT&#10;SUN&#10;PEN"
+                            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:border-[#1a6fd4] focus:ring-1 focus:ring-indigo-400 outline-none resize-y">${escapeHtml(currentFSWords)}</textarea>
+                        <p class="text-[10px] text-slate-400 mt-1">Each line is one word. Students will fingerspell each letter of the word using FSL hand signs.</p>
+                        <input type="hidden" name="custom_questions[${index}][is_fingerspelling]" value="1">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    const existingMediaHtml = existingData?.media_url ? `
+        <div class="mb-2">
+            <span class="text-[11px] text-slate-400 block mb-1">Attached Media:</span>
+            <img src="/storage/${existingData.media_url}" class="max-h-24 rounded-lg border border-slate-200">
+            <input type="hidden" name="custom_questions[${index}][existing_media]" value="${escapeHtml(existingData.media_url)}">
+        </div>
+    ` : '';
+
+    card.innerHTML = `
+        <input type="hidden" name="custom_questions[${index}][question_type]" value="${type}">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <span class="badge-qtype ${typeConfig.badgeClass}">
+                    <span class="material-symbols-outlined text-[13px]">${typeConfig.icon}</span>
+                    ${typeConfig.label}
+                </span>
+                <span class="text-xs font-bold text-slate-500">Custom Question</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Points</label>
+                    <input type="number" name="custom_questions[${index}][points]" value="${pointsVal}" min="1" max="50"
+                        oninput="updateSummary()"
+                        class="custom-q-points w-16 px-2 py-1 text-center font-bold text-sm rounded-lg border border-slate-200 focus:border-[#1a6fd4] outline-none">
+                </div>
+                <button type="button" onclick="removeCustomQuestion(${index})" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete Question">
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Question Prompt *</label>
+            <textarea name="custom_questions[${index}][question_text]" rows="2" required placeholder="Type question prompt..."
+                class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:border-[#1a6fd4] focus:ring-1 focus:ring-[#1a6fd4] outline-none">${promptVal}</textarea>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Optional Media (Image / Video)</label>
+            ${existingMediaHtml}
+            <input type="file" name="custom_questions[${index}][media]" accept="image/*,video/*"
+                class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-[#0d326b] hover:file:bg-blue-100 cursor-pointer">
+        </div>
+
+        ${typeHtml}
+    `;
+
+    container.appendChild(card);
+
+    if (type === 'gesture') {
+        const currentModId = existingData?.gesture_data?.module_id;
+        const currentGestureName = existingData?.gesture_data?.gesture_name || existingData?.correct_answer;
+        if (currentModId) {
+            onGestureModuleChange(index, currentGestureName);
+        }
+    }
+
+    updateSummary();
+}
+
+function removeCustomQuestion(index) {
+    const card = document.getElementById(`customQCard_${index}`);
+    if (card) {
+        card.remove();
+        const container = document.getElementById('customQuestionsContainer');
+        if (container.children.length === 0) {
+            document.getElementById('customQuestionsEmpty').style.display = 'block';
+        }
+        updateSummary();
+    }
+}
+
+function createPairRowHtml(qIndex, pIndex, leftVal = '', rightVal = '') {
+    return `
+        <div class="flex items-center gap-2 pair-row" id="pairRow_${qIndex}_${pIndex}">
+            <input type="text" name="custom_questions[qIndex][pairs][${pIndex}][left]" value="${escapeHtml(leftVal)}" required
+                placeholder="Left Item (e.g. Letter A)"
+                class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 focus:border-[#1a6fd4] outline-none">
+            <span class="text-slate-400 font-bold text-xs">➡️</span>
+            <input type="text" name="custom_questions[${qIndex}][pairs][${pIndex}][right]" value="${escapeHtml(rightVal)}" required
+                placeholder="Matches with (e.g. Hand sign A)"
+                class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-800 focus:border-[#1a6fd4] outline-none">
+            <button type="button" onclick="this.closest('.pair-row').remove(); updateSummary();" class="p-1 text-slate-300 hover:text-red-500 rounded" title="Remove Pair">
+                <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
+        </div>
+    `.replace(/custom_questions\[qIndex\]/g, `custom_questions[${qIndex}]`);
+}
+
+function addPairToQuestion(qIndex) {
+    const container = document.getElementById(`pairsContainer_${qIndex}`);
+    if (!container) return;
+    const pIndex = container.querySelectorAll('.pair-row').length + Date.now();
+    const div = document.createElement('div');
+    div.innerHTML = createPairRowHtml(qIndex, pIndex);
+    container.appendChild(div.firstElementChild);
+}
+
+function onGestureModuleChange(qIndex, selectedGestureName = null) {
+    const modSelect = document.getElementById(`gestureModuleSelect_${qIndex}`);
+    const itemSelect = document.getElementById(`gestureItemSelect_${qIndex}`);
+    const itemContainer = document.getElementById(`gestureItemContainer_${qIndex}`);
+    const fsContainer = document.getElementById(`fingerspellingContainer_${qIndex}`);
+    if (!modSelect) return;
+
+    const modId = modSelect.value;
+    if (!modId) {
+        if (itemSelect) itemSelect.innerHTML = '<option value="">-- Select Gesture --</option>';
+        if (itemContainer) itemContainer.style.display = 'block';
+        if (fsContainer) fsContainer.style.display = 'none';
+        return;
+    }
+
+    const selectedOption = modSelect.options[modSelect.selectedIndex];
+    const modName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+    const isFingerspelling = (modName === 'fingerspelling');
+
+    if (isFingerspelling) {
+        // Show fingerspelling word input, hide gesture dropdown
+        if (itemContainer) itemContainer.style.display = 'none';
+        if (itemSelect) {
+            itemSelect.removeAttribute('required');
+            itemSelect.innerHTML = '<option value="">-- n/a fingerspelling --</option>';
+        }
+        if (fsContainer) fsContainer.style.display = 'block';
+    } else {
+        // Show gesture dropdown, hide fingerspelling input
+        if (itemContainer) itemContainer.style.display = 'block';
+        if (itemSelect) {
+            itemSelect.setAttribute('required', 'required');
+            itemSelect.innerHTML = '<option value="">-- Select Gesture --</option>';
+        }
+        if (fsContainer) fsContainer.style.display = 'none';
+
+        const mod = gestureCatalog.find(m => String(m.module_id) === String(modId));
+        if (mod && mod.gestures && itemSelect) {
+            mod.gestures.forEach(g => {
+                const isSel = (selectedGestureName && (g.name === selectedGestureName || g.display_name === selectedGestureName)) ? 'selected' : '';
+                const opt = document.createElement('option');
+                opt.value = g.name;
+                opt.textContent = g.display_name || g.name;
+                if (isSel) opt.selected = true;
+                itemSelect.appendChild(opt);
+            });
+        }
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function updateSummary() {
     const checkboxes = document.querySelectorAll('.question-checkbox');
-    let count = 0;
+    let lessonCount = 0;
     let totalPts = 0;
 
     checkboxes.forEach(cb => {
         if (cb.checked) {
-            count++;
+            lessonCount++;
             const qIndex = cb.getAttribute('data-qindex');
-            const pts = parseInt(document.getElementById(`qPoints_${qIndex}`).value) || 1;
+            const pts = parseInt(document.getElementById(`qPoints_${qIndex}`)?.value) || 1;
             totalPts += pts;
         }
     });
 
+    const customCards = document.querySelectorAll('.custom-question-card');
+    let customCount = customCards.length;
+
+    customCards.forEach(card => {
+        const ptsInput = card.querySelector('.custom-q-points');
+        const pts = parseInt(ptsInput?.value) || 1;
+        totalPts += pts;
+    });
+
+    const totalCount = lessonCount + customCount;
     const passPercent = parseInt(document.getElementById('passingScoreInput').value) || 60;
     const passPts = Math.max(1, Math.round((passPercent / 100) * totalPts));
 
-    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('selectedCount').textContent = totalCount;
+    document.getElementById('lessonQuestionsCount').textContent = `${lessonCount} question(s)`;
+    document.getElementById('customQuestionsCount').textContent = `${customCount} question(s)`;
     document.getElementById('totalPoints').textContent = `${totalPts} pts`;
     document.getElementById('passingScoreCalc').textContent = `${passPts} pts (${passPercent}%)`;
 
     const submitBtn = document.getElementById('submitBtn');
-    submitBtn.disabled = (count === 0);
+    if (submitBtn) {
+        submitBtn.disabled = (totalCount === 0);
+    }
 }
 
 document.getElementById('passingScoreInput')?.addEventListener('input', updateSummary);

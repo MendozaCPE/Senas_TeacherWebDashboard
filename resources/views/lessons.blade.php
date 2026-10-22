@@ -636,6 +636,7 @@
 
                         <div class="flex items-center gap-2">
                             <a href="{{ route('lessons.checkpoint-exam.show', $exam->hash_id) }}" class="action-link primary" title="View Exam">View Exam</a>
+                            <a href="{{ route('lessons.checkpoint-exam.edit', $exam->hash_id) }}" class="action-link" title="Edit Exam" style="color: #64748b;">Edit</a>
                             <form action="{{ route('lessons.checkpoint-exam.destroy', $exam->hash_id) }}" method="POST" class="inline" onsubmit="return confirm('Delete this checkpoint exam?');">
                                 @csrf
                                 @method('DELETE')

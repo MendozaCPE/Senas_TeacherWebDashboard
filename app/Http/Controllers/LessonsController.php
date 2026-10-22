@@ -2275,7 +2275,14 @@ public function createCheckpointExam(Request $request)
         }
     }
 
-    return view('lessons.checkpoint-exam.create', compact('module', 'availableLessons', 'availableQuestions'));
+    $gestureModules = GestureModule::where('is_active', true)
+        ->orderBy('order')
+        ->with(['gestures' => function ($q) {
+            $q->select('gesture_id', 'module_id', 'name', 'display_name');
+        }])
+        ->get(['module_id', 'name', 'display_name']);
+
+    return view('lessons.checkpoint-exam.create', compact('module', 'availableLessons', 'availableQuestions', 'gestureModules'));
 }
 
 /**
@@ -2288,23 +2295,44 @@ public function storeCheckpointExam(Request $request)
         'module_id' => 'required|exists:modules,module_id',
         'title' => 'required|string|max:255',
         'description' => 'nullable|string|max:1000',
-        'questions' => 'required|array|min:1',
-        'questions.*.source_question_id' => 'required|exists:quiz_questions,question_id',
-        'questions.*.points' => 'required|integer|min:1|max:10',
         'passing_score_percentage' => 'nullable|integer|min:1|max:100',
         'time_limit_minutes' => 'nullable|integer|min:1|max:180',
     ]);
 
     $teacherId = $this->resolveTeacherId();
     $module = Module::where('module_id', $validated['module_id'])
-        ->where('teacher_id', $teacherId)
+        ->when(!$this->isAdminTemplateContext(), function($q) use ($teacherId) {
+            $q->where('teacher_id', $teacherId);
+        })
         ->firstOrFail();
 
-    $totalPoints = array_sum(array_column($validated['questions'], 'points'));
+    $lessonQuestions = $request->input('questions', []);
+    $customQuestions = $request->input('custom_questions', []);
+
+    $validLessonQuestions = array_filter((array)$lessonQuestions, function($q) {
+        return !empty($q['source_question_id']);
+    });
+
+    $validCustomQuestions = array_filter((array)$customQuestions, function($cq) {
+        return !empty(trim($cq['question_text'] ?? ''));
+    });
+
+    if (empty($validLessonQuestions) && empty($validCustomQuestions)) {
+        return back()->withInput()->withErrors(['questions' => 'Please select at least one lesson question or add a custom question.']);
+    }
+
+    $totalPoints = 0;
+    foreach ($validLessonQuestions as $lq) {
+        $totalPoints += max(1, (int)($lq['points'] ?? 1));
+    }
+    foreach ($validCustomQuestions as $cq) {
+        $totalPoints += max(1, (int)($cq['points'] ?? 1));
+    }
+
     $passingPercentage = $validated['passing_score_percentage'] ?? 60;
     $passingScore = max(1, round(($passingPercentage / 100) * $totalPoints));
 
-    $exam = DB::transaction(function () use ($validated, $teacherId, $module, $totalPoints, $passingScore) {
+    $exam = DB::transaction(function () use ($validated, $teacherId, $totalPoints, $passingScore, $validLessonQuestions, $validCustomQuestions, $request) {
         $exam = CheckpointExam::create([
             'module_id' => $validated['module_id'],
             'teacher_id' => $teacherId,
@@ -2317,80 +2345,7 @@ public function storeCheckpointExam(Request $request)
             'is_template' => $this->isAdminTemplateContext(),
         ]);
 
-        $questionNumber = 1;
-        foreach ($validated['questions'] as $questionData) {
-            $sourceQuestion = QuizQuestion::with('options')->findOrFail($questionData['source_question_id']);
-
-            // Get the correct answer
-            $correctAnswer = null;
-            if ($sourceQuestion->question_type === 'multiple_choice' || $sourceQuestion->question_type === 'true_false') {
-                $correctOption = $sourceQuestion->options->where('is_correct', true)->first();
-                $correctAnswer = $correctOption ? $correctOption->option_text : null;
-            }
-
-            // 🔥 FIX: Properly extract drag_drop_pairs
-            $dragDropPairs = null;
-            if ($sourceQuestion->question_type === 'drag_drop') {
-                $dragDropPairs = $sourceQuestion->drag_drop_pairs;
-                // If it's a string, decode it
-                if (is_string($dragDropPairs)) {
-                    $dragDropPairs = json_decode($dragDropPairs, true);
-                }
-                // Ensure it's an array
-                if (!is_array($dragDropPairs)) {
-                    $dragDropPairs = [];
-                }
-                // If empty, set to null so it stores as NULL in database
-                if (empty($dragDropPairs)) {
-                    $dragDropPairs = null;
-                }
-            }
-
-            // 🔥 FIX: Properly extract gesture_data
-            $gestureData = null;
-            if ($sourceQuestion->question_type === 'gesture') {
-                $gestureData = $sourceQuestion->gesture_data;
-                if (is_string($gestureData)) {
-                    $gestureData = json_decode($gestureData, true);
-                }
-                if (!is_array($gestureData)) {
-                    $gestureData = [];
-                }
-                if (empty($gestureData)) {
-                    $gestureData = null;
-                }
-            }
-
-            // 🔥 FIX: Properly extract options_data
-            $optionsData = null;
-            if (in_array($sourceQuestion->question_type, ['multiple_choice', 'true_false'])) {
-                $optionsData = $sourceQuestion->options->map(function($opt) {
-                    return [
-                        'text' => $opt->option_text,
-                        'image' => $opt->option_media_url,
-                        'is_correct' => $opt->is_correct,
-                    ];
-                })->toArray();
-                if (empty($optionsData)) {
-                    $optionsData = null;
-                }
-            }
-
-            CheckpointExamQuestion::create([
-                'exam_id' => $exam->exam_id,
-                'source_lesson_id' => $sourceQuestion->quiz->lesson_id,
-                'source_question_id' => $sourceQuestion->question_id,
-                'question_number' => $questionNumber++,
-                'question_text' => $sourceQuestion->question_text,
-                'question_type' => $sourceQuestion->question_type,
-                'media_url' => $sourceQuestion->media_url,
-                'points' => $questionData['points'],
-                'options_data' => $optionsData,
-                'drag_drop_pairs' => $dragDropPairs,
-                'gesture_data' => $gestureData,
-                'correct_answer' => $correctAnswer,
-            ]);
-        }
+        $this->syncExamQuestions($exam, $validLessonQuestions, $validCustomQuestions, $request);
 
         return $exam;
     });
@@ -2401,6 +2356,387 @@ public function storeCheckpointExam(Request $request)
 
     return redirect()->route($showRoute, $exam->hash_id)
         ->with('success', 'Checkpoint exam created successfully! You can now publish it to students.');
+}
+
+/**
+ * Show the checkpoint exam edit form.
+ * GET /lessons/checkpoint-exam/{id}/edit
+ */
+public function editCheckpointExam($id)
+{
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $teacherId = $this->resolveTeacherId();
+
+    $query = CheckpointExam::with(['questions', 'module']);
+    if (!$this->isAdminTemplateContext()) {
+        $query->where('teacher_id', $teacherId);
+    }
+    $exam = $query->findOrFail($realId);
+
+    $module = $exam->module;
+    $moduleId = $module->module_id;
+
+    // Get all published lessons in this module with their quiz questions
+    $lessons = Lesson::where('module_id', $moduleId)
+        ->when(!$this->isAdminTemplateContext(), function($q) use ($teacherId) {
+            $q->where('teacher_id', $teacherId);
+        })
+        ->where('status', 'published')
+        ->with(['quiz.questions' => function($query) {
+            $query->orderBy('question_number');
+        }])
+        ->orderBy('module_order')
+        ->get();
+
+    $lessonsWithQuizzes = $lessons->filter(function($lesson) {
+        return $lesson->quiz && $lesson->quiz->questions->count() > 0;
+    });
+
+    // Exclude lessons used in OTHER exams for this module
+    $otherUsedLessonIds = CheckpointExamQuestion::whereHas('exam', function($query) use ($moduleId, $exam) {
+        $query->where('module_id', $moduleId)->where('exam_id', '!=', $exam->exam_id);
+    })->whereNotNull('source_lesson_id')->distinct('source_lesson_id')->pluck('source_lesson_id')->toArray();
+
+    $availableLessons = $lessonsWithQuizzes->filter(function($lesson) use ($otherUsedLessonIds) {
+        return !in_array($lesson->lesson_id, $otherUsedLessonIds);
+    });
+
+    if ($availableLessons->isEmpty()) {
+        $availableLessons = $lessonsWithQuizzes;
+    }
+
+    // Map existing exam questions
+    $selectedLessonQuestions = [];
+    $existingCustomQuestions = [];
+
+    foreach ($exam->questions->sortBy('question_number') as $q) {
+        if ($q->source_question_id) {
+            $selectedLessonQuestions[$q->source_question_id] = [
+                'points' => $q->points,
+            ];
+        } else {
+            $optionsData = is_string($q->options_data) ? json_decode($q->options_data, true) : ($q->options_data ?? []);
+            $dragDropPairs = is_string($q->drag_drop_pairs) ? json_decode($q->drag_drop_pairs, true) : ($q->drag_drop_pairs ?? []);
+            $gestureData = is_string($q->gesture_data) ? json_decode($q->gesture_data, true) : ($q->gesture_data ?? []);
+
+            $existingCustomQuestions[] = [
+                'question_id' => $q->question_id,
+                'question_text' => $q->question_text,
+                'question_type' => $q->question_type,
+                'media_url' => $q->media_url,
+                'points' => $q->points,
+                'options_data' => $optionsData,
+                'drag_drop_pairs' => $dragDropPairs,
+                'gesture_data' => $gestureData,
+                'correct_answer' => $q->correct_answer,
+            ];
+        }
+    }
+
+    $gestureModules = GestureModule::where('is_active', true)
+        ->orderBy('order')
+        ->with(['gestures' => function ($q) {
+            $q->select('gesture_id', 'module_id', 'name', 'display_name');
+        }])
+        ->get(['module_id', 'name', 'display_name']);
+
+    return view('lessons.checkpoint-exam.edit', compact(
+        'exam',
+        'module',
+        'availableLessons',
+        'selectedLessonQuestions',
+        'existingCustomQuestions',
+        'gestureModules'
+    ));
+}
+
+/**
+ * Update a checkpoint exam.
+ * PUT /lessons/checkpoint-exam/{id}
+ */
+public function updateCheckpointExam(Request $request, $id)
+{
+    $realId = \App\Support\UrlObfuscator::decode($id) ?? $id;
+    $teacherId = $this->resolveTeacherId();
+
+    $query = CheckpointExam::query();
+    if (!$this->isAdminTemplateContext()) {
+        $query->where('teacher_id', $teacherId);
+    }
+    $exam = $query->findOrFail($realId);
+
+    $validated = $request->validate([
+        'title' => 'required|string|max:255',
+        'description' => 'nullable|string|max:1000',
+        'passing_score_percentage' => 'nullable|integer|min:1|max:100',
+        'time_limit_minutes' => 'nullable|integer|min:1|max:180',
+    ]);
+
+    $lessonQuestions = $request->input('questions', []);
+    $customQuestions = $request->input('custom_questions', []);
+
+    $validLessonQuestions = array_filter((array)$lessonQuestions, function($q) {
+        return !empty($q['source_question_id']);
+    });
+
+    $validCustomQuestions = array_filter((array)$customQuestions, function($cq) {
+        return !empty(trim($cq['question_text'] ?? ''));
+    });
+
+    if (empty($validLessonQuestions) && empty($validCustomQuestions)) {
+        return back()->withInput()->withErrors(['questions' => 'Please select at least one lesson question or add a custom question.']);
+    }
+
+    $totalPoints = 0;
+    foreach ($validLessonQuestions as $lq) {
+        $totalPoints += max(1, (int)($lq['points'] ?? 1));
+    }
+    foreach ($validCustomQuestions as $cq) {
+        $totalPoints += max(1, (int)($cq['points'] ?? 1));
+    }
+
+    $passingPercentage = $validated['passing_score_percentage'] ?? 60;
+    $passingScore = max(1, round(($passingPercentage / 100) * $totalPoints));
+
+    DB::transaction(function () use ($exam, $validated, $totalPoints, $passingScore, $validLessonQuestions, $validCustomQuestions, $request) {
+        $exam->update([
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'total_points' => $totalPoints,
+            'passing_score' => $passingScore,
+            'time_limit_minutes' => $validated['time_limit_minutes'] ?? 60,
+        ]);
+
+        $this->syncExamQuestions($exam, $validLessonQuestions, $validCustomQuestions, $request);
+    });
+
+    $showRoute = $this->isAdminTemplateContext()
+        ? 'admin.lesson-templates.checkpoint-exam.show'
+        : 'lessons.checkpoint-exam.show';
+
+    return redirect()->route($showRoute, $exam->hash_id)
+        ->with('success', 'Checkpoint exam updated successfully!');
+}
+
+/**
+ * Synchronize questions for a checkpoint exam (both lesson questions and custom questions).
+ */
+private function syncExamQuestions(CheckpointExam $exam, array $validLessonQuestions, array $validCustomQuestions, Request $request): void
+{
+    CheckpointExamQuestion::where('exam_id', $exam->exam_id)->delete();
+
+    $questionNumber = 1;
+
+    // 1. Process selected lesson questions
+    foreach ($validLessonQuestions as $questionData) {
+        $sourceQuestion = QuizQuestion::with('options')->findOrFail($questionData['source_question_id']);
+
+        $correctAnswer = null;
+        if ($sourceQuestion->question_type === 'multiple_choice' || $sourceQuestion->question_type === 'true_false') {
+            $correctOption = $sourceQuestion->options->where('is_correct', true)->first();
+            $correctAnswer = $correctOption ? $correctOption->option_text : null;
+        }
+
+        $dragDropPairs = null;
+        if ($sourceQuestion->question_type === 'drag_drop') {
+            $dragDropPairs = $sourceQuestion->drag_drop_pairs;
+            if (is_string($dragDropPairs)) {
+                $dragDropPairs = json_decode($dragDropPairs, true);
+            }
+            if (!is_array($dragDropPairs)) {
+                $dragDropPairs = [];
+            }
+            if (empty($dragDropPairs)) {
+                $dragDropPairs = null;
+            }
+        }
+
+        $gestureData = null;
+        if ($sourceQuestion->question_type === 'gesture') {
+            $gestureData = $sourceQuestion->gesture_data;
+            if (is_string($gestureData)) {
+                $gestureData = json_decode($gestureData, true);
+            }
+            if (!is_array($gestureData)) {
+                $gestureData = [];
+            }
+            if (empty($gestureData)) {
+                $gestureData = null;
+            }
+        }
+
+        $optionsData = null;
+        if (in_array($sourceQuestion->question_type, ['multiple_choice', 'true_false'])) {
+            $optionsData = $sourceQuestion->options->map(function($opt) {
+                return [
+                    'text' => $opt->option_text,
+                    'image' => $opt->option_media_url,
+                    'is_correct' => (bool)$opt->is_correct,
+                ];
+            })->toArray();
+            if (empty($optionsData)) {
+                $optionsData = null;
+            }
+        }
+
+        CheckpointExamQuestion::create([
+            'exam_id' => $exam->exam_id,
+            'source_lesson_id' => $sourceQuestion->quiz->lesson_id,
+            'source_question_id' => $sourceQuestion->question_id,
+            'question_number' => $questionNumber++,
+            'question_text' => $sourceQuestion->question_text,
+            'question_type' => $sourceQuestion->question_type,
+            'media_url' => $sourceQuestion->media_url,
+            'points' => max(1, (int)($questionData['points'] ?? 1)),
+            'options_data' => $optionsData,
+            'drag_drop_pairs' => $dragDropPairs,
+            'gesture_data' => $gestureData,
+            'correct_answer' => $correctAnswer,
+        ]);
+    }
+
+    // 2. Process custom questions
+    foreach ($validCustomQuestions as $cIndex => $cData) {
+        $qType = $cData['question_type'] ?? 'multiple_choice';
+        $qText = trim($cData['question_text'] ?? '');
+        if (empty($qText)) {
+            continue;
+        }
+
+        $points = max(1, (int)($cData['points'] ?? 1));
+
+        // Media handling
+        $mediaUrl = null;
+        if ($request->hasFile("custom_questions.{$cIndex}.media")) {
+            $file = $request->file("custom_questions.{$cIndex}.media");
+            $mediaUrl = $this->uploadPublicFile($file, 'checkpoint_exam_media');
+        } elseif (!empty($cData['existing_media'])) {
+            $mediaUrl = $cData['existing_media'];
+        }
+
+        $optionsData = null;
+        $dragDropPairs = null;
+        $gestureData = null;
+        $correctAnswer = null;
+
+        if ($qType === 'multiple_choice') {
+            $opts = $cData['options'] ?? [];
+            $correctIndex = isset($cData['correct_index']) ? (int)$cData['correct_index'] : 0;
+            $optionsData = [];
+            foreach (array_values($opts) as $optIdx => $optText) {
+                $optTextTrim = trim((string)$optText);
+                if ($optTextTrim === '') continue;
+                $isCorrect = ($optIdx === $correctIndex);
+                $optionsData[] = [
+                    'text' => $optTextTrim,
+                    'image' => null,
+                    'is_correct' => $isCorrect,
+                ];
+                if ($isCorrect) {
+                    $correctAnswer = $optTextTrim;
+                }
+            }
+        } elseif ($qType === 'true_false') {
+            $ans = strtolower(trim((string)($cData['correct_answer'] ?? 'true'))) === 'false' ? 'False' : 'True';
+            $correctAnswer = $ans;
+            $optionsData = [
+                ['text' => 'True', 'image' => null, 'is_correct' => ($ans === 'True')],
+                ['text' => 'False', 'image' => null, 'is_correct' => ($ans === 'False')],
+            ];
+        } elseif ($qType === 'drag_drop') {
+            $rawPairs = $cData['pairs'] ?? [];
+            $dragDropPairs = [];
+            foreach (array_values($rawPairs) as $pIdx => $pair) {
+                $left = trim((string)($pair['left'] ?? $pair['left_text'] ?? ''));
+                $right = trim((string)($pair['right'] ?? $pair['right_text'] ?? ''));
+                if ($left !== '' || $right !== '') {
+                    $dragDropPairs[] = [
+                        'left_text' => $left,
+                        'right_text' => $right,
+                        'left_image' => null,
+                        'right_image' => null,
+                        'match_id' => $pIdx,
+                    ];
+                }
+            }
+            $correctAnswer = count($dragDropPairs) . ' pairs';
+        } elseif ($qType === 'gesture') {
+            $moduleId = $cData['module_id'] ?? null;
+            $isFingerspelling = !empty($cData['is_fingerspelling']);
+
+            // Check if this module is fingerspelling (module 6 / name 'fingerspelling')
+            if (!$isFingerspelling && $moduleId) {
+                $gMod = \App\Models\GestureModule::where('module_id', $moduleId)->first();
+                if ($gMod && $gMod->name === 'fingerspelling') {
+                    $isFingerspelling = true;
+                }
+            }
+
+            if ($isFingerspelling) {
+                // Fingerspelling: parse words from textarea
+                $wordsText = trim((string)($cData['fingerspelling_words'] ?? ''));
+                $words = array_values(array_filter(
+                    array_map(fn($w) => preg_replace('/[^A-Z]/', '', strtoupper(trim($w))), explode("\n", $wordsText)),
+                    fn($w) => strlen($w) > 0
+                ));
+
+                // Build gesture IDs from letters
+                $allGestureIds = [];
+                foreach ($words as $word) {
+                    foreach (str_split($word) as $letter) {
+                        $gid = $this->letterToGestureId($letter);
+                        if ($gid) $allGestureIds[] = $gid;
+                    }
+                }
+                $allGestureIds = array_values(array_unique($allGestureIds));
+
+                $correctAnswer = implode(', ', $words) ?: 'Fingerspelling';
+                $gestureData = [
+                    'module_id' => $moduleId ?? '6',
+                    'is_fingerspelling' => true,
+                    'fingerspelling_words' => implode("\n", $words),
+                    'words' => $words,
+                    'gesture_ids' => $allGestureIds,
+                ];
+            } else {
+                $gestureName = trim((string)($cData['gesture_name'] ?? ''));
+                $gestureId = !empty($cData['gesture_id']) ? (int)$cData['gesture_id'] : null;
+
+                $gesture = null;
+                if ($gestureId) {
+                    $gesture = Gesture::find($gestureId);
+                } elseif (!empty($gestureName)) {
+                    $gesture = Gesture::where('name', $gestureName)->first();
+                }
+
+                $gestureIds = $gesture ? [$gesture->gesture_id] : ($gestureId ? [$gestureId] : []);
+                $finalName = $gesture ? $gesture->name : $gestureName;
+                $correctAnswer = $finalName;
+
+                $gestureData = [
+                    'module_id' => $moduleId ?? ($gesture ? $gesture->module_id : null),
+                    'gesture_ids' => $gestureIds,
+                    'gesture_name' => $finalName,
+                    'target_gesture' => $finalName,
+                ];
+            }
+        }
+
+        CheckpointExamQuestion::create([
+            'exam_id' => $exam->exam_id,
+            'source_lesson_id' => null,
+            'source_question_id' => null,
+            'question_number' => $questionNumber++,
+            'question_text' => $qText,
+            'question_type' => $qType,
+            'media_url' => $mediaUrl,
+            'points' => $points,
+            'options_data' => $optionsData,
+            'drag_drop_pairs' => $dragDropPairs,
+            'gesture_data' => $gestureData,
+            'correct_answer' => $correctAnswer,
+        ]);
+    }
 }
 
 /**

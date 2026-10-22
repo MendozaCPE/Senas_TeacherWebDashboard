@@ -297,6 +297,8 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
         Route::get('/create', [LessonsController::class, 'createCheckpointExam'])->name('create');
         Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
         Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
+        Route::get('/{id}/edit', [LessonsController::class, 'editCheckpointExam'])->name('edit');
+        Route::put('/{id}', [LessonsController::class, 'updateCheckpointExam'])->name('update');
         Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
         Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
         Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
@@ -380,6 +382,8 @@ Route::prefix('lessons')->name('lesson-templates.')->group(function () {
         Route::post('/', [LessonsController::class, 'storeCheckpointExam'])->name('store');
         Route::get('/available-questions', [LessonsController::class, 'getAvailableExamQuestions'])->name('available-questions');
         Route::get('/{id}', [LessonsController::class, 'showCheckpointExam'])->name('show');
+        Route::get('/{id}/edit', [LessonsController::class, 'editCheckpointExam'])->name('edit');
+        Route::put('/{id}', [LessonsController::class, 'updateCheckpointExam'])->name('update');
         Route::post('/{id}/publish', [LessonsController::class, 'publishCheckpointExam'])->name('publish');
         Route::delete('/{id}', [LessonsController::class, 'destroyCheckpointExam'])->name('destroy');
     });

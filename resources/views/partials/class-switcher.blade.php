@@ -6,9 +6,32 @@
     $activeClassroomId = session('active_classroom_id');
     $activeClass = $classrooms->firstWhere('id', $activeClassroomId);
     $totalTeacherStudents = $teacher ? \App\Models\Student::where('teacher_id', $teacher->id)->where('is_enrolled', true)->count() : 0;
+
+    // Hide class switcher on lesson inner pages (create/edit/show/checkpoint-exam/media-library/preview)
+    // Keep it visible only on the main lessons index
+    $hideSwitcher = request()->is(
+        'lessons/create',
+        'lessons/*/edit',
+        'lessons/checkpoint-exam*',
+        'lessons/media-library*',
+        'lessons/my-uploads',
+        'lessons/preview',
+        'admin/lessons/create',
+        'admin/lessons/*/edit',
+        'admin/lessons/checkpoint-exam*',
+        'admin/lessons/media-library*',
+        'admin/lessons/my-uploads',
+        'admin/lessons/preview'
+    );
+    // Also hide for lesson show/view pages (lessons/{id}/view, lessons/{lesson})
+    // We detect by checking if we're on a non-index lesson path that isn't the main list
+    if (!$hideSwitcher && request()->is('lessons/*')) {
+        $hideSwitcher = true;
+    }
 @endphp
 
-@if($teacher && $classrooms->isNotEmpty())
+@if($teacher && $classrooms->isNotEmpty() && !$hideSwitcher)
+
 <div class="px-8 py-2.5 flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/85 backdrop-blur-md z-20 shadow-2xs">
     <!-- Left: Subtabs / Class Switcher Pills -->
     <div class="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">

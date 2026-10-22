@@ -413,9 +413,12 @@
                                     {{ $exam->total_points }} pts · {{ $exam->questions->count() }} question(s)
                                 </div>
                             </div>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('admin.lesson-templates.checkpoint-exam.show', $exam->hash_id) }}"
+                               class="action-link primary">View Exam</a>
+                            <a href="{{ route('admin.lesson-templates.checkpoint-exam.edit', $exam->hash_id) }}"
+                               class="action-link" style="color: #64748b;">Edit</a>
                         </div>
-                        <a href="{{ route('admin.lesson-templates.checkpoint-exam.show', $exam->hash_id) }}"
-                           class="action-link primary">View Exam</a>
                     </div>
                     @endforeach
                 </div>

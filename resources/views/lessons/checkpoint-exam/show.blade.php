@@ -113,6 +113,12 @@
             </button>
             @endif
 
+            <a href="{{ $isAdmin ? route('admin.lesson-templates.checkpoint-exam.edit', $exam->hash_id) : route('lessons.checkpoint-exam.edit', $exam->hash_id) }}"
+               class="py-2.5 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition flex items-center gap-1.5 shadow-sm">
+                <span class="material-symbols-outlined text-[18px] text-[#1a6fd4]">edit</span>
+                Edit Exam
+            </a>
+
             <form action="{{ $isAdmin ? route('admin.lesson-templates.checkpoint-exam.destroy', $exam->hash_id) : route('lessons.checkpoint-exam.destroy', $exam->hash_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this checkpoint exam?');">
                 @csrf
                 @method('DELETE')
@@ -143,18 +149,55 @@
 
             <div class="space-y-4">
                 @foreach($questions as $index => $q)
-                <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/70 space-y-2">
+                <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/70 space-y-2.5">
+                    @php
+                        $typeBadgeClass = match($q['question_type'] ?? '') {
+                            'multiple_choice' => 'background:#e0e7ff; color:#3730a3;',
+                            'true_false' => 'background:#fef3c7; color:#92400e;',
+                            'drag_drop' => 'background:#dcfce7; color:#166534;',
+                            'gesture' => 'background:#fae8ff; color:#86198f;',
+                            default => 'background:#e2e8f0; color:#334155;'
+                        };
+                        $typeLabel = match($q['question_type'] ?? '') {
+                            'multiple_choice' => 'Multiple Choice',
+                            'true_false' => 'True / False',
+                            'drag_drop' => 'Drag & Drop',
+                            'gesture' => 'Sign Gesture',
+                            default => 'Question'
+                        };
+                    @endphp
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-400">Question #{{ $q['question_number'] }}</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-400">Question #{{ $q['question_number'] }}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style="{{ $typeBadgeClass }}">
+                                {{ $typeLabel }}
+                            </span>
+                        </div>
                         <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
                             {{ $q['points'] }} {{ $q['points'] === 1 ? 'Point' : 'Points' }}
                         </span>
                     </div>
 
+                    @if(!empty($q['media_url']))
+                    <div class="py-1">
+                        @php
+                            $mediaPath = $q['media_url'];
+                            $isImg = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $mediaPath);
+                            $isVid = preg_match('/\.(mp4|mov|avi|mkv|webm)$/i', $mediaPath);
+                        @endphp
+                        @if($isImg)
+                            <img src="{{ asset('storage/' . $mediaPath) }}" alt="Media" class="max-h-36 rounded-lg border border-slate-200">
+                        @elseif($isVid)
+                            <video src="{{ asset('storage/' . $mediaPath) }}" controls class="max-h-36 rounded-lg border border-slate-200"></video>
+                        @endif
+                    </div>
+                    @endif
+
                     <p class="text-sm font-semibold text-slate-800">{{ $q['question_text'] }}</p>
 
+                    {{-- Options (Multiple Choice / True False) --}}
                     @if(!empty($q['options']))
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
                         @foreach($q['options'] as $opt)
                         <div class="px-3 py-2 rounded-lg text-xs font-medium border {{ !empty($opt['is_correct']) ? 'bg-green-50 border-green-300 text-green-800 font-bold flex items-center justify-between' : 'bg-white border-slate-200 text-slate-600' }}">
                             <span>{{ $opt['text'] }}</span>
@@ -163,6 +206,33 @@
                             @endif
                         </div>
                         @endforeach
+                    </div>
+                    @endif
+
+                    {{-- Drag & Drop Pairs --}}
+                    @if(($q['question_type'] ?? '') === 'drag_drop' && !empty($q['drag_drop_pairs']))
+                    <div class="pt-1 space-y-1.5">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Matching Pairs:</span>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            @foreach($q['drag_drop_pairs'] as $pair)
+                            <div class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700">
+                                <span class="font-bold text-[#0d326b]">{{ $pair['left_text'] ?? $pair['left'] ?? '' }}</span>
+                                <span class="text-slate-400">➡️</span>
+                                <span class="font-bold text-green-700">{{ $pair['right_text'] ?? $pair['right'] ?? '' }}</span>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- Gesture Target --}}
+                    @if(($q['question_type'] ?? '') === 'gesture')
+                    <div class="pt-1 flex items-center gap-2 text-xs">
+                        <span class="text-slate-400 font-medium">Target Gesture:</span>
+                        <span class="px-2.5 py-1 rounded-md bg-purple-50 text-purple-800 font-bold border border-purple-200 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[14px] text-purple-600">front_hand</span>
+                            {{ $q['gesture_data']['gesture_name'] ?? $q['correct_answer'] ?? 'Assigned Gesture' }}
+                        </span>
                     </div>
                     @endif
                 </div>
