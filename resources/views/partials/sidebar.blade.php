@@ -3,7 +3,7 @@
     $inactiveClass = 'text-white/70 hover:text-white hover:bg-white/10 transition-colors text-[15px] font-medium rounded-r-full mr-4';
 @endphp
 <aside class="w-64 flex flex-col z-10 flex-shrink-0" 
-       style="background: linear-gradient(180deg, #0d326b 0%, #0a2a5c 100%); border-radius: 0px 10px 10px 0px;">
+       style="width:256px; min-width:256px; max-width:256px; flex:0 0 256px; background: linear-gradient(180deg, #0d326b 0%, #0a2a5c 100%); border-radius: 0px 10px 10px 0px;">
     <!-- Logo -->
     <div class="px-8 pt-10 pb-12">
         <h1 class="text-[40px] font-black text-white tracking-tight drop-shadow-md mb-1 leading-none">SEÑAS</h1>

@@ -11,10 +11,10 @@
         <div class="skeleton h-9 rounded-[14px] w-24"></div>
         <div class="ml-auto skeleton h-9 rounded-[14px] w-36"></div>
     </div>
-    {{-- 6 KPI cards --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5">
+    {{-- 4 KPI cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         <div class="skeleton skeleton-card h-[130px]"></div>
-        @for($i=0;$i<4;$i++)
+        @for($i=0;$i<2;$i++)
         <div class="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm flex flex-col gap-3">
             <div class="flex justify-between items-start"><div class="skeleton h-3 rounded w-24"></div><div class="skeleton w-9 h-9 rounded-xl"></div></div>
             <div class="skeleton h-8 rounded w-16"></div>
@@ -848,7 +848,7 @@
 
     {{-- ══════════ 2. CLASS SUMMARY KPI CARDS ══════════ --}}
     @php
-        $allItems           = collect($studentReports->items());
+        $allItems           = collect($studentReportSummaryRows);
         $totalStudentsShown = $studentReports->total();
         $fullyCompleted     = $allItems->filter(function ($r) {
             $pct     = (float) ($r['overallPct'] ?? 0);
@@ -860,8 +860,7 @@
         $totalQuizzesTaken  = $allItems->sum('quizzesTaken');
         $totalQuizzesPassed = $allItems->sum('quizzesPassed');
         $quizPassRate       = $totalQuizzesTaken > 0 ? round(($totalQuizzesPassed / $totalQuizzesTaken) * 100, 1) : 0;
-        $scoredReports      = $allItems->filter(fn($r) => $r['quizzesTaken'] > 0);
-        $avgScoreOverall    = $scoredReports->isNotEmpty() ? $scoredReports->avg('avgScore') : 0;
+        $avgScoreOverall    = $summaryAvgQuizScore;
 
         // Additional stats
         $totalLessonsAssigned  = $allItems->sum('totalLessons');
@@ -871,12 +870,14 @@
             : 0;
 
         $gestureStudents    = $allItems->filter(fn($r) => ($r['gestureAttempts'] ?? 0) > 0);
-        $avgGestureAccuracy = $gestureStudents->isNotEmpty()
-            ? round($gestureStudents->avg('gestureAccuracy'), 1)
+        $totalGestureAttempts = $allItems->sum('gestureAttempts');
+        $totalGestureSuccesses = $allItems->sum('gestureSuccess');
+        $avgGestureAccuracy = $totalGestureAttempts > 0
+            ? round(($totalGestureSuccesses / $totalGestureAttempts) * 100, 1)
             : 0;
     @endphp
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {{-- Card 1: Total Students (Hero navy gradient) --}}
         <div class="stat-kpi-card text-white" style="background: linear-gradient(135deg, #0d326b 0%, #1e4b8f 55%, #1a6fd4 100%);">
             <div class="flex items-center justify-between mb-4">
@@ -887,30 +888,6 @@
             </div>
             <p class="text-[36px] font-black leading-none mb-1 text-white tracking-tight">{{ $totalStudentsShown }}</p>
             <p class="text-[12px] text-white/70 font-medium">in current view</p>
-        </div>
-
-        {{-- Card 2: Completion Rate --}}
-        <div class="stat-kpi-card bg-white">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Completion Rate</span>
-                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1e4b8f] flex items-center justify-center">
-                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
-                </div>
-            </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($classCompletionRate, 1) }}%</p>
-            <p class="text-[12px] text-slate-400 font-medium truncate">{{ $totalLessonsCompleted }} of {{ $totalLessonsAssigned }} lessons</p>
-        </div>
-
-        {{-- Card 3: Fully Completed --}}
-        <div class="stat-kpi-card bg-white">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Fully Completed</span>
-                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
-                </div>
-            </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $fullyCompleted }}</p>
-            <p class="text-[12px] text-slate-400 font-medium">student{{ $fullyCompleted !== 1 ? 's' : '' }} at 100%+ or completed</p>
         </div>
 
         {{-- Card 4: Quizzes Passed / Taken --}}
@@ -940,20 +917,20 @@
                     <span class="material-symbols-outlined text-[20px]">insights</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($avgScoreOverall, 1) }}</p>
-            <p class="text-[12px] text-slate-400 font-medium">points per attempt</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($avgScoreOverall, 1) }}%</p>
+            <p class="text-[12px] text-slate-400 font-medium">Completed quiz attempt average</p>
         </div>
 
-        {{-- Card 6: Gesture Accuracy (Golden Highlight) --}}
+        {{-- Card 6: Gesture Mastery (Golden Highlight) --}}
         <div class="stat-kpi-card text-amber-950" style="background: linear-gradient(135deg, #f59e0b 0%, #facc15 50%, #fbbf24 100%); border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.22);">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Gesture Accuracy</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-950/80">Gesture Mastery</span>
                 <div class="w-10 h-10 rounded-xl bg-white/35 text-amber-950 flex items-center justify-center backdrop-blur-sm shadow-sm">
                     <span class="material-symbols-outlined text-[20px]">front_hand</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ number_format($avgGestureAccuracy, 1) }}%</p>
-            <p class="text-[12px] text-amber-950/80 font-bold truncate">{{ $gestureStudents->count() }} {{ $gestureStudents->count() !== 1 ? 'students' : 'student' }} with data</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-amber-950 tracking-tight">{{ number_format($summaryGestureMastery, 1) }}%</p>
+            <p class="text-[12px] text-amber-950/80 font-bold truncate">{{ $summaryMasteredGestureRecords }} of {{ $summaryGestureRecords }} tracked signs mastered</p>
         </div>
     </div>
 

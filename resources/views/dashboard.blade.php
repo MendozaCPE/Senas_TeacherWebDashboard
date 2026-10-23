@@ -269,27 +269,27 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {{-- Enrolled Students --}}
             <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
-                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#0d326b] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">group</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Enrolled Students</h3></div>
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#0d326b] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">group</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Students</h3></div>
                 <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ $totalStudents }}</p>
-                <p class="text-[12px] font-medium text-slate-400 mt-2">Currently enrolled this school year</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">Enrolled this school year</p>
             </div>
             {{-- Active Engagement --}}
             <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
-                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">monitor_heart</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Weekly Active Engagement</h3></div>
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">monitor_heart</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Active This Week</h3></div>
                 <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($activeThisWeekPercent, 1) }}%</p>
-                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $activeThisWeekCount }} of {{ $totalStudents }} enrolled students with sign-in or learning activity in the last 7 days</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $activeThisWeekCount }} of {{ $totalStudents }} active in 7 days</p>
             </div>
             {{-- Lesson Completion Rate --}}
             <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
-                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#1a6fd4] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">task_alt</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Lesson Completion Rate</h3></div>
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#1a6fd4] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">task_alt</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Completion Rate</h3></div>
                 <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($lessonCompletionRate ?? 0, 1) }}%</p>
-                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $completedLessonsCount }} of {{ $assignedLessonsCount }} student lesson assignments completed</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $completedLessonsCount }} of {{ $assignedLessonsCount }} assignments done</p>
             </div>
             {{-- Average Quiz Score --}}
             <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
-                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#3b82f6] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">grade</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Average Quiz Score</h3></div>
+                <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#3b82f6] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">grade</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Avg Quiz Score</h3></div>
                 <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($averageQuizScore ?? 0, 1) }}%</p>
-                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $quizResultCount > 0 ? 'Based on ' . $quizResultCount . ' quiz results' : 'No quiz results yet' }}</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $quizResultCount > 0 ? $quizResultCount . ' quiz results' : 'No quiz results' }}</p>
             </div>
         </div>
 

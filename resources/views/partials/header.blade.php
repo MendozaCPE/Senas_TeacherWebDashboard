@@ -328,7 +328,42 @@ document.addEventListener('DOMContentLoaded', function () {
         }catch(e){console.warn('notif error',e);}
     }
 
-    let lastKnownUnreadCount = null;
+    const notificationSound = new Audio('{{ asset('sound/notification.wav') }}');
+    notificationSound.preload = 'auto';
+    let notificationSoundUnlocked = false;
+    const unlockNotificationSound = () => { notificationSoundUnlocked = true; };
+    ['pointerdown', 'keydown', 'touchstart'].forEach(eventName => {
+        document.addEventListener(eventName, unlockNotificationSound, { once: true, passive: true });
+    });
+
+    function playNotificationSound() {
+        if (!notificationSoundUnlocked) return;
+        notificationSound.currentTime = 0;
+        notificationSound.play().catch(() => {});
+    }
+
+    let lastKnownNotificationId = null;
+    async function checkForNewNotifications() {
+        const res = await fetch('{{ route("notifications.latest") }}', {credentials:'same-origin'});
+        const data = await res.json();
+        const notifs = data.notifications || [];
+        const newestId = notifs.length ? Math.max(...notifs.map(notif => Number(notif.id) || 0)) : 0;
+        if (lastKnownNotificationId === null) {
+            lastKnownNotificationId = newestId;
+            return;
+        }
+        if (!notifs.length) return;
+
+        const fresh = notifs
+            .filter(notif => Number(notif.id) > lastKnownNotificationId)
+            .sort((a, b) => Number(a.id) - Number(b.id));
+        if (fresh.length) {
+            playNotificationSound();
+            showLiveNotifToast(fresh[fresh.length - 1]);
+        }
+        lastKnownNotificationId = Math.max(lastKnownNotificationId, newestId);
+    }
+
     function showLiveNotifToast(notif) {
         if (!notif) return;
         let toast = document.getElementById('global-live-notif-toast');
@@ -378,21 +413,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const badge=document.getElementById('notif-badge');
             const markBtn=document.getElementById('notif-mark-all-btn');
             
-            // Check if new notifications arrived
-            if(lastKnownUnreadCount !== null && count > lastKnownUnreadCount){
-                // Fetch the newest notification to display live toast
-                try {
-                    const latestRes = await fetch('{{ route("notifications.latest") }}', {credentials:'same-origin'});
-                    const latestData = await latestRes.json();
-                    if(latestData.notifications && latestData.notifications.length > 0){
-                        const newest = latestData.notifications[0];
-                        if(!newest.is_read){
-                            showLiveNotifToast(newest);
-                        }
-                    }
-                } catch(err){}
-            }
-            lastKnownUnreadCount = count;
+            await checkForNewNotifications();
 
             if(count>0){badge.textContent=count>99?'99+':count;badge.classList.remove('hidden');if(markBtn)markBtn.classList.remove('hidden');}
             else{badge.classList.add('hidden');if(markBtn)markBtn.classList.add('hidden');}
@@ -448,7 +469,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    document.addEventListener('DOMContentLoaded',()=>setInterval(pollBadge,10000));
+    document.addEventListener('DOMContentLoaded',()=>{
+        pollBadge();
+        setInterval(pollBadge,10000);
+    });
 })();
 
 /* ── Notification full-message tooltip ─────────────────────────────── */

@@ -32,6 +32,11 @@ class ReportsController extends Controller
         $lessons         = collect();
         $checkpointExams = collect();
         $studentReports  = collect();
+        $studentReportSummaryRows = collect();
+        $summaryAvgQuizScore = 0;
+        $summaryGestureMastery = 0;
+        $summaryGestureRecords = 0;
+        $summaryMasteredGestureRecords = 0;
 
         if ($teacher) {
             $teacherId = $teacher->id;
@@ -144,6 +149,52 @@ class ReportsController extends Controller
 
             $lessonIds = $lessons->pluck('lesson_id');
 
+            // Keep the report summary's quiz and gesture KPIs on the same
+            // definitions as teacher analytics: completed quiz attempt
+            // percentages, and mastered gesture records / tracked records.
+            $summaryStartDate = null;
+            $summaryEndDate = null;
+            if ($selectedSchoolYear && preg_match('/^(\d{4})-(\d{4})$/', $selectedSchoolYear->name, $yearMatch)) {
+                $summaryStartDate = Carbon::create((int) $yearMatch[1], 7, 1)->startOfDay();
+                $summaryEndDate = Carbon::create((int) $yearMatch[2], 6, 30)->endOfDay();
+            }
+
+            $summaryQuizQuery = DB::table('quiz_attempts as qa')
+                ->join('quizzes as q', 'qa.quiz_id', '=', 'q.quiz_id')
+                ->join('lessons as l', 'q.lesson_id', '=', 'l.lesson_id')
+                ->whereIn('qa.student_id', $studentIds)
+                ->where('qa.status', 'completed')
+                ->where('l.teacher_id', $teacherId)
+                ->where('l.status', 'published')
+                ->whereNull('l.deleted_at')
+                ->when($filterLesson !== 'all' && !str_starts_with((string) $filterLesson, 'exam_'), function ($q) use ($filterLesson) {
+                    $q->where('l.lesson_id', (int) str_replace('lesson_', '', $filterLesson));
+                })
+                ->when(str_starts_with((string) $filterLesson, 'exam_'), fn ($q) => $q->whereRaw('1 = 0'))
+                ->when($selectedSchoolYear, fn ($q) => $q->where(function ($yearQuery) use ($selectedSchoolYear) {
+                    $yearQuery->where('qa.school_year_id', $selectedSchoolYear->id)
+                        ->orWhereNull('qa.school_year_id');
+                }))
+                ->when($summaryStartDate && $summaryEndDate, fn ($q) => $q->whereBetween('qa.completed_at', [$summaryStartDate, $summaryEndDate]));
+
+            $summaryAvgQuizScore = round((float) ((clone $summaryQuizQuery)->avg('qa.percentage') ?? 0), 1);
+
+            $summaryGestureQuery = DB::table('gesture_performances')
+                ->whereIn('student_id', $studentIds)
+                ->where('attempts', '>', 0)
+                ->when($summaryStartDate && $summaryEndDate, function ($q) use ($summaryStartDate, $summaryEndDate) {
+                    $q->where(function ($dateQuery) use ($summaryStartDate, $summaryEndDate) {
+                        $dateQuery->whereBetween('last_attempt_at', [$summaryStartDate, $summaryEndDate])
+                            ->orWhereBetween('updated_at', [$summaryStartDate, $summaryEndDate])
+                            ->orWhereBetween('created_at', [$summaryStartDate, $summaryEndDate]);
+                    });
+                });
+            $summaryGestureRecords = (clone $summaryGestureQuery)->count();
+            $summaryMasteredGestureRecords = (clone $summaryGestureQuery)->where('is_mastered', 1)->count();
+            $summaryGestureMastery = $summaryGestureRecords > 0
+                ? round(($summaryMasteredGestureRecords / $summaryGestureRecords) * 100, 1)
+                : 0;
+
             $query = StudentLessonProgress::whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)  // ← Only THIS teacher's lessons
                 ->when($selectedSchoolYear, fn ($q) => $q->where('school_year_id', $selectedSchoolYear->id))
@@ -166,6 +217,7 @@ class ReportsController extends Controller
                 ->join('gestures as g', 'gp.gesture_id', '=', 'g.gesture_id')
                 ->whereIn('gp.student_id', $studentIds)
                 ->where('gp.attempts', '>', 0)
+                ->when($selectedSchoolYear, fn ($q) => $q->where('gp.school_year_id', $selectedSchoolYear->id))
                 ->select(
                     's.student_id',
                     's.first_name',
@@ -237,6 +289,7 @@ class ReportsController extends Controller
             $lessonQuizAttempts = DB::table('quiz_attempts')
                 ->whereIn('student_id', $studentIds)
                 ->whereIn('quiz_id', $lessonQuizMap->keys())
+                ->when($selectedSchoolYear, fn ($q) => $q->where('school_year_id', $selectedSchoolYear->id))
                 ->get()
                 ->groupBy('student_id');
 
@@ -249,6 +302,7 @@ class ReportsController extends Controller
             $checkpointAttempts = DB::table('checkpoint_exam_attempts')
                 ->whereIn('student_id', $studentIds)
                 ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
+                ->when($selectedSchoolYear, fn ($q) => $q->where('school_year_id', $selectedSchoolYear->id))
                 ->whereIn('status', ['completed', 'failed'])
                 ->get()
                 ->groupBy('student_id');
@@ -409,10 +463,13 @@ class ReportsController extends Controller
 
                     $quizPassRate     = $quizzesTaken > 0 ? round(($quizzesPassed / $quizzesTaken) * 100, 1) : 0;
                     
-                    $quizScoresSum = $completedQuizRows->sum('quiz_score');
-                    $examScoresSum = $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore')->sum('quizScore');
-                    $totalScoredCount = $completedQuizRows->count() + $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore')->count();
-                    $avgScore = $totalScoredCount > 0 ? round(($quizScoresSum + $examScoresSum) / $totalScoredCount, 1) : 0;
+                    $scoredLessonRows = $completedQuizRows->whereNotNull('quiz_score');
+                    $scoredExamRows = $checkpointBreakdown->where('quizCompleted', true)->whereNotNull('quizScore');
+                    $quizScoresSum = $scoredLessonRows->sum('quiz_score');
+                    $examScoresSum = $scoredExamRows->sum('quizScore');
+                    $totalScoredCount = $scoredLessonRows->count() + $scoredExamRows->count();
+                    $quizScoreTotal = $quizScoresSum + $examScoresSum;
+                    $avgScore = $totalScoredCount > 0 ? round($quizScoreTotal / $totalScoredCount, 1) : 0;
 
                     $overallPct       = $totalLessons > 0
                         ? round(($completedLessons / $totalLessons) * 100)
@@ -448,6 +505,8 @@ class ReportsController extends Controller
                         'quizzesPassed'    => $quizzesPassed,
                         'quizPassRate'     => $quizPassRate,
                         'avgScore'         => round($avgScore, 1),
+                        'quizScoreTotal'   => $quizScoreTotal,
+                        'scoredQuizCount'  => $totalScoredCount,
                         'overallPct'       => $overallPct,
                         'fslMasteryLevel'  => $student->fsl_mastery_level ?? 'Beginner',
                         'studentStatus'    => $student->status ?? 'active',
@@ -468,6 +527,8 @@ class ReportsController extends Controller
                 })
                 ->sortBy('studentName')
                 ->values();
+
+            $studentReportSummaryRows = $studentReports;
 
             // ── Paginate the collection (15 students per page) ──────────────
             $perPage     = 15;
@@ -494,6 +555,11 @@ class ReportsController extends Controller
             'lessons',
             'checkpointExams',
             'studentReports',
+            'studentReportSummaryRows',
+            'summaryAvgQuizScore',
+            'summaryGestureMastery',
+            'summaryGestureRecords',
+            'summaryMasteredGestureRecords',
             'studentGesturePerformance',
             'teacher',
             'availableSchoolYears',
