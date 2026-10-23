@@ -151,6 +151,9 @@ Route::middleware(['auth', 'auth.session', 'no.cache', 'teacher'])->group(functi
     Route::post('/tutorials/onboarding/complete', [TutorialHelpController::class, 'completeOnboarding'])->name('tutorials.onboarding.complete');
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/announcements/lessons/{lesson}/students', [App\Http\Controllers\TeacherAnnouncementController::class, 'lessonStudents'])->whereNumber('lesson')->name('dashboard.announcements.lesson-students');
+    Route::post('/dashboard/announcements', [App\Http\Controllers\TeacherAnnouncementController::class, 'store'])->name('dashboard.announcements.store');
+    Route::delete('/dashboard/announcements/{announcement}', [App\Http\Controllers\TeacherAnnouncementController::class, 'destroy'])->name('dashboard.announcements.destroy');
 
   // Students - SPECIFIC ROUTES FIRST
 Route::get('/students', [App\Http\Controllers\StudentsController::class, 'index'])->name('students');

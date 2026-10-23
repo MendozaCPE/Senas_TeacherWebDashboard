@@ -409,7 +409,6 @@
         @php
             $modColor    = $moduleColors[$modIndex % count($moduleColors)];
             $modIcon     = $moduleIcons[$modIndex % count($moduleIcons)];
-            $padNum      = str_pad($modIndex + 1, 2, '0', STR_PAD_LEFT);
             $lessonCount = $module->lessons->count();
             $published   = $module->lessons->where('status','published')->count();
             $progress    = $lessonCount > 0 ? round($published / $lessonCount * 100) : 0;
@@ -422,7 +421,7 @@
         <div class="module-card" id="module-{{ $module->module_id }}">
             {{-- Trapezoid Tab --}}
             <div class="module-tab">
-                MODULE {{ $padNum }}
+                MODULE
             </div>
 
    {{-- Module Header --}}
@@ -791,7 +790,8 @@
                 $totalLessons    = $modules->sum(fn($m) => $m->lessons->count()) + $orphanedLessons->count();
                 $totalPublished  = $modules->sum(fn($m) => $m->lessons->where('status','published')->count())
                                  + $orphanedLessons->where('status','published')->count();
-                $totalDraft      = $totalLessons - $totalPublished;
+                $totalDraft      = $modules->sum(fn($m) => $m->lessons->where('status', 'draft')->filter(fn($lesson) => !$lesson->trashed())->count())
+                                 + $orphanedLessons->where('status', 'draft')->filter(fn($lesson) => !$lesson->trashed())->count();
                 $totalModules    = $modules->count();
                 $archivedCount   = $modules->sum(fn($m) => $m->lessons->where('status','archived')->count())
                                  + $orphanedLessons->where('status','archived')->count();
@@ -855,12 +855,6 @@
                 Create New Lesson
             </button>
 
-            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <a href="{{ route('analytics') }}" class="text-[12px] font-bold text-[#0d326b] hover:text-[#1a6fd4] transition-all flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[17px]">bar_chart</span>
-                    View Analytics
-                </a>
-            </div>
         </div>
     </div><!-- /Right column -->
 

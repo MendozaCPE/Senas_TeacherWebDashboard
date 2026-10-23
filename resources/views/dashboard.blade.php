@@ -180,10 +180,10 @@
                 <div class="relative z-10 px-10 py-8 flex-1">
                     <h2 class="text-[28px] font-black text-white leading-tight mb-2">{{ $greeting }}, Teacher {{ $firstName }}!</h2>
                     <p class="text-[13px] text-white/70 font-medium leading-relaxed mb-5">Here is a summary of your classroom's<br>archival progress today.</p>
-                    <a href="{{ route('lessons.index') }}" class="inline-flex items-center space-x-2 text-[12px] font-black text-white/80 uppercase tracking-[0.1em] hover:text-white transition-colors">
-                        <span>GO TO LESSONS</span>
-                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-                    </a>
+                    <button type="button" onclick="openAnnouncementModal('compose')" class="inline-flex items-center space-x-2 text-[12px] font-black text-white/80 uppercase tracking-[0.1em] hover:text-white transition-colors">
+                        <span>MAKE AN ANNOUNCEMENT</span>
+                        <span class="material-symbols-outlined text-[16px]">campaign</span>
+                    </button>
                 </div>
  
                 <!-- Senya mascot -->
@@ -277,7 +277,7 @@
             <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
                 <div class="flex items-center gap-3 mb-4"><div class="w-9 h-9 rounded-full bg-[#1e4b8f] flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-white text-[18px]">monitor_heart</span></div><h3 class="text-[14px] font-semibold text-slate-700 leading-none">Weekly Active Engagement</h3></div>
                 <p class="text-[32px] font-bold text-[#0d326b] leading-none tracking-tight">{{ number_format($activeThisWeekPercent, 1) }}%</p>
-                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $activeThisWeekCount }} of {{ $totalStudents }} enrolled students active in the last 7 days</p>
+                <p class="text-[12px] font-medium text-slate-400 mt-2">{{ $activeThisWeekCount }} of {{ $totalStudents }} enrolled students with sign-in or learning activity in the last 7 days</p>
             </div>
             {{-- Lesson Completion Rate --}}
             <div class="bg-white rounded-[24px] px-6 py-5 shadow-sm border border-slate-100 flex flex-col min-h-[140px]">
@@ -1181,6 +1181,172 @@ function closeDashLessonPreview() {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeDashLessonPreview();
 });
+</script>
+
+<div id="announcementModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="announcementModalTitle" onclick="if(event.target===this) closeAnnouncementModal()">
+    <div class="w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
+        <div class="flex items-center justify-between bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4] px-6 py-5 text-white sm:px-8">
+            <div class="flex items-center gap-3">
+                <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15"><span class="material-symbols-outlined">campaign</span></span>
+                <div><h2 id="announcementModalTitle" class="text-xl font-black">Announcements</h2><p class="text-xs font-medium text-blue-100">Send a message to your students</p></div>
+            </div>
+            <button type="button" onclick="closeAnnouncementModal()" class="flex h-9 w-9 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/15 hover:text-white" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+        </div>
+
+        <div class="flex gap-2 border-b border-slate-100 px-6 pt-4 sm:px-8">
+            <button type="button" id="announcementComposeTab" onclick="showAnnouncementPanel('compose')" class="rounded-t-xl border-b-2 border-[#0d326b] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#0d326b]">New announcement</button>
+            <button type="button" id="announcementHistoryTab" onclick="showAnnouncementPanel('history')" class="rounded-t-xl border-b-2 border-transparent px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-400 hover:text-[#0d326b]">History <span class="ml-1 rounded-full bg-blue-50 px-2 py-0.5 text-[#0d326b]">{{ $announcementHistory->count() }}</span></button>
+        </div>
+
+        @if(session('announcement_success'))
+            <div class="mx-6 mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 sm:mx-8">{{ session('announcement_success') }}</div>
+        @endif
+
+        <div id="announcementComposePanel" class="max-h-[70vh] overflow-y-auto p-6 sm:p-8">
+            @if($errors->has('message') || $errors->has('lesson_id') || $errors->has('student_ids'))
+                <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{{ $errors->first('message') ?: ($errors->first('lesson_id') ?: ($errors->first('student_ids') ?: $errors->first('student_ids.*'))) }}</div>
+            @endif
+            <form method="POST" action="{{ route('dashboard.announcements.store') }}" class="space-y-5">
+                @csrf
+                <div>
+                    <label for="announcementMessage" class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-600">Your message</label>
+                    <textarea id="announcementMessage" name="message" rows="4" maxlength="5000" required placeholder="Hello! I want you to do this lesson..." class="w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1a6fd4] focus:bg-white focus:ring-4 focus:ring-blue-100">{{ old('message') }}</textarea>
+                </div>
+                <div>
+                    <label for="announcementLesson" class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-600">Choose a lesson</label>
+                    <select id="announcementLesson" name="lesson_id" required class="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#1a6fd4] focus:ring-4 focus:ring-blue-100">
+                        <option value="">Select one of your lessons</option>
+                        @foreach($announcementLessons as $lesson)
+                            <option value="{{ $lesson->lesson_id }}" @selected(old('lesson_id') == $lesson->lesson_id)>{{ $lesson->title }}</option>
+                        @endforeach
+                    </select>
+                    @if($announcementLessons->isEmpty())<p class="mt-2 text-xs font-semibold text-slate-400">You need a published lesson before you can send a lesson announcement.</p>@endif
+                </div>
+                <div class="overflow-hidden rounded-2xl border border-slate-200">
+                    <div class="flex items-center justify-between gap-3 bg-slate-50 px-4 py-3">
+                        <div><p class="text-xs font-black uppercase tracking-wider text-slate-700">Assigned students</p><p class="mt-1 text-[11px] font-medium text-slate-400">Choose one, several, or everyone assigned to this lesson.</p></div>
+                        <label class="flex shrink-0 items-center gap-2 text-xs font-black text-[#0d326b]"><input id="announcementSelectAll" type="checkbox" class="h-4 w-4 rounded border-slate-300 accent-[#0d326b]">Select all</label>
+                    </div>
+                    <div id="announcementStudentList" class="max-h-52 space-y-1 overflow-y-auto p-3" aria-live="polite"><p class="py-6 text-center text-xs font-semibold text-slate-400">Choose a lesson to load its assigned students.</p></div>
+                </div>
+                <div class="flex items-center justify-between rounded-2xl bg-blue-50 px-4 py-3">
+                    <span class="flex items-center gap-2 text-xs font-bold text-[#0d326b]"><span class="material-symbols-outlined text-[18px]">group</span>Selected recipients</span>
+                    <span id="announcementRecipientCount" class="text-sm font-black text-[#0d326b]">0 students</span>
+                </div>
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                    <button type="button" onclick="showAnnouncementPanel('history')" class="rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider text-slate-500 hover:bg-slate-100">History</button>
+                    <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#0d326b] to-[#1a6fd4] px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-blue-900/15 transition hover:brightness-110"><span class="material-symbols-outlined text-[18px]">send</span>Send announcement</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="announcementHistoryPanel" class="hidden max-h-[70vh] overflow-y-auto p-6 sm:p-8">
+            @if($announcementHistory->isEmpty())
+                <div class="rounded-2xl border border-dashed border-slate-200 px-6 py-12 text-center"><span class="material-symbols-outlined text-4xl text-slate-300">campaign</span><p class="mt-3 text-sm font-bold text-slate-500">No announcements yet</p><p class="mt-1 text-xs text-slate-400">Messages you send will appear here.</p></div>
+            @else
+                <div class="space-y-3">
+                    @foreach($announcementHistory as $announcement)
+                        @php
+                            $audienceLabel = $announcement->lesson_id
+                                ? (optional($announcementLessons->firstWhere('lesson_id', $announcement->lesson_id))->title ?? 'Lesson')
+                                : ($announcement->module_id
+                                    ? (optional($announcementModules->firstWhere('module_id', $announcement->module_id))->title ?? 'Module')
+                                    : 'Class');
+                            $audienceTypeLabel = $announcement->lesson_id ? 'Lesson' : ($announcement->module_id ? 'Module' : 'Class');
+                        @endphp
+                        <article class="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
+                            <div class="flex items-start justify-between gap-3">
+                                @php $recipientNames = $announcementRecipients->get((string) $announcement->id, collect()); $recipientCount = (int) ($announcement->recipient_count ?? 0) ?: $recipientNames->count(); @endphp
+                                <div class="min-w-0"><p class="whitespace-pre-wrap break-words text-sm font-semibold leading-relaxed text-slate-800">{{ $announcement->message }}</p><div class="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400"><span class="rounded-full bg-blue-100 px-2.5 py-1 text-[#0d326b]">{{ $audienceTypeLabel }} · {{ $audienceLabel }}</span><span tabindex="0" class="group relative cursor-help rounded px-1 outline-none hover:text-[#0d326b] focus:text-[#0d326b]">{{ $recipientCount }} recipient{{ $recipientCount === 1 ? '' : 's' }}<span role="tooltip" class="invisible absolute left-0 top-full z-50 mt-2 w-60 rounded-xl border border-slate-100 bg-white p-3 text-left normal-case tracking-normal text-slate-700 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"><span class="mb-2 block text-[10px] font-black uppercase tracking-wider text-[#0d326b]">Recipients</span>@if($recipientNames->isNotEmpty())<span class="block max-h-40 space-y-1 overflow-y-auto">@foreach($recipientNames as $recipientName)<span class="block truncate text-xs font-semibold">{{ $recipientName }}</span>@endforeach</span>@else<span class="block text-xs font-medium text-slate-400">Recipient names are unavailable.</span>@endif</span></span><span>{{ $announcement->created_at->format('M d, Y · g:i A') }}</span></div></div>
+                                <form method="POST" action="{{ route('dashboard.announcements.destroy', $announcement) }}" onsubmit="return confirm('Delete this announcement and remove it from student notifications?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" title="Delete announcement" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"><span class="material-symbols-outlined text-[19px]">delete</span></button>
+                                </form>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+
+<script>
+const announcementStudentEndpoint = @json(url('/dashboard/announcements/lessons'));
+const announcementOldStudentIds = @json(array_map('intval', old('student_ids', [])));
+let announcementInitialStudentIds = announcementOldStudentIds;
+let announcementLoadSequence = 0;
+async function loadAnnouncementStudents(lessonId) {
+    const sequence = ++announcementLoadSequence;
+    const list = document.getElementById('announcementStudentList');
+    const selectAll = document.getElementById('announcementSelectAll');
+    list.innerHTML = '';
+    selectAll.checked = false;
+    if (!lessonId) { list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-slate-400">Choose a lesson to load its assigned students.</p>'; updateAnnouncementRecipientCount(); return; }
+    list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-slate-400">Loading assigned students…</p>';
+    try {
+        const response = await fetch(`${announcementStudentEndpoint}/${encodeURIComponent(lessonId)}/students`, { headers: { 'Accept': 'application/json' } });
+        if (sequence !== announcementLoadSequence) return;
+        if (!response.ok) throw new Error('Unable to load assigned students.');
+        const payload = await response.json();
+        list.innerHTML = '';
+        if (!payload.students.length) {
+            list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-slate-400">No enrolled students are assigned to this lesson.</p>';
+            announcementInitialStudentIds = [];
+            updateAnnouncementRecipientCount(); return;
+        }
+        payload.students.forEach(student => {
+            const label = document.createElement('label');
+            label.className = 'flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-blue-50';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox'; checkbox.name = 'student_ids[]'; checkbox.value = student.student_id;
+            checkbox.className = 'announcement-student-checkbox h-4 w-4 rounded border-slate-300 accent-[#0d326b]';
+            checkbox.checked = announcementInitialStudentIds.map(String).includes(String(student.student_id));
+            checkbox.addEventListener('change', () => { announcementInitialStudentIds = []; syncAnnouncementSelectAll(); updateAnnouncementRecipientCount(); });
+            const name = document.createElement('span'); name.className = 'text-sm font-semibold text-slate-700'; name.textContent = `${student.first_name} ${student.last_name}`;
+            label.append(checkbox, name); list.appendChild(label);
+        });
+        announcementInitialStudentIds = [];
+        syncAnnouncementSelectAll(); updateAnnouncementRecipientCount();
+    } catch (error) {
+        if (sequence !== announcementLoadSequence) return;
+        list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-rose-600">Could not load students. Please try choosing the lesson again.</p>';
+        updateAnnouncementRecipientCount();
+    }
+}
+function updateAnnouncementRecipientCount() {
+    const count = document.querySelectorAll('.announcement-student-checkbox:checked').length;
+    document.getElementById('announcementRecipientCount').textContent = `${count} student${count === 1 ? '' : 's'}`;
+}
+function syncAnnouncementSelectAll() {
+    const boxes = Array.from(document.querySelectorAll('.announcement-student-checkbox'));
+    const selectAll = document.getElementById('announcementSelectAll');
+    selectAll.checked = boxes.length > 0 && boxes.every(box => box.checked);
+    selectAll.indeterminate = boxes.some(box => box.checked) && !selectAll.checked;
+}
+function showAnnouncementPanel(panel) {
+    const history = panel === 'history';
+    document.getElementById('announcementComposePanel').classList.toggle('hidden', history);
+    document.getElementById('announcementHistoryPanel').classList.toggle('hidden', !history);
+    document.getElementById('announcementComposeTab').className = `rounded-t-xl border-b-2 px-4 py-2.5 text-xs font-black uppercase tracking-wider ${history ? 'border-transparent text-slate-400' : 'border-[#0d326b] text-[#0d326b]'}`;
+    document.getElementById('announcementHistoryTab').className = `rounded-t-xl border-b-2 px-4 py-2.5 text-xs font-black uppercase tracking-wider ${history ? 'border-[#0d326b] text-[#0d326b]' : 'border-transparent text-slate-400'}`;
+}
+function openAnnouncementModal(panel = 'compose') {
+    const modal = document.getElementById('announcementModal'); modal.classList.remove('hidden'); modal.classList.add('flex');
+    document.body.style.overflow = 'hidden'; showAnnouncementPanel(panel);
+    const selectedLesson = document.getElementById('announcementLesson').value;
+    if (selectedLesson) loadAnnouncementStudents(selectedLesson);
+}
+function closeAnnouncementModal() {
+    const modal = document.getElementById('announcementModal'); modal.classList.add('hidden'); modal.classList.remove('flex'); document.body.style.overflow = '';
+}
+document.getElementById('announcementLesson').addEventListener('change', event => { announcementInitialStudentIds = []; loadAnnouncementStudents(event.target.value); });
+document.getElementById('announcementSelectAll').addEventListener('change', event => {
+    document.querySelectorAll('.announcement-student-checkbox').forEach(box => { box.checked = event.target.checked; });
+    announcementInitialStudentIds = []; syncAnnouncementSelectAll(); updateAnnouncementRecipientCount();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnnouncementModal(); });
+@if(session('announcement_success') || $errors->has('message') || $errors->has('lesson_id') || $errors->has('student_ids')) openAnnouncementModal('{{ session('announcement_success') ? 'history' : 'compose' }}'); @endif
 </script>
 
 @endsection

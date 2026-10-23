@@ -25,6 +25,11 @@ class DashboardController extends Controller
     {
         $user    = Auth::user();
         $teacher = $user->teacher;
+        $announcementStudents = collect();
+        $announcementLessons = collect();
+        $announcementModules = collect();
+        $announcementHistory = collect();
+        $announcementRecipients = collect();
 
         // Build time-based greeting
         $hour = Carbon::now()->format('H');
@@ -72,6 +77,20 @@ class DashboardController extends Controller
 
         if ($teacher) {
             $teacherId = $teacher->id;
+            $announcementStudents = Student::where('teacher_id', $teacherId)->where('is_enrolled', true)->orderBy('first_name')->get(['student_id', 'first_name', 'last_name']);
+            $announcementLessons = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->orderBy('title')->get(['lesson_id', 'title']);
+            $announcementModules = Module::where('teacher_id', $teacherId)->where('status', 'published')->orderBy('title')->get(['module_id', 'title']);
+            $announcementHistory = \App\Models\TeacherAnnouncement::where('teacher_id', $teacherId)->latest()->limit(50)->get();
+            $announcementRecipients = \App\Models\StudentNotification::with('student:student_id,first_name,last_name')
+                ->where('type', 'announcement')
+                ->whereIn('data->announcement_id', $announcementHistory->pluck('id'))
+                ->get()
+                ->groupBy(fn ($notification) => (string) ($notification->data['announcement_id'] ?? ''))
+                ->map(fn ($notifications) => $notifications
+                    ->map(fn ($notification) => trim(($notification->student?->first_name ?? '') . ' ' . ($notification->student?->last_name ?? '')))
+                    ->filter()
+                    ->unique()
+                    ->values());
             $schoolId  = (int) ($teacher->school_id ?? 0);
 
             // Always use the active school year — no user-selectable filter on the dashboard.
@@ -173,52 +192,46 @@ class DashboardController extends Controller
             // ── Stat Cards ───────────────────────────────────────────────────────
             $totalStudents = $studentIds->count();
 
-            // Weekly active engagement: enrolled students with any recorded activity in the last 7 days.
+            // Weekly active engagement: current roster students with learner activity in the last 7 days.
             $activityStart = Carbon::now()->subDays(6)->startOfDay();
             $activityEnd = Carbon::now()->endOfDay();
             $activeThisWeekCount = Student::whereIn('student_id', $studentIds)
-                ->where(function ($q) use ($activityStart, $activityEnd, $activeSyId) {
+                ->where(function ($q) use ($activityStart, $activityEnd, $activeSyId, $teacherId) {
                     $q->whereBetween('last_activity_date', [$activityStart, $activityEnd])
-                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd, $activeSyId) {
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd, $activeSyId, $teacherId) {
                           $sub->select(DB::raw(1))
                               ->from('quiz_attempts')
                               ->join('quizzes as activity_quizzes', 'quiz_attempts.quiz_id', '=', 'activity_quizzes.quiz_id')
                               ->join('lessons as activity_lessons', 'activity_quizzes.lesson_id', '=', 'activity_lessons.lesson_id')
                               ->whereColumn('quiz_attempts.student_id', 'students.student_id')
                               ->where('quiz_attempts.status', 'completed')
+                              ->where('activity_lessons.teacher_id', $teacherId)
                               ->where('activity_lessons.status', 'published')
                               ->whereNull('activity_lessons.deleted_at')
                               ->when($activeSyId, fn ($query) => $query->where('quiz_attempts.school_year_id', $activeSyId))
                               ->whereBetween('quiz_attempts.completed_at', [$activityStart, $activityEnd]);
                       })
-                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd, $activeSyId) {
                           $sub->select(DB::raw(1))
                               ->from('gesture_performances')
                               ->whereColumn('gesture_performances.student_id', 'students.student_id')
+                              ->when($activeSyId, fn ($query) => $query->where('gesture_performances.school_year_id', $activeSyId))
                               ->where(function ($gq) use ($activityStart, $activityEnd) {
                                   $gq->whereBetween('last_attempt_at', [$activityStart, $activityEnd])
                                      ->orWhereBetween('updated_at', [$activityStart, $activityEnd])
                                      ->orWhereBetween('created_at', [$activityStart, $activityEnd]);
                               });
                       })
-                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
+                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd, $activeSyId, $teacherId) {
                           $sub->select(DB::raw(1))
                               ->from('student_lesson_progress')
                               ->whereColumn('student_lesson_progress.student_id', 'students.student_id')
+                              ->when($activeSyId, fn ($query) => $query->where('student_lesson_progress.school_year_id', $activeSyId))
                               ->where(function ($pq) use ($activityStart, $activityEnd) {
                                   $pq->whereBetween('student_lesson_progress.last_accessed_at', [$activityStart, $activityEnd])
                                      ->orWhereBetween('student_lesson_progress.updated_at', [$activityStart, $activityEnd]);
-                              });
-                      })
-                      ->orWhereExists(function ($sub) use ($activityStart, $activityEnd) {
-                          $sub->select(DB::raw(1))
-                              ->from('lesson_assignments')
-                              ->whereColumn('lesson_assignments.student_id', 'students.student_id')
-                              ->where(function ($aq) use ($activityStart, $activityEnd) {
-                                  $aq->whereBetween('lesson_assignments.assigned_at', [$activityStart, $activityEnd])
-                                     ->orWhereBetween('lesson_assignments.completed_at', [$activityStart, $activityEnd])
-                                     ->orWhereBetween('lesson_assignments.updated_at', [$activityStart, $activityEnd]);
-                              });
+                              })
+                              ->whereIn('student_lesson_progress.lesson_id', Lesson::where('teacher_id', $teacherId)->where('status', 'published')->whereNull('deleted_at')->select('lesson_id'));
                       });
                 })
                 ->count();
@@ -353,11 +366,7 @@ class DashboardController extends Controller
             $assignmentTotals = DB::table('lesson_assignments')
                 ->whereIn('student_id', $studentIds)
                 ->whereIn('lesson_id', $lessonIds)
-                ->where(function ($q) use ($dashboardStartDate, $dashboardEndDate) {
-                    $q->whereBetween('assigned_at', [$dashboardStartDate, $dashboardEndDate])
-                      ->orWhereBetween('completed_at', [$dashboardStartDate, $dashboardEndDate])
-                      ->orWhereBetween('updated_at', [$dashboardStartDate, $dashboardEndDate]);
-                })
+                ->when($activeSyId, fn ($query) => $query->where('school_year_id', $activeSyId))
                 ->selectRaw('count(*) as total')
                 ->selectRaw('sum(case when status = "completed" then 1 else 0 end) as completed')
                 ->first();
@@ -372,6 +381,7 @@ class DashboardController extends Controller
                 ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.quiz_id')
                 ->join('lessons', 'quizzes.lesson_id', '=', 'lessons.lesson_id')
                 ->whereIn('quiz_attempts.student_id', $studentIds)
+                ->where('lessons.teacher_id', $teacherId)
                 ->where('quiz_attempts.status', 'completed')
                 ->where('lessons.status', 'published')
                 ->whereNull('lessons.deleted_at')
@@ -552,6 +562,7 @@ class DashboardController extends Controller
             'senyaTips', 'selectedTip', 'senyaInsights', 'enrollmentTrend',
             'practiceSessions', 'activeSchoolYear', 'monthlyActivity',
             'syMonthOptions', 'selectedMonthParam', 'syStartDate', 'syEndDate',
+            'announcementStudents', 'announcementLessons', 'announcementModules', 'announcementHistory', 'announcementRecipients',
         ));
     }
 }

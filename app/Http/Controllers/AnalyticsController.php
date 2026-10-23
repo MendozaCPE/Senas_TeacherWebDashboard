@@ -297,14 +297,23 @@ class AnalyticsController extends Controller
             ? round(($masteredGestures / $totalGesturesAttempted) * 100, 1)
             : 0;
 
-        $assignmentTotals = DB::table('lesson_assignments')
+        $assignmentTotalsQuery = DB::table('lesson_assignments')
             ->whereIn('student_id', $studentIds)
             ->whereIn('lesson_id', $lessonIds)
-            ->where(function ($q) use ($startDate, $endDate) {
+            ->when($selectedSchoolYear?->id, fn ($query) => $query->where('school_year_id', $selectedSchoolYear->id));
+
+        // With All Months selected, match the dashboard's whole-school-year
+        // assignment count. For a selected month, count assignments active in
+        // that month while keeping them scoped to the selected school year.
+        if ($month !== null || !$selectedSchoolYear?->id) {
+            $assignmentTotalsQuery->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('assigned_at', [$startDate, $endDate])
                   ->orWhereBetween('completed_at', [$startDate, $endDate])
                   ->orWhereBetween('updated_at', [$startDate, $endDate]);
-            })
+            });
+        }
+
+        $assignmentTotals = $assignmentTotalsQuery
             ->selectRaw('count(*) as total')
             ->selectRaw('sum(case when status = "completed" then 1 else 0 end) as completed')
             ->first();

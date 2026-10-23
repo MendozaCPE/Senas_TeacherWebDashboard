@@ -51,7 +51,8 @@ class LessonsController extends Controller
             ->with(['checkpointExams' => function($query) {
                 $query->orderBy('created_at', 'desc');
             }])
-            ->orderBy('module_order')
+            ->orderByDesc('created_at')
+            ->orderByDesc('module_id')
             ->get();
         
         // ✅ Get orphaned lessons (including archived)
