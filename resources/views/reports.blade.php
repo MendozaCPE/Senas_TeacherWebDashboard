@@ -67,6 +67,7 @@
     0%   { background-position: -600px 0; }
     100% { background-position:  600px 0; }
 }
+#modal-student-loading .skeleton,
 #lp-loading .skeleton,
 #modal-achievements-loading .skeleton,
 #modal-reports-loading .skeleton {
@@ -83,6 +84,9 @@
     animation: shimmer-modal 1.6s infinite linear;
     border-radius: 6px;
 }
+#modal-student-loading .skeleton.rounded-2xl { border-radius: 16px; }
+#modal-student-loading .skeleton.rounded-xl  { border-radius: 12px; }
+#modal-student-loading .skeleton.rounded-full { border-radius: 9999px; }
 #lp-loading .skeleton.rounded-\[22px\]  { border-radius: 22px; }
 #lp-loading .skeleton.rounded-\[16px\]  { border-radius: 16px; }
 #modal-achievements-loading .skeleton.rounded-\[14px\] { border-radius: 14px; }
@@ -1290,6 +1294,90 @@ document.addEventListener('keydown', function(e) {
 
         <div class="overflow-y-auto px-8 py-6 space-y-6">
 
+            <!-- Modal Loading State with Skeleton & Spinner Animation -->
+            <div id="modal-student-loading" class="space-y-6 transition-opacity duration-300">
+                <!-- Animated Spinner & Loading Indicator -->
+                <div class="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-slate-50/80 rounded-2xl border border-blue-100/60 shadow-xs">
+                    <div class="flex items-center gap-3.5">
+                        <div class="relative w-10 h-10 flex items-center justify-center shrink-0">
+                            <div class="absolute inset-0 rounded-full border-2 border-blue-200 border-t-[#0d326b] animate-spin"></div>
+                            <span class="material-symbols-outlined text-[18px] text-[#0d326b] animate-pulse">analytics</span>
+                        </div>
+                        <div>
+                            <p class="text-[13px] font-bold text-[#0d326b] flex items-center gap-2">
+                                Loading Student Report
+                                <span class="inline-flex gap-1 items-center">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-[#0d326b] animate-bounce" style="animation-delay: 0ms"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-[#1a6fd4] animate-bounce" style="animation-delay: 150ms"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style="animation-delay: 300ms"></span>
+                                </span>
+                            </p>
+                            <p class="text-[11px] text-slate-400 font-medium">Preparing lesson progress and performance details...</p>
+                        </div>
+                    </div>
+                    <div class="hidden sm:flex items-center gap-2 text-[11px] font-bold text-[#0d326b] bg-white/80 px-3 py-1.5 rounded-full border border-blue-100/80">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                        Syncing Records
+                    </div>
+                </div>
+
+                <!-- Skeleton: Overall Performance KPI Cards (5 grid items) -->
+                <div>
+                    <div class="skeleton h-3 w-36 rounded mb-3"></div>
+                    <div class="grid grid-cols-5 gap-3">
+                        @for($i=0; $i<5; $i++)
+                        <div class="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col gap-2.5 shadow-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <div class="skeleton h-2.5 w-16 rounded"></div>
+                                <div class="skeleton w-7 h-7 rounded-lg"></div>
+                            </div>
+                            <div class="skeleton h-7 w-20 rounded-md"></div>
+                            <div class="skeleton h-2 w-24 rounded"></div>
+                            @if($i===0)
+                            <div class="skeleton h-1.5 w-full rounded-full mt-1"></div>
+                            @endif
+                        </div>
+                        @endfor
+                    </div>
+                </div>
+
+                <!-- Skeleton: Tab Nav Pills -->
+                <div class="flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <div class="skeleton h-8 w-24 rounded-t-xl"></div>
+                    <div class="skeleton h-8 w-28 rounded-t-xl"></div>
+                    <div class="skeleton h-8 w-24 rounded-t-xl"></div>
+                    <div class="skeleton h-8 w-24 rounded-t-xl"></div>
+                    <div class="skeleton h-8 w-28 rounded-t-xl"></div>
+                </div>
+
+                <!-- Skeleton: Lessons List Breakdown -->
+                <div class="space-y-3">
+                    <div class="skeleton h-3 w-28 rounded mb-2"></div>
+                    @for($i=0; $i<3; $i++)
+                    <div class="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
+                        <div class="flex-1 space-y-2">
+                            <div class="flex items-center gap-2">
+                                <div class="skeleton h-3.5 w-48 rounded"></div>
+                                <div class="skeleton h-4 w-20 rounded-full"></div>
+                            </div>
+                            <div class="skeleton h-2.5 w-32 rounded"></div>
+                            <div class="flex items-center gap-2">
+                                <div class="skeleton h-1.5 w-24 rounded-full"></div>
+                                <div class="skeleton h-2 w-8 rounded"></div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <div class="skeleton h-5 w-20 rounded-full"></div>
+                            <div class="skeleton h-3 w-12 rounded"></div>
+                        </div>
+                    </div>
+                    @endfor
+                </div>
+            </div>
+
+            <!-- Modal Content (revealed after loading) -->
+            <div id="modal-student-content" class="space-y-6 hidden opacity-0 transition-opacity duration-300">
+
             <!-- OVERALL PERFORMANCE SECTION -->
             <div>
                 <span class="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest block mb-3">Overall Performance</span>
@@ -1365,42 +1453,48 @@ document.addEventListener('keydown', function(e) {
             </div>
 
             <!-- TAB NAV -->
-            <div class="flex items-center gap-1 border-b border-slate-100 pb-0">
+            <div class="flex items-center gap-1.5 border-b border-slate-200/80 pb-0">
+                <button id="tab-btn-lessons" onclick="switchModalTab('lessons')"
+                    class="modal-tab-btn is-active px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors border-b-[3px] border-[#0d326b] text-[#0d326b] bg-blue-50/80">
+                    <span class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px] text-[#1a6fd4]">menu_book</span>Lessons
+                    </span>
+                </button>
                 <button id="tab-btn-learning-path" onclick="switchModalTab('learning-path')"
-                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-medium rounded-t-xl transition-colors text-slate-400 border-b-[3px] border-transparent">
                     <span class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[15px]">route</span>Learning Path
                     </span>
                 </button>
                 <button id="tab-btn-gestures" onclick="switchModalTab('gestures')"
-                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-medium rounded-t-xl transition-colors text-slate-400 border-b-[3px] border-transparent">
                     <span class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[15px]">front_hand</span>Gestures
                     </span>
                 </button>
-                <button id="tab-btn-lessons" onclick="switchModalTab('lessons')"
-                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
-                    <span class="flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px]">menu_book</span>Lessons
-                    </span>
-                </button>
                 <button id="tab-btn-reports" onclick="switchModalTab('reports')"
-                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-medium rounded-t-xl transition-colors text-slate-400 border-b-[3px] border-transparent">
                     <span class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[15px]">flag</span>Reports
                         <span id="modal-reports-badge" class="hidden bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">!</span>
                     </span>
                 </button>
                 <button id="tab-btn-achievements" onclick="switchModalTab('achievements')"
-                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-bold rounded-t-xl transition-colors">
+                    class="modal-tab-btn px-4 py-2.5 text-[12px] font-medium rounded-t-xl transition-colors text-slate-400 border-b-[3px] border-transparent">
                     <span class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[15px]">workspace_premium</span>Achievements
                     </span>
                 </button>
             </div>
 
+            <!-- TAB: LESSON BREAKDOWN -->
+            <div id="tab-lessons" class="modal-tab-panel">
+                <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Lesson Breakdown</h4>
+                <div id="modalLessonList" class="space-y-2"></div>
+            </div>
+
             <!-- TAB: GESTURE BREAKDOWN -->
-            <div id="tab-gestures" class="modal-tab-panel">
+            <div id="tab-gestures" class="modal-tab-panel hidden">
                 <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase">Student Performance per Gesture</h4>
                     <div class="flex items-center gap-2">
@@ -1417,12 +1511,6 @@ document.addEventListener('keydown', function(e) {
                 <div id="modalGestureContainer" class="max-h-[260px] overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/40 p-2.5 space-y-2">
                     <div id="modalGestureList" class="space-y-2"></div>
                 </div>
-            </div>
-
-            <!-- TAB: LESSON BREAKDOWN -->
-            <div id="tab-lessons" class="modal-tab-panel hidden">
-                <h4 class="text-[10px] font-bold text-slate-400 tracking-[0.1em] uppercase mb-3">Lesson Breakdown</h4>
-                <div id="modalLessonList" class="space-y-2"></div>
             </div>
 
             <!-- TAB: STUDENT REPORTS -->
@@ -1583,6 +1671,76 @@ document.addEventListener('keydown', function(e) {
 
             </div>
 
+            </div> <!-- /#modal-student-content -->
+
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     LESSON HISTORY MODAL
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="lessonHistoryOverlay"
+     class="hidden fixed inset-0 z-[70] items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[3px]"
+     onclick="if(event.target===this) closeLessonHistory()">
+    <div class="bg-white rounded-[28px] shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden border border-slate-100"
+         onclick="event.stopPropagation()">
+
+        <!-- Top Accent Bar (System brand navy gradient) -->
+        <div class="h-1.5 w-full shrink-0 bg-gradient-to-r from-[#0d326b] via-[#1e4b8f] to-[#1a6fd4]"></div>
+
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 bg-slate-50/70">
+            <div class="flex-1 min-w-0 pr-2">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="flex items-center justify-center w-6 h-6 rounded-lg bg-blue-50 text-[#0d326b] border border-blue-100/70">
+                        <span class="material-symbols-outlined text-[15px]">history_edu</span>
+                    </span>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-[#0d326b]">Lesson History</span>
+                    <span class="text-[10px] text-slate-300">·</span>
+                    <span id="lh-studentName" class="text-[11px] font-semibold text-slate-500 truncate"></span>
+                </div>
+                <h3 id="lh-lessonTitle" class="text-[19px] font-black text-[#0d326b] leading-tight truncate"></h3>
+                <div class="flex items-center gap-2 mt-2 flex-wrap">
+                    <span id="lh-moduleChip" class="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-600 bg-white border border-slate-200/80 rounded-full px-2.5 py-0.5 shadow-2xs">
+                        <span class="material-symbols-outlined text-[13px] text-slate-400">folder</span>
+                        <span id="lh-moduleText"></span>
+                    </span>
+                    <span id="lh-typeChip" class="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-[#0d326b] bg-blue-50 border border-blue-100 rounded-full px-2.5 py-0.5 shadow-2xs">
+                        <span class="material-symbols-outlined text-[13px] text-[#1a6fd4]">school</span>
+                        <span id="lh-typeText"></span>
+                    </span>
+                    <span id="lh-diffChip" class="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/60 rounded-full px-2.5 py-0.5 shadow-2xs">
+                        <span class="material-symbols-outlined text-[13px] text-amber-500">signal_cellular_alt</span>
+                        <span id="lh-diffText"></span>
+                    </span>
+                    <span id="lh-recordsCount" class="inline-flex items-center gap-1 text-[10.5px] font-semibold text-slate-400 ml-auto"></span>
+                </div>
+            </div>
+            <button onclick="closeLessonHistory()" aria-label="Close lesson history" class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:text-[#0d326b] hover:bg-white border border-transparent hover:border-slate-200 transition-all cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <!-- Loading state -->
+        <div id="lh-loading" class="flex-1 flex flex-col items-center justify-center py-16 gap-3">
+            <div class="relative w-11 h-11 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border-3 border-blue-100 border-t-[#0d326b] animate-spin"></div>
+                <span class="material-symbols-outlined text-[20px] text-[#0d326b] animate-pulse">history_edu</span>
+            </div>
+            <p class="text-[12.5px] font-semibold text-slate-500">Loading history records...</p>
+        </div>
+
+        <!-- Content -->
+        <div id="lh-content" class="hidden flex-1 overflow-y-auto p-5">
+            <div id="lh-history-list" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Error state -->
+        <div id="lh-error" class="hidden flex-1 flex flex-col items-center justify-center py-16 gap-2">
+            <span class="material-symbols-outlined text-[40px] text-slate-300">error</span>
+            <p class="text-[13px] font-bold text-slate-600">Failed to load lesson history</p>
+            <p class="text-[11px] text-slate-400">Please try again later</p>
         </div>
     </div>
 </div>
@@ -1590,6 +1748,7 @@ document.addEventListener('keydown', function(e) {
 <script>
     const studentReportData = @json(collect($studentReports->items())->values());
     let currentModalGestureData = [];
+
 
     // ── Auto-open from notification click (?open_student=ID) ─────────────────
     document.addEventListener('DOMContentLoaded', function () {
@@ -1606,9 +1765,29 @@ document.addEventListener('keydown', function(e) {
         }
     });
 
+    let _modalLoadingTimer = null;
+
     function openStudentModal(studentId) {
         const data = studentReportData.find(s => String(s.student_id) === String(studentId));
         if (!data) return;
+
+        const overlay = document.getElementById('studentModalOverlay');
+        const loadingEl = document.getElementById('modal-student-loading');
+        const contentEl = document.getElementById('modal-student-content');
+
+        if (_modalLoadingTimer) {
+            clearTimeout(_modalLoadingTimer);
+            _modalLoadingTimer = null;
+        }
+
+        // Show loading animation, hide content initially
+        if (loadingEl) {
+            loadingEl.style.display = 'block';
+            loadingEl.classList.remove('hidden', 'opacity-0');
+        }
+        if (contentEl) {
+            contentEl.classList.add('hidden', 'opacity-0');
+        }
 
         window._modalInitials = data.initials || 'S';
         const modalAvatar = document.getElementById('modalAvatar');
@@ -1648,10 +1827,26 @@ document.addEventListener('keydown', function(e) {
         // Render Lessons Breakdown
         renderModalLessons(data.lessons);
 
-        const overlay = document.getElementById('studentModalOverlay');
         overlay.classList.remove('hidden');
         overlay.classList.add('flex');
         document.body.style.overflow = 'hidden';
+
+        // Graceful transition from loading animation to populated content
+        _modalLoadingTimer = setTimeout(function() {
+            if (loadingEl) {
+                loadingEl.classList.add('opacity-0');
+                setTimeout(() => {
+                    loadingEl.classList.add('hidden');
+                    loadingEl.style.display = 'none';
+                }, 200);
+            }
+            if (contentEl) {
+                contentEl.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    contentEl.classList.remove('opacity-0');
+                });
+            }
+        }, 320);
     }
 
     function filterModalGestures() {
@@ -1760,10 +1955,10 @@ document.addEventListener('keydown', function(e) {
                         titleColor  = 'color:#991b1b';
                         metaColor   = 'color:#64748b';
                     } else {
-                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#1a6fd4;background:#eff6ff;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">IN PROGRESS</span>';
-                        quizBadge   = '<span style="font-size:11px;color:#94a3b8;font-weight:500;">In Progress</span>';
-                        barColor    = 'background:#1a6fd4';
-                        rowBg       = 'background:#f8fafc';
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;"><span class="material-symbols-outlined" style="font-size:12px;">pending</span>INCOMPLETE</span>';
+                        quizBadge   = '<span style="font-size:11px;color:#d97706;font-weight:600;">Incomplete</span>';
+                        barColor    = 'background:#f59e0b';
+                        rowBg       = 'background:#fffbeb/40';
                         titleColor  = 'color:#1e293b';
                         metaColor   = 'color:#94a3b8';
                     }
@@ -1785,12 +1980,12 @@ document.addEventListener('keydown', function(e) {
                         titleColor  = 'color:#1e293b';
                         metaColor   = 'color:#94a3b8';
                     } else {
-                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#1a6fd4;background:#eff6ff;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;">IN PROGRESS</span>';
+                        statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:9999px;padding:3px 10px;letter-spacing:.04em;"><span class="material-symbols-outlined" style="font-size:12px;">pending</span>INCOMPLETE</span>';
                         quizBadge   = lesson.quizCompleted
                             ? '<span style="font-size:12px;font-weight:700;color:#0d326b;">' + lesson.quizScore + ' pts</span>'
-                            : '<span style="font-size:11px;color:#94a3b8;font-weight:500;">Quiz Pending</span>';
-                        barColor    = 'background:#1a6fd4';
-                        rowBg       = 'background:#f8fafc';
+                            : '<span style="font-size:11px;color:#d97706;font-weight:600;">Quiz Pending</span>';
+                        barColor    = 'background:#f59e0b';
+                        rowBg       = 'background:#fffbeb/40';
                         titleColor  = 'color:#1e293b';
                         metaColor   = 'color:#94a3b8';
                     }
@@ -1812,19 +2007,42 @@ document.addEventListener('keydown', function(e) {
                            </span>`);
 
                 const row = document.createElement('div');
-                row.style.cssText = rowBg + ';border-radius:16px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
+                row.style.cssText = rowBg + ';border-radius:16px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;cursor:' + (lesson.lesson_id && lesson.started ? 'pointer' : 'default') + ';transition:box-shadow .15s,transform .15s;';
+                if (lesson.lesson_id && lesson.started) {
+                    row.addEventListener('mouseenter', function() { this.style.boxShadow = '0 4px 20px rgba(13,50,107,.12)'; this.style.transform = 'translateY(-1px)'; });
+                    row.addEventListener('mouseleave', function() { this.style.boxShadow = ''; this.style.transform = ''; });
+                    row.addEventListener('click', function() { openLessonHistory(_currentModalStudentId, lesson.lesson_id, lesson.lessonTitle); });
+                }
+
+                // Prominent Recent Take badge
+                const dateHtml = lesson.lastAccessedRaw
+                    ? `<span style="display:inline-flex;align-items:center;gap:4.5px;font-size:11px;font-weight:700;color:#0d326b;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9999px;padding:2.5px 10px;box-shadow:0 1px 2px rgba(13,50,107,.05);">
+                           <span class="material-symbols-outlined" style="font-size:13px;color:#1a6fd4;">event_available</span>
+                           <span>Recent Take: <strong style="color:#0d326b;">${lesson.lastAccessedRaw}</strong></span>
+                           <span style="font-size:10px;font-weight:500;color:#64748b;margin-left:2px;">(${lesson.lastAccessed})</span>
+                       </span>`
+                    : '';
+
+                const clickHint = (lesson.lesson_id && lesson.started)
+                    ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#0d326b;background:#f0f6ff;border:1px solid #dbeafe;border-radius:9999px;padding:2.5px 8px;margin-left:auto;"><span class="material-symbols-outlined" style="font-size:12px;color:#1a6fd4;">history</span>View History</span>`
+                    : '';
+
                 row.innerHTML = `
                     <div style="flex:1;min-width:0;padding-right:16px;">
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
-                            <p style="font-size:13px;font-weight:700;${titleColor};line-height:1.3;margin:0;">${lesson.lessonTitle}</p>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                            <p style="font-size:13.5px;font-weight:800;${titleColor};line-height:1.3;margin:0;">${lesson.lessonTitle}</p>
                             ${creatorChip}
                         </div>
-                        <p style="font-size:11px;font-weight:500;${metaColor};margin:0 0 6px;">${lesson.is_exam ? 'Checkpoint Exam · ' : (lesson.lessonType ? lesson.lessonType + ' · ' : '')}${lesson.lastAccessed}</p>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                            <span style="font-size:11px;font-weight:600;color:#64748b;">${lesson.is_exam ? 'Checkpoint Exam' : (lesson.lessonType ? lesson.lessonType : 'Lesson')}</span>
+                            ${dateHtml}
+                            ${clickHint}
+                        </div>
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div style="width:80px;height:5px;background:#e2e8f0;border-radius:9999px;overflow:hidden;">
                                 <div style="height:100%;border-radius:9999px;${barColor};width:${lesson.stepPct}%;"></div>
                             </div>
-                            <span style="font-size:10px;font-weight:700;color:#94a3b8;">${lesson.stepPct}%</span>
+                            <span style="font-size:10px;font-weight:700;color:#64748b;">${lesson.stepPct}%</span>
                         </div>
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
@@ -1843,6 +2061,20 @@ document.addEventListener('keydown', function(e) {
         overlay.classList.remove('flex');
         document.body.style.overflow = '';
         currentReportDetailId = null;
+
+        if (_modalLoadingTimer) {
+            clearTimeout(_modalLoadingTimer);
+            _modalLoadingTimer = null;
+        }
+        const loadingEl = document.getElementById('modal-student-loading');
+        const contentEl = document.getElementById('modal-student-content');
+        if (loadingEl) {
+            loadingEl.style.display = 'block';
+            loadingEl.classList.remove('hidden', 'opacity-0');
+        }
+        if (contentEl) {
+            contentEl.classList.add('hidden', 'opacity-0');
+        }
     }
 
     document.addEventListener('keydown', function (e) {
@@ -1855,15 +2087,18 @@ document.addEventListener('keydown', function(e) {
     let _currentModalStudentId = null;
 
     function switchModalTab(tab) {
-        ['gestures', 'lessons', 'reports', 'achievements', 'learning-path'].forEach(t => {
-            document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+        ['lessons', 'learning-path', 'gestures', 'reports', 'achievements'].forEach(t => {
+            const panel = document.getElementById('tab-' + t);
+            if (panel) panel.classList.toggle('hidden', t !== tab);
             const btn = document.getElementById('tab-btn-' + t);
-            if (t === tab) {
-                btn.classList.add('border-b-2', 'border-[#0d326b]', 'text-[#0d326b]');
-                btn.classList.remove('text-slate-400');
-            } else {
-                btn.classList.remove('border-b-2', 'border-[#0d326b]', 'text-[#0d326b]');
-                btn.classList.add('text-slate-400');
+            if (btn) {
+                if (t === tab) {
+                    btn.classList.add('is-active', 'border-b-[3px]', 'border-[#0d326b]', 'text-[#0d326b]', 'bg-blue-50/80');
+                    btn.classList.remove('text-slate-400', 'bg-transparent', 'border-transparent');
+                } else {
+                    btn.classList.remove('is-active', 'border-b-[3px]', 'border-[#0d326b]', 'text-[#0d326b]', 'bg-blue-50/80');
+                    btn.classList.add('text-slate-400', 'bg-transparent', 'border-transparent');
+                }
             }
         });
 
@@ -1885,8 +2120,8 @@ document.addEventListener('keydown', function(e) {
         const data = studentReportData.find(s => String(s.student_id) === String(studentId));
         if (!data) return;
         _currentModalStudentId = data.student_id;
-        // Reset to learning-path tab (first tab)
-        switchModalTab('learning-path');
+        // Make the lesson tab the first the teacher will see
+        switchModalTab('lessons');
         // Reset reports panel
         document.getElementById('modal-reports-list').innerHTML = '';
         document.getElementById('modal-report-detail').classList.add('hidden');
@@ -2906,6 +3141,217 @@ document.addEventListener('keydown', function(e) {
         });
     });
 })();
+    // ──────────────────────────────────────────────────────────────────────
+    // LESSON HISTORY MODAL
+    // ──────────────────────────────────────────────────────────────────────
+    function openLessonHistory(studentId, lessonId, lessonTitle) {
+        const overlay = document.getElementById('lessonHistoryOverlay');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+
+        // Reset state
+        document.getElementById('lh-loading').classList.remove('hidden');
+        document.getElementById('lh-content').classList.add('hidden');
+        document.getElementById('lh-error').classList.add('hidden');
+        document.getElementById('lh-lessonTitle').textContent = lessonTitle || 'Lesson Details';
+
+        fetch(`/reports/student/${studentId}/lesson/${lessonId}/history`)
+            .then(function(r) {
+                if (!r.ok) throw new Error('Server error');
+                return r.json();
+            })
+            .then(function(data) {
+                renderLessonHistory(data);
+            })
+            .catch(function() {
+                document.getElementById('lh-loading').classList.add('hidden');
+                document.getElementById('lh-error').classList.remove('hidden');
+            });
+    }
+
+    function closeLessonHistory() {
+        const overlay = document.getElementById('lessonHistoryOverlay');
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+    }
+
+    function renderLessonHistory(data) {
+        document.getElementById('lh-loading').classList.add('hidden');
+        document.getElementById('lh-content').classList.remove('hidden');
+
+        // Header chips & information
+        document.getElementById('lh-lessonTitle').textContent = data.lesson.title;
+        document.getElementById('lh-studentName').textContent  = (data.student && data.student.name) ? data.student.name : '';
+        document.getElementById('lh-moduleText').textContent   = data.lesson.module || 'Unassigned';
+
+        const typeEl = document.getElementById('lh-typeText');
+        const typeRaw = data.lesson.lesson_type !== '—' && data.lesson.lesson_type ? data.lesson.lesson_type : (data.lesson.ai_generated ? 'AI Generated' : 'Lesson');
+        typeEl.textContent = typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1);
+
+        const diffEl = document.getElementById('lh-diffText');
+        const diffRaw = data.lesson.difficulty || 'General';
+        diffEl.textContent = diffRaw.charAt(0).toUpperCase() + diffRaw.slice(1);
+
+        // Build a flat combined list: progress sessions + quiz attempts, sorted by date descending
+        const items = [];
+
+        (data.history || []).forEach(function(h) {
+            items.push({
+                type: 'session',
+                sortKey: h.raw_date || h.last_accessed_at || '',
+                data: h,
+            });
+        });
+
+        (data.attempts || []).forEach(function(a) {
+            items.push({
+                type: 'quiz',
+                sortKey: a.raw_date || a.completed_at || a.created_at || '',
+                data: a,
+            });
+        });
+
+        // Sort descending — most recent first
+        items.sort(function(a, b) { return (b.sortKey || '').localeCompare(a.sortKey || ''); });
+
+        const countEl = document.getElementById('lh-recordsCount');
+        if (countEl) {
+            countEl.innerHTML = `<span class="material-symbols-outlined text-[13px] text-slate-400">list_alt</span><span>${items.length} ${items.length === 1 ? 'record' : 'records'}</span>`;
+        }
+
+        const listEl = document.getElementById('lh-history-list');
+        listEl.innerHTML = '';
+
+        if (items.length === 0) {
+            listEl.innerHTML = `
+                <div class="py-12 text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-300 mx-auto flex items-center justify-center mb-2 border border-slate-100">
+                        <span class="material-symbols-outlined text-[24px]">history_toggle_off</span>
+                    </div>
+                    <p class="text-[13px] font-bold text-slate-600">No activity history yet</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Records will appear as the student interacts with this lesson.</p>
+                </div>
+            `;
+            return;
+        }
+
+        items.forEach(function(item, index) {
+            const row = document.createElement('div');
+            const isRecentTake = (index === 0);
+            const recentTakeBadge = isRecentTake
+                ? '<span class="inline-flex items-center gap-1 text-[9.5px] font-black uppercase tracking-wider text-[#0d326b] bg-blue-100/90 border border-blue-300/80 px-2 py-0.5 rounded-full shadow-2xs"><span class="w-1.5 h-1.5 rounded-full bg-[#1a6fd4] animate-pulse"></span>Recent Take</span>'
+                : '';
+
+            if (item.type === 'session') {
+                const h = item.data;
+                const done = Boolean(h.lesson_completed);
+                const stepPct = h.step_pct || 0;
+
+                // Card visual tokens aligned with the Senas brand design system
+                const borderAccent = done ? 'border-l-[4px] border-l-[#0d326b]' : 'border-l-[4px] border-l-amber-400';
+                const iconBoxClass = done ? 'bg-blue-50 text-[#0d326b] border-blue-100/80' : 'bg-amber-50 text-amber-700 border-amber-200/80';
+                const iconName     = done ? 'task_alt' : 'pending_actions';
+                const progressBar  = done ? 'bg-[#0d326b]' : 'bg-amber-500';
+                const scoreColor   = done ? 'text-[#0d326b]' : 'text-amber-700';
+
+                const completionBadge = done
+                    ? '<span class="inline-flex items-center gap-1 text-[10px] font-extrabold text-[#0d326b] bg-[#dbeafe] border border-blue-200/80 px-2.5 py-0.5 rounded-full shadow-2xs"><span class="material-symbols-outlined text-[11px]">check</span>Completed</span>'
+                    : '<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/90 px-2.5 py-0.5 rounded-full shadow-2xs"><span class="material-symbols-outlined text-[11px] text-amber-600">pending</span>Incomplete</span>';
+
+                const quizBadge = h.quiz_completed
+                    ? '<span class="inline-flex items-center gap-1 text-[10px] font-bold text-[#1a6fd4] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full shadow-2xs">Quiz Done</span>'
+                    : '';
+
+                row.className = `flex items-center justify-between p-3.5 bg-white hover:bg-slate-50/80 rounded-2xl border border-slate-200/90 ${borderAccent} transition-all duration-150 gap-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.2`;
+                row.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl ${iconBoxClass} border flex items-center justify-center shrink-0 shadow-2xs">
+                        <span class="material-symbols-outlined text-[20px]">${iconName}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-[13px] font-extrabold text-[#0d326b]">Learning Session</span>
+                            ${completionBadge}
+                            ${quizBadge}
+                            ${recentTakeBadge}
+                        </div>
+                        <div class="flex items-center gap-2 mt-1 text-[11.5px] text-slate-500 flex-wrap">
+                            <span class="font-semibold text-slate-700">Step ${h.current_step}/${h.total_steps}</span>
+                            <span class="text-slate-300">·</span>
+                            <div class="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden inline-flex">
+                                <div class="h-full rounded-full ${progressBar}" style="width:${stepPct}%"></div>
+                            </div>
+                            <span class="font-bold text-slate-700">${stepPct}%</span>
+                            ${h.quiz_score !== null ? `<span class="text-slate-300">·</span><span>Quiz: <strong class="text-[#0d326b] font-bold">${h.quiz_score} pts</strong></span>` : ''}
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="text-[16px] font-black ${scoreColor} leading-tight tracking-tight">${done ? '100%' : stepPct + '%'}</div>
+                        <div class="flex items-center justify-end gap-1 text-[10.5px] font-semibold text-slate-400 mt-0.5">
+                            <span class="material-symbols-outlined text-[12px] text-slate-400">schedule</span>
+                            <span>${h.last_accessed_at || '—'}</span>
+                        </div>
+                        ${h.last_accessed_human ? `<p class="text-[9.5px] text-slate-400 font-medium mt-0.5">${h.last_accessed_human}</p>` : ''}
+                    </div>
+                `;
+            } else {
+                const a = item.data;
+                const isPassed = a.status === 'completed' || (a.percentage !== null && a.percentage >= 60);
+                const scoreDisplay = a.percentage !== null ? a.percentage + '%' : (a.score !== null ? a.score + ' pts' : '—');
+
+                // System color harmony:
+                // Passed: Primary system emerald / navy
+                // Failed: Clean rose accent
+                const borderAccent = isPassed ? 'border-l-[4px] border-l-emerald-500' : 'border-l-[4px] border-l-rose-400';
+                const iconBoxClass = isPassed ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100';
+                const scoreColor   = isPassed ? 'text-emerald-700' : 'text-rose-600';
+
+                const passBadge = isPassed
+                    ? '<span class="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full shadow-2xs"><span class="material-symbols-outlined text-[11px]">check</span>Passed</span>'
+                    : '<span class="inline-flex items-center gap-1 text-[10px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200/80 px-2.5 py-0.5 rounded-full shadow-2xs"><span class="material-symbols-outlined text-[11px]">close</span>Failed</span>';
+
+                const scorePtsStr = (a.score !== null && a.score !== undefined) ? `${a.score}/${a.total_points || 10} pts` : '';
+                const dateDisplay = a.completed_at || a.created_at || '—';
+
+                row.className = `flex items-center justify-between p-3.5 bg-white hover:bg-slate-50/80 rounded-2xl border border-slate-200/90 ${borderAccent} transition-all duration-150 gap-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.2`;
+                row.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl ${iconBoxClass} border flex items-center justify-center shrink-0 shadow-2xs">
+                        <span class="material-symbols-outlined text-[20px]">quiz</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-[13px] font-extrabold text-[#0d326b]">Quiz Attempt</span>
+                            ${passBadge}
+                            ${recentTakeBadge}
+                        </div>
+                        <div class="flex items-center gap-2 mt-1 text-[11.5px] text-slate-500 flex-wrap">
+                            ${scorePtsStr ? `<span class="font-semibold text-slate-700">Score: ${scorePtsStr}</span>` : ''}
+                            ${a.xp_earned ? `<span class="text-slate-300">·</span><span class="text-[#0d326b] font-bold">+${a.xp_earned} XP</span>` : ''}
+                            ${a.attempt_number ? `<span class="text-slate-300">·</span><span>Attempt #${a.attempt_number}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="text-[16px] font-black ${scoreColor} leading-tight tracking-tight">${scoreDisplay}</div>
+                        <div class="flex items-center justify-end gap-1 text-[10.5px] font-semibold text-slate-400 mt-0.5">
+                            <span class="material-symbols-outlined text-[12px] text-slate-400">schedule</span>
+                            <span>${dateDisplay}</span>
+                        </div>
+                        ${a.completed_at_human ? `<p class="text-[9.5px] text-slate-400 font-medium mt-0.5">${a.completed_at_human}</p>` : ''}
+                    </div>
+                `;
+            }
+
+            listEl.appendChild(row);
+        });
+    }
+
+    // Close lesson history on overlay click
+    document.getElementById('lessonHistoryOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeLessonHistory();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeLessonHistory();
+    });
+
 </script>
 
 @endsection

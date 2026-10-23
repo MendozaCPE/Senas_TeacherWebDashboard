@@ -232,6 +232,14 @@ class ReportsController extends Controller
                 ->get()
                 ->groupBy('student_id');
 
+            // Quiz attempts for lessons (to capture the true latest activity date and score)
+            $lessonQuizMap = DB::table('quizzes')->whereIn('lesson_id', $lessonIds)->pluck('lesson_id', 'quiz_id');
+            $lessonQuizAttempts = DB::table('quiz_attempts')
+                ->whereIn('student_id', $studentIds)
+                ->whereIn('quiz_id', $lessonQuizMap->keys())
+                ->get()
+                ->groupBy('student_id');
+
             $checkpointAssignments = DB::table('checkpoint_exam_assignments')
                 ->whereIn('student_id', $studentIds)
                 ->whereIn('exam_id', $checkpointExams->pluck('exam_id'))
@@ -249,28 +257,59 @@ class ReportsController extends Controller
 
             // Map over all selected active students to build the summary rows.
             $studentReports = $studentsToReport
-                ->map(function ($student) use ($groupedRows, $lessonAssignments, $lessonsToShow, $checkpointExamsToShow, $totalSteps, $gestureByStudent, $lessons, $checkpointAssignments, $checkpointAttempts) {
+                ->map(function ($student) use ($groupedRows, $lessonAssignments, $lessonQuizMap, $lessonQuizAttempts, $lessonsToShow, $checkpointExamsToShow, $totalSteps, $gestureByStudent, $lessons, $checkpointAssignments, $checkpointAttempts) {
                     $rows        = $groupedRows->get($student->student_id) ?? collect();
-                    $progressMap = $rows->keyBy(fn($r) => $r->lesson_id);
+                    // Pick the most recent progress record per lesson (sortByDesc last_accessed_at)
+                    $progressMap = $rows->groupBy('lesson_id')->map(fn($g) => $g->sortByDesc('last_accessed_at')->first());
                     $studentAssignments = $lessonAssignments->get($student->student_id) ?? collect();
                     $assignedLessonIds = $studentAssignments->pluck('lesson_id')->map(fn ($id) => (int) $id);
                     $studentLessonsToShow = $lessonsToShow
                         ->filter(fn ($lesson) => $assignedLessonIds->contains((int) $lesson->lesson_id))
                         ->values();
                     $assignmentMap = $studentAssignments->keyBy('lesson_id');
+                    $studentQuizAttempts = $lessonQuizAttempts->get($student->student_id) ?? collect();
 
                     // Build entries only for lessons assigned to this student.
-                    $lessonBreakdown = $studentLessonsToShow->map(function ($lesson) use ($progressMap, $assignmentMap, $totalSteps) {
+                    $lessonBreakdown = $studentLessonsToShow->map(function ($lesson) use ($progressMap, $assignmentMap, $studentQuizAttempts, $lessonQuizMap, $totalSteps) {
                         $row     = $progressMap->get($lesson->lesson_id);
                         $assignment = $assignmentMap->get($lesson->lesson_id);
-                        $started = $row !== null || ($assignment && $assignment->status !== 'pending');
+
+                        // Find any quiz attempts for this specific lesson
+                        $stQuizAttempts = $studentQuizAttempts->filter(fn($qa) => ($lessonQuizMap[$qa->quiz_id] ?? null) == $lesson->lesson_id);
+                        $latestQuizAttempt = $stQuizAttempts->sortByDesc(fn($qa) => $qa->completed_at ?? $qa->created_at)->first();
+                        $bestQuizAttempt   = $stQuizAttempts->sortByDesc('percentage')->first();
+
+                        $started = $row !== null || ($assignment && $assignment->status !== 'pending') || $stQuizAttempts->isNotEmpty();
                         $stepPct = ($row !== null && $totalSteps > 0)
                             ? min(100, round(($row->current_step / $totalSteps) * 100))
                             : 0;
                         $completed = ($assignment && $assignment->status === 'completed')
                             || ($row && (bool) $row->lesson_completed);
 
+                        // Calculate the absolute most recent activity date across session access and quiz attempt
+                        $lastActivityDate = null;
+                        if ($row && $row->last_accessed_at) {
+                            $lastActivityDate = Carbon::parse($row->last_accessed_at);
+                        }
+                        if ($latestQuizAttempt) {
+                            $quizDate = Carbon::parse($latestQuizAttempt->completed_at ?? $latestQuizAttempt->created_at);
+                            if (!$lastActivityDate || $quizDate->gt($lastActivityDate)) {
+                                $lastActivityDate = $quizDate;
+                            }
+                        }
+                        if (!$lastActivityDate && $assignment && $assignment->updated_at) {
+                            $lastActivityDate = Carbon::parse($assignment->updated_at);
+                        }
+
+                        $quizScore = null;
+                        if ($bestQuizAttempt && $bestQuizAttempt->percentage !== null) {
+                            $quizScore = round((float) $bestQuizAttempt->percentage, 1);
+                        } elseif ($row && $row->quiz_score !== null) {
+                            $quizScore = $row->quiz_score;
+                        }
+
                         return [
+                            'lesson_id'     => $lesson->lesson_id,
                             'lessonTitle'   => $lesson->title,
                             'difficulty'    => $lesson->difficulty ?? '—',
                             'lessonType'    => $lesson->lesson_type ?? '',
@@ -281,11 +320,10 @@ class ReportsController extends Controller
                             'started'       => $started,
                             'stepPct'       => $stepPct,
                             'completed'     => $completed,
-                            'quizCompleted' => (bool) ($row?->quiz_completed),
-                            'quizScore'     => $row?->quiz_score,
-                            'lastAccessed'  => ($row && $row->last_accessed_at)
-                                ? Carbon::parse($row->last_accessed_at)->diffForHumans()
-                                : ($assignment && $assignment->updated_at ? Carbon::parse($assignment->updated_at)->diffForHumans() : '—'),
+                            'quizCompleted' => (bool) (($row && $row->quiz_completed) || ($bestQuizAttempt && $bestQuizAttempt->percentage >= 60)),
+                            'quizScore'     => $quizScore,
+                            'lastAccessed'  => $lastActivityDate ? $lastActivityDate->diffForHumans() : '—',
+                            'lastAccessedRaw' => $lastActivityDate ? $lastActivityDate->format('M d, Y') : null,
                         ];
                     })->values();
 
@@ -2021,6 +2059,130 @@ class ReportsController extends Controller
                 'gesture_trend'=> $gestureTrend,
                 'mastery_dist' => $masteryDist,
             ],
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // LESSON HISTORY  GET /reports/student/{studentId}/lesson/{lessonId}/history
+    // ──────────────────────────────────────────────────────────────────────────
+    public function lessonHistory($studentId, $lessonId)
+    {
+        $teacher   = Auth::user()->teacher;
+        $teacherId = $teacher->id;
+
+        // Auth: lesson must belong to this teacher
+        $lesson = Lesson::where('lesson_id', $lessonId)
+            ->where('teacher_id', $teacherId)
+            ->with(['module', 'quiz'])
+            ->firstOrFail();
+
+        $student = Student::where('student_id', $studentId)
+            ->where('teacher_id', $teacherId)
+            ->firstOrFail();
+
+        // Progress records across all school years
+        $progressRows = \App\Models\StudentLessonProgress::where('student_id', $studentId)
+            ->where('lesson_id', $lessonId)
+            ->orderBy('last_accessed_at', 'desc')
+            ->get();
+
+        // Assignment records
+        $assignments = DB::table('lesson_assignments')
+            ->where('student_id', $studentId)
+            ->where('lesson_id', $lessonId)
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        // Quiz attempts — join through quizzes table which has lesson_id
+        $quiz = DB::table('quizzes')->where('lesson_id', $lessonId)->first();
+        $quizAttempts = $quiz
+            ? DB::table('quiz_attempts')
+                ->where('student_id', $studentId)
+                ->where('quiz_id', $quiz->quiz_id)
+                ->orderBy('completed_at', 'desc')
+                ->get(['attempt_id', 'score', 'total_points', 'percentage', 'xp_earned', 'attempt_number', 'status', 'completed_at', 'created_at'])
+            : collect();
+
+        $totalSteps = 7;
+
+        $history = $progressRows->map(function ($row) use ($assignments, $totalSteps) {
+            $assignment = $assignments->firstWhere('school_year_id', $row->school_year_id);
+            $stepPct    = $totalSteps > 0 ? min(100, round(($row->current_step / $totalSteps) * 100)) : 0;
+
+            return [
+                'school_year_id'   => $row->school_year_id,
+                'current_step'     => $row->current_step,
+                'total_steps'      => $totalSteps,
+                'step_pct'         => $stepPct,
+                'lesson_completed' => (bool) $row->lesson_completed,
+                'quiz_completed'   => (bool) $row->quiz_completed,
+                'quiz_score'       => $row->quiz_score,
+                'raw_date'         => $row->last_accessed_at ? Carbon::parse($row->last_accessed_at)->toIso8601String() : null,
+                'last_accessed_at' => $row->last_accessed_at
+                    ? Carbon::parse($row->last_accessed_at)->format('M d, Y h:i A')
+                    : null,
+                'last_accessed_human' => $row->last_accessed_at
+                    ? Carbon::parse($row->last_accessed_at)->diffForHumans()
+                    : '—',
+                'assignment_status'=> $assignment?->status ?? 'not_assigned',
+                'assigned_at'      => $assignment && $assignment->created_at
+                    ? Carbon::parse($assignment->created_at)->format('M d, Y')
+                    : null,
+                'completed_at'     => $assignment && $assignment->completed_at
+                    ? Carbon::parse($assignment->completed_at)->format('M d, Y h:i A')
+                    : null,
+            ];
+        })->values();
+
+        $attempts = $quizAttempts->map(function ($a) {
+            $date = $a->completed_at ?? $a->created_at;
+            return [
+                'attempt_id'     => $a->attempt_id,
+                'attempt_number' => $a->attempt_number,
+                'score'          => $a->score,
+                'total_points'   => $a->total_points,
+                'percentage'     => $a->percentage !== null ? round((float) $a->percentage, 1) : null,
+                'xp_earned'      => $a->xp_earned ?? 0,
+                'status'         => $a->status,
+                'raw_date'       => $date ? Carbon::parse($date)->toIso8601String() : null,
+                'completed_at'   => $a->completed_at
+                    ? Carbon::parse($a->completed_at)->format('M d, Y h:i A')
+                    : null,
+                'completed_at_human' => $date ? Carbon::parse($date)->diffForHumans() : '—',
+                'created_at'     => Carbon::parse($a->created_at)->format('M d, Y h:i A'),
+            ];
+        })->values();
+
+        // Best and latest summary
+        $bestAttempt   = $quizAttempts->sortByDesc('percentage')->first();
+        $latestAccess  = $progressRows->first();
+
+        return response()->json([
+            'lesson' => [
+                'lesson_id'    => $lesson->lesson_id,
+                'title'        => $lesson->title,
+                'lesson_type'  => $lesson->lesson_type ?? '—',
+                'difficulty'   => $lesson->difficulty ?? '—',
+                'ai_generated' => (bool) $lesson->ai_generated,
+                'module'       => $lesson->module?->title ?? 'Unassigned',
+                'total_steps'  => $totalSteps,
+                'has_quiz'     => $lesson->quiz !== null,
+            ],
+            'student' => [
+                'name'  => $student->first_name . ' ' . $student->last_name,
+                'grade' => $student->grade_level ?? '—',
+            ],
+            'summary' => [
+                'times_accessed'   => $progressRows->count(),
+                'best_quiz_score'  => $bestAttempt ? round((float) $bestAttempt->percentage, 1) : null,
+                'latest_access'    => $latestAccess && $latestAccess->last_accessed_at
+                    ? Carbon::parse($latestAccess->last_accessed_at)->format('M d, Y')
+                    : '—',
+                'is_completed'     => $progressRows->where('lesson_completed', 1)->isNotEmpty(),
+                'quiz_attempts'    => $quizAttempts->count(),
+            ],
+            'history'  => $history,
+            'attempts' => $attempts,
         ]);
     }
 }

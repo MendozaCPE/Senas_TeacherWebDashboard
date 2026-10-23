@@ -247,6 +247,7 @@ Route::post('/students/{id}/unenroll', [App\Http\Controllers\StudentsController:
     Route::post('/reports/help-requests/{id}/escalate', [ReportsController::class, 'escalateReport'])->name('reports.help-requests.escalate');
     Route::get('/reports/student/{studentId}/achievements', [ReportsController::class, 'studentAchievements'])->name('reports.student-achievements');
     Route::get('/reports/student/{studentId}/learning-path', [ReportsController::class, 'studentLearningPath'])->name('reports.student-learning-path');
+    Route::get('/reports/student/{studentId}/lesson/{lessonId}/history', [ReportsController::class, 'lessonHistory'])->name('reports.lesson-history');
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
