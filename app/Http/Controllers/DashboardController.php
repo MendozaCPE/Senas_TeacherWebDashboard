@@ -74,11 +74,55 @@ class DashboardController extends Controller
         $needsAttention   = collect();
         $topLesson        = null;
         $allStudents      = collect();
+        $teacherClassrooms = collect();
+        $activeClassroomId = session('active_classroom_id');
+        $activeClassroom   = null;
+        $announcementLessonsData = collect();
 
         if ($teacher) {
             $teacherId = $teacher->id;
-            $announcementStudents = Student::where('teacher_id', $teacherId)->where('is_enrolled', true)->orderBy('first_name')->get(['student_id', 'first_name', 'last_name']);
-            $announcementLessons = Lesson::where('teacher_id', $teacherId)->where('status', 'published')->orderBy('title')->get(['lesson_id', 'title']);
+            $teacherClassrooms = \App\Models\Classroom::where('teacher_id', $teacherId)
+                ->where('is_active', true)
+                ->withCount(['students' => fn($q) => $q->where('is_enrolled', true)])
+                ->orderBy('name')
+                ->get();
+            $activeClassroom = $activeClassroomId ? $teacherClassrooms->firstWhere('id', (int) $activeClassroomId) : null;
+
+            $lessonStudentCounts = DB::table('lesson_assignments')
+                ->join('students', 'students.student_id', '=', 'lesson_assignments.student_id')
+                ->where('students.teacher_id', $teacherId)
+                ->where('students.is_enrolled', true)
+                ->when($activeClassroomId, fn($q, $cId) => $q->where('students.classroom_id', $cId))
+                ->groupBy('lesson_assignments.lesson_id')
+                ->select('lesson_assignments.lesson_id', DB::raw('count(distinct lesson_assignments.student_id) as assigned_count'))
+                ->pluck('assigned_count', 'lesson_assignments.lesson_id');
+
+            $announcementStudents = Student::where('teacher_id', $teacherId)
+                ->where('is_enrolled', true)
+                ->when($activeClassroomId, fn($q, $cId) => $q->where('classroom_id', $cId))
+                ->orderBy('first_name')
+                ->get(['student_id', 'first_name', 'last_name', 'classroom_id']);
+
+            $announcementLessons = Lesson::where('teacher_id', $teacherId)
+                ->where('status', 'published')
+                ->whereNull('deleted_at')
+                ->orderBy('title')
+                ->get(['lesson_id', 'title'])
+                ->map(function ($lesson) use ($lessonStudentCounts) {
+                    $count = (int) ($lessonStudentCounts[$lesson->lesson_id] ?? 0);
+                    $lesson->assigned_students_count = $count;
+                    $lesson->has_students = ($count > 0);
+                    return $lesson;
+                });
+
+            $announcementLessonsData = $announcementLessons->map(function ($lesson) {
+                return [
+                    'lesson_id' => $lesson->lesson_id,
+                    'title' => $lesson->title,
+                    'assigned_count' => $lesson->assigned_students_count,
+                    'has_students' => $lesson->has_students,
+                ];
+            })->values();
             $announcementModules = Module::where('teacher_id', $teacherId)->where('status', 'published')->orderBy('title')->get(['module_id', 'title']);
             $announcementHistory = \App\Models\TeacherAnnouncement::where('teacher_id', $teacherId)->latest()->limit(50)->get();
             $announcementRecipients = \App\Models\StudentNotification::with('student:student_id,first_name,last_name')
@@ -563,6 +607,7 @@ class DashboardController extends Controller
             'practiceSessions', 'activeSchoolYear', 'monthlyActivity',
             'syMonthOptions', 'selectedMonthParam', 'syStartDate', 'syEndDate',
             'announcementStudents', 'announcementLessons', 'announcementModules', 'announcementHistory', 'announcementRecipients',
+            'teacherClassrooms', 'activeClassroomId', 'activeClassroom', 'announcementLessonsData',
         ));
     }
 }

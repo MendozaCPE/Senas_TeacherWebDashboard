@@ -1208,26 +1208,118 @@ document.addEventListener('keydown', function(e) {
             @endif
             <form method="POST" action="{{ route('dashboard.announcements.store') }}" class="space-y-5">
                 @csrf
+
+                <!-- Target Class Filter Banner -->
+                <div class="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/80 via-indigo-50/30 to-slate-50 p-4 shadow-2xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0d326b] text-white shadow-sm">
+                                <span class="material-symbols-outlined text-[19px]">meeting_room</span>
+                            </span>
+                            <div>
+                                <span class="block text-[10px] font-black uppercase tracking-wider text-slate-500">Filter By Class</span>
+                                <span id="announcementClassBadge" class="inline-flex items-center gap-1.5 text-xs font-black text-[#0d326b]">
+                                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                                    <span id="announcementClassNameDisplay">{{ $activeClassroom ? $activeClassroom->name : 'All Classes' }}</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="announcementClassroomSelect" class="sr-only">Select Classroom</label>
+                            <select id="announcementClassroomSelect" name="classroom_id" onchange="onAnnouncementClassroomChange(this.value)" class="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none transition focus:border-[#1a6fd4] focus:ring-2 focus:ring-blue-100 shadow-2xs">
+                                <option value="all" @selected(empty($activeClassroomId))>All Classes ({{ $totalStudents }} enrolled)</option>
+                                @foreach($teacherClassrooms as $c)
+                                    @php $cCount = $c->students_count ?? $c->students()->where('is_enrolled', true)->count(); @endphp
+                                    <option value="{{ $c->id }}" @selected((int) $activeClassroomId === (int) $c->id)>
+                                        {{ $c->name }} ({{ $cCount }} student{{ $cCount === 1 ? '' : 's' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <label for="announcementMessage" class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-600">Your message</label>
                     <textarea id="announcementMessage" name="message" rows="4" maxlength="5000" required placeholder="Hello! I want you to do this lesson..." class="w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#1a6fd4] focus:bg-white focus:ring-4 focus:ring-blue-100">{{ old('message') }}</textarea>
                 </div>
+
                 <div>
-                    <label for="announcementLesson" class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-600">Choose a lesson</label>
-                    <select id="announcementLesson" name="lesson_id" required class="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#1a6fd4] focus:ring-4 focus:ring-blue-100">
-                        <option value="">Select one of your lessons</option>
-                        @foreach($announcementLessons as $lesson)
-                            <option value="{{ $lesson->lesson_id }}" @selected(old('lesson_id') == $lesson->lesson_id)>{{ $lesson->title }}</option>
-                        @endforeach
-                    </select>
-                    @if($announcementLessons->isEmpty())<p class="mt-2 text-xs font-semibold text-slate-400">You need a published lesson before you can send a lesson announcement.</p>@endif
+                    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <label class="block text-xs font-black uppercase tracking-wider text-slate-700">Choose Lessons</label>
+                            <p class="text-[11px] font-medium text-slate-400">Select one or more lessons to announce to your students.</p>
+                        </div>
+                        
+                        <!-- Filter Tabs for Highlighting Lessons -->
+                        <div class="inline-flex rounded-xl bg-slate-100 p-0.5 text-[11px] font-black">
+                            <button type="button" id="tabHighlightAll" onclick="filterAnnouncementLessons('all')" class="rounded-lg px-2.5 py-1 transition bg-white text-[#0d326b] shadow-2xs font-black">
+                                All (<span id="countHighlightAll">{{ $announcementLessons->count() }}</span>)
+                            </button>
+                            <button type="button" id="tabHighlightWith" onclick="filterAnnouncementLessons('with_students')" class="rounded-lg px-2.5 py-1 text-slate-600 hover:text-emerald-700 transition flex items-center gap-1.5 font-black">
+                                <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                                With Students (<span id="countHighlightWith">{{ $announcementLessons->where('has_students', true)->count() }}</span>)
+                            </button>
+                            <button type="button" id="tabHighlightWithout" onclick="filterAnnouncementLessons('without_students')" class="rounded-lg px-2.5 py-1 text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 font-black">
+                                <span class="inline-block h-2 w-2 rounded-full bg-slate-300"></span>
+                                No Students (<span id="countHighlightWithout">{{ $announcementLessons->where('has_students', false)->count() }}</span>)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Lesson Checkbox Container -->
+                    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                        <div class="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+                            <span class="text-xs font-bold text-slate-600">
+                                <span id="selectedLessonsCount" class="font-black text-[#0d326b]">0</span> lessons selected
+                            </span>
+                            <button type="button" id="btnClearLessonSelection" onclick="clearSelectedLessons()" class="text-[11px] font-bold text-slate-400 hover:text-rose-600 transition hidden">
+                                Clear selection
+                            </button>
+                        </div>
+
+                        <div id="announcementLessonList" class="max-h-52 divide-y divide-slate-100 overflow-y-auto p-2" aria-live="polite">
+                            @foreach($announcementLessons as $lesson)
+                                <label data-lesson-id="{{ $lesson->lesson_id }}"
+                                       data-has-students="{{ $lesson->has_students ? '1' : '0' }}"
+                                       class="announcement-lesson-item flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition hover:bg-slate-50">
+                                    <div class="flex items-center gap-3 min-w-0 pr-2">
+                                        <input type="checkbox"
+                                               name="lesson_ids[]"
+                                               value="{{ $lesson->lesson_id }}"
+                                               class="announcement-lesson-checkbox h-4 w-4 rounded border-slate-300 accent-[#0d326b]"
+                                               onchange="onLessonCheckboxChange()">
+                                        <span class="text-sm font-semibold text-slate-800 truncate">{{ $lesson->title }}</span>
+                                    </div>
+                                    @if($lesson->has_students)
+                                        <span class="lesson-count-badge shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200/60">
+                                            {{ $lesson->assigned_students_count }} student{{ $lesson->assigned_students_count === 1 ? '' : 's' }}
+                                        </span>
+                                    @else
+                                        <span class="lesson-count-badge shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-400">
+                                            0 students
+                                        </span>
+                                    @endif
+                                </label>
+                            @endforeach
+                            @if($announcementLessons->isEmpty())
+                                <p class="py-6 text-center text-xs font-semibold text-slate-400">You need a published lesson before you can send a lesson announcement.</p>
+                            @endif
+                        </div>
+                    </div>
                 </div>
+
                 <div class="overflow-hidden rounded-2xl border border-slate-200">
                     <div class="flex items-center justify-between gap-3 bg-slate-50 px-4 py-3">
-                        <div><p class="text-xs font-black uppercase tracking-wider text-slate-700">Assigned students</p><p class="mt-1 text-[11px] font-medium text-slate-400">Choose one, several, or everyone assigned to this lesson.</p></div>
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-wider text-slate-700">Assigned students</p>
+                            <p class="mt-1 text-[11px] font-medium text-slate-400">Choose one, several, or everyone assigned to the selected lesson(s) in this class.</p>
+                        </div>
                         <label class="flex shrink-0 items-center gap-2 text-xs font-black text-[#0d326b]"><input id="announcementSelectAll" type="checkbox" class="h-4 w-4 rounded border-slate-300 accent-[#0d326b]">Select all</label>
                     </div>
-                    <div id="announcementStudentList" class="max-h-52 space-y-1 overflow-y-auto p-3" aria-live="polite"><p class="py-6 text-center text-xs font-semibold text-slate-400">Choose a lesson to load its assigned students.</p></div>
+                    <div id="announcementStudentList" class="max-h-52 space-y-1 overflow-y-auto p-3" aria-live="polite">
+                        <p class="py-6 text-center text-xs font-semibold text-slate-400">Select one or more lessons above to load assigned students.</p>
+                    </div>
                 </div>
                 <div class="flex items-center justify-between rounded-2xl bg-blue-50 px-4 py-3">
                     <span class="flex items-center gap-2 text-xs font-bold text-[#0d326b]"><span class="material-symbols-outlined text-[18px]">group</span>Selected recipients</span>
@@ -1247,12 +1339,18 @@ document.addEventListener('keydown', function(e) {
                 <div class="space-y-3">
                     @foreach($announcementHistory as $announcement)
                         @php
-                            $audienceLabel = $announcement->lesson_id
-                                ? (optional($announcementLessons->firstWhere('lesson_id', $announcement->lesson_id))->title ?? 'Lesson')
-                                : ($announcement->module_id
-                                    ? (optional($announcementModules->firstWhere('module_id', $announcement->module_id))->title ?? 'Module')
-                                    : 'Class');
-                            $audienceTypeLabel = $announcement->lesson_id ? 'Lesson' : ($announcement->module_id ? 'Module' : 'Class');
+                            $histLessonIds = $announcement->lesson_ids ?? ($announcement->lesson_id ? [$announcement->lesson_id] : []);
+                            if (!empty($histLessonIds)) {
+                                $matchedTitles = $announcementLessons->whereIn('lesson_id', $histLessonIds)->pluck('title');
+                                $audienceLabel = $matchedTitles->isNotEmpty() ? $matchedTitles->join(', ') : 'Lesson';
+                                $audienceTypeLabel = count($histLessonIds) > 1 ? count($histLessonIds) . ' Lessons' : 'Lesson';
+                            } elseif ($announcement->module_id) {
+                                $audienceLabel = optional($announcementModules->firstWhere('module_id', $announcement->module_id))->title ?? 'Module';
+                                $audienceTypeLabel = 'Module';
+                            } else {
+                                $audienceLabel = 'Class';
+                                $audienceTypeLabel = 'Class';
+                            }
                         @endphp
                         <article class="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
                             <div class="flex items-start justify-between gap-3">
@@ -1272,58 +1370,198 @@ document.addEventListener('keydown', function(e) {
 </div>
 
 <script>
-const announcementStudentEndpoint = @json(url('/dashboard/announcements/lessons'));
+const announcementStudentEndpoint = @json(url('/dashboard/announcements/lessons/students'));
+const announcementStatsEndpoint = @json(url('/dashboard/announcements/lessons/stats'));
 const announcementOldStudentIds = @json(array_map('intval', old('student_ids', [])));
+const announcementOldLessonIds = @json(array_map('intval', old('lesson_ids', [])));
 let announcementInitialStudentIds = announcementOldStudentIds;
 let announcementLoadSequence = 0;
-async function loadAnnouncementStudents(lessonId) {
+let currentHighlightFilter = 'all';
+let announcementLessonsData = @json($announcementLessonsData);
+
+function getSelectedClassroomName() {
+    const sel = document.getElementById('announcementClassroomSelect');
+    if (!sel || !sel.options[sel.selectedIndex]) return 'Current Class';
+    return sel.options[sel.selectedIndex].text.split('(')[0].trim();
+}
+
+function getSelectedLessonIds() {
+    return Array.from(document.querySelectorAll('.announcement-lesson-checkbox:checked')).map(cb => cb.value);
+}
+
+function onLessonCheckboxChange() {
+    const selected = getSelectedLessonIds();
+    document.getElementById('selectedLessonsCount').textContent = selected.length;
+    document.getElementById('btnClearLessonSelection').classList.toggle('hidden', selected.length === 0);
+
+    announcementInitialStudentIds = [];
+    loadAnnouncementStudents(selected);
+}
+
+function clearSelectedLessons() {
+    document.querySelectorAll('.announcement-lesson-checkbox').forEach(cb => { cb.checked = false; });
+    onLessonCheckboxChange();
+}
+
+function filterAnnouncementLessons(filterType) {
+    currentHighlightFilter = filterType;
+    const tabAll = document.getElementById('tabHighlightAll');
+    const tabWith = document.getElementById('tabHighlightWith');
+    const tabWithout = document.getElementById('tabHighlightWithout');
+
+    if (tabAll) tabAll.className = 'rounded-lg px-2.5 py-1 transition ' + (filterType === 'all' ? 'bg-white text-[#0d326b] shadow-2xs font-black' : 'text-slate-600 hover:text-[#0d326b]');
+    if (tabWith) tabWith.className = 'rounded-lg px-2.5 py-1 transition flex items-center gap-1.5 font-black ' + (filterType === 'with_students' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-emerald-700');
+    if (tabWithout) tabWithout.className = 'rounded-lg px-2.5 py-1 transition flex items-center gap-1.5 font-black ' + (filterType === 'without_students' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800');
+
+    document.querySelectorAll('.announcement-lesson-item').forEach(item => {
+        const hasStudents = item.getAttribute('data-has-students') === '1';
+        if (filterType === 'all') {
+            item.style.display = '';
+        } else if (filterType === 'with_students') {
+            item.style.display = hasStudents ? '' : 'none';
+        } else if (filterType === 'without_students') {
+            item.style.display = !hasStudents ? '' : 'none';
+        }
+    });
+}
+
+async function onAnnouncementClassroomChange(classId) {
+    const className = getSelectedClassroomName();
+    const nameDisplay = document.getElementById('announcementClassNameDisplay');
+    if (nameDisplay) nameDisplay.textContent = className;
+
+    try {
+        const res = await fetch(`${announcementStatsEndpoint}?classroom_id=${encodeURIComponent(classId)}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!res.ok) throw new Error('Could not fetch lesson stats.');
+        const data = await res.json();
+        announcementLessonsData = data.lessons || [];
+
+        let withCount = 0;
+        let withoutCount = 0;
+
+        announcementLessonsData.forEach(l => {
+            if (l.has_students) withCount++; else withoutCount++;
+            const item = document.querySelector(`.announcement-lesson-item[data-lesson-id="${l.lesson_id}"]`);
+            if (item) {
+                item.setAttribute('data-has-students', l.has_students ? '1' : '0');
+                const badge = item.querySelector('.lesson-count-badge');
+                if (badge) {
+                    if (l.has_students) {
+                        badge.className = 'lesson-count-badge shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200/60';
+                        badge.textContent = `${l.assigned_count} student${l.assigned_count === 1 ? '' : 's'}`;
+                    } else {
+                        badge.className = 'lesson-count-badge shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-400';
+                        badge.textContent = '0 students';
+                    }
+                }
+            }
+        });
+
+        const countAll = document.getElementById('countHighlightAll');
+        const countWith = document.getElementById('countHighlightWith');
+        const countWithout = document.getElementById('countHighlightWithout');
+        if (countAll) countAll.textContent = announcementLessonsData.length;
+        if (countWith) countWith.textContent = withCount;
+        if (countWithout) countWithout.textContent = withoutCount;
+
+        filterAnnouncementLessons(currentHighlightFilter);
+
+        // Reload students for currently checked lessons
+        const selectedLessons = getSelectedLessonIds();
+        loadAnnouncementStudents(selectedLessons);
+    } catch (e) {
+        console.error('Error fetching lesson stats:', e);
+    }
+}
+
+async function loadAnnouncementStudents(lessonIds) {
     const sequence = ++announcementLoadSequence;
     const list = document.getElementById('announcementStudentList');
     const selectAll = document.getElementById('announcementSelectAll');
     list.innerHTML = '';
     selectAll.checked = false;
-    if (!lessonId) { list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-slate-400">Choose a lesson to load its assigned students.</p>'; updateAnnouncementRecipientCount(); return; }
-    list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-slate-400">Loading assigned students…</p>';
+
+    if (!lessonIds || !lessonIds.length) {
+        list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-slate-400">Select one or more lessons above to load assigned students.</p>';
+        updateAnnouncementRecipientCount();
+        return;
+    }
+
+    const classId = document.getElementById('announcementClassroomSelect')?.value || '';
+    const className = getSelectedClassroomName();
+    list.innerHTML = `<p class="py-6 text-center text-xs font-semibold text-slate-400">Loading assigned students in ${className}…</p>`;
+
     try {
-        const response = await fetch(`${announcementStudentEndpoint}/${encodeURIComponent(lessonId)}/students`, { headers: { 'Accept': 'application/json' } });
+        const url = `${announcementStudentEndpoint}?lesson_ids=${encodeURIComponent(lessonIds.join(','))}&classroom_id=${encodeURIComponent(classId)}`;
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
         if (sequence !== announcementLoadSequence) return;
         if (!response.ok) throw new Error('Unable to load assigned students.');
         const payload = await response.json();
         list.innerHTML = '';
         if (!payload.students.length) {
-            list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-slate-400">No enrolled students are assigned to this lesson.</p>';
+            list.innerHTML = `<div class="py-6 text-center text-xs font-semibold text-slate-400">No enrolled students in <span class="font-bold text-slate-600">${className}</span> are assigned to the selected lesson(s).</div>`;
             announcementInitialStudentIds = [];
-            updateAnnouncementRecipientCount(); return;
+            updateAnnouncementRecipientCount();
+            return;
         }
+
         payload.students.forEach(student => {
             const label = document.createElement('label');
-            label.className = 'flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-blue-50';
+            label.className = 'flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition hover:bg-blue-50 border border-transparent hover:border-blue-100';
+
+            const left = document.createElement('div');
+            left.className = 'flex items-center gap-3 min-w-0 pr-2';
+
             const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox'; checkbox.name = 'student_ids[]'; checkbox.value = student.student_id;
+            checkbox.type = 'checkbox';
+            checkbox.name = 'student_ids[]';
+            checkbox.value = student.student_id;
             checkbox.className = 'announcement-student-checkbox h-4 w-4 rounded border-slate-300 accent-[#0d326b]';
-            checkbox.checked = announcementInitialStudentIds.map(String).includes(String(student.student_id));
-            checkbox.addEventListener('change', () => { announcementInitialStudentIds = []; syncAnnouncementSelectAll(); updateAnnouncementRecipientCount(); });
-            const name = document.createElement('span'); name.className = 'text-sm font-semibold text-slate-700'; name.textContent = `${student.first_name} ${student.last_name}`;
-            label.append(checkbox, name); list.appendChild(label);
+            checkbox.checked = announcementInitialStudentIds.length === 0 || announcementInitialStudentIds.map(String).includes(String(student.student_id));
+            checkbox.addEventListener('change', () => {
+                announcementInitialStudentIds = [];
+                syncAnnouncementSelectAll();
+                updateAnnouncementRecipientCount();
+            });
+
+            const name = document.createElement('span');
+            name.className = 'text-sm font-semibold text-slate-800 truncate';
+            name.textContent = `${student.first_name} ${student.last_name}`;
+
+            left.append(checkbox, name);
+
+            const badge = document.createElement('span');
+            badge.className = 'rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-500 shrink-0';
+            badge.textContent = student.classroom_name || 'Enrolled';
+
+            label.append(left, badge);
+            list.appendChild(label);
         });
+
         announcementInitialStudentIds = [];
-        syncAnnouncementSelectAll(); updateAnnouncementRecipientCount();
+        syncAnnouncementSelectAll();
+        updateAnnouncementRecipientCount();
     } catch (error) {
         if (sequence !== announcementLoadSequence) return;
-        list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-rose-600">Could not load students. Please try choosing the lesson again.</p>';
+        list.innerHTML = '<p class="py-6 text-center text-xs font-semibold text-rose-600">Could not load students. Please try again.</p>';
         updateAnnouncementRecipientCount();
     }
 }
+
 function updateAnnouncementRecipientCount() {
     const count = document.querySelectorAll('.announcement-student-checkbox:checked').length;
     document.getElementById('announcementRecipientCount').textContent = `${count} student${count === 1 ? '' : 's'}`;
 }
+
 function syncAnnouncementSelectAll() {
     const boxes = Array.from(document.querySelectorAll('.announcement-student-checkbox'));
     const selectAll = document.getElementById('announcementSelectAll');
     selectAll.checked = boxes.length > 0 && boxes.every(box => box.checked);
     selectAll.indeterminate = boxes.some(box => box.checked) && !selectAll.checked;
 }
+
 function showAnnouncementPanel(panel) {
     const history = panel === 'history';
     document.getElementById('announcementComposePanel').classList.toggle('hidden', history);
@@ -1331,22 +1569,51 @@ function showAnnouncementPanel(panel) {
     document.getElementById('announcementComposeTab').className = `rounded-t-xl border-b-2 px-4 py-2.5 text-xs font-black uppercase tracking-wider ${history ? 'border-transparent text-slate-400' : 'border-[#0d326b] text-[#0d326b]'}`;
     document.getElementById('announcementHistoryTab').className = `rounded-t-xl border-b-2 px-4 py-2.5 text-xs font-black uppercase tracking-wider ${history ? 'border-[#0d326b] text-[#0d326b]' : 'border-transparent text-slate-400'}`;
 }
+
 function openAnnouncementModal(panel = 'compose') {
-    const modal = document.getElementById('announcementModal'); modal.classList.remove('hidden'); modal.classList.add('flex');
-    document.body.style.overflow = 'hidden'; showAnnouncementPanel(panel);
-    const selectedLesson = document.getElementById('announcementLesson').value;
-    if (selectedLesson) loadAnnouncementStudents(selectedLesson);
+    const modal = document.getElementById('announcementModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    showAnnouncementPanel(panel);
+
+    const selectedLessons = getSelectedLessonIds();
+    document.getElementById('selectedLessonsCount').textContent = selectedLessons.length;
+    document.getElementById('btnClearLessonSelection').classList.toggle('hidden', selectedLessons.length === 0);
+    if (selectedLessons.length > 0) {
+        loadAnnouncementStudents(selectedLessons);
+    }
 }
+
 function closeAnnouncementModal() {
-    const modal = document.getElementById('announcementModal'); modal.classList.add('hidden'); modal.classList.remove('flex'); document.body.style.overflow = '';
+    const modal = document.getElementById('announcementModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
 }
-document.getElementById('announcementLesson').addEventListener('change', event => { announcementInitialStudentIds = []; loadAnnouncementStudents(event.target.value); });
+
 document.getElementById('announcementSelectAll').addEventListener('change', event => {
     document.querySelectorAll('.announcement-student-checkbox').forEach(box => { box.checked = event.target.checked; });
-    announcementInitialStudentIds = []; syncAnnouncementSelectAll(); updateAnnouncementRecipientCount();
+    announcementInitialStudentIds = [];
+    syncAnnouncementSelectAll();
+    updateAnnouncementRecipientCount();
 });
+
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnnouncementModal(); });
-@if(session('announcement_success') || $errors->has('message') || $errors->has('lesson_id') || $errors->has('student_ids')) openAnnouncementModal('{{ session('announcement_success') ? 'history' : 'compose' }}'); @endif
+
+// Check pre-selected lesson IDs from old input
+if (announcementOldLessonIds.length > 0) {
+    document.querySelectorAll('.announcement-lesson-checkbox').forEach(cb => {
+        if (announcementOldLessonIds.map(String).includes(String(cb.value))) {
+            cb.checked = true;
+        }
+    });
+    const selected = getSelectedLessonIds();
+    document.getElementById('selectedLessonsCount').textContent = selected.length;
+    document.getElementById('btnClearLessonSelection').classList.toggle('hidden', selected.length === 0);
+}
+
+@if(session('announcement_success') || $errors->has('message') || $errors->has('lesson_id') || $errors->has('lesson_ids') || $errors->has('student_ids')) openAnnouncementModal('{{ session('announcement_success') ? 'history' : 'compose' }}'); @endif
 </script>
 
 @endsection
