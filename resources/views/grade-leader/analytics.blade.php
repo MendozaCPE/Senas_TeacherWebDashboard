@@ -264,16 +264,16 @@ $classInsight = $topClass
             <p class="text-[12px] text-white/70 font-medium">{{ $periodDescription }} average</p>
         </div>
 
-        {{-- Quiz Pass Rate --}}
+        {{-- Lessons Completed --}}
         <div class="stat-kpi-card bg-white">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Quiz Pass Rate</span>
-                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
-                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Lessons Completed</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#1a6fd4] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ $quizPassRate }}%</p>
-            <p class="text-[12px] text-[#1a6fd4] font-medium">scored ≥ 75%</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($totalLessonsCompleted) }}</p>
+            <p class="text-[12px] text-slate-400 font-medium">{{ $publishedLessons }} published lesson{{ $publishedLessons === 1 ? '' : 's' }}</p>
         </div>
 
         {{-- Enrolled Students --}}

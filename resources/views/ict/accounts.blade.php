@@ -187,7 +187,7 @@
                                      onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($account->name) }}&background=0d326b&color=fff&size=64&bold=true&rounded=true'">
                                 <div class="min-w-0">
                                     <p class="font-bold text-slate-800 truncate">{{ $account->name }}</p>
-                                    <p class="text-[11px] text-slate-400">@{{ $account->username }}</p>
+                                    <p class="text-[11px] text-slate-400">{{ '@' . $account->username }}</p>
                                 </div>
                             </div>
                         </td>

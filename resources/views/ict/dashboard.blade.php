@@ -115,16 +115,16 @@ $sLine = $bezier($sPts, $bot); $sArea = $bezier($sPts, $bot, true);
             <p class="text-[12px] text-[#1a6fd4] font-medium">leader accounts</p>
         </div>
 
-        {{-- Active Users this week --}}
-        <div class="font-sans" style="border-radius:24px;padding:22px 24px;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #e2e8f0;background:#ffffff">
+        {{-- Total Students --}}
+        <div style="border-radius:24px;padding:22px 24px;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;border:1px solid #f1f5f9;background:#fff">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-black">Active This Week</span>
-                <div class="w-10 h-10 rounded-xl bg-slate-100 text-black flex items-center justify-center">
-                    <span class="material-symbols-outlined text-[20px]">bolt</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Students</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0d326b] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">group</span>
                 </div>
             </div>
-            <p class="text-[36px] font-black leading-none mb-1 text-black tracking-tight">{{ $activeTeachers + $activeStudents }}</p>
-            <p class="text-[12px] text-black font-medium">{{ $activeTeachers }} faculty &bull; {{ $activeStudents }} students</p>
+            <p class="text-[36px] font-black leading-none mb-1 text-[#0d326b] tracking-tight">{{ number_format($totalStudents) }}</p>
+            <p class="text-[12px] text-[#1a6fd4] font-medium">{{ $activeStudents }} active this week</p>
         </div>
 
         {{-- System Adoption Rate --}}

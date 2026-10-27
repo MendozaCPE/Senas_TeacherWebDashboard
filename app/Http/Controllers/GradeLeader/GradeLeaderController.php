@@ -844,6 +844,40 @@ class GradeLeaderController extends Controller
 
         $completionRate = 0; // not used in new analytics layout
 
+        // ── Lessons Completed (school-scoped, within the selected period) ───────
+        $slpQuery = StudentLessonProgress::whereIn('student_id', $studentIds)
+            ->where('lesson_completed', 1)
+            ->when($selectedSchoolYear?->id, fn ($q) => $q->where('school_year_id', $selectedSchoolYear->id));
+
+        if ($selectedMonth && $selectedMonth !== 'all') {
+            $slpQuery->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('last_accessed_at', [$startDate, $endDate])
+                    ->orWhereBetween('updated_at', [$startDate, $endDate]);
+            });
+        }
+        $completedProgressCount = $slpQuery->count();
+
+        $laQuery = DB::table('lesson_assignments')
+            ->whereIn('student_id', $studentIds)
+            ->where('status', 'completed')
+            ->when($selectedSchoolYear?->id, fn ($q) => $q->where('school_year_id', $selectedSchoolYear->id));
+
+        if ($selectedMonth && $selectedMonth !== 'all') {
+            $laQuery->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('completed_at', [$startDate, $endDate])
+                    ->orWhereBetween('updated_at', [$startDate, $endDate]);
+            });
+        }
+        $completedAssignmentsCount = $laQuery->count();
+
+        $totalLessonsCompleted = max($completedProgressCount, $completedAssignmentsCount);
+
+        // Published lessons from teachers in this school (undeleted).
+        $publishedLessons = Lesson::whereIn('teacher_id', $teacherIds)
+            ->where('status', 'published')
+            ->whereNull('deleted_at')
+            ->count();
+
         $activityStudentIds = StudentLessonProgress::whereIn('student_id', $studentIds)
             ->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('last_accessed_at', [$startDate, $endDate])
@@ -1012,6 +1046,7 @@ class GradeLeaderController extends Controller
             'availableSchoolYears', 'selectedSchoolYear', 'selectedSchoolYearName', 'activeSchoolYear', 'selectedMonth', 'monthOptions',
             'startDate', 'endDate',
             'avgQuizScore', 'quizPassRate', 'completionRate', 'activeStudentsCount', 'totalStudents',
+            'totalLessonsCompleted', 'publishedLessons',
             'classPerformance',
             'enrollmentBySY', 'allDepEdSYs', 'currentDepEdSY', 'programTypes',
             'activeInactivePie', 'fslMasteryDonut'

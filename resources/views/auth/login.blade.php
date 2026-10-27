@@ -175,7 +175,7 @@
             @if(!config('services.auth.developer_mode'))
             <div class="mb-5 bg-blue-50 border border-blue-200 text-blue-700 rounded-2xl px-5 py-4 text-sm flex items-center gap-2.5">
                 <span class="material-symbols-outlined text-[20px] shrink-0" style="font-variation-settings:'FILL' 1;">shield</span>
-                <span>Access restricted to <strong>@{{ config('services.auth.allowed_email_domain') }}</strong> accounts only.</span>
+                <span>Access restricted to <strong>{{ '@' . config('services.auth.allowed_email_domain') }}</strong> accounts only.</span>
             </div>
             @endif
 
@@ -208,13 +208,8 @@
                     </div>
                 </div>
 
-                {{-- Remember + Forgot --}}
-                <div class="flex items-center justify-between pt-1">
-                    <label class="flex items-center gap-2.5 cursor-pointer select-none">
-                        <input type="checkbox" name="remember"
-                               class="w-4 h-4 rounded accent-blue-600 cursor-pointer">
-                        <span class="text-sm text-gray-500">Remember Me</span>
-                    </label>
+                {{-- Forgot Password --}}
+                <div class="flex items-center justify-end pt-1">
                     <a href="{{ route('password.request') }}"
                        class="text-sm text-[#2979ff] hover:text-[#0d326b] font-semibold transition-colors">
                         Forgot password?

@@ -163,7 +163,7 @@
             @if(!config('services.auth.developer_mode'))
             <div class="mb-5 bg-blue-50 border border-blue-200 text-blue-700 rounded-2xl px-5 py-4 text-sm flex items-center gap-2.5">
                 <span class="material-symbols-outlined text-[20px] shrink-0" style="font-variation-settings:'FILL' 1;">shield</span>
-                <span>Registration restricted to <strong>@{{ config('services.auth.allowed_email_domain') }}</strong> accounts only.</span>
+                <span>Registration restricted to <strong>{{ '@' . config('services.auth.allowed_email_domain') }}</strong> accounts only.</span>
             </div>
             @endif
 
