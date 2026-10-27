@@ -33,6 +33,8 @@ use App\Models\HelpRequest;
 use App\Models\StudentRating;
 use App\Models\TeacherNotification;
 use App\Models\GestureHintUsage;
+use App\Models\Classroom;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -2770,6 +2772,58 @@ public function getAttempts(Request $request, $lessonId)
 /**
  * Get leaderboard for a specific lesson
  */
+    /**
+     * Resolve the classroom and list of student IDs in the same class as the given student.
+     */
+    protected function getSameClassStudentScope(Student $student, ?string $requestedSy = null): array
+    {
+        $syInfo = $this->resolveStudentSchoolYear($student, $requestedSy);
+        $syId = $syInfo['school_year_id'] ?? null;
+
+        $targetEnrollment = null;
+        if ($syId && Schema::hasTable('student_year_enrollments')) {
+            $targetEnrollment = StudentYearEnrollment::where('student_id', $student->student_id)
+                ->where('school_year_id', $syId)
+                ->first();
+        }
+
+        $classroomId = $targetEnrollment?->classroom_id ?? $student->classroom_id;
+        $classroom = $classroomId ? Classroom::find($classroomId) : ($student->classroom ?? null);
+
+        $classStudentIds = [];
+        if ($classroomId) {
+            $classStudentIds = Student::where('classroom_id', $classroomId)->pluck('student_id')->toArray();
+            if (Schema::hasTable('student_year_enrollments')) {
+                $enrQuery = StudentYearEnrollment::where('classroom_id', $classroomId);
+                if ($syId) {
+                    $enrQuery->where('school_year_id', $syId);
+                }
+                $enrIds = $enrQuery->pluck('student_id')->toArray();
+                $classStudentIds = array_unique(array_merge($classStudentIds, $enrIds));
+            }
+        } elseif (!empty($student->section) && !empty($student->teacher_id)) {
+            $classStudentIds = Student::where('teacher_id', $student->teacher_id)
+                ->where('section', $student->section)
+                ->pluck('student_id')
+                ->toArray();
+        } elseif (!empty($student->teacher_id)) {
+            $classStudentIds = Student::where('teacher_id', $student->teacher_id)
+                ->pluck('student_id')
+                ->toArray();
+        }
+
+        $classStudentIds = array_values(array_unique(array_merge($classStudentIds, [$student->student_id])));
+
+        return [
+            'student_ids'    => $classStudentIds,
+            'classroom_id'   => $classroomId,
+            'classroom'      => $classroom,
+            'classroom_name' => $classroom?->name ?? ($student->section ? "Section {$student->section}" : null),
+            'school_year'    => $syInfo['school_year_name'] ?? null,
+            'school_year_id' => $syId,
+        ];
+    }
+
 public function getLessonLeaderboard(Request $request, $lessonId)
 {
     try {
@@ -2795,13 +2849,18 @@ public function getLessonLeaderboard(Request $request, $lessonId)
             return response()->json(['error' => 'No quiz found for this lesson'], 404);
         }
 
-        // Get all quiz attempts for this lesson across all students
+        // Resolve students in the same class/classroom
+        $classScope = $this->getSameClassStudentScope($student, $request->query('school_year'));
+        $classStudentIds = $classScope['student_ids'];
+
+        // Get quiz attempts for this lesson across students in the same class
         // We need to find the attempt number for each student's best score
         $rankings = DB::table('quiz_attempts as qa')
             ->join('students as s', 'qa.student_id', '=', 's.student_id')
             ->join('users as u', 's.user_id', '=', 'u.id')
             ->where('qa.quiz_id', $quiz->quiz_id)
             ->where('qa.status', 'completed')
+            ->whereIn('s.student_id', $classStudentIds)
             ->select(
                 's.student_id',
                 's.first_name',
@@ -2878,6 +2937,9 @@ public function getLessonLeaderboard(Request $request, $lessonId)
             'success' => true,
             'rankings' => $rankedList,
             'user_rank' => $userRank,
+            'classroom_id' => $classScope['classroom_id'],
+            'classroom_name' => $classScope['classroom_name'],
+            'school_year' => $classScope['school_year'],
         ]);
 
     } catch (\Exception $e) {
@@ -6306,11 +6368,16 @@ public function getCheckpointExamLeaderboard(Request $request, $examId)
             return response()->json(['error' => 'Checkpoint exam not found'], 404);
         }
 
+        // Resolve students in the same class/classroom
+        $classScope = $this->getSameClassStudentScope($student, $request->query('school_year'));
+        $classStudentIds = $classScope['student_ids'];
+
         $rankings = DB::table('checkpoint_exam_attempts as cea')
             ->join('students as s', 'cea.student_id', '=', 's.student_id')
             ->join('users as u', 's.user_id', '=', 'u.id')
             ->where('cea.exam_id', $examId)
             ->where('cea.status', 'completed')
+            ->whereIn('s.student_id', $classStudentIds)
             ->select(
                 's.student_id',
                 's.first_name',
@@ -6380,6 +6447,9 @@ public function getCheckpointExamLeaderboard(Request $request, $examId)
             'success' => true,
             'rankings' => $rankedList,
             'user_rank' => $userRank,
+            'classroom_id' => $classScope['classroom_id'],
+            'classroom_name' => $classScope['classroom_name'],
+            'school_year' => $classScope['school_year'],
         ]);
 
     } catch (\Exception $e) {
